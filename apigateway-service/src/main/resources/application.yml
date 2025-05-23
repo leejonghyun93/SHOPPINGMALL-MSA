@@ -1,0 +1,98 @@
+server:
+  port: 8080
+
+eureka:
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${spring.application.instance_id:${server.port}}
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+    service-url:
+      defaultZone: http://localhost:8761/eureka
+
+spring:
+  application:
+    name: apigateway-service
+  cloud:
+    gateway:
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins: "*"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+            allowedHeaders: "*"
+      default-filters:
+        - name: GlobalFilter
+          args:
+            baseMessage: Spring Cloud Gateway Global Filter
+            preLogger: true
+            postLogger: true
+      routes:
+
+        - id: check-userid
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/checkUserid
+          filters:
+            - RewritePath=/checkUserid, /api/users/checkUserid
+
+        - id: user-service-root
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/api/users
+          filters:
+            - RewritePath=/api/users, /api/users
+        - id: user-checkUserid-public
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/api/users/checkUserid
+          filters:
+            - RewritePath=/api/users/checkUserid, /api/users/checkUserid
+
+        - id: user-service-register
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/user-service/users
+            - Method=POST
+          filters:
+            - RemoveRequestHeader=Cookie
+            - RewritePath=/user-service/(?<segment>.*), /${segment}
+        - id: user-service
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/api/users/**
+          filters:
+            - JwtAuthorizationFilter
+            - RewritePath=/api/users/(?<segment>.*), /api/users/${segment}
+        - id: user-service-get
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/user-service/**
+            - Method=GET
+          filters:
+            - RemoveRequestHeader=Cookie
+            - RewritePath=/user-service/(?<segment>.*), /${segment}
+        - id: user-service
+          uri: http://localhost:8081
+          predicates:
+            - Path=/users/**
+          filters:
+            - JwtAuthorizationFilter
+        - id: auth-service
+          uri: lb://AUTH-SERVICE
+          predicates:
+            - Path=/auth/**
+          filters:
+            - RewritePath=/auth/(?<segment>.*), /auth/${segment}
+
+        - id: board-service
+          uri: lb://BOARD-SERVICE
+          predicates:
+            - Path=/api/board/**
+          filters:
+            - RewritePath=/api/board/(?<segment>.*), /api/board/${segment}

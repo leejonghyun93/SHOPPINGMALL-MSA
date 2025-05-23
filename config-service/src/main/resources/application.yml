@@ -1,0 +1,17 @@
+server:
+  port: 8888
+
+spring:
+  application:
+    name: config-service
+  cloud:
+    config:
+      server:
+       native:
+         search-locations: file://${user.home}///c:\Users\fhohf\native-file-repo
+#       git:
+#         uri: https://github.com/leejonghyun93/config-repo
+#         username: fhohffodf93@gmail.com
+#         password: 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
+  profiles:
+    active: native
