@@ -5,7 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.openfeign.EnableFeignClients;
 
 @SpringBootApplication
-@EnableFeignClients(basePackages = "org.kosa.authservice.service")
+@EnableFeignClients(basePackages = "org.kosa.authservice.security")
 public class AuthServiceApplication {
 
     public static void main(String[] args) {

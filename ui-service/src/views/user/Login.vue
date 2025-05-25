@@ -72,7 +72,7 @@ const handleLogin = async () => {
   try {
     const response = await axios.post("/auth/login", {
       userid: form.userid,
-      password: form.password,
+      passwd: form.password,
     });
 
     const token = response.data.token;

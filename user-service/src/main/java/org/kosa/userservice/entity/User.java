@@ -58,6 +58,9 @@ public class User {
     @Column(name = "login_fail_count")
     private int loginFailCount;
 
+    @Column(name = "nickname", length = 50)
+    private String nickname;
+
     @Column(name = "account_locked")
     private Boolean accountLocked;
 

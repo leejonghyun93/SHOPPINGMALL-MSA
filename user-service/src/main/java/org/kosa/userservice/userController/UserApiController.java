@@ -10,6 +10,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/users")
@@ -56,4 +57,11 @@ public class UserApiController {
         response.put("available", !exists); // 아이디가 없으면 사용 가능(available=true)
         return ResponseEntity.ok(response);
     }
+
+    @PostMapping("/nicknames")
+    public Map<String, String> getNicknames(@RequestBody List<String> userIds) {
+        return userService.getNicknameMapByUserIds(userIds);
+    }
+
+
 }

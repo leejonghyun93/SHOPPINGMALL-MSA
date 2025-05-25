@@ -9,8 +9,16 @@ import java.util.List;
 @Mapper
 public interface BoardMapper {
 
+    // 전체 게시글 수 조회 (검색 조건 포함)
     int getTotalCount(@Param("searchValue") String searchValue);
 
+    // 페이징된 게시글 목록 조회 (정렬 옵션 포함)
+    List<BoardDto> selectPagedBoards(@Param("startRow") int startRow,
+                                     @Param("pageSize") int pageSize,
+                                     @Param("searchValue") String searchValue,
+                                     @Param("orderBy") String orderBy);
+
+    // 하위 호환성을 위한 기존 메서드 (오버로드)
     List<BoardDto> selectPagedBoards(@Param("startRow") int startRow,
                                      @Param("pageSize") int pageSize,
                                      @Param("searchValue") String searchValue);
@@ -25,5 +33,5 @@ public interface BoardMapper {
 
     int checkPassword(@Param("bno") Long bno, @Param("passwd") String passwd);
 
-    void insert(BoardDto boardDto);
+    void insertBoard(BoardDto boardDto);
 }

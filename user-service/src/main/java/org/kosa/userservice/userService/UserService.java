@@ -6,8 +6,11 @@ import org.kosa.userservice.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -40,6 +43,18 @@ public class UserService {
     // 사용자 삭제
     public void deleteUser(String userid) {
         userRepository.deleteById(userid);
+    }
+
+    public Map<String, String> getNicknameMapByUserIds(List<String> userIds) {
+        Map<String, String> nicknameMap = new HashMap<>();
+
+        for (String id : userIds) {
+            userRepository.findById(id).ifPresent(user -> {
+                nicknameMap.put(id, user.getNickname());
+            });
+        }
+
+        return nicknameMap;
     }
 
 }

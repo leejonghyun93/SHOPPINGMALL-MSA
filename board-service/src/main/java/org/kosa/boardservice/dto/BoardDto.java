@@ -22,13 +22,15 @@ public class BoardDto {
     private String writer;
     private String guestWriter;
     private String passwd;
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "Asia/Seoul")
     private LocalDateTime regDate;
     private int viewCount;
     private String nickName;
     private String isPrivate;
     private String writerName;
+    private Long writerId;
     private String name;
+
 
     public String getFormattedRegDate() {
         return regDate != null ? regDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) : "";

@@ -4,6 +4,9 @@ server:
 spring:
   application:
     name: USER-SERVICE
+  cloud:
+    config:
+      uri: http://localhost:8888
   eureka:
     instance:
       prefer-ip-address: true

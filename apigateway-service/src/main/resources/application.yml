@@ -96,3 +96,6 @@ spring:
             - Path=/api/board/**
           filters:
             - RewritePath=/api/board/(?<segment>.*), /api/board/${segment}
+
+jwt:
+  secret-key: a-string-secret-at-least-256-bits-long

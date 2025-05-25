@@ -17,11 +17,12 @@ eureka:
     fetch-registry: true
 
 jwt:
-  secret-key: mysecretkey123!
-  expiration: 3600000
+  secret-key: a-string-secret-at-least-256-bits-long
+  expiration: 3600000  # 1시간 (밀리초)
 
 user-service:
   url: http://localhost:8081
 
 #cors:
 #  allowedOrigins: http://localhost:5173
+
