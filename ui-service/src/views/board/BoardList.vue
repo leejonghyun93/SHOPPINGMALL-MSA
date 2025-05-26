@@ -44,7 +44,7 @@
       <tr v-for="(post, index) in boardList" :key="post.id">
         <td>{{ totalItems - ((currentPage - 1) * pageSize) - index }}</td>
         <td class="text-start">
-          <router-link :to="`/board/${post.id}`" class="text-decoration-none">
+          <router-link :to="`/board/${post.bno}`" class="text-decoration-none">
             {{ post.title }}
           </router-link>
         </td>

@@ -1,5 +1,6 @@
 package org.kosa.boardservice.service;
 
+import org.kosa.boardservice.CustomUserDetails;
 import org.kosa.boardservice.dto.BoardDto;
 import org.kosa.boardservice.dto.PageDto;
 import org.kosa.boardservice.dto.PageRequestDto;
@@ -10,6 +11,8 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -150,7 +153,17 @@ public class BoardService {
     }
 
     public void saveBoard(BoardDto boardDto) {
-        System.out.println("저장할 글 작성자: " + boardDto.getWriterName());
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication != null && authentication.isAuthenticated()) {
+            String userId = authentication.getName(); // username이 userId일 경우
+            boardDto.setWriter(userId);
+            boardDto.setWriterName(userId); // 또는 추가 조회해서 닉네임 가져오기
+        } else {
+            boardDto.setWriter("anonymous");
+            boardDto.setWriterName("익명");
+        }
+
         boardMapper.insertBoard(boardDto);
     }
 }

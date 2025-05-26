@@ -17,8 +17,7 @@ eureka:
     fetch-registry: true
 
 jwt:
-  secret-key: a-string-secret-at-least-256-bits-long
-  expiration: 3600000  # 1시간 (밀리초)
+  secret-key: "verySecretKeyThatIsAtLeast32BytesLong1234"
 
 user-service:
   url: http://localhost:8081

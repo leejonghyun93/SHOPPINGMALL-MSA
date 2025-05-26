@@ -78,7 +78,7 @@ const handleLogin = async () => {
     const token = response.data.token;
 
     if (token) {
-      localStorage.setItem("jwtToken", token);
+      localStorage.setItem("token", token);
       setUserFromToken(token); // ✅ 상태 업데이트
       alert("로그인 성공!");
       router.push("/");

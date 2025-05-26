@@ -30,6 +30,16 @@ const routes = [
         path: '/board/write',
         name: 'BoardWrite',
         component: () => import('@/views/board/BoardWrite.vue')
+    },
+    {
+        path: '/board/:bno',
+        name: 'BoardDetail',
+        component: () => import('@/views/board/BoardDetail.vue')
+    },
+    {
+        path: '/board/edit/:bno',
+        name: 'BoardEdit',
+        component: () => import('@/views/board/BoardEdit.vue')
     }
 ]
 

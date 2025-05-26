@@ -21,7 +21,7 @@ mybatis:
   type-aliases-package: org.kosa.boardservice.dto
 
 jwt:
-  secret-key: mySuperSecretJWTKeyThatIsLongEnough123456!
+  secret-key: "verySecretKeyThatIsAtLeast32BytesLong1234"
 eureka:
   client:
     service-url:
@@ -33,3 +33,4 @@ server:
 user-service:
   url: http://user-service/api/users/nicknames
 user-service-detail-url: http://user-service/api/users
+
