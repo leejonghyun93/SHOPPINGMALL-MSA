@@ -1,6 +1,7 @@
 package org.kosa.boardservice.controller;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
 import org.kosa.boardservice.JwtUtil;
 import org.kosa.boardservice.dto.BoardDto;
 import org.kosa.boardservice.dto.PageDto;
@@ -13,6 +14,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+
+import java.nio.charset.StandardCharsets;
 
 @RestController
 @RequestMapping("/api/board")
@@ -114,4 +117,90 @@ public class BoardApiController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("인증되지 않음");
         }
     }
+
+    @PutMapping("/{bno}")
+    public ResponseEntity<String> updateBoard(@PathVariable Long bno,
+                                              @RequestHeader("Authorization") String authorization,
+                                              @RequestBody BoardDto boardDto) {
+        try {
+            // 1. JWT 토큰 유효성 및 사용자 ID 추출
+            if (authorization == null || !authorization.startsWith("Bearer ")) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Authorization 헤더가 필요합니다.");
+            }
+            String token = authorization.substring(7);
+            if (!jwtProvider.validateToken(token)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("유효하지 않은 토큰입니다.");
+            }
+            Claims claims = jwtProvider.parseToken(token);
+            String userId = claims.getSubject();
+
+            // 2. 현재 게시글의 작성자 정보 가져오기
+            BoardDto originalBoard = boardService.getBoardDetail(Long.valueOf(bno));
+            if (originalBoard == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("게시글을 찾을 수 없습니다.");
+            }
+
+            // 3. 작성자와 로그인 사용자 비교
+            UserDto user = userServiceClient.getUserByUserId(userId);
+            if (!originalBoard.getWriterName().equals(user.getName())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("수정 권한이 없습니다.");
+            }
+
+            // 4. 수정 진행
+            boardDto.setBno(bno.longValue());
+            boardService.updateBoard(boardDto);
+            return ResponseEntity.ok("글 수정 성공");
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("글 수정 실패: " + e.getMessage());
+        }
+    }
+    @DeleteMapping("/{bno}")
+    public ResponseEntity<String> deleteBoardWithPassword(@PathVariable Long bno,
+                                                          @RequestParam String passwd,
+                                                          @RequestHeader("Authorization") String authorization) {
+        try {
+            if (authorization == null || !authorization.startsWith("Bearer ")) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Authorization 헤더가 잘못되었습니다");
+            }
+
+            String token = authorization.substring(7); // Bearer 제거
+            if (!jwtProvider.validateToken(token)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("유효하지 않은 토큰입니다");
+            }
+
+            Claims claims = jwtProvider.parseToken(token);
+            String userId = claims.getSubject();
+
+            if (userId == null || userId.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("사용자 정보를 찾을 수 없습니다");
+            }
+
+            BoardDto board = boardService.getBoardDetail(bno);
+            if (board == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("게시글을 찾을 수 없습니다");
+            }
+
+            if (!userId.equals(board.getWriter())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("삭제 권한이 없습니다");
+            }
+
+            boolean deleted = boardService.deleteBoardWithPassword(bno, passwd);
+            if (!deleted) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("비밀번호가 일치하지 않습니다");
+            }
+
+            return ResponseEntity.ok("게시글 삭제 성공");
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("게시글 삭제 실패: " + e.getMessage());
+        }
+    }
+
+
+
 }

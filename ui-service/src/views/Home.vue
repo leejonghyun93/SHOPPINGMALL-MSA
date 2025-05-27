@@ -8,17 +8,7 @@
       <button @click="goToProducts">Shop Now</button>
     </section>
 
-    <section class="featured-products">
-      <h3>Featured Products</h3>
-      <div class="products-grid">
-        <div class="product-card" v-for="product in featuredProducts" :key="product.id">
-          <img :src="product.image" :alt="product.name" />
-          <h4>{{ product.name }}</h4>
-          <p>{{ formatCurrency(product.price) }}</p>
-          <button @click="addToCart(product)">Add to Cart</button>
-        </div>
-      </div>
-    </section>
+
 
 
   </div>

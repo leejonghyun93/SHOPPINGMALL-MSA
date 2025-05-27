@@ -14,7 +14,7 @@
       <div class="actions-row">
         <router-link class="action-btn back-btn" to="/boardList">목록</router-link>
 
-        <div v-if="isOwner" class="actions">
+        <div v-if="isLogin && isOwner" class="actions">
           <button class="action-btn edit-btn" @click="goToEdit">수정</button>
           <button class="action-btn delete-btn" @click="deleteBoard">삭제</button>
         </div>
@@ -33,6 +33,7 @@ export default {
     return {
       board: {},
       isOwner: false,
+      isLogin: false, // ✅ 로그인 상태 변수 추가
     };
   },
   mounted() {
@@ -41,27 +42,23 @@ export default {
   methods: {
     fetchBoardDetail() {
       const bno = this.$route.params.bno;
-      console.log('게시글 번호:', bno);
-
       axios.get(`/api/board/${bno}`)
           .then(response => {
-            console.log('응답 데이터:', response.data);
             this.board = response.data;
 
             const token = localStorage.getItem('token');
-            console.log('토큰:', token);
             if (token) {
               try {
                 const decoded = jwtDecode(token);
-                console.log('디코딩된 토큰:', decoded);
                 const currentUserId = decoded.userId || decoded.sub || decoded.id;
-                console.log('디코딩된 사용자 ID:', currentUserId);
-                console.log('게시글 작성자 ID:', this.board.writer);
+                this.isLogin = true; // ✅ 로그인 상태 true
                 this.isOwner = String(currentUserId) === String(this.board.writer);
-                console.log('isOwner:', this.isOwner);
               } catch (error) {
                 console.error('JWT 디코딩 실패:', error);
+                this.isLogin = false;
               }
+            } else {
+              this.isLogin = false;
             }
           })
           .catch(error => {
@@ -69,18 +66,25 @@ export default {
             alert('게시글을 불러오지 못했습니다.');
           });
     },
-    formatDate(dateStr) {
-      if (!dateStr) return '';
-      return new Date(dateStr).toLocaleDateString();
-    },
     goToEdit() {
       this.$router.push(`/board/edit/${this.board.bno}`);
     },
     deleteBoard() {
-      if (!confirm('정말 삭제하시겠습니까?')) return;
+      const password = prompt("게시글 작성 시 입력한 비밀번호를 입력해주세요.");
+      if (!password) return;
+
+      const token = localStorage.getItem('token');  // 토큰 키를 'token' 으로 통일
+      if (!token) {
+        alert('로그인이 필요합니다.');
+        return;
+      }
+
       axios.delete(`/api/board/${this.board.bno}`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`
+          Authorization: `Bearer ${token}`
+        },
+        params: {
+          passwd: password
         }
       })
           .then(() => {
@@ -89,9 +93,17 @@ export default {
           })
           .catch(error => {
             console.error('삭제 실패:', error);
-            alert('삭제에 실패했습니다.');
+            if (error.response && error.response.data) {
+              alert(`삭제 실패: ${error.response.data}`);
+            } else {
+              alert('삭제에 실패했습니다.');
+            }
           });
     },
+    formatDate(dateStr) {
+      if (!dateStr) return '';
+      return new Date(dateStr).toLocaleDateString();
+    }
   }
 };
 </script>

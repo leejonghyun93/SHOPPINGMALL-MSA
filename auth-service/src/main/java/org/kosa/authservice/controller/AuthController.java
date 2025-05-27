@@ -41,7 +41,7 @@ public class AuthController {
         }
 
         // 로그인 성공 처리
-        String token = jwtUtil.generateToken(user.getUserid());
+        String token = jwtUtil.generateToken(user.getUserid(),user.getRole());
         return ResponseEntity.ok(new TokenResponse(token));
     }
 }

@@ -144,12 +144,15 @@ public class BoardService {
         return boardMapper.updateBoard(boardDto) > 0;
     }
 
-    public boolean deleteBoard(BoardDto boardDto) {
-        return boardMapper.deleteBoard(boardDto) > 0;
-    }
 
-    public boolean checkPassword(Long bno, String passwd) {
-        return boardMapper.checkPassword(bno, passwd) > 0;
+    public boolean deleteBoardWithPassword(Long bno, String passwd) {
+        boolean matched = boardMapper.checkPassword(bno, passwd);
+        if (!matched) {
+            return false;
+        }
+
+        boardMapper.deleteBoard(bno, passwd);
+        return true;
     }
 
     public void saveBoard(BoardDto boardDto) {

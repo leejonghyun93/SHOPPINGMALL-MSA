@@ -72,19 +72,19 @@
     </update>
 
     <!-- 게시글 삭제 -->
+    <select id="checkPassword" resultType="boolean">
+        SELECT COUNT(*) > 0
+        FROM t_board
+        WHERE bno = #{bno}
+          AND passwd = #{passwd}
+    </select>
+
+    <!-- 게시글 삭제 -->
     <delete id="deleteBoard">
         DELETE FROM t_board
         WHERE bno = #{bno}
           AND passwd = #{passwd}
     </delete>
-
-    <!-- 비밀번호 확인 -->
-    <select id="checkPassword" resultType="int">
-        SELECT COUNT(*)
-        FROM t_board
-        WHERE bno = #{bno}
-          AND passwd = #{passwd}
-    </select>
 
     <!-- 게시글 등록 -->
     <insert id="insertBoard" parameterType="org.kosa.boardservice.dto.BoardDto" useGeneratedKeys="true" keyProperty="bno">

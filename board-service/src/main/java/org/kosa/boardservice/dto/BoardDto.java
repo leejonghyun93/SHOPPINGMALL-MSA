@@ -16,7 +16,7 @@ import java.time.format.DateTimeFormatter;
 @NoArgsConstructor
 public class BoardDto {
 
-    private Integer bno;
+    private Long bno;
     private String title;
     private String content;
     private String writer;

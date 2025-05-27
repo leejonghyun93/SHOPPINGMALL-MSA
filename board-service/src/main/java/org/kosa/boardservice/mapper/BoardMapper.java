@@ -29,9 +29,10 @@ public interface BoardMapper {
 
     int updateBoard(BoardDto boardDto);
 
-    int deleteBoard(BoardDto boardDto);
+    boolean checkPassword(@Param("bno") Long bno, @Param("passwd") String passwd);
 
-    int checkPassword(@Param("bno") Long bno, @Param("passwd") String passwd);
+    // 게시글 삭제
+    int deleteBoard(@Param("bno") Long bno, @Param("passwd") String passwd);
 
     void insertBoard(BoardDto boardDto);
 }
