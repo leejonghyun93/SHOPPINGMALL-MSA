@@ -73,7 +73,7 @@
 import { ref, onMounted } from 'vue'
 import axios from "axios"
 import { useRouter } from "vue-router"
-import Pagination from '@/components/common/Pagination.vue' // Pagination 컴포넌트 import
+import Pagination from '@/components/common/Pagination.vue'
 
 const boardList = ref([])
 const searchKeyword = ref('')

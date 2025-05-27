@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
+import java.time.LocalDateTime;
 import java.util.Date;
 
 @Component
@@ -46,10 +47,12 @@ public class JwtUtil {
                 .getBody();
     }
 
-    public String generateToken(String username, String role) {
+    public String generateToken(String username, String role, String fullAddress, LocalDateTime loginTime) {
         return Jwts.builder()
                 .setSubject(username)
                 .claim("role", role)
+                .claim("fullAddress", fullAddress)
+                .claim("loginTime", loginTime.toString())
                 .setIssuer("auth-service")
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + expiration))

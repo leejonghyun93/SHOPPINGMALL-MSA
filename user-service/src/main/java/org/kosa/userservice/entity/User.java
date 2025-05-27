@@ -1,6 +1,7 @@
 package org.kosa.userservice.entity;
 
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -38,6 +39,7 @@ public class User {
     private String detailAddress;
 
     @Column(name = "full_address", length = 400)
+    @JsonProperty("fullAddress")
     private String fullAddress;
 
     @Column(name = "phone", length = 20)

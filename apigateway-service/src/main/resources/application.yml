@@ -62,6 +62,13 @@ spring:
           filters:
             - RemoveRequestHeader=Cookie
             - RewritePath=/user-service/(?<segment>.*), /${segment}
+        - id: user-service-list
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/api/users/list
+          filters:
+            - RewritePath=/api/users/list, /api/users/list
+
         - id: user-service
           uri: lb://USER-SERVICE
           predicates:
@@ -97,5 +104,3 @@ spring:
           filters:
             - RewritePath=/api/board/(?<segment>.*), /api/board/${segment}
 
-jwt:
-  secret-key: a-string-secret-at-least-256-bits-long

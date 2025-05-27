@@ -3,6 +3,7 @@ import Home from '../views/Home.vue'
 
 import Login from '../views/user/Login.vue'
 import Register from '../views/user/Register.vue'
+import MemberList from "../views/user/MemberList.vue";
 import BoardList from "../views/board/BoardList.vue";
 
 const routes = [
@@ -20,6 +21,11 @@ const routes = [
         path: '/register',
         name: 'Register',
         component: Register
+    },
+    {
+        path: '/members',
+        name: 'memberList',
+        component: MemberList
     },
     {
         path: '/boardList',

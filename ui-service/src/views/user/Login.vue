@@ -43,6 +43,11 @@
         <!-- 로그인 버튼 -->
         <button type="submit" class="btn btn-primary w-100">로그인</button>
 
+        <!-- 에러 메시지 -->
+        <div v-if="errorMessage.length > 0" class="error mt-2">
+          {{ errorMessage }}
+        </div>
+
         <!-- 회원가입 링크 -->
         <div class="text-center mt-3">
           <router-link to="/register" class="text-decoration-none btn btn-dark w-100">
@@ -58,7 +63,7 @@
 import { reactive, ref } from "vue";
 import axios from "axios";
 import { useRouter } from "vue-router";
-import { setUserFromToken } from "@/stores/userStore"; // ✅ 추가
+import { setUserFromToken } from "@/stores/userStore";
 
 const router = useRouter();
 const form = reactive({
@@ -79,15 +84,21 @@ const handleLogin = async () => {
 
     if (token) {
       localStorage.setItem("token", token);
-      setUserFromToken(token); // ✅ 상태 업데이트
+      setUserFromToken(token);
       alert("로그인 성공!");
       router.push("/");
     } else {
       errorMessage.value = "토큰이 응답에 없습니다.";
     }
   } catch (error) {
-    console.error(error);
-    errorMessage.value = "로그인 실패: 아이디 또는 비밀번호가 올바르지 않습니다.";
+    if (error.response) {
+      console.error("서버 응답 데이터:", error.response.data);
+      console.error("서버 상태 코드:", error.response.status);
+      errorMessage.value = error.response.data.message || "로그인 실패";
+    } else {
+      console.error("요청 실패:", error.message);
+      errorMessage.value = "서버에 연결할 수 없습니다.";
+    }
   }
 };
 </script>
@@ -95,6 +106,8 @@ const handleLogin = async () => {
 <style scoped>
 .error {
   color: red;
+  font-size: 0.9rem;
   margin-top: 10px;
+  text-align: center;
 }
 </style>
