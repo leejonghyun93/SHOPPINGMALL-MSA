@@ -47,8 +47,10 @@ export default {
   methods: {
     fetchBoard() {
       const bno = this.route.params.bno;
-
-      axios.get(`/api/board/${bno}`)
+      const token = localStorage.getItem('token');
+      axios.get(`/api/board/${bno}`, {
+        headers: token ? {Authorization: `Bearer ${token}`} : {}
+      })
           .then(response => {
             this.board = response.data;
           })

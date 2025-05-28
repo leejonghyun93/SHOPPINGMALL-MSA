@@ -1,55 +1,50 @@
 package org.kosa.apigatewayservice.filter;
 
-import org.springframework.cloud.gateway.filter.GatewayFilter;
-import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
-import org.springframework.core.Ordered;
-import org.springframework.http.HttpHeaders;
-import io.jsonwebtoken.Claims;
+
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cloud.gateway.filter.GatewayFilter;
+import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
-import org.springframework.cloud.gateway.filter.GlobalFilter;
-import org.springframework.cloud.gateway.filter.GatewayFilterChain;
+import org.springframework.web.server.WebFilter;
+import org.springframework.web.server.WebFilterChain;
 import reactor.core.publisher.Mono;
 
+
 @Component
-public class JwtAuthorizationFilter extends AbstractGatewayFilterFactory<JwtAuthorizationFilter.Config> {
+public class JwtAuthorizationFilter implements WebFilter {
 
-    private final String SECRET_KEY = "mySecretKey";
-
-    public JwtAuthorizationFilter() {
-        super(Config.class);
-    }
+    @Value("${jwt.secret-key}")
+    private String secretKey;
 
     @Override
-    public GatewayFilter apply(Config config) {
-        return (exchange, chain) -> {
-            String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
+    public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
+        // Authorization 헤더에서 JWT 토큰 추출
+        String authHeader = exchange.getRequest().getHeaders().getFirst("Authorization");
 
-            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-                return exchange.getResponse().setComplete();
-            }
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+            return exchange.getResponse().setComplete();
+        }
 
-            String token = authHeader.replace("Bearer ", "");
+        String token = authHeader.substring(7);
 
-            try {
-                Jwts.parser()
-                        .setSigningKey(SECRET_KEY)
-                        .parseClaimsJws(token)
-                        .getBody();
-            } catch (JwtException e) {
-                exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-                return exchange.getResponse().setComplete();
-            }
+        try {
+            // JWT 파싱 및 서명 검증
+            Jwts.parser()
+                    .setSigningKey(secretKey.getBytes())  // secretKey를 byte[]로 변환해 사용
+                    .parseClaimsJws(token);
 
+            // 토큰 검증 성공 -> 다음 필터로 넘어감
             return chain.filter(exchange);
-        };
-    }
 
-    public static class Config {
-        // 필요한 설정값 있으면 여기에 추가
+        } catch (JwtException | IllegalArgumentException e) {
+            // 서명 불일치, 만료 등 예외 발생 시
+            exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+            return exchange.getResponse().setComplete();
+        }
     }
 }

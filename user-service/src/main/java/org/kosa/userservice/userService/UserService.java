@@ -75,7 +75,7 @@ public class UserService implements UserDetailsService {
         );
     }
 
-    private UserResponseDto toDto(User user) {
+    public  UserResponseDto toDto(User user) {
         return UserResponseDto.builder()
                 .userid(user.getUserid())
                 .name(user.getName())
@@ -155,4 +155,14 @@ public class UserService implements UserDetailsService {
                 .accountLocked(Boolean.TRUE.equals(user.getAccountLocked()))
                 .build();
     }
+
+    public Optional<User> findUserEntityByUserid(String userid) {
+        return userRepository.findByUserid(userid);
+    }
+
+    // 비밀번호 암호화 메서드 분리
+    public String encodePassword(String rawPassword) {
+        return passwordEncoder.encode(rawPassword);
+    }
+
 }

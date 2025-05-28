@@ -103,4 +103,52 @@ public class UserApiController {
         log.info("헬스체크 요청");
         return ResponseEntity.ok("User Service is running");
     }
+
+    // 회원 정보 수정
+    @PutMapping("/{userid}")
+    public ResponseEntity<?> updateUser(
+            @PathVariable String userid,
+            @RequestBody User updatedUser,
+            HttpServletRequest request
+    ) {
+        // 권한 체크는 실제로 JWT 또는 SecurityContext에서 구현해야 합니다.
+
+        // 1. 기존 사용자 엔티티 조회 (Optional<User>)
+        Optional<User> existingUserOpt = userService.findUserEntityByUserid(userid);
+        if (existingUserOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        User existingUser = existingUserOpt.get();
+
+        // 2. 변경 가능한 필드만 안전하게 업데이트
+        if (StringUtils.hasText(updatedUser.getEmail())) {
+            existingUser.setEmail(updatedUser.getEmail());
+        }
+        if (StringUtils.hasText(updatedUser.getNickname())) {
+            existingUser.setNickname(updatedUser.getNickname());
+        }
+        if (StringUtils.hasText(updatedUser.getPhone())) {
+            existingUser.setPhone(updatedUser.getPhone());
+        }
+        if (StringUtils.hasText(updatedUser.getAddress())) {
+            existingUser.setAddress(updatedUser.getAddress());
+        }
+        if (StringUtils.hasText(updatedUser.getDetailAddress())) {
+            existingUser.setDetailAddress(updatedUser.getDetailAddress());
+        }
+
+        // 비밀번호 변경 시 암호화 처리 (빈 값이나 null이면 변경 안함)
+        if (StringUtils.hasText(updatedUser.getPasswd())) {
+            existingUser.setPasswd(userService.encodePassword(updatedUser.getPasswd()));
+        }
+
+        // 3. 저장
+        User savedUser = userService.saveUser(existingUser);
+
+        // 4. 저장된 사용자 DTO 변환 후 응답
+        UserResponseDto responseDto = userService.toDto(savedUser);
+
+        return ResponseEntity.ok(responseDto);
+    }
 }

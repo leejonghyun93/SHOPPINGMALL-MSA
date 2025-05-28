@@ -87,12 +87,16 @@ const router = useRouter()
 // 게시글 목록 불러오기
 const fetchBoardList = async () => {
   try {
+    const token = localStorage.getItem('token')
     const response = await axios.get('/api/board/list', {
       params: {
         page: currentPage.value,
         size: pageSize.value,
         searchValue: searchKeyword.value || '',
         sortBy: sortOption.value
+      },
+      headers: {
+        Authorization: `Bearer ${token}`
       }
     })
 

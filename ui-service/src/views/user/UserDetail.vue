@@ -2,11 +2,64 @@
   <div class="container mt-5">
     <div class="user-detail">
       <h2>{{ user.name }} 님 정보</h2>
-      <p>아이디: {{ user.userid }}</p>
-      <p>이메일: {{ user.email }}</p>
 
       <div v-if="loading">로딩 중...</div>
       <div v-else>
+        <table class="user-table">
+          <tr>
+            <th>아이디</th>
+            <td>{{ user.userid }}</td>
+          </tr>
+          <tr>
+            <th>이메일</th>
+            <td>{{ user.email }}</td>
+          </tr>
+          <tr>
+            <th>나이</th>
+            <td>{{ user.age }}</td>
+          </tr>
+          <tr>
+            <th>닉네임</th>
+            <td>{{ user.nickname }}</td>
+          </tr>
+          <tr>
+            <th>전화번호</th>
+            <td>{{ user.phone }}</td>
+          </tr>
+          <tr>
+            <th>주소</th>
+            <td>{{ user.address }}</td>
+          </tr>
+          <tr>
+            <th>상세 주소</th>
+            <td>{{ user.detailAddress }}</td>
+          </tr>
+          <tr>
+            <th>전체 주소</th>
+            <td>{{ user.fullAddress }}</td>
+          </tr>
+          <tr>
+            <th>권한</th>
+            <td>{{ user.role }}</td>
+          </tr>
+          <tr>
+            <th>계정 잠김 여부</th>
+            <td>{{ user.accountLocked ? '잠김' : '정상' }}</td>
+          </tr>
+          <tr>
+            <th>가입일</th>
+            <td>{{ this.formatDate(user.regDate) }}</td>
+          </tr>
+          <tr>
+            <th>최근 로그인</th>
+            <td>{{ this.formatDate(user.loginTime) }}</td>
+          </tr>
+          <tr>
+            <th>로그인 실패 횟수</th>
+            <td>{{ user.loginFailCount }}</td>
+          </tr>
+        </table>
+
         <div v-if="isLogin && isOwner" class="actions">
           <button @click="editProfile" class="btn edit-btn">프로필 수정</button>
           <button @click="deleteUser" class="btn delete-btn">회원 탈퇴</button>
@@ -39,14 +92,10 @@ export default {
     fetchUserDetail() {
       const userid = this.$route.params.userid;
       const token = localStorage.getItem('token');
-      console.log('요청 userid:', userid);
-      console.log('토큰:', token);
-
       axios.get(`/api/users/${userid}`, {
         headers: token ? {Authorization: `Bearer ${token}`} : {}
       })
           .then(response => {
-            console.log('응답 데이터:', response.data);
             this.user = response.data;
 
             if (token) {
@@ -76,6 +125,17 @@ export default {
     editProfile() {
       this.$router.push(`/user/edit/${this.user.userid}`);
     },
+    formatDate(dateString) {
+      if (!dateString) return '';
+      const date = new Date(dateString);
+      return date.toLocaleDateString('ko-KR', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    },
     deleteUser() {
       if (!confirm('정말 회원 탈퇴를 진행하시겠습니까?')) return;
 
@@ -99,6 +159,7 @@ export default {
           });
     }
   }
+
 }
 </script>
 

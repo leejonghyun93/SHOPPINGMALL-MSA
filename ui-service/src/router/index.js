@@ -32,6 +32,7 @@ const routes = [
         name: 'UserDetail',
         component: () => import('@/views/user/UserDetail.vue')  // 혹은 UserDetailView.vue
     },
+    { path: '/users/edit/:userid', name: 'UserEdit', component: () => import('@/views/user/UserEdit.vue'), props: true },
     {
         path: '/boardList',
         name: 'BoardList',
