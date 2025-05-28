@@ -62,16 +62,23 @@
           />
         </td>
         <td>{{ totalItems - ((currentPage - 1) * pageSize) - index }}</td>
-        <td>{{ user.userid }}</td>
-        <td>
-          <a href="javascript:void(0)" @click="loadUserDetail(user.userid)">
-            {{ user.name }}
+<!--        <td>{{ user.userid }}</td>-->
+        <td class="text-start">
+          <a href="#" @click.prevent="goUserDetail(user.userid)" class="text-decoration-none">
+            {{ user.userid }}
           </a>
         </td>
+        <td>{{ user.name }}</td>
+<!--        <td class="text-start">-->
+<!--          <router-link :to="`/users/${user.name}`" class="text-decoration-none">-->
+<!--            {{ user.name }}-->
+<!--          </router-link>-->
+<!--        </td>-->
         <td>{{ user.email }}</td>
         <td>{{ user.fullAddress || '-' }}</td>
         <td>{{ formatDateTime(user.loginTime) }}</td>
       </tr>
+
       </tbody>
     </table>
 
@@ -100,10 +107,12 @@
 import { ref, watch, onMounted } from 'vue'
 import axios from 'axios'
 import Pagination from '@/components/common/Pagination.vue'
+import { useRouter } from 'vue-router'
+import { jwtDecode } from 'jwt-decode'
 
 const memberList = ref([])
 const searchKeyword = ref('')
-const sortOption = ref('name')
+const sortOption = ref('userid')
 const currentPage = ref(1)
 const totalItems = ref(0)
 const pageSize = ref(10)
@@ -111,6 +120,11 @@ const pageSize = ref(10)
 const selectedUsers = ref([])
 const allSelected = ref(false)
 
+const router = useRouter()
+
+const goUserDetail = (userid) => {
+  router.push(`/users/${userid}`)
+}
 // 회원 목록 불러오기
 const fetchMemberList = async () => {
   try {
@@ -191,11 +205,6 @@ const onUnlockLogin = async () => {
     alert('로그인 잠금 해제에 실패했습니다.')
     console.error(error)
   }
-}
-
-// 유저 상세 보기
-const loadUserDetail = (userid) => {
-  alert(`유저 상세정보: ${userid}`)
 }
 
 // 날짜 포맷

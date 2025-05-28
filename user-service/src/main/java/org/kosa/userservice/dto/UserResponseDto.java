@@ -11,12 +11,13 @@ import java.time.LocalDateTime;
 @Builder
 public class UserResponseDto {
     private String userid;
+    private String passwd;
     private String name;
     private String email;
     private int age;
     private String role;
     private LocalDateTime regDate;
-
+    private int loginFailCount;
     private String address;
     private String detailAddress;
     private String fullAddress;
@@ -24,4 +25,6 @@ public class UserResponseDto {
     private String nickname;
     private LocalDateTime loginTime;
     private Boolean accountLocked;
+
+
 }

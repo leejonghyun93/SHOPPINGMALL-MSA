@@ -28,6 +28,11 @@ const routes = [
         component: MemberList
     },
     {
+        path: '/users/:userid',
+        name: 'UserDetail',
+        component: () => import('@/views/user/UserDetail.vue')  // 혹은 UserDetailView.vue
+    },
+    {
         path: '/boardList',
         name: 'BoardList',
         component: BoardList

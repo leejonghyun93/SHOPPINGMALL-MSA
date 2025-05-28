@@ -1,8 +1,10 @@
 package org.kosa.userservice.userService;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.kosa.userservice.dto.PageDto;
 import org.kosa.userservice.dto.PageRequestDto;
+import org.kosa.userservice.dto.UserDto;
 import org.kosa.userservice.dto.UserResponseDto;
 import org.kosa.userservice.entity.User;
 import org.kosa.userservice.repository.UserRepository;
@@ -10,6 +12,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,7 +28,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-public class UserService {
+public class UserService implements UserDetailsService {
 
     private final UserRepository userRepository;
 
@@ -35,8 +40,14 @@ public class UserService {
         return userRepository.save(user);
     }
     // 사용자 ID로 조회
-    public Optional<User> getUserById(String userid) {
-        return userRepository.findByUserid(userid);
+
+    public Optional<UserResponseDto> getUserDetail(String userid) {
+        if (userid == null || userid.trim().isEmpty()) {
+            return Optional.empty();
+        }
+
+        return userRepository.findByUserid(userid.trim())
+                .map(this::toDto);
     }
 
     // 모든 사용자 목록 조회
@@ -68,6 +79,7 @@ public class UserService {
         return UserResponseDto.builder()
                 .userid(user.getUserid())
                 .name(user.getName())
+                .passwd(user.getPasswd())
                 .email(user.getEmail())
                 .age(user.getAge())
                 .role(user.getRole())
@@ -132,5 +144,15 @@ public class UserService {
 
         return nicknameMap;
     }
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        User user = userRepository.findByUserid(username)
+                .orElseThrow(() -> new UsernameNotFoundException("사용자 없음: " + username));
 
+        return org.springframework.security.core.userdetails.User
+                .withUsername(user.getUserid())
+                .password(user.getPasswd()) // 반드시 암호화된 비밀번호!
+                .roles(user.getRole())
+                .accountLocked(Boolean.TRUE.equals(user.getAccountLocked()))
+                .build();
+    }
 }

@@ -6,9 +6,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.util.Collection;
 import java.util.Collections;
 
-/**
- * SecurityContextHolder에 저장되는 사용자 정보 클래스
- */
+
 public class CustomUserDetails implements UserDetails {
 
     private Long userId;

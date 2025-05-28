@@ -2,6 +2,7 @@ package org.kosa.userservice.repository;
 
 
 import org.kosa.userservice.dto.PageDto;
+import org.kosa.userservice.dto.UserDto;
 import org.kosa.userservice.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -25,5 +26,7 @@ public interface UserRepository extends JpaRepository<User, String> {
             "LOWER(u.name) LIKE LOWER(CONCAT('%', :searchValue, '%')) OR " +
             "LOWER(u.email) LIKE LOWER(CONCAT('%', :searchValue, '%')) )")
     Page<User> searchUsers(@Param("searchValue") String searchValue, Pageable pageable);
+
+
 
 }

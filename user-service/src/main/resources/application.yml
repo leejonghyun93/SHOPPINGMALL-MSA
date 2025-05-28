@@ -31,3 +31,15 @@ spring:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.OracleDialect
+
+logging:
+  level:
+    org.kosa.userservice: DEBUG
+    org.springframework.web: DEBUG
+    root: INFO
+
+jwt:
+  secret-key: "verySecretKeyThatIsAtLeast32BytesLong1234"
+
+
+user-service-detail-url: http://user-service/api/users

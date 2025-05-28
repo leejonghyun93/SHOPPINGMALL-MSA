@@ -1,22 +1,24 @@
 package org.kosa.userservice.userController;
 
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.kosa.userservice.dto.PageDto;
 import org.kosa.userservice.dto.PageRequestDto;
+import org.kosa.userservice.dto.UserDto;
 import org.kosa.userservice.dto.UserResponseDto;
 import org.kosa.userservice.entity.User;
 import org.kosa.userservice.userService.UserService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
+import java.util.*;
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
+@Slf4j
 public class UserApiController {
 
     private final UserService userService;
@@ -27,6 +29,13 @@ public class UserApiController {
         User savedUser = userService.saveUser(user);
         return ResponseEntity.ok(savedUser);
     }
+    @GetMapping("/{userid}")
+    public ResponseEntity<?> getUserDetail(@PathVariable String userid) {
+        return userService.getUserDetail(userid)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
 
     @GetMapping("/list")
     public PageDto<UserResponseDto> list(
@@ -50,7 +59,7 @@ public class UserApiController {
             userService.increaseLoginFailCount(userid);
             return ResponseEntity.ok().build();
         } catch (RuntimeException ex) {
-            if (ex.getMessage().contains("잠겼")) {
+            if (ex.getMessage().contains("잠겼습니다.")) {
                 return ResponseEntity.status(423).body(null); // 423 Locked
             }
             return ResponseEntity.status(400).body(null);
@@ -64,36 +73,34 @@ public class UserApiController {
     }
 
 
-// 단일 회원 조회
-@GetMapping("/{userid}")
-public ResponseEntity<User> getUser(@PathVariable String userid) {
-    return userService.getUserById(userid)
-            .map(ResponseEntity::ok)
-            .orElse(ResponseEntity.notFound().build());
-}
 
-// 회원 삭제
-@DeleteMapping("/{userid}")
-public ResponseEntity<Void> deleteUser(@PathVariable String userid) {
-    if (!userService.isUserExists(userid)) {
-        return ResponseEntity.notFound().build();
+
+    // 회원 삭제
+    @DeleteMapping("/{userid}")
+    public ResponseEntity<Void> deleteUser(@PathVariable String userid) {
+        if (!userService.isUserExists(userid)) {
+            return ResponseEntity.notFound().build();
+        }
+        userService.deleteUser(userid);
+        return ResponseEntity.noContent().build();
     }
-    userService.deleteUser(userid);
-    return ResponseEntity.noContent().build();
-}
 
-@GetMapping("/checkUserid")
-public ResponseEntity<Map<String, Boolean>> checkUserid(@RequestParam String userid) {
-    boolean exists = userService.isUserExists(userid);
-    Map<String, Boolean> response = new HashMap<>();
-    response.put("available", !exists); // 아이디가 없으면 사용 가능(available=true)
-    return ResponseEntity.ok(response);
-}
+    @GetMapping("/checkUserid")
+    public ResponseEntity<Map<String, Boolean>> checkUserid(@RequestParam String userid) {
+        boolean exists = userService.isUserExists(userid);
+        Map<String, Boolean> response = new HashMap<>();
+        response.put("available", !exists); // 아이디가 없으면 사용 가능(available=true)
+        return ResponseEntity.ok(response);
+    }
 
-@PostMapping("/nicknames")
-public Map<String, String> getNicknames(@RequestBody List<String> userIds) {
-    return userService.getNicknameMapByUserIds(userIds);
-}
+    @PostMapping("/nicknames")
+    public Map<String, String> getNicknames(@RequestBody List<String> userIds) {
+        return userService.getNicknameMapByUserIds(userIds);
+    }
 
-
+    @GetMapping("/health")
+    public ResponseEntity<String> health() {
+        log.info("헬스체크 요청");
+        return ResponseEntity.ok("User Service is running");
+    }
 }

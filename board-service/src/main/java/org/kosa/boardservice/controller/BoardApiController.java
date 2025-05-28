@@ -173,7 +173,6 @@ public class BoardApiController {
 
             Claims claims = jwtProvider.parseToken(token);
             String userId = claims.getSubject();
-
             if (userId == null || userId.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("사용자 정보를 찾을 수 없습니다");
             }
@@ -183,10 +182,13 @@ public class BoardApiController {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body("게시글을 찾을 수 없습니다");
             }
 
+
+            // 현재 writer 필드는 'writerName' 인 것 같으니, 실제 사용자 id 필드로 변경 필요
             if (!userId.equals(board.getWriter())) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body("삭제 권한이 없습니다");
             }
 
+            // 비밀번호 검증은 service 단에서 처리 (boardService.deleteBoardWithPassword)
             boolean deleted = boardService.deleteBoardWithPassword(bno, passwd);
             if (!deleted) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body("비밀번호가 일치하지 않습니다");
