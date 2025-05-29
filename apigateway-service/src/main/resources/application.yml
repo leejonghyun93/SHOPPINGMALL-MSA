@@ -33,26 +33,46 @@ spring:
             preLogger: true
             postLogger: true
       routes:
-
-        - id: check-userid
+        - id: user-register-public
           uri: lb://USER-SERVICE
           predicates:
-            - Path=/checkUserid
+            - Path=/api/users/register
+            - Method=POST
           filters:
-            - RewritePath=/checkUserid, /api/users/checkUserid
+            - RewritePath=/api/users/register, /api/users/register
+
+        - id: user-checkUserid-public
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/api/users/checkUserid
+            - Method=GET
+          filters:
+            - RewritePath=/api/users/checkUserid, /api/users/checkUserid
+
+#        - id: user-service-find-id
+#          uri: lb://USER-SERVICE
+#          predicates:
+#            - Path=/auth/find-id
+#            - Method=POST
+#          filters:
+#            - RewritePath=/auth/find-id, /auth/find-id
+
+        - id: user-service
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/api/users/**
+          filters:
+            - name: JwtAuthorization
+            - RewritePath=/api/users/(?<segment>.*), /api/users/${segment}
 
         - id: user-service-root
           uri: lb://USER-SERVICE
           predicates:
             - Path=/api/users
           filters:
+            - name: JwtAuthorization
             - RewritePath=/api/users, /api/users
-        - id: user-checkUserid-public
-          uri: lb://USER-SERVICE
-          predicates:
-            - Path=/api/users/checkUserid
-          filters:
-            - RewritePath=/api/users/checkUserid, /api/users/checkUserid
+
 
         - id: board-service
           uri: lb://BOARD-SERVICE
@@ -68,6 +88,7 @@ spring:
             - Path=/user-service/users
             - Method=POST
           filters:
+
             - RemoveRequestHeader=Cookie
             - RewritePath=/user-service/(?<segment>.*), /${segment}
         - id: user-service-list
@@ -77,20 +98,13 @@ spring:
           filters:
             - RewritePath=/api/users/list, /api/users/list
 
-        - id: user-service
-          uri: lb://USER-SERVICE
-          predicates:
-            - Path=/api/users/**
-          filters:
-            - name: JwtAuthorization
-            - RewritePath=/api/users/(?<segment>.*), /api/users/${segment}
-
         - id: user-service-get
           uri: lb://USER-SERVICE
           predicates:
             - Path=/user-service/**
             - Method=GET
           filters:
+            - name: JwtAuthorization
             - RemoveRequestHeader=Cookie
             - RewritePath=/user-service/(?<segment>.*), /${segment}
         - id:  user-service-direct
@@ -106,7 +120,9 @@ spring:
           filters:
             - RewritePath=/auth/(?<segment>.*), /auth/${segment}
 
-
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
 
 jwt:
   secret-key: "verySecretKeyThatIsAtLeast32BytesLong1234"

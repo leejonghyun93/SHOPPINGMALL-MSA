@@ -66,6 +66,19 @@
             />
           </div>
 
+          <!-- 닉네임 필드 추가 -->
+          <div class="form-group">
+            <label for="nickname">닉네임</label>
+            <input
+                type="text"
+                id="nickname"
+                v-model.trim="form.nickname"
+                class="form-control"
+                placeholder="닉네임을 입력하세요"
+                required
+            />
+          </div>
+
           <div class="form-group">
             <label for="age">나이</label>
             <input
@@ -124,7 +137,7 @@
                 id="userPhone"
                 v-model.trim="form.userPhone"
                 class="form-control"
-                placeholder="전화번호를 입력하세요"
+                placeholder="전화번호를 입력하세요 (예: 010-1234-5678)"
                 required
             />
           </div>
@@ -169,6 +182,7 @@ const form = ref({
   userPwd: "",
   confirmPwd: "",
   userName: "",
+  nickname: "",  // 닉네임 필드 추가
   age: null,
   userAddress: "",
   detailAddress: "",
@@ -187,28 +201,36 @@ const phoneRegex = /^\d{3}-\d{3,4}-\d{4}$/;
 const fullAddress = computed(() => `${form.value.userAddress} ${form.value.detailAddress}`.trim());
 
 function checkUserIdAvailability() {
-  // 아이디가 입력되지 않은 경우
+  console.log("중복 확인 클릭됨");
+
   if (!form.value.userid) {
     alert("아이디를 입력해주세요.");
     return;
   }
 
-  // 아이디 패턴 검사
   if (!idPattern.test(form.value.userid)) {
     alert("아이디는 최소 8자 이상이어야 합니다.");
     return;
   }
 
-  // 아이디 중복 확인 API 호출
-  fetch('/api/users/checkUserid?userid=' + encodeURIComponent(form.value.userid))
+  console.log("중복 확인 요청 시작:", form.value.userid);
 
+  fetch('/api/users/checkUserid?userid=' + encodeURIComponent(form.value.userid), {
+    method: "GET",
+    headers: {
+      "Accept": "application/json",
+      "Content-Type": "application/json"
+    }
+  })
       .then(response => {
+        console.log("응답 상태:", response.status);
         if (!response.ok) {
           throw new Error('서버 응답 오류: ' + response.status);
         }
         return response.json();
       })
       .then(data => {
+        console.log("중복 확인 응답:", data);
         if (data.available === true) {
           alert("사용 가능한 아이디입니다.");
           isUseridChecked.value = true;
@@ -220,7 +242,7 @@ function checkUserIdAvailability() {
         }
       })
       .catch(error => {
-        console.error("중복 확인 중 오류 발생:", error);
+        console.error("중복 확인 오류:", error);
         alert("중복 확인 중 오류가 발생했습니다.");
         isUseridChecked.value = false;
       });
@@ -235,6 +257,7 @@ function execDaumPostcode() {
 }
 
 function onSubmit() {
+  // 기존 유효성 검사
   if (!form.value.userid) {
     alert("아이디를 입력해주세요.");
     return;
@@ -267,6 +290,13 @@ function onSubmit() {
     alert("이름을 입력해주세요.");
     return;
   }
+
+  // 닉네임 유효성 검사 추가
+  if (!form.value.nickname) {
+    alert("닉네임을 입력해주세요.");
+    return;
+  }
+
   if (!form.value.age || form.value.age <= 0) {
     alert("나이를 올바르게 입력해주세요.");
     return;
@@ -300,34 +330,43 @@ function onSubmit() {
     userid: form.value.userid,
     passwd: form.value.userPwd,
     name: form.value.userName,
+    nickname: form.value.nickname,  // 닉네임 추가
     age: form.value.age,
     address: form.value.userAddress,
     detailAddress: form.value.detailAddress,
     fullAddress: fullAddress.value,
     phone: form.value.userPhone,
     email: form.value.userEmail,
+    role: "USER",  // 명시적으로 역할 설정
+    accountLocked: false,  // 명시적으로 계정 잠금 상태 설정
+    loginFailCount: 0  // 명시적으로 로그인 실패 횟수 설정
   };
 
-  fetch("/api/users", {
+  console.log("전송할 사용자 데이터:", userData);
+
+  fetch("/api/users/register", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      "Accept": "application/json"
     },
     body: JSON.stringify(userData),
   })
       .then((res) => {
+        console.log("응답 상태:", res.status);
         if (!res.ok) {
           throw new Error('사용자 등록 실패: ' + res.status);
         }
         return res.json();
       })
       .then((data) => {
+        console.log("회원가입 성공:", data);
         alert("회원가입이 완료되었습니다.");
         router.push('/login');
       })
       .catch((err) => {
-        alert("회원가입 중 오류가 발생했습니다. 다시 시도해 주세요.");
         console.error("회원가입 오류:", err);
+        alert("회원가입 중 오류가 발생했습니다. 다시 시도해 주세요.");
       });
 }
 

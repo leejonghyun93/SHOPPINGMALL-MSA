@@ -3,6 +3,8 @@ import Home from '../views/Home.vue'
 
 import Login from '../views/user/Login.vue'
 import Register from '../views/user/Register.vue'
+import FindId from "../views/user/FindId.vue";
+import FindPassword from "../views/user/FindPassword.vue";
 import MemberList from "../views/user/MemberList.vue";
 import BoardList from "../views/board/BoardList.vue";
 
@@ -32,7 +34,22 @@ const routes = [
         name: 'UserDetail',
         component: () => import('@/views/user/UserDetail.vue')  // 혹은 UserDetailView.vue
     },
-    { path: '/users/edit/:userid', name: 'UserEdit', component: () => import('@/views/user/UserEdit.vue'), props: true },
+    {
+        path: '/users/edit/:userid',
+        name: 'UserEdit',
+        component: () => import('@/views/user/UserEdit.vue'),
+        props: true
+    },
+    {
+        path: "/find-id",
+        name: "FindId",
+        component: FindId,
+    },
+    {
+        path: "/find-password",
+        name: "FindPassword",
+        component: FindPassword,
+    },
     {
         path: '/boardList',
         name: 'BoardList',

@@ -27,6 +27,6 @@ public interface UserRepository extends JpaRepository<User, String> {
             "LOWER(u.email) LIKE LOWER(CONCAT('%', :searchValue, '%')) )")
     Page<User> searchUsers(@Param("searchValue") String searchValue, Pageable pageable);
 
-
+    Optional<User> findByNameAndEmail(String name, String email);
 
 }

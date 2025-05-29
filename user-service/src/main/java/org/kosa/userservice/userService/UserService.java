@@ -155,7 +155,29 @@ public class UserService implements UserDetailsService {
                 .accountLocked(Boolean.TRUE.equals(user.getAccountLocked()))
                 .build();
     }
+    @Transactional
+    public void updateUser(UserDto userDto) {
+        User user = userRepository.findById(userDto.getUserid())
+                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
 
+        // 기본 정보 업데이트
+        user.setName(userDto.getName());
+        user.setAge(userDto.getAge());
+        user.setEmail(userDto.getEmail());
+        user.setNickname(userDto.getNickname());
+        user.setPhone(userDto.getPhone());
+        user.setAddress(userDto.getAddress());
+        user.setDetailAddress(userDto.getDetailAddress());
+
+        // 비밀번호 암호화
+        String passwd = userDto.getPasswd();
+        if (passwd != null && !passwd.trim().isEmpty()) {
+            user.setPasswd(passwordEncoder.encode(passwd));
+        }
+
+        // JPA는 save()로 저장 및 업데이트를 모두 처리
+        userRepository.save(user);
+    }
     public Optional<User> findUserEntityByUserid(String userid) {
         return userRepository.findByUserid(userid);
     }
@@ -164,5 +186,24 @@ public class UserService implements UserDetailsService {
     public String encodePassword(String rawPassword) {
         return passwordEncoder.encode(rawPassword);
     }
+    public boolean matchesPassword(String rawPassword, String encodedPassword) {
+        return passwordEncoder.matches(rawPassword, encodedPassword);
+    }
 
+
+    public Optional<UserResponseDto> getUserByNameAndEmail(String name, String email) {
+        return userRepository.findByNameAndEmail(name, email)
+                .map(this::toDto); // User -> UserResponseDto 로 변환
+    }
+
+    public void updatePassword(String userid, String encodedPassword) {
+        Optional<User> userOptional = userRepository.findByUserid(userid);
+        if (userOptional.isPresent()) {
+            User user = userOptional.get();
+            user.setPasswd(encodedPassword);
+            userRepository.save(user);
+        } else {
+            throw new RuntimeException("해당 유저를 찾을 수 없습니다.");
+        }
+    }
 }

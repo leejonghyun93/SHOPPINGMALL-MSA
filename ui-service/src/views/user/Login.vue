@@ -31,12 +31,17 @@
         <!-- 체크박스 및 찾기 링크들 -->
         <div class="d-flex justify-content-between align-items-center mb-3">
           <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="rememberId" />
+            <input
+                class="form-check-input"
+                type="checkbox"
+                id="rememberId"
+                v-model="rememberId"
+            />
             <label class="form-check-label" for="rememberId">아이디 저장</label>
           </div>
           <div>
-            <a href="#" class="small me-2">아이디 찾기</a>
-            <a href="#" class="small">비밀번호 찾기</a>
+            <router-link to="/find-id" class="small me-2">아이디 찾기</router-link>
+            <router-link to="/find-password" class="small">비밀번호 찾기</router-link>
           </div>
         </div>
 
@@ -60,7 +65,7 @@
 </template>
 
 <script setup>
-import { reactive, ref } from "vue";
+import { reactive, ref, onMounted } from "vue";
 import axios from "axios";
 import { useRouter } from "vue-router";
 import { setUserFromToken } from "@/stores/userStore";
@@ -70,8 +75,17 @@ const form = reactive({
   userid: "",
   password: "",
 });
-
+const rememberId = ref(false);
 const errorMessage = ref("");
+
+// 페이지 로드 시 저장된 아이디 불러오기
+onMounted(() => {
+  const savedUserId = localStorage.getItem("savedUserId");
+  if (savedUserId) {
+    form.userid = savedUserId;
+    rememberId.value = true;
+  }
+});
 
 const handleLogin = async () => {
   try {
@@ -85,6 +99,14 @@ const handleLogin = async () => {
     if (token) {
       localStorage.setItem("token", token);
       setUserFromToken(token);
+
+      // 아이디 저장 처리
+      if (rememberId.value) {
+        localStorage.setItem("savedUserId", form.userid);
+      } else {
+        localStorage.removeItem("savedUserId");
+      }
+
       alert("로그인 성공!");
       router.push("/");
     } else {
@@ -92,16 +114,14 @@ const handleLogin = async () => {
     }
   } catch (error) {
     if (error.response) {
-      console.error("서버 응답 데이터:", error.response.data);
-      console.error("서버 상태 코드:", error.response.status);
       errorMessage.value = error.response.data.message || "로그인 실패";
     } else {
-      console.error("요청 실패:", error.message);
       errorMessage.value = "서버에 연결할 수 없습니다.";
     }
   }
 };
 </script>
+
 
 <style scoped>
 .error {

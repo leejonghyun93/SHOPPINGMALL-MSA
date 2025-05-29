@@ -37,6 +37,7 @@ public class SecurityConfig {
                 .csrf().disable()
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/users/**").permitAll()  // 인증 없이 접근 허용 (필요시 변경)
+                        .requestMatchers("/api/users").permitAll()  // 인증 없이 접근 허용 (필요시 변경)
                         .requestMatchers("/users/**").permitAll()
                         .anyRequest().authenticated()
                 )

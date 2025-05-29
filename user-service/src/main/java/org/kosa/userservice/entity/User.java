@@ -1,6 +1,5 @@
 package org.kosa.userservice.entity;
 
-
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
@@ -56,18 +55,61 @@ public class User {
     private LocalDateTime updateDate;
 
     @Column(name = "role", length = 20)
-    private String role;  // ex) USER, ADMIN
+    @Builder.Default
+    private String role = "USER";  // 기본값 설정
 
     @Column(name = "login_fail_count")
-    private int loginFailCount;
+    @Builder.Default
+    private int loginFailCount = 0;  // 기본값 설정
 
     @Column(name = "nickname", length = 50)
     private String nickname;
 
     @Column(name = "account_locked")
-    private Boolean accountLocked;
+    @Builder.Default
+    private Boolean accountLocked = false;  // 기본값 설정
 
     public boolean isAccountLocked() {
         return Boolean.TRUE.equals(accountLocked);
+    }
+
+    /**
+     * 엔티티가 저장되기 전에 호출되는 메서드
+     */
+    @PrePersist
+    public void prePersist() {
+        LocalDateTime now = LocalDateTime.now();
+
+        if (this.regDate == null) {
+            this.regDate = now;
+        }
+
+        if (this.updateDate == null) {
+            this.updateDate = now;
+        }
+
+        if (this.loginTime == null) {
+            this.loginTime = now;
+        }
+
+        if (this.role == null) {
+            this.role = "USER";
+        }
+
+        if (this.accountLocked == null) {
+            this.accountLocked = false;
+        }
+
+        if (this.loginFailCount == 0) {
+            this.loginFailCount = 0;
+        }
+    }
+
+    /**
+     * 엔티티가 업데이트되기 전에 호출되는 메서드
+     */
+    @PreUpdate
+    public void preUpdate() {
+        this.updateDate = LocalDateTime.now();
     }
 }

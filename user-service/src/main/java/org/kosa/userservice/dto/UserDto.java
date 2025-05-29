@@ -17,12 +17,15 @@ public class UserDto {
     private String email;
     private int age;
     private String fullAddress;
+    private String address;        // 추가
+    private String detailAddress;  // 추가
     private String phone;
     private String nickname;
     private String role;
     private Boolean accountLocked;
     private LocalDateTime loginTime;
     private LocalDateTime regDate;
+    private String passwd;
 
 
 }

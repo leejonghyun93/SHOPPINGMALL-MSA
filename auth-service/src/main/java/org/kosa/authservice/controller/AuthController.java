@@ -100,5 +100,51 @@ public class AuthController {
 
         return ResponseEntity.ok(new TokenResponse(token));
     }
+    @PostMapping("/find-id")
+    public ResponseEntity<?> findId(@RequestBody Map<String, String> request) {
+        String email = request.get("email");
+        String name = request.get("name");
 
+        try {
+            UserDto user = userFeignClient.getUserByNameAndEmail(name, email);
+            if (user != null) {
+                return ResponseEntity.ok(Map.of("userid", user.getUserid()));
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("message", "일치하는 회원 정보가 없습니다."));
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "아이디 찾기 중 오류 발생"));
+        }
+    }
+    @PostMapping("/find-password")
+    public ResponseEntity<?> findPassword(@RequestBody Map<String, String> request) {
+        String userid = request.get("userid");
+        String email = request.get("email");
+
+        try {
+            UserDto user = userFeignClient.getUserByUserId(userid);
+
+            if (user == null || !user.getEmail().equals(email)) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("message", "일치하는 회원 정보가 없습니다."));
+            }
+
+            // 임시 비밀번호 생성
+            String tempPassword = "Temp" + ((int) (Math.random() * 100000)); // 보안적으로는 더 복잡하게
+            String encodedTempPassword = passwordEncoder.encode(tempPassword);
+
+            // 비밀번호 변경
+            userFeignClient.updatePassword(userid, encodedTempPassword);
+
+            // 이메일 발송 로직 (메일 서비스와 연동 필요)
+            // mailService.sendTempPassword(email, tempPassword);
+
+            return ResponseEntity.ok(Map.of("message", "임시 비밀번호가 이메일로 발송되었습니다."));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "비밀번호 찾기 중 오류 발생"));
+        }
+    }
 }

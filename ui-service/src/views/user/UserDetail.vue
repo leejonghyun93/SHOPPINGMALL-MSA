@@ -123,7 +123,7 @@ export default {
           });
     },
     editProfile() {
-      this.$router.push(`/user/edit/${this.user.userid}`);
+      this.$router.push(`/users/edit/${this.user.userid}`);
     },
     formatDate(dateString) {
       if (!dateString) return '';

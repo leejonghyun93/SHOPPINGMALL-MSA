@@ -21,4 +21,5 @@ public class UserDto {
     private LocalDateTime loginTime;
     private Integer loginFailCount = 0;
     private Boolean accountLocked;
+    private String email;
 }

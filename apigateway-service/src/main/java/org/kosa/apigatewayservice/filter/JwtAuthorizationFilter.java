@@ -22,7 +22,21 @@ public class JwtAuthorizationFilter implements WebFilter {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
-        // Authorization 헤더에서 JWT 토큰 추출
+        String path = exchange.getRequest().getURI().getPath();
+
+        // ✅ 인증 없이 접근 가능한 경로 목록
+        if (path.startsWith("/api/auth/") ||
+                path.equals("/auth/login") ||
+                path.equals("/auth/register") ||
+                path.equals("/api/users/search") || // 👉 이 라인 추가
+                path.equals("/api/users/**") ||
+                path.equals("/api/users") ||
+                path.equals("/api/users/register") ||
+                path.startsWith("/api/users/checkUserid")) {
+            return chain.filter(exchange); // 인증 없이 통과
+        }
+
+        // ✅ JWT 토큰 검사
         String authHeader = exchange.getRequest().getHeaders().getFirst("Authorization");
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
@@ -33,16 +47,13 @@ public class JwtAuthorizationFilter implements WebFilter {
         String token = authHeader.substring(7);
 
         try {
-            // JWT 파싱 및 서명 검증
             Jwts.parser()
-                    .setSigningKey(secretKey.getBytes())  // secretKey를 byte[]로 변환해 사용
+                    .setSigningKey(secretKey.getBytes())
                     .parseClaimsJws(token);
 
-            // 토큰 검증 성공 -> 다음 필터로 넘어감
             return chain.filter(exchange);
 
         } catch (JwtException | IllegalArgumentException e) {
-            // 서명 불일치, 만료 등 예외 발생 시
             exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
             return exchange.getResponse().setComplete();
         }

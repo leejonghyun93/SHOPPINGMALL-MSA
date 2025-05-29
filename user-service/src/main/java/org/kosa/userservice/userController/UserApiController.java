@@ -24,11 +24,12 @@ public class UserApiController {
     private final UserService userService;
 
     // 회원 등록
-    @PostMapping
+    @PostMapping("/register")
     public ResponseEntity<User> registerUser(@RequestBody User user) {
         User savedUser = userService.saveUser(user);
         return ResponseEntity.ok(savedUser);
     }
+
     @GetMapping("/{userid}")
     public ResponseEntity<?> getUserDetail(@PathVariable String userid) {
         return userService.getUserDetail(userid)
@@ -105,50 +106,40 @@ public class UserApiController {
     }
 
     // 회원 정보 수정
-    @PutMapping("/{userid}")
+    @PutMapping("/edit/{userid}")
     public ResponseEntity<?> updateUser(
             @PathVariable String userid,
-            @RequestBody User updatedUser,
-            HttpServletRequest request
-    ) {
-        // 권한 체크는 실제로 JWT 또는 SecurityContext에서 구현해야 합니다.
+            @RequestBody UserDto userDto) {
 
-        // 1. 기존 사용자 엔티티 조회 (Optional<User>)
-        Optional<User> existingUserOpt = userService.findUserEntityByUserid(userid);
-        if (existingUserOpt.isEmpty()) {
-            return ResponseEntity.notFound().build();
+        if (!userid.equals(userDto.getUserid())) {
+            return ResponseEntity.badRequest().body("User ID mismatch");
         }
 
-        User existingUser = existingUserOpt.get();
+        try {
+            userService.updateUser(userDto);
+            return ResponseEntity.ok("User updated successfully");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Update failed");
+        }
+    }
+    @GetMapping("/search")
+    public ResponseEntity<?> getUserByNameAndEmail(
+            @RequestParam("name") String name,
+            @RequestParam("email") String email) {
 
-        // 2. 변경 가능한 필드만 안전하게 업데이트
-        if (StringUtils.hasText(updatedUser.getEmail())) {
-            existingUser.setEmail(updatedUser.getEmail());
+        return userService.getUserByNameAndEmail(name, email)
+                .<ResponseEntity<?>>map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body("해당하는 사용자를 찾을 수 없습니다."));
+    }
+    @PutMapping("/{userid}/password")
+    public ResponseEntity<?> updatePassword(@PathVariable String userid, @RequestBody String encodedPassword) {
+        try {
+            userService.updatePassword(userid, encodedPassword);
+            return ResponseEntity.ok("비밀번호가 성공적으로 변경되었습니다.");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("비밀번호 변경 중 오류가 발생했습니다.");
         }
-        if (StringUtils.hasText(updatedUser.getNickname())) {
-            existingUser.setNickname(updatedUser.getNickname());
-        }
-        if (StringUtils.hasText(updatedUser.getPhone())) {
-            existingUser.setPhone(updatedUser.getPhone());
-        }
-        if (StringUtils.hasText(updatedUser.getAddress())) {
-            existingUser.setAddress(updatedUser.getAddress());
-        }
-        if (StringUtils.hasText(updatedUser.getDetailAddress())) {
-            existingUser.setDetailAddress(updatedUser.getDetailAddress());
-        }
-
-        // 비밀번호 변경 시 암호화 처리 (빈 값이나 null이면 변경 안함)
-        if (StringUtils.hasText(updatedUser.getPasswd())) {
-            existingUser.setPasswd(userService.encodePassword(updatedUser.getPasswd()));
-        }
-
-        // 3. 저장
-        User savedUser = userService.saveUser(existingUser);
-
-        // 4. 저장된 사용자 DTO 변환 후 응답
-        UserResponseDto responseDto = userService.toDto(savedUser);
-
-        return ResponseEntity.ok(responseDto);
     }
 }
