@@ -1,7 +1,11 @@
 package org.kosa.userservice.userController;
 
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+
 import lombok.extern.slf4j.Slf4j;
 import org.kosa.userservice.dto.PageDto;
 import org.kosa.userservice.dto.PageRequestDto;
@@ -13,7 +17,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.beans.factory.annotation.Value;
 
+import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 @RestController
 @RequestMapping("/api/users")
@@ -23,6 +30,8 @@ public class UserApiController {
 
     private final UserService userService;
 
+    @Value("${jwt.secret-key}")
+    private String jwtSecret;
     // 회원 등록
     @PostMapping("/register")
     public ResponseEntity<User> registerUser(@RequestBody User user) {
@@ -74,14 +83,63 @@ public class UserApiController {
     }
 
 
-
-
     // 회원 삭제
-    @DeleteMapping("/{userid}")
-    public ResponseEntity<Void> deleteUser(@PathVariable String userid) {
+
+    @DeleteMapping("/delete/{userid}")
+    public ResponseEntity<Void> deleteUser(@PathVariable String userid, HttpServletRequest request) {
+        log.info("Delete request for userid: {}", userid);
+
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            log.warn("Missing or invalid Authorization header");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        String token = authHeader.substring(7);
+        String tokenUserid;
+
+        try {
+            SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
+
+            Claims claims = Jwts.parserBuilder()
+                    .setSigningKey(key)
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+
+            // 프론트엔드와 동일한 로직으로 userid 추출
+            tokenUserid = claims.get("userid", String.class);
+            if (tokenUserid == null) {
+                tokenUserid = claims.getSubject(); // sub claim
+            }
+            if (tokenUserid == null) {
+                tokenUserid = claims.get("id", String.class); // id claim
+            }
+
+            log.info("URL userid: '{}', Token userid: '{}'", userid, tokenUserid);
+
+            if (tokenUserid == null) {
+                log.error("No userid found in JWT token");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+
+            // 문자열 비교 (프론트엔드에서 String() 변환하므로)
+            if (!String.valueOf(userid).equals(String.valueOf(tokenUserid))) {
+                log.warn("User ID mismatch - URL: {}, Token: {}", userid, tokenUserid);
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+
+        } catch (Exception e) {
+            log.error("JWT parsing error: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
         if (!userService.isUserExists(userid)) {
+            log.warn("User does not exist: {}", userid);
             return ResponseEntity.notFound().build();
         }
+
+        log.info("Deleting user: {}", userid);
         userService.deleteUser(userid);
         return ResponseEntity.noContent().build();
     }

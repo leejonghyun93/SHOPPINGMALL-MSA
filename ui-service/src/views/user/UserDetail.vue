@@ -144,14 +144,26 @@ export default {
         alert('로그인이 필요합니다.');
         return;
       }
-
-      axios.delete(`/api/users/${this.user.userid}`, {
-        headers: {Authorization: `Bearer ${token}`}
+      const userid = this.$route.params.userid;
+      axios.delete(`/api/users/delete/${userid}`, {
+        headers: { Authorization: `Bearer ${token}` }
       })
           .then(() => {
             alert('회원 탈퇴가 완료되었습니다.');
-            this.$router.push('/');
+
+            // 🔽 토큰 삭제 + 전역 상태 초기화
             localStorage.removeItem('token');
+
+            // 🔽 전역 상태도 초기화
+            this.$store?.user && (this.$store.user = { id: null, name: null, role: null }); // (store 방식에 따라 다름)
+            import("@/stores/userStore").then(({ user }) => {
+              user.id = null;
+              user.name = null;
+              user.role = null;
+            });
+
+            // 🔽 홈으로 이동
+            this.$router.push('/');
           })
           .catch(error => {
             console.error('회원 탈퇴 실패:', error);

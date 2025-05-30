@@ -18,10 +18,10 @@ public interface UserFeignClient {
     @GetMapping("/users")
     UserDto getUser(@RequestParam("username") String username);
 
-    @GetMapping("/users/search")
+    @GetMapping("/search")
     UserDto getUserByNameAndEmail(@RequestParam("name") String name, @RequestParam("email") String email);
 
-    @PutMapping("/users/{userid}/password")
+    @PutMapping("/{userid}/password")
     void updatePassword(@PathVariable("userid") String userid, @RequestBody String encodedPassword);
 
 }

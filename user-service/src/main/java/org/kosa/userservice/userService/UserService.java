@@ -7,7 +7,9 @@ import org.kosa.userservice.dto.PageRequestDto;
 import org.kosa.userservice.dto.UserDto;
 import org.kosa.userservice.dto.UserResponseDto;
 import org.kosa.userservice.entity.User;
+import org.kosa.userservice.entity.WithdrawnUser;
 import org.kosa.userservice.repository.UserRepository;
+import org.kosa.userservice.repository.WithdrawnUserRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -20,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +36,8 @@ public class UserService implements UserDetailsService {
     private final UserRepository userRepository;
 
     private final PasswordEncoder passwordEncoder;
+
+    private final WithdrawnUserRepository withdrawnUserRepository;
 
     // 사용자 저장
     public User saveUser(User user) {
@@ -129,8 +134,26 @@ public class UserService implements UserDetailsService {
     }
 
     // 사용자 삭제
+    @Transactional
     public void deleteUser(String userid) {
-        userRepository.deleteById(userid);
+        User user = userRepository.findByUserid(userid)
+                .orElseThrow(() -> new RuntimeException("회원이 존재하지 않습니다."));
+
+        // 1. withdrawn_users 테이블에 기록
+        WithdrawnUser withdrawnUser = WithdrawnUser.builder()
+                .userid(user.getUserid())
+                .name(user.getName())
+                .email(user.getEmail())
+                .nickname(user.getNickname())
+                .role(user.getRole())
+                .fullAddress(user.getFullAddress())
+                .createdAt(user.getRegDate())
+                .withdrawnAt(LocalDateTime.now())
+                .build();
+        withdrawnUserRepository.save(withdrawnUser);
+
+        // 2. users 테이블에서 삭제
+        userRepository.delete(user);
     }
 
     public Map<String, String> getNicknameMapByUserIds(List<String> userIds) {

@@ -22,4 +22,5 @@ public class UserDto {
     private Integer loginFailCount = 0;
     private Boolean accountLocked;
     private String email;
+    private String name;
 }
