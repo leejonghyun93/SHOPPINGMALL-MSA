@@ -35,4 +35,9 @@ public interface BoardMapper {
     int deleteBoard(@Param("bno") Long bno, @Param("passwd") String passwd);
 
     void insertBoard(BoardDto boardDto);
+
+    int updateNicknameByUserId(@Param("userId") String userId,
+                               @Param("nickname") String nickname);
+
+    int hideAllByUserId(@Param("userId") String userId);
 }

@@ -61,7 +61,7 @@ const router = useRouter()
 
 const submitPost = async () => {
   try {
-    const token = localStorage.getItem('jwtToken') || sessionStorage.getItem('jwtToken')
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token')
     console.log('token:', token)
 
     const postData = {

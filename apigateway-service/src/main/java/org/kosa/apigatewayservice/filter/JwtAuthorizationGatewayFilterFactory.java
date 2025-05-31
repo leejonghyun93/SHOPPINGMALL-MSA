@@ -21,7 +21,7 @@ public class JwtAuthorizationGatewayFilterFactory extends AbstractGatewayFilterF
     }
 
     public static class Config {
-        // 필요 시 필터 설정값 추가
+        // 설정값이 필요하면 추가
     }
 
     @Override
@@ -30,17 +30,17 @@ public class JwtAuthorizationGatewayFilterFactory extends AbstractGatewayFilterF
             String path = exchange.getRequest().getURI().getPath();
             HttpMethod method = exchange.getRequest().getMethod();
 
-            // ✅ OPTIONS 요청은 무조건 통과 (CORS preflight)
+            // ✅ CORS Preflight 요청은 통과
             if (method == HttpMethod.OPTIONS) {
                 return chain.filter(exchange);
             }
 
-            // ✅ 인증을 제외할 경로들 (더 정확한 매칭)
+            // ✅ 인증 없이 접근 가능한 공개 경로는 통과
             if (isPublicPath(path)) {
                 return chain.filter(exchange);
             }
 
-            // ✅ Authorization 헤더 검증
+            // ✅ Authorization 헤더 확인
             String authHeader = exchange.getRequest().getHeaders().getFirst("Authorization");
 
             if (authHeader == null || !authHeader.startsWith("Bearer ")) {
@@ -56,10 +56,10 @@ public class JwtAuthorizationGatewayFilterFactory extends AbstractGatewayFilterF
                         .parseClaimsJws(token)
                         .getBody();
 
-                // 사용자 정보를 헤더에 추가 (선택사항)
+                // 필요한 경우 사용자 ID를 헤더에 추가
                 // exchange.getRequest().mutate()
-                //     .header("X-User-Id", claims.getSubject())
-                //     .build();
+                //         .header("X-User-Id", claims.getSubject())
+                //         .build();
 
                 return chain.filter(exchange);
 
@@ -71,14 +71,15 @@ public class JwtAuthorizationGatewayFilterFactory extends AbstractGatewayFilterF
     }
 
     /**
-     * 공개 경로인지 확인
+     * 공개 접근 경로 목록
      */
     private boolean isPublicPath(String path) {
         return path.equals("/api/users/register") ||
-                path.equals("/api/users/checkUserid") ||
+                path.equals("/api/users") || // 루트도 허용
+                path.equals("/api/users/list") ||
+                path.startsWith("/api/users/checkUserid") ||
+                path.equals("/api/users/search") ||
                 path.startsWith("/auth/") ||
-                path.startsWith("/api/auth/") ||
-                path.equals("/api/users/search"); // 👉 이 라인 추가
-
+                path.startsWith("/api/auth/");
     }
 }

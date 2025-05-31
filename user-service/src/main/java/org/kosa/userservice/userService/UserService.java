@@ -1,5 +1,7 @@
 package org.kosa.userservice.userService;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.kosa.userservice.dto.PageDto;
@@ -8,6 +10,7 @@ import org.kosa.userservice.dto.UserDto;
 import org.kosa.userservice.dto.UserResponseDto;
 import org.kosa.userservice.entity.User;
 import org.kosa.userservice.entity.WithdrawnUser;
+import org.kosa.userservice.kafka.UserKafkaProducer;
 import org.kosa.userservice.repository.UserRepository;
 import org.kosa.userservice.repository.WithdrawnUserRepository;
 import org.springframework.data.domain.Page;
@@ -21,31 +24,45 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class UserService implements UserDetailsService {
 
     private final UserRepository userRepository;
-
     private final PasswordEncoder passwordEncoder;
-
     private final WithdrawnUserRepository withdrawnUserRepository;
+    private final UserKafkaProducer kafkaProducer;
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     // 사용자 저장
     public User saveUser(User user) {
-        user.setPasswd(passwordEncoder.encode(user.getPasswd())); // 비밀번호 암호화
-        return userRepository.save(user);
-    }
-    // 사용자 ID로 조회
+        user.setPasswd(passwordEncoder.encode(user.getPasswd()));
+        User savedUser = userRepository.save(user);
 
+        try {
+            String payload = objectMapper.writeValueAsString(Map.of(
+                    "eventType", "USER_CREATED",
+                    "userid", savedUser.getUserid(),
+                    "email", savedUser.getEmail(),
+                    "nickname", savedUser.getNickname(),
+                    "createdAt", savedUser.getRegDate().toString()
+            ));
+            kafkaProducer.sendUserEvent("USER_CREATED", payload);
+        } catch (JsonProcessingException e) {
+            log.error("Kafka 메시지 전송 중 JSON 처리 오류", e);
+            // 예외 무시 혹은 재처리 로직 추가 가능
+        }
+
+        return savedUser;
+    }
+
+    // 사용자 ID로 조회
     public Optional<UserResponseDto> getUserDetail(String userid) {
         if (userid == null || userid.trim().isEmpty()) {
             return Optional.empty();
@@ -56,9 +73,7 @@ public class UserService implements UserDetailsService {
     }
 
     // 모든 사용자 목록 조회
-
     public PageDto<UserResponseDto> list(PageRequestDto requestDto) {
-        // 정렬 컬럼 없으면 기본 name, 오름차순 정렬
         Sort sort = Sort.by(Sort.Direction.ASC,
                 requestDto.getSortBy() != null ? requestDto.getSortBy() : "name");
 
@@ -66,7 +81,6 @@ public class UserService implements UserDetailsService {
 
         Page<User> userPage = userRepository.searchUsers(requestDto.getSearchValue(), pageable);
 
-        // Entity -> DTO 변환
         var userDtoList = userPage.stream()
                 .map(this::toDto)
                 .collect(Collectors.toList());
@@ -80,7 +94,7 @@ public class UserService implements UserDetailsService {
         );
     }
 
-    public  UserResponseDto toDto(User user) {
+    public UserResponseDto toDto(User user) {
         return UserResponseDto.builder()
                 .userid(user.getUserid())
                 .name(user.getName())
@@ -98,6 +112,7 @@ public class UserService implements UserDetailsService {
                 .accountLocked(user.getAccountLocked())
                 .build();
     }
+
     @Transactional
     public void increaseLoginFailCount(String userid) {
         User user = userRepository.findById(userid)
@@ -113,9 +128,9 @@ public class UserService implements UserDetailsService {
         if (failCount >= 5) {
             user.setAccountLocked(true);
             userRepository.save(user);
-            // 잠겼다는 예외를 여기서 던지면 클라이언트가 받을 수 있습니다.
             throw new RuntimeException("계정이 5회 이상 로그인 실패로 잠겼습니다.");
         }
+
         userRepository.save(user);
     }
 
@@ -128,12 +143,11 @@ public class UserService implements UserDetailsService {
         user.setAccountLocked(false);
         userRepository.save(user);
     }
-    // 사용자 존재 여부 확인
+
     public boolean isUserExists(String userid) {
         return userRepository.existsByUserid(userid);
     }
 
-    // 사용자 삭제
     @Transactional
     public void deleteUser(String userid) {
         User user = userRepository.findByUserid(userid)
@@ -154,36 +168,50 @@ public class UserService implements UserDetailsService {
 
         // 2. users 테이블에서 삭제
         userRepository.delete(user);
+
+        // Kafka 메시지 전송
+        try {
+            ObjectMapper objectMapper = new ObjectMapper();
+
+            String payload = objectMapper.writeValueAsString(Map.of(
+                    "eventType", "USER_DELETED",
+                    "userid", user.getUserid(),
+                    "email", user.getEmail(),
+                    "deletedAt", LocalDateTime.now().toString()
+            ));
+            kafkaProducer.sendUserEvent("USER_DELETED", payload);
+        } catch (JsonProcessingException e) {
+            log.error("Kafka 메시지 전송 중 JSON 처리 오류", e);
+        }
     }
 
     public Map<String, String> getNicknameMapByUserIds(List<String> userIds) {
         Map<String, String> nicknameMap = new HashMap<>();
-
         for (String id : userIds) {
             userRepository.findById(id).ifPresent(user -> {
                 nicknameMap.put(id, user.getNickname());
             });
         }
-
         return nicknameMap;
     }
+
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         User user = userRepository.findByUserid(username)
                 .orElseThrow(() -> new UsernameNotFoundException("사용자 없음: " + username));
 
         return org.springframework.security.core.userdetails.User
                 .withUsername(user.getUserid())
-                .password(user.getPasswd()) // 반드시 암호화된 비밀번호!
+                .password(user.getPasswd())
                 .roles(user.getRole())
                 .accountLocked(Boolean.TRUE.equals(user.getAccountLocked()))
                 .build();
     }
+
     @Transactional
     public void updateUser(UserDto userDto) {
         User user = userRepository.findById(userDto.getUserid())
                 .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
 
-        // 기본 정보 업데이트
         user.setName(userDto.getName());
         user.setAge(userDto.getAge());
         user.setEmail(userDto.getEmail());
@@ -192,31 +220,29 @@ public class UserService implements UserDetailsService {
         user.setAddress(userDto.getAddress());
         user.setDetailAddress(userDto.getDetailAddress());
 
-        // 비밀번호 암호화
         String passwd = userDto.getPasswd();
         if (passwd != null && !passwd.trim().isEmpty()) {
             user.setPasswd(passwordEncoder.encode(passwd));
         }
 
-        // JPA는 save()로 저장 및 업데이트를 모두 처리
         userRepository.save(user);
     }
+
     public Optional<User> findUserEntityByUserid(String userid) {
         return userRepository.findByUserid(userid);
     }
 
-    // 비밀번호 암호화 메서드 분리
     public String encodePassword(String rawPassword) {
         return passwordEncoder.encode(rawPassword);
     }
+
     public boolean matchesPassword(String rawPassword, String encodedPassword) {
         return passwordEncoder.matches(rawPassword, encodedPassword);
     }
 
-
     public Optional<UserResponseDto> getUserByNameAndEmail(String name, String email) {
         return userRepository.findByNameAndEmail(name, email)
-                .map(this::toDto); // User -> UserResponseDto 로 변환
+                .map(this::toDto);
     }
 
     public void updatePassword(String userid, String encodedPassword) {

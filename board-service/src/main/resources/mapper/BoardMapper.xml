@@ -105,5 +105,17 @@
                    NOW()
                )
     </insert>
+    <!-- 유저 닉네임 변경 -->
+    <update id="updateNicknameByUserId">
+        UPDATE board
+        SET nickname = #{nickname}
+        WHERE user_id = #{userId}
+    </update>
 
+    <!-- 유저 게시글 숨기기 -->
+    <update id="hideAllByUserId">
+        UPDATE board
+        SET hidden = 1
+        WHERE user_id = #{userId}
+    </update>
 </mapper>

@@ -73,7 +73,6 @@ spring:
             - name: JwtAuthorization
             - RewritePath=/api/users, /api/users
 
-
         - id: board-service
           uri: lb://BOARD-SERVICE
           predicates:
@@ -107,14 +106,13 @@ spring:
             - name: JwtAuthorization
             - RemoveRequestHeader=Cookie
             - RewritePath=/user-service/(?<segment>.*), /${segment}
-            -
+
         - id:  user-service-direct
           uri: http://localhost:8081
           predicates:
             - Path=/users/**
           filters:
             - name: JwtAuthorization
-
         - id: auth-service
           uri: lb://AUTH-SERVICE
           predicates:
