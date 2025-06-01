@@ -24,6 +24,7 @@
 <script>
 import axios from 'axios';
 import {useRoute, useRouter} from 'vue-router';
+import '@/assets/css/boardEdit.css';
 
 export default {
   name: 'BoardEdit',
@@ -86,33 +87,3 @@ export default {
   },
 };
 </script>
-
-<style scoped>
-.container {
-  max-width: 960px;
-  min-height: 100vh;
-}
-
-.board-edit {
-  padding: 20px;
-}
-
-.form-group {
-  margin-bottom: 15px;
-}
-
-label {
-  font-weight: bold;
-}
-
-input,
-textarea {
-  width: 100%;
-  padding: 8px;
-  box-sizing: border-box;
-}
-
-.actions button {
-  margin-right: 10px;
-}
-</style>

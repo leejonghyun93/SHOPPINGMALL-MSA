@@ -6,4 +6,4 @@
 
 <script setup></script>
 
-<style scoped src="@/assets/css/Footer.css"></style>
+<style scoped src="@/assets/css/footer.css"></style>

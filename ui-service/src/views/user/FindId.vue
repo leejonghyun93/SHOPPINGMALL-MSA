@@ -19,6 +19,7 @@
 <script setup>
 import { ref } from "vue";
 import axios from "axios";
+import '@/assets/css/findIdPassword.css';
 
 const email = ref("");
 const name = ref("");
@@ -37,9 +38,3 @@ const handleFindId = async () => {
 };
 </script>
 
-<style scoped>
-.container {
-  max-width: 960px;
-  min-height: 100vh;
-}
-</style>

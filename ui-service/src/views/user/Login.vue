@@ -69,6 +69,7 @@ import { reactive, ref, onMounted } from "vue";
 import axios from "axios";
 import { useRouter } from "vue-router";
 import { setUserFromToken } from "@/stores/userStore";
+import '@/assets/css/memberList.css';
 
 const router = useRouter();
 const form = reactive({
@@ -123,11 +124,3 @@ const handleLogin = async () => {
 </script>
 
 
-<style scoped>
-.error {
-  color: red;
-  font-size: 0.9rem;
-  margin-top: 10px;
-  text-align: center;
-}
-</style>

@@ -1,9 +1,18 @@
-/* src/views/home.css */
 .home {
     width: 100%;
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+    overflow-x: hidden;
+}
+
+.container-fluid {
+    width: 100%;
+    padding-left: 15px;
+    padding-right: 15px;
+    margin-left: auto;
+    margin-right: auto;
+    overflow-x: hidden;
 }
 
 .hero {
@@ -11,6 +20,7 @@
     margin: 3rem 0;
     padding: 0 2rem;
     width: 100%;
+    box-sizing: border-box;
 }
 
 .hero h2 {
@@ -37,6 +47,7 @@
     margin: 2rem 0;
     padding: 0 2rem;
     width: 100%;
+    box-sizing: border-box;
 }
 
 .featured-products h3 {
@@ -49,6 +60,7 @@
     flex-wrap: wrap;
     width: 100%;
     justify-content: center;
+    box-sizing: border-box;
 }
 
 .product-card {

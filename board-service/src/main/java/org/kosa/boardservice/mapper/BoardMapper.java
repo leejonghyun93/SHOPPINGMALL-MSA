@@ -40,4 +40,12 @@ public interface BoardMapper {
                                @Param("nickname") String nickname);
 
     int hideAllByUserId(@Param("userId") String userId);
+
+    // 최신 게시글 조회
+    List<BoardDto> selectRecentBoards(@Param("limit") int limit);
+
+    // 인기 게시글 조회
+    List<BoardDto> selectPopularBoards(@Param("limit") int limit);
+
+    List<BoardDto> findRecentBoards(@Param("limit") int limit);
 }

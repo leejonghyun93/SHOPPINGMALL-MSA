@@ -30,21 +30,17 @@ public class BoardDto {
     private String writerName;
     private Long writerId;
     private String name;
-
-
+       // 조회수
+    private int vc;
+    public LocalDateTime getRegDate() {
+        return regDate;
+    }
     public String getFormattedRegDate() {
         return regDate != null ? regDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) : "";
     }
     public String formatLocalDateTime(LocalDateTime dateTime) {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
         return dateTime != null ? dateTime.format(formatter) : "";
-    }
-    // regDate null 처리 메서드
-    public LocalDateTime getRegDate() {
-        if (regDate == null) {
-            return LocalDateTime.now(); // null일 경우 현재 시간으로 설정
-        }
-        return regDate;
     }
 
 }

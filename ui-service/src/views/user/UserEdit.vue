@@ -80,7 +80,7 @@
 <script>
 import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
-
+import '@/assets/css/editUser.css';
 export default {
   data() {
     return {
@@ -196,86 +196,3 @@ export default {
   },
 };
 </script>
-
-<style scoped>
-.edit-container {
-  max-width: 600px;
-  margin: 0 auto;
-  padding: 3rem 1rem;
-  background-color: #f9f9f9;
-  border-radius: 12px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-}
-
-.title {
-  text-align: center;
-  margin-bottom: 2rem;
-  color: #333;
-}
-
-.loading {
-  text-align: center;
-  font-size: 1.2rem;
-  color: #777;
-}
-
-.form-box {
-  display: flex;
-  flex-direction: column;
-}
-
-.form-group {
-  margin-bottom: 1.2rem;
-}
-
-label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 600;
-  color: #444;
-}
-
-input[type="text"],
-input[type="email"],
-input[type="number"],
-input[type="password"] {
-  width: 100%;
-  padding: 0.6rem;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  box-sizing: border-box;
-  font-size: 1rem;
-}
-
-.button-group {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 1.5rem;
-}
-
-.btn {
-  padding: 0.6rem 1.4rem;
-  font-size: 1rem;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.update-btn {
-  background-color: #4caf50;
-  color: white;
-}
-
-.update-btn:hover {
-  background-color: #388e3c;
-}
-
-.cancel-btn {
-  background-color: #999;
-  color: white;
-}
-
-.cancel-btn:hover {
-  background-color: #666;
-}
-</style>

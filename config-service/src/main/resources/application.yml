@@ -10,6 +10,5 @@ spring:
       server:
         native:
           search-locations: file:///c:/Users/fhohf/config-repo
-
   profiles:
     active: native

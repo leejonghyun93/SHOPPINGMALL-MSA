@@ -16,6 +16,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/board")
@@ -203,6 +204,34 @@ public class BoardApiController {
         }
     }
 
+    @GetMapping("/chart/recent")
+    public ResponseEntity<List<BoardDto>> getRecentBoards(
+            @RequestParam(defaultValue = "5") int limit) {
+        try {
+            List<BoardDto> recentBoards = boardService.getRecentBoards(limit);
+            return ResponseEntity.ok(recentBoards);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(null);
+        }
+    }
 
-
+    // 인기 게시글 리스트 (예: 조회수 높은 상위 5개)
+    @GetMapping("/chart/popular")
+    public ResponseEntity<List<BoardDto>> getPopularBoards(
+            @RequestParam(defaultValue = "5") int limit) {
+        try {
+            List<BoardDto> popularBoards = boardService.getPopularBoards(limit);
+            return ResponseEntity.ok(popularBoards);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(null);
+        }
+    }
+    @GetMapping("/recentList")
+    public List<BoardDto> getRecentBoardList(@RequestParam(defaultValue = "10") int limit) {
+        return boardService.getRecentBoardList(limit);
+    }
 }

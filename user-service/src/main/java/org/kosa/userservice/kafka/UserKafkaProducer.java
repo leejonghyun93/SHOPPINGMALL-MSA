@@ -12,6 +12,6 @@ public class UserKafkaProducer {
 
     public void sendUserEvent(String eventType, String payloadJson) {
         String message = eventType + "|" + payloadJson; // 간단한 구분자 포맷
-        kafkaTemplate.send("user-events", message);
+        kafkaTemplate.send("user-topic", message);
     }
 }

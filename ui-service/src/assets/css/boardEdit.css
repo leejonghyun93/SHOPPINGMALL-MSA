@@ -1,0 +1,27 @@
+.container {
+    max-width: 960px;
+    min-height: 100vh;
+}
+
+.board-edit {
+    padding: 20px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+label {
+    font-weight: bold;
+}
+
+input,
+textarea {
+    width: 100%;
+    padding: 8px;
+    box-sizing: border-box;
+}
+
+.actions button {
+    margin-right: 10px;
+}

@@ -75,6 +75,7 @@
 <script>
 import axios from 'axios';
 import {jwtDecode} from 'jwt-decode';
+import '@/assets/css/userDetail.css';
 
 export default {
   data() {
@@ -175,63 +176,3 @@ export default {
 }
 </script>
 
-<style scoped>
-
-.container {
-  max-width: 960px;
-  min-height: 100vh;
-}
-
-.user-detail {
-  max-width: 600px;
-  margin: 2rem auto;
-  padding: 1rem 2rem;
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-}
-
-h2 {
-  margin-bottom: 1rem;
-}
-
-p {
-  margin: 0.4rem 0;
-  font-size: 1.1rem;
-}
-
-.actions {
-  margin-top: 2rem;
-  display: flex;
-  gap: 1rem;
-}
-
-.btn {
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  border: none;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 1rem;
-  transition: background-color 0.3s ease;
-}
-
-.edit-btn {
-  background-color: #4caf50;
-  color: white;
-}
-
-.edit-btn:hover {
-  background-color: #388e3c;
-}
-
-.delete-btn {
-  background-color: #f44336;
-  color: white;
-}
-
-.delete-btn:hover {
-  background-color: #d32f2f;
-}
-</style>

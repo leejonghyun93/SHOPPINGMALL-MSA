@@ -9,8 +9,8 @@
         b.content,
         b.writer,
         b.passwd,
-        b.reg_date,
-        b.view_count
+        b.regDate,
+        b.viewCount
     </sql>
 
     <!-- 검색 조건 -->
@@ -56,9 +56,9 @@
     </select>
 
     <!-- 조회수 증가 -->
-    <update id="updateViewCount">
+    <update id="updateViewCount" parameterType="long">
         UPDATE t_board
-        SET view_count = view_count + 1
+        SET viewCount = viewCount + 1
         WHERE bno = #{bno}
     </update>
 
@@ -93,8 +93,8 @@
             content,
             WRITER,
             PASSWD,
-            VIEW_COUNT,
-            reg_date
+            VIEWCOUNT,
+            regDate
         )
         VALUES (
                    #{title},
@@ -118,4 +118,29 @@
         SET hidden = 1
         WHERE user_id = #{userId}
     </update>
+
+    <!-- 최신 게시글 조회 -->
+    <select id="selectRecentBoards" resultType="org.kosa.boardservice.dto.BoardDto">
+        SELECT
+        <include refid="boardColumns"/>
+        FROM t_board b
+        ORDER BY b.regDate DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 인기 게시글 조회 (조회수 기준) -->
+    <select id="selectPopularBoards" resultType="org.kosa.boardservice.dto.BoardDto">
+        SELECT
+        <include refid="boardColumns"/>
+        FROM t_board b
+        ORDER BY b.viewCount DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="findRecentBoards" resultType="org.kosa.boardservice.dto.BoardDto">
+        SELECT
+        <include refid="boardColumns"/>
+        FROM t_board b
+        LIMIT 10
+    </select>
 </mapper>

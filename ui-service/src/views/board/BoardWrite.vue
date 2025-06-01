@@ -52,6 +52,7 @@
 import { ref } from 'vue'
 import axios from 'axios'
 import { useRouter } from 'vue-router'
+import '@/assets/css/boardWrite.css';
 
 const title = ref('')
 const content = ref('')
@@ -90,9 +91,4 @@ const submitPost = async () => {
 }
 </script>
 
-<style scoped>
-.container {
-  max-width: 960px;
-  min-height: 100vh;
-}
-</style>
+

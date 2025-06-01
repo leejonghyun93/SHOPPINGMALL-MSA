@@ -1,44 +1,41 @@
 <template>
-
   <div class="home">
+    <div v-if="isAdmin">
+      <div class="container-fluid">
+        <div class="row">
 
-    <section class="hero">
-      <h2>Welcome to Our Store!</h2>
-      <p>Find the best products at the best prices.</p>
-      <button @click="goToProducts">Shop Now</button>
-    </section>
+          <main>
+            <ChartBoard />
+            <RecentBoardList />
+          </main>
+        </div>
+      </div>
+    </div>
 
-
-
-
+    <div v-else>
+      <section class="hero">
+        <h2>Welcome to Our Board!</h2>
+        <p>Find the best products at the best prices.</p>
+        <button @click="goToProducts">Shop Now</button>
+      </section>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from "vue";
-import { useRouter } from "vue-router";
+import { ref } from "vue"
+import { useRouter } from "vue-router"
 
+
+import ChartBoard from '@/components/ChartBoard.vue'
+import RecentBoardList from '@/components/RecentBoardList.vue'
 import '@/assets/css/home.css'
 
-const router = useRouter();
+// 라우터 사용
+const router = useRouter()
 
-const featuredProducts = ref([
-  // { id: 1, name: "Red T-Shirt", price: 19900, image: "https://via.placeholder.com/150?text=Red+T-Shirt" },
-  // { id: 2, name: "Blue Jeans", price: 49900, image: "https://via.placeholder.com/150?text=Blue+Jeans" },
-  // { id: 3, name: "Sneakers", price: 79900, image: "https://via.placeholder.com/150?text=Sneakers" },
-]);
+// 관리자 여부 - 실제 프로젝트에선 로그인 정보 기반으로 설정
+const isAdmin = ref(true)  // 테스트 중에는 true/false로 바꿔보세요
 
-function goToProducts() {
-  router.push("/products");
-}
 
-function addToCart(product) {
-  alert(`${product.name} added to cart!`);
-}
-
-function formatCurrency(value) {
-  if (typeof value !== "number") return value;
-  return "₩ " + value.toLocaleString();
-}
 </script>
-

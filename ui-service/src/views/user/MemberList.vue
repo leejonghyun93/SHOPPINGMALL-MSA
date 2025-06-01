@@ -108,7 +108,7 @@ import { ref, watch, onMounted } from 'vue'
 import axios from 'axios'
 import Pagination from '@/components/common/Pagination.vue'
 import { useRouter } from 'vue-router'
-import { jwtDecode } from 'jwt-decode'
+import '@/assets/css/memberList.css'
 
 const memberList = ref([])
 const searchKeyword = ref('')

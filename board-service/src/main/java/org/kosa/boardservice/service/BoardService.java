@@ -101,7 +101,7 @@ public class BoardService {
         if (sortBy == null) sortBy = "latest";
         return switch (sortBy) {
             case "title" -> "b.title ASC";
-            case "popular" -> "b.view_count DESC";
+            case "popular" -> "b.viewCount DESC";
             default -> "b.bno DESC";
         };
     }
@@ -168,5 +168,34 @@ public class BoardService {
         }
 
         boardMapper.insertBoard(boardDto);
+    }
+
+    public List<BoardDto> getRecentBoards(int limit) {
+        return boardMapper.selectRecentBoards(limit);
+    }
+
+    public List<BoardDto> getPopularBoards(int limit) {
+        return boardMapper.selectPopularBoards(limit);
+    }
+    public List<BoardDto> getRecentBoardList(int limit) {
+        // 게시글 조회
+        List<BoardDto> content = boardMapper.findRecentBoards(limit);
+
+        // 작성자 ID 리스트 추출
+        List<String> userIds = content.stream()
+                .map(BoardDto::getWriter)
+                .filter(id -> id != null && !id.isEmpty())
+                .distinct()
+                .collect(Collectors.toList());
+
+        // 사용자 이름 매핑
+        Map<String, String> userMap = fetchUserNames(userIds);
+
+        // 작성자 이름 세팅
+        for (BoardDto board : content) {
+            board.setWriterName(userMap.getOrDefault(board.getWriter(), "알 수 없음"));
+        }
+
+        return content;
     }
 }

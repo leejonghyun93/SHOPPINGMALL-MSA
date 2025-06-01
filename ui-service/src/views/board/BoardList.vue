@@ -74,6 +74,7 @@ import { ref, onMounted } from 'vue'
 import axios from "axios"
 import { useRouter } from "vue-router"
 import Pagination from '@/components/common/Pagination.vue'
+import '@/assets/css/boardList.css';
 
 const boardList = ref([])
 const searchKeyword = ref('')
@@ -160,26 +161,3 @@ onMounted(() => {
 })
 </script>
 
-<style scoped>
-.container {
-  max-width: 960px;
-  min-height: 100vh;
-}
-
-/* 높이 조정 */
-input.form-control,
-button.btn,
-.form-select {
-  padding: 0.25rem 0.5rem;
-  height: 38px;
-  font-size: 0.9rem;
-}
-
-/* 정렬 드롭다운 너비 */
-.form-select {
-  width: 40%;
-}
-.btn-search {
-  width: 12%; /* 원하는 가로 사이즈로 조정 */
-}
-</style>
