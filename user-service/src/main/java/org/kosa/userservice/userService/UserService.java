@@ -110,6 +110,7 @@ public class UserService implements UserDetailsService {
                 .nickname(user.getNickname())
                 .loginTime(user.getLoginTime())
                 .accountLocked(user.getAccountLocked())
+                .loginFailCount(user.getLoginFailCount())
                 .build();
     }
 
@@ -253,6 +254,18 @@ public class UserService implements UserDetailsService {
             userRepository.save(user);
         } else {
             throw new RuntimeException("해당 유저를 찾을 수 없습니다.");
+        }
+    }
+
+    public void unlockLoginForUsers(List<String> userIds) {
+        for (String userId : userIds) {
+            Optional<User> optionalUser = userRepository.findByUserid(userId);
+            if (optionalUser.isPresent()) {
+                User user = optionalUser.get();
+                user.setLoginFailCount(0); // 실패 카운트 초기화
+                user.setAccountLocked(true); // 잠금 해제
+                userRepository.save(user);
+            }
         }
     }
 }

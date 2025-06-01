@@ -26,6 +26,7 @@ public class UserDto {
     private LocalDateTime loginTime;
     private LocalDateTime regDate;
     private String passwd;
+    private int loginFailCount;
 
 
 }

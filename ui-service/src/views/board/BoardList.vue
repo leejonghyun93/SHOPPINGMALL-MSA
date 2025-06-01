@@ -89,6 +89,7 @@ const router = useRouter()
 const fetchBoardList = async () => {
   try {
     const token = localStorage.getItem('token')
+    console.log(token);
     const response = await axios.get('/api/board/list', {
       params: {
         page: currentPage.value,

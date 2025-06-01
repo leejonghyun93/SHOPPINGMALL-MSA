@@ -1,6 +1,29 @@
 spring:
   application:
-    name: BOARD-SERVICE
-  cloud:
-    config:
-      uri: http://localhost:8888
+    name: board-service
+
+  config:
+    import: optional:configserver:http://localhost:8888
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka
+
+server:
+  port: 0
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: refresh, busrefresh
+  endpoint:
+    busrefresh:
+      enabled: true
+  security:
+    enabled: false

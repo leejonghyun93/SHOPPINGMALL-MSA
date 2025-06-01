@@ -17,32 +17,23 @@ import java.util.Date;
 @Component
 @Slf4j
 public class JwtUtil {
-    @Value("${jwt.secret-key}")
-    private String secretKey;
 
-    private Key key;
+    private final JwtConfig jwtConfig;
     private final long expiration = 1000 * 60 * 60; // 1시간
 
-    @PostConstruct
-    public void init() {
-        byte[] keyBytes = secretKey.getBytes(StandardCharsets.UTF_8);
-        this.key = Keys.hmacShaKeyFor(keyBytes);
-
-        System.out.println("[JWT secretKey 문자열]:" + secretKey);
-        System.out.println("[JWT secretKey 바이트 배열]:" + bytesToHex(keyBytes));
+    public JwtUtil(JwtConfig jwtConfig) {
+        this.jwtConfig = jwtConfig;
     }
 
-    private static String bytesToHex(byte[] bytes) {
-        StringBuilder sb = new StringBuilder();
-        for (byte b : bytes) {
-            sb.append(String.format("%02X", b));
-        }
-        return sb.toString();
+    // secretKey를 매번 읽어 Key를 생성
+    private Key getKey() {
+        byte[] keyBytes = jwtConfig.getSecretKey().getBytes(StandardCharsets.UTF_8);
+        return Keys.hmacShaKeyFor(keyBytes);
     }
 
     public Claims parseToken(String token) {
         return Jwts.parserBuilder()
-                .setSigningKey(key)  // 여기 key 사용!
+                .setSigningKey(getKey())
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
@@ -55,7 +46,7 @@ public class JwtUtil {
                 .setIssuer("auth-service")
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + expiration))
-                .signWith(key, SignatureAlgorithm.HS256)
+                .signWith(getKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
 
@@ -72,7 +63,7 @@ public class JwtUtil {
     public boolean validateToken(String token) {
         try {
             Jwts.parserBuilder()
-                    .setSigningKey(key)
+                    .setSigningKey(getKey())
                     .build()
                     .parseClaimsJws(token);
             return true;

@@ -26,7 +26,7 @@ public class SecurityConfig {
                 .and()
                 .authorizeHttpRequests(authz -> authz
                         .requestMatchers("/api/board/write").authenticated()
-                        .requestMatchers("/api/board/list", "/api/board/*").permitAll()
+                        .requestMatchers("/actuator/busrefresh","/api/board/list", "/api/board/*").permitAll()
                         .anyRequest().permitAll()
                 )
                 .addFilterBefore(new JwtAuthenticationFilter(jwtProvider), UsernamePasswordAuthenticationFilter.class);

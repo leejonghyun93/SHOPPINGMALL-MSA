@@ -200,6 +200,21 @@ public class UserApiController {
                     .body("비밀번호 변경 중 오류가 발생했습니다.");
         }
     }
+    @PostMapping("/loginCheckOut")
+    public ResponseEntity<?> unlockLoginForUsers(@RequestBody Map<String, List<String>> payload) {
+        List<String> userIds = payload.get("userIds");
 
+        if (userIds == null || userIds.isEmpty()) {
+            return ResponseEntity.badRequest().body("userIds는 비어 있을 수 없습니다.");
+        }
+
+        try {
+            userService.unlockLoginForUsers(userIds);
+            return ResponseEntity.ok("선택된 회원들의 로그인 잠금이 해제되었습니다.");
+        } catch (Exception e) {
+            log.error("로그인 잠금 해제 실패", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("로그인 잠금 해제 실패");
+        }
+    }
 
 }

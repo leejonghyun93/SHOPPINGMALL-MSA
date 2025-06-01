@@ -59,8 +59,7 @@ public class User {
     private String role = "USER";  // 기본값 설정
 
     @Column(name = "login_fail_count")
-    @Builder.Default
-    private int loginFailCount = 0;  // 기본값 설정
+    private int loginFailCount;  // 기본값 설정
 
     @Column(name = "nickname", length = 50)
     private String nickname;
@@ -100,9 +99,9 @@ public class User {
             this.accountLocked = false;
         }
 
-        if (this.loginFailCount == 0) {
-            this.loginFailCount = 0;
-        }
+//        if (this.loginFailCount == 0) {
+//            this.loginFailCount = 0;
+//        }
     }
 
     /**

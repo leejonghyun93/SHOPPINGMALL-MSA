@@ -63,6 +63,7 @@
         <div v-if="isLogin && isOwner" class="actions">
           <button @click="editProfile" class="btn edit-btn">프로필 수정</button>
           <button @click="deleteUser" class="btn delete-btn">회원 탈퇴</button>
+          <button @click="goToBoardList" class="btn list-btn">목록</button>
         </div>
         <div v-else>
           <p>다른 사용자의 정보입니다.</p>
@@ -136,6 +137,9 @@ export default {
         hour: '2-digit',
         minute: '2-digit',
       });
+    },
+    goToBoardList() {
+      this.$router.push('/members');
     },
     deleteUser() {
       if (!confirm('정말 회원 탈퇴를 진행하시겠습니까?')) return;

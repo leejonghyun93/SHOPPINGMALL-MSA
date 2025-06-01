@@ -14,6 +14,7 @@ Spring Cloud, JWT, JPA, MyBatis를 통합하여 사용자 인증 및 게시글 C
 - 사용자 회원가입, 로그인 (JWT 기반)
 - 게시글 등록 / 수정 / 삭제 / 조회
 - 사용자별 게시글 필터링
+- 회원가입/탈퇴 이벤트는 Kafka로 비동기 전파
 - 서비스 간 통신은 Feign + Spring Cloud Bus로 연동
 - Spring Cloud Gateway를 통한 라우팅 및 필터링
 
@@ -69,17 +70,30 @@ Spring Cloud, JWT, JPA, MyBatis를 통합하여 사용자 인증 및 게시글 C
 
 ---
 
+## 📡 Kafka 기반 비동기 이벤트 처리
+
+- `auth-service`에서 회원가입 및 탈퇴 요청이 처리되면, Kafka를 통해 관련 이벤트(`user.created`, `user.deleted`)가 발행됩니다.
+- `user-service`와 `board-service`는 해당 토픽을 구독하여, 사용자 정보 동기화 및 관련 데이터 정리를 비동기로 처리합니다.
+- 이 구조는 서비스 간 결합도를 낮추고, 확장성과 유지보수를 용이하게 합니다.
+
+
+--- 
+
+
 ## 🧬 DB 스키마 예시
 
 ### users 테이블 (공통)
 ```sql
-CREATE TABLE users (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  username VARCHAR2(50) NOT NULL,
-  password VARCHAR2(255) NOT NULL,
-  email VARCHAR2(100),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+CREATE TABLE `t_board` (
+                         `BNO` int(11) NOT NULL AUTO_INCREMENT,
+                         `TITLE` varchar(500) DEFAULT NULL,
+                         `content` text DEFAULT NULL,
+                         `WRITER` varchar(100) DEFAULT NULL,
+                         `PASSWD` varchar(100) DEFAULT NULL,
+                         `regdate` datetime(6) DEFAULT NULL,
+                         `VIEWCOUNT` int(11) DEFAULT 0,
+                         PRIMARY KEY (`BNO`)
+)
 ```
 
 ## 🖥️ 프론트엔드(Vue 3)
@@ -89,3 +103,15 @@ CREATE TABLE users (
 - JWT는 `Authorization` 헤더로 포함하여 요청
 
 ---
+## PowerShell로 Zookeeper 실행
+
+```
+cd C:\kafka_2.13-3.6.0
+.\bin\windows\zookeeper-server-start.bat .\config\zookeeper.properties
+```
+## PowerShell로 Kafka 서버 실행
+
+```
+cd C:\kafka_2.13-3.6.0
+.\bin\windows\kafka-server-start.bat .\config\server.properties
+```

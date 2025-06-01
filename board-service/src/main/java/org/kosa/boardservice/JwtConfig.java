@@ -14,8 +14,12 @@ import java.util.Base64;
 @Configuration
 public class JwtConfig {
 
-    @Value("${jwt.secret-key}") // ❌ 에러의 원인
+    @Value("${jwt.secret-key}")
     private String secretKey;
+
+    public String getSecretKey() {
+        return secretKey;
+    }
     @PostConstruct
     public void init() {
         System.out.println("[JWT 시크릿 키] " + secretKey);

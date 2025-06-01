@@ -4,9 +4,7 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
-import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.stereotype.Component;
 
@@ -18,18 +16,22 @@ import java.util.Date;
 @Slf4j
 public class JwtUtil {
 
-    @Value("${jwt.secret-key}")
-    private String secretKey;
-
+    private final JwtConfig jwtConfig;
     private Key key;
     private final long expiration = 1000 * 60 * 60; // 1시간
 
-    @PostConstruct
-    public void init() {
-        byte[] keyBytes = secretKey.getBytes(StandardCharsets.UTF_8);
+    // 생성자 주입
+    public JwtUtil(JwtConfig jwtConfig) {
+        this.jwtConfig = jwtConfig;
+        init();
+    }
+
+    // init 메서드 직접 호출 (PostConstruct 없어도 됨)
+    private void init() {
+        byte[] keyBytes = jwtConfig.getSecretKey().getBytes(StandardCharsets.UTF_8);
         this.key = Keys.hmacShaKeyFor(keyBytes);
 
-        System.out.println("[JWT secretKey 문자열]:" + secretKey);
+        System.out.println("[JWT secretKey 문자열]:" + jwtConfig.getSecretKey());
         System.out.println("[JWT secretKey 바이트 배열]:" + bytesToHex(keyBytes));
     }
 
@@ -43,7 +45,7 @@ public class JwtUtil {
 
     public Claims parseToken(String token) {
         return Jwts.parserBuilder()
-                .setSigningKey(key)  // 여기 key 사용!
+                .setSigningKey(key)
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
@@ -53,7 +55,7 @@ public class JwtUtil {
         return Jwts.builder()
                 .setSubject(username)
                 .claim("userId", userId)
-                .setIssuer("auth-service")
+                .setIssuer("board-service")  // 서비스명 맞게 수정
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + expiration))
                 .signWith(key, SignatureAlgorithm.HS256)

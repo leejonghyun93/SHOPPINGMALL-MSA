@@ -62,18 +62,12 @@
           />
         </td>
         <td>{{ totalItems - ((currentPage - 1) * pageSize) - index }}</td>
-<!--        <td>{{ user.userid }}</td>-->
         <td class="text-start">
           <a href="#" @click.prevent="goUserDetail(user.userid)" class="text-decoration-none">
             {{ user.userid }}
           </a>
         </td>
         <td>{{ user.name }}</td>
-<!--        <td class="text-start">-->
-<!--          <router-link :to="`/users/${user.name}`" class="text-decoration-none">-->
-<!--            {{ user.name }}-->
-<!--          </router-link>-->
-<!--        </td>-->
         <td>{{ user.email }}</td>
         <td>{{ user.fullAddress || '-' }}</td>
         <td>{{ formatDateTime(user.loginTime) }}</td>
@@ -194,7 +188,7 @@ const onUnlockLogin = async () => {
 
   try {
     const token = localStorage.getItem('token')
-    await axios.post('/api/loginCheckOut', { userIds: selectedUsers.value }, {
+    await axios.post('/api/users/loginCheckOut', { userIds: selectedUsers.value }, {
       headers: {
         Authorization: `Bearer ${token}`,
       }
