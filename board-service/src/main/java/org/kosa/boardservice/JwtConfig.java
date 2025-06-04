@@ -2,6 +2,7 @@ package org.kosa.boardservice;
 
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
@@ -22,7 +23,7 @@ public class JwtConfig {
     }
     @PostConstruct
     public void init() {
-        System.out.println("[JWT 시크릿 키] " + secretKey);
+
     }
     @Bean
     public JwtDecoder jwtDecoder() {

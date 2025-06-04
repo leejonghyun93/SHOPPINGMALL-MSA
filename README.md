@@ -64,7 +64,7 @@ Spring Cloud, JWT, JPA, MyBatis를 통합하여 사용자 인증 및 게시글 C
 ## 🔑 JWT 인증 흐름
 
 1. 사용자가 `auth-service`에 로그인 요청
-2. Access Token / Refresh Token 발급
+2. Access Token / (추후 개발 예정) Refresh Token 발급
 3. 이후 모든 요청은 Gateway에 JWT 포함해서 전송
 4. Gateway에서 필터를 통해 JWT 유효성 검증
 

@@ -49,14 +49,6 @@ spring:
           filters:
             - RewritePath=/api/users/checkUserid, /api/users/checkUserid
 
-#        - id: user-service-find-id
-#          uri: lb://USER-SERVICE
-#          predicates:
-#            - Path=/auth/find-id
-#            - Method=POST
-#          filters:
-#            - RewritePath=/auth/find-id, /auth/find-id
-
         - id: user-service
           uri: lb://USER-SERVICE
           predicates:
