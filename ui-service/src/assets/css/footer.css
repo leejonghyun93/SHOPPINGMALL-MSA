@@ -1,6 +1,12 @@
 .footer {
-    background-color: #004080;
-    color: white;
+    background-color: white;
+    color: #000000;
+    padding: 20px 0;
+}
+
+.footer-container {
+    width: 100%;
+    font-size: 20px;
+    font-weight: bold;
     text-align: center;
-    padding: 1rem;
 }

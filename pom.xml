@@ -9,7 +9,7 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>org.kosa</groupId>
-    <artifactId>toy-board-msa</artifactId>
+    <artifactId>shoppingmall-msa</artifactId>
     <version>1.0</version>
     <packaging>pom</packaging>
     <modules>
@@ -19,7 +19,11 @@
         <module>board-service</module>
         <module>eureka-service</module>
         <module>user-service</module>
-<!--        <module>ui-service</module>-->
+        <module>product-service</module>
+        <module>order-service</module>
+        <module>cart-service</module>
+        <module>image-service</module>
+        <module>payment-service</module>
     </modules>
     <name>toy-board-msa</name>
     <description>toy-board-msa</description>

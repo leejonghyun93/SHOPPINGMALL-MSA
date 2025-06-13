@@ -1,17 +1,30 @@
 <template>
-  <nav class="navbar navbar-dark bg-dark custom-navbar d-flex justify-content-between align-items-center px-3">
+  <nav class="navbar navbar-dark bg-white custom-navbar d-flex justify-content-between align-items-center">
 
     <!-- 왼쪽: 홈 -->
-    <router-link to="/" class="navbar-brand">홈</router-link>
+    <div class="d-flex align-items-center gap-2">
+      <router-link to="/" class="navbar-brand">트라이마켓</router-link>
+      <router-link to="/" class="navbar-brand">홈</router-link>
+      <router-link to="/" class="navbar-brand">이벤트</router-link>
+      <router-link to="/" class="navbar-brand">예고</router-link>
+      <router-link to="/categorie" class="navbar-brand">카테고리</router-link>
+    </div>
 
-    <!-- 오른쪽: 메뉴들 (가로 정렬) -->
+    <!-- 오른쪽: 메뉴들 -->
     <div class="d-flex align-items-center">
-      <router-link v-if="!computedUser.id" to="/login" class="nav-link text-white mx-2">로그인</router-link>
-      <router-link v-if="!computedUser.id" to="/register" class="nav-link text-white mx-2">회원가입</router-link>
-      <router-link v-if="computedUser.id && computedUser.role === 'ADMIN'" to="/members" class="nav-link text-white mx-2">회원관리</router-link>
-      <router-link to="/boardList" class="nav-link text-white mx-2">게시판</router-link>
-      <span v-if="computedUser.id" class="nav-link text-white mx-2">{{ computedUser.name }}</span>
-      <button v-if="computedUser.id" @click="logout" class="btn btn-link nav-link text-white mx-2 p-0">로그아웃</button>
+      <!-- 검색창 -->
+      <div class="input-group search-box me-2">
+        <input type="text" class="form-control form-control-sm" placeholder="상품명 또는 브랜드 입력" />
+        <span class="input-group-text">
+    🔍
+  </span>
+      </div>
+
+      <router-link v-if="!computedUser.id" to="/login" class="navbar-brand mx-2">로그인</router-link>
+      <router-link v-if="!computedUser.id" to="/register" class="navbar-brand mx-2">회원가입</router-link>
+
+      <span v-if="computedUser.id" class="navbar-brand mx-2">{{ computedUser.name }}</span>
+      <button v-if="computedUser.id" @click="logout" class="navbar-brand mx-2 btn p-0">로그아웃</button>
     </div>
   </nav>
 </template>

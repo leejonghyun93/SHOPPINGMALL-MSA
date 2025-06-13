@@ -1,24 +1,45 @@
 .custom-navbar {
+    width: 100%;
+    background-color: #ffffff;
     height: 60px;
-    padding-left: 15px;
-    padding-right: 15px;
-    z-index: 1;
-    border-bottom: 2px solid #2677ff;
-    background-color: #212529;
+    /* 여백 관련 속성들 제거 */
 }
 
 .navbar-brand {
     font-size: 20px;
     font-weight: bold;
-    color: #ffffff;
+    color: #000000;
     text-decoration: none;
 }
+/* 현재 활성된 메뉴 스타일 */
+.router-link-active {
+    color: #0d6efd !important; /* Bootstrap primary color, 파란색 */
+}
 
+/* 비활성화일 때 색 유지 */
+.navbar-brand {
+    color: #000000;
+    text-decoration: none;
+    font-weight: bold;
+    font-size: 20px;
+}
 .nav-link {
     color: #ffffff !important;
     cursor: pointer;
 }
-
+.bg-dark{
+    background-color: white;
+}
 .btn-link {
     padding: 0;
+}
+
+.search-btn {
+    color: white;
+    border: 1px solid white;
+    background-color: transparent;
+}
+
+.search-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
 }

@@ -1,9 +1,9 @@
 <template>
   <footer class="footer">
-    <p>© 2025 My board . All rights reserved.</p>
+    <div class="footer-container">
+      <p>© 2025 My board. All rights reserved.</p>
+    </div>
   </footer>
 </template>
-
-<script setup></script>
 
 <style scoped src="@/assets/css/footer.css"></style>

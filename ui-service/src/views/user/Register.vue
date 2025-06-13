@@ -1,379 +1,379 @@
 <template>
-  <div class="container mt-5">
-    <div class="row justify-content-center">
-      <div class="col-md-6 col-lg-5">
-        <h2 class="text-center mb-4">회원가입</h2>
-        <form @submit.prevent="onSubmit" id="registerForm" novalidate>
-          <div class="form-group">
-            <label for="userid">아이디</label>
-            <div class="input-group">
-              <input
-                  type="text"
-                  id="userid"
-                  v-model.trim="form.userid"
-                  class="form-control"
-                  placeholder="아이디를 입력하세요"
-                  required
-              />
-              <div class="input-group-append">
-                <button
-                    type="button"
-                    class="btn btn-outline-secondary"
-                    @click="checkUserIdAvailability"
-                >
-                  중복 확인
-                </button>
-              </div>
-            </div>
-            <small v-if="errorMessage" class="text-danger mt-2" style="font-size: 0.9em;">
-              {{ errorMessage }}
-            </small>
+  <div class="form-wrapper">
+    <h2 class="form-title">회원가입</h2>
+
+    <div class="form-table">
+      <!-- 아이디 -->
+      <div class="form-row">
+        <label>아이디 <span class="required">*</span></label>
+        <div class="input-wrap">
+          <div class="input-inline">
+            <input type="text" v-model="form.userid" placeholder="아이디 입력" />
+            <button @click="checkUserIdAvailability">중복 확인</button>
+          </div>
+          <small class="error">{{ errorMessage }}</small>
+        </div>
+      </div>
+
+      <!-- 비밀번호 -->
+      <div class="form-row">
+        <label>비밀번호 <span class="required">*</span></label>
+        <input type="password" v-model="form.userPwd" />
+      </div>
+
+      <!-- 비밀번호 확인 -->
+      <div class="form-row">
+        <label>비밀번호 확인 <span class="required">*</span></label>
+        <input type="password" v-model="form.confirmPwd" />
+      </div>
+
+      <!-- 전화번호 -->
+      <div class="form-row">
+        <label>전화번호 <span class="required">*</span></label>
+        <input type="text" v-model="form.userPhone" placeholder="010-1234-5678" />
+      </div>
+
+      <!-- 인증 -->
+      <div class="form-row">
+        <label>인증</label>
+        <div class="input-inline">
+          <button @click="sendAuthCode">인증번호 발송</button>
+          <input type="text" v-model="authCodeInput" placeholder="인증번호 입력" />
+          <button @click="verifyAuthCode">인증 확인</button>
+        </div>
+        <div v-if="isPhoneVerified" class="success">✅ 인증 완료</div>
+      </div>
+
+      <!-- 이름 -->
+      <div class="form-row">
+        <label>이름 <span class="required">*</span></label>
+        <input type="text" v-model="form.userName" />
+      </div>
+
+      <!-- 닉네임 -->
+      <div class="form-row">
+        <label>닉네임</label>
+        <input type="text" v-model="form.nickname" />
+      </div>
+
+      <!-- 이메일 -->
+      <div class="form-row">
+        <label>이메일 <span class="required">*</span></label>
+        <div class="input-inline">
+          <input type="text" v-model="form.emailId" placeholder="example" />
+          <span>@</span>
+          <select v-model="form.emailDomain">
+            <option disabled value="">선택</option>
+            <option value="gmail.com">gmail.com</option>
+            <option value="naver.com">naver.com</option>
+            <option value="daum.net">daum.net</option>
+            <option value="hotmail.com">hotmail.com</option>
+            <option value="custom">직접 입력</option>
+          </select>
+        </div>
+        <div v-if="form.emailDomain === 'custom'" class="mt-1">
+          <input type="text" v-model="form.customDomain" placeholder="직접 입력 (예: mydomain.com)" />
+        </div>
+      </div>
+
+      <!-- 주소 -->
+      <div class="form-row">
+        <label>주소</label>
+        <div class="input-inline">
+          <input type="text" v-model="form.userAddress" readonly />
+          <button @click="execDaumPostcode">주소 검색</button>
+        </div>
+      </div>
+
+      <!-- 상세 주소 -->
+      <div class="form-row">
+        <label>상세주소</label>
+        <input type="text" v-model="form.detailAddress" />
+      </div>
+
+      <!-- 생년월일 -->
+      <div class="form-row">
+        <label>생년월일</label>
+        <input type="date" v-model="form.birthDate" />
+      </div>
+
+      <!-- 성별 -->
+      <div class="form-row">
+        <label>성별</label>
+        <div class="gender-toggle">
+          <label :class="{ active: form.gender === 'M' }">
+            <input type="radio" value="M" v-model="form.gender" /> 남자
+          </label>
+          <label :class="{ active: form.gender === 'F' }">
+            <input type="radio" value="F" v-model="form.gender" /> 여자
+          </label>
+          <label :class="{ active: form.gender === 'U' }">
+            <input type="radio" value="U" v-model="form.gender" /> 선택 안 함
+          </label>
+        </div>
+      </div>
+
+      <!-- 이용약관 동의 -->
+      <div class="form-row">
+        <label>이용약관</label>
+        <div class="terms-wrap">
+          <div class="checkbox-inline">
+            <input type="checkbox" v-model="form.agreeAll" @change="toggleAllAgreements" />
+            <span>전체 동의합니다</span>
           </div>
 
-          <div class="form-group">
-            <label for="userPwd">비밀번호</label>
-            <input
-                type="password"
-                id="userPwd"
-                v-model="form.userPwd"
-                class="form-control"
-                placeholder="비밀번호를 입력하세요"
-                required
-            />
+          <div class="checkbox-inline">
+            <input type="checkbox" v-model="form.agreeTermsRequired" />
+            <span>이용약관 동의 (필수)</span>
+            <button type="button" @click="toggleTerms('terms')">보기</button>
           </div>
+          <div v-if="show.terms" class="terms-content">여기에 이용약관 내용이 표시됩니다.</div>
 
-          <div class="form-group">
-            <label for="confirmPwd">비밀번호 확인</label>
-            <input
-                type="password"
-                id="confirmPwd"
-                v-model="form.confirmPwd"
-                class="form-control"
-                placeholder="비밀번호 확인을 입력하세요"
-                required
-            />
+          <div class="checkbox-inline">
+            <input type="checkbox" v-model="form.agreePrivacy" />
+            <span>개인정보 수집 및 이용 동의 (필수)</span>
+            <button type="button" @click="toggleTerms('privacy')">보기</button>
           </div>
+          <div v-if="show.privacy" class="terms-content">여기에 개인정보 수집 내용이 표시됩니다.</div>
 
-          <div class="form-group">
-            <label for="userName">이름</label>
-            <input
-                type="text"
-                id="userName"
-                v-model.trim="form.userName"
-                class="form-control"
-                placeholder="이름을 입력하세요"
-                required
-            />
+          <div class="checkbox-inline">
+            <input type="checkbox" v-model="form.agreeMarketing" />
+            <span>마케팅 수신 동의 (선택)</span>
+            <button type="button" @click="toggleTerms('marketing')">보기</button>
           </div>
-
-          <!-- 닉네임 필드 추가 -->
-          <div class="form-group">
-            <label for="nickname">닉네임</label>
-            <input
-                type="text"
-                id="nickname"
-                v-model.trim="form.nickname"
-                class="form-control"
-                placeholder="닉네임을 입력하세요"
-                required
-            />
-          </div>
-
-          <div class="form-group">
-            <label for="age">나이</label>
-            <input
-                type="number"
-                id="age"
-                v-model.number="form.age"
-                class="form-control"
-                placeholder="나이를 입력하세요"
-                required
-                min="1"
-            />
-          </div>
-
-          <div class="form-group">
-            <label for="userAddress">주소</label>
-            <div class="input-group">
-              <input
-                  type="text"
-                  id="userAddress"
-                  v-model="form.userAddress"
-                  class="form-control"
-                  placeholder="주소를 입력하세요"
-                  readonly
-                  required
-              />
-              <div class="input-group-append">
-                <button
-                    type="button"
-                    class="btn btn-outline-secondary"
-                    @click="execDaumPostcode"
-                >
-                  주소 찾기
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label for="detailAddress">나머지 주소</label>
-            <input
-                type="text"
-                id="detailAddress"
-                v-model.trim="form.detailAddress"
-                class="form-control"
-                placeholder="나머지 주소를 입력하세요"
-                required
-            />
-          </div>
-
-          <input type="hidden" id="fullAddress" :value="fullAddress" />
-
-          <div class="form-group">
-            <label for="userPhone">전화번호</label>
-            <input
-                type="text"
-                id="userPhone"
-                v-model.trim="form.userPhone"
-                class="form-control"
-                placeholder="전화번호를 입력하세요 (예: 010-1234-5678)"
-                required
-            />
-          </div>
-
-          <div class="form-group">
-            <label for="userEmail">이메일</label>
-            <input
-                type="email"
-                id="userEmail"
-                v-model.trim="form.userEmail"
-                class="form-control"
-                placeholder="이메일을 입력하세요"
-                required
-            />
-          </div>
-
-          <button type="submit" class="btn btn-primary btn-block">
-            회원가입
-          </button>
-        </form>
-
-        <div class="login-link text-center mt-3">
-          <p>
-            이미 계정이 있으신가요?
-            <router-link to="/login">로그인</router-link>
-          </p>
+          <div v-if="show.marketing" class="terms-content">여기에 마케팅 수신 내용이 표시됩니다.</div>
         </div>
       </div>
     </div>
+
+    <button class="submit-btn" @click="submitForm">회원가입</button>
   </div>
 </template>
 
 <script setup>
-import { onMounted } from 'vue';
-import { useRouter } from "vue-router";
-import { ref, computed } from "vue";
+import { reactive } from 'vue';
 
-const router = useRouter();
-
-const form = ref({
-  userid: "",
-  userPwd: "",
-  confirmPwd: "",
-  userName: "",
-  nickname: "",  // 닉네임 필드 추가
-  age: null,
-  userAddress: "",
-  detailAddress: "",
-  userPhone: "",
-  userEmail: "",
+const form = reactive({
+  userid: '',
+  userPwd: '',
+  confirmPwd: '',
+  userPhone: '',
+  userName: '',
+  nickname: '',
+  emailId: '',
+  emailDomain: '',
+  customDomain: '',
+  userAddress: '',
+  detailAddress: '',
+  birthDate: '',
+  gender: 'U',
+  agreeTermsRequired: false,
+  agreePrivacy: false,
+  agreeMarketing: false,
+  agreeAll: false,
 });
 
-const errorMessage = ref("");
-const isUseridChecked = ref(false);
-
-const idPattern = /^.{8,}$/;
-const passwordPattern = /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[!@#$%^&*()_+{}\[\]:;<>,.?~\\/-]).{8,}$/;
-const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const phoneRegex = /^\d{3}-\d{3,4}-\d{4}$/;
-
-const fullAddress = computed(() => `${form.value.userAddress} ${form.value.detailAddress}`.trim());
-
-function checkUserIdAvailability() {
-  console.log("중복 확인 클릭됨");
-
-  if (!form.value.userid) {
-    alert("아이디를 입력해주세요.");
-    return;
-  }
-
-  if (!idPattern.test(form.value.userid)) {
-    alert("아이디는 최소 8자 이상이어야 합니다.");
-    return;
-  }
-
-  console.log("중복 확인 요청 시작:", form.value.userid);
-
-  fetch('/api/users/checkUserid?userid=' + encodeURIComponent(form.value.userid), {
-    method: "GET",
-    headers: {
-      "Accept": "application/json",
-      "Content-Type": "application/json"
-    }
-  })
-      .then(response => {
-        console.log("응답 상태:", response.status);
-        if (!response.ok) {
-          throw new Error('서버 응답 오류: ' + response.status);
-        }
-        return response.json();
-      })
-      .then(data => {
-        console.log("중복 확인 응답:", data);
-        if (data.available === true) {
-          alert("사용 가능한 아이디입니다.");
-          isUseridChecked.value = true;
-          errorMessage.value = "";
-        } else {
-          alert("이미 존재하는 아이디입니다.");
-          isUseridChecked.value = false;
-          errorMessage.value = "이미 존재하는 아이디입니다.";
-        }
-      })
-      .catch(error => {
-        console.error("중복 확인 오류:", error);
-        alert("중복 확인 중 오류가 발생했습니다.");
-        isUseridChecked.value = false;
-      });
-}
-
-function execDaumPostcode() {
-  new window.daum.Postcode({
-    oncomplete: function (data) {
-      form.value.userAddress = data.roadAddress || data.jibunAddress;
-    },
-  }).open();
-}
-
-function onSubmit() {
-  // 기존 유효성 검사
-  if (!form.value.userid) {
-    alert("아이디를 입력해주세요.");
-    return;
-  }
-  if (!idPattern.test(form.value.userid)) {
-    alert("아이디는 최소 8자 이상이어야 합니다.");
-    return;
-  }
-  if (!isUseridChecked.value) {
-    alert("아이디 중복 확인을 해주세요.");
-    return;
-  }
-  if (!form.value.userPwd) {
-    alert("비밀번호를 입력해주세요.");
-    return;
-  }
-  if (!passwordPattern.test(form.value.userPwd)) {
-    alert("비밀번호는 최소 8자 이상, 영문/숫자/특수문자를 포함해야 합니다.");
-    return;
-  }
-  if (!form.value.confirmPwd) {
-    alert("비밀번호 확인을 입력해주세요.");
-    return;
-  }
-  if (form.value.userPwd !== form.value.confirmPwd) {
-    alert("비밀번호가 일치하지 않습니다.");
-    return;
-  }
-  if (!form.value.userName) {
-    alert("이름을 입력해주세요.");
-    return;
-  }
-
-  // 닉네임 유효성 검사 추가
-  if (!form.value.nickname) {
-    alert("닉네임을 입력해주세요.");
-    return;
-  }
-
-  if (!form.value.age || form.value.age <= 0) {
-    alert("나이를 올바르게 입력해주세요.");
-    return;
-  }
-  if (!form.value.userAddress) {
-    alert("주소를 입력해주세요.");
-    return;
-  }
-  if (!form.value.detailAddress) {
-    alert("상세주소를 입력해주세요.");
-    return;
-  }
-  if (!form.value.userPhone) {
-    alert("전화번호를 입력해주세요.");
-    return;
-  }
-  if (!phoneRegex.test(form.value.userPhone)) {
-    alert("전화번호는 000-0000-0000 형식으로 입력해야 합니다.");
-    return;
-  }
-  if (!form.value.userEmail) {
-    alert("이메일을 입력해주세요.");
-    return;
-  }
-  if (!emailRegex.test(form.value.userEmail)) {
-    alert("이메일 주소가 유효하지 않습니다.");
-    return;
-  }
-
-  const userData = {
-    userid: form.value.userid,
-    passwd: form.value.userPwd,
-    name: form.value.userName,
-    nickname: form.value.nickname,  // 닉네임 추가
-    age: form.value.age,
-    address: form.value.userAddress,
-    detailAddress: form.value.detailAddress,
-    fullAddress: fullAddress.value,
-    phone: form.value.userPhone,
-    email: form.value.userEmail,
-    role: "USER",  // 명시적으로 역할 설정
-    accountLocked: false,  // 명시적으로 계정 잠금 상태 설정
-    loginFailCount: 0  // 명시적으로 로그인 실패 횟수 설정
-  };
-
-  console.log("전송할 사용자 데이터:", userData);
-
-  fetch("/api/users/register", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Accept": "application/json"
-    },
-    body: JSON.stringify(userData),
-  })
-      .then((res) => {
-        console.log("응답 상태:", res.status);
-        if (!res.ok) {
-          throw new Error('사용자 등록 실패: ' + res.status);
-        }
-        return res.json();
-      })
-      .then((data) => {
-        console.log("회원가입 성공:", data);
-        alert("회원가입이 완료되었습니다.");
-        router.push('/login');
-      })
-      .catch((err) => {
-        console.error("회원가입 오류:", err);
-        alert("회원가입 중 오류가 발생했습니다. 다시 시도해 주세요.");
-      });
-}
-
-onMounted(() => {
-  const script = document.createElement("script");
-  script.src = "https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js";
-  script.async = true;
-  document.head.appendChild(script);
+const show = reactive({
+  terms: false,
+  privacy: false,
+  marketing: false,
 });
+
+const errorMessage = ''; // 예시용 에러 메시지
+const authCodeInput = ''; // 인증번호 입력용 reactive 변수
+const isPhoneVerified = false; // 전화번호 인증 완료 여부
+
+function toggleAllAgreements() {
+  const checked = form.agreeAll;
+  form.agreeTermsRequired = checked;
+  form.agreePrivacy = checked;
+  form.agreeMarketing = checked;
+}
+
+function toggleTerms(type) {
+  show[type] = !show[type];
+}
+
+// 가상 함수 예시
+function checkUserIdAvailability() {}
+function sendAuthCode() {}
+function verifyAuthCode() {}
+function execDaumPostcode() {}
+function submitForm() {}
 </script>
+
+<style scoped>
+.form-wrapper {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 30px 15px;
+}
+
+.form-title {
+  text-align: center;
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 40px;
+}
+
+.form-table {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  align-items: center;
+  padding-top: 12px;
+}
+
+label {
+  font-weight: 600;
+}
+
+.required {
+  color: red;
+}
+
+input,
+select {
+  padding: 8px 10px;
+  width: 100%;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  box-sizing: border-box;
+}
+
+.input-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.input-inline {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.input-inline input[type="text"],
+.input-inline input[type="password"],
+.input-inline select {
+  flex: 1;
+  min-width: 0;
+}
+
+.input-inline button {
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding: 8px 12px;
+}
+
+button {
+  padding: 8px 10px;
+  background-color: #f0f0f0;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: #ddd;
+}
+
+.submit-btn {
+  background-color: #28a745;
+  color: white;
+  width: 100%;
+  margin-top: 40px;
+  padding: 12px;
+  font-size: 16px;
+}
+
+.submit-btn:hover {
+  background-color: #218838;
+}
+
+/* 성별 */
+.gender-toggle {
+  display: flex;
+  gap: 12px;
+}
+
+.gender-toggle label {
+  border: 1px solid #ccc;
+  border-radius: 20px;
+  padding: 8px 16px;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s;
+  font-size: 0.95em;
+  background-color: #f9f9f9;
+}
+
+.gender-toggle input {
+  display: none;
+}
+
+.gender-toggle label.active {
+  background-color: #007bff;
+  color: white;
+  border-color: #007bff;
+}
+
+/* 약관 */
+.terms-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.checkbox-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px; /* 각 요소 간 간격 */
+  /* justify-content: space-between 제거 */
+}
+
+.checkbox-inline input[type="checkbox"] {
+  margin-right: 8px;
+}
+
+.checkbox-inline span {
+  flex: 1;
+}
+
+.checkbox-inline button {
+  font-size: 0.85em;
+  background: none;
+  color: #007bff;
+  border: none;
+  cursor: pointer;
+}
+
+.checkbox-inline button:hover {
+  text-decoration: underline;
+}
+
+.terms-content {
+  margin-left: 22px;
+  background-color: #f9f9f9;
+  padding: 10px;
+  border-left: 3px solid #ccc;
+  font-size: 0.9em;
+  color: #333;
+}
+
+.error {
+  color: red;
+  font-size: 0.85em;
+  margin-top: 5px;
+}
+
+.success {
+  color: green;
+  margin-top: 6px;
+  font-size: 0.9em;
+}
+</style>
