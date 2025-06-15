@@ -25,11 +25,11 @@ public class AuthController {
      */
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest loginRequest) {
-        log.info("로그인 요청: {}", loginRequest.getUsername());
+        log.info("로그인 요청: {}", loginRequest.getUserid());
 
         try {
             AuthResponse response = authService.login(loginRequest);
-            log.info("로그인 성공: {}", loginRequest.getUsername());
+            log.info("로그인 성공: {}", loginRequest.getUserid());
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("로그인 실패: {}", e.getMessage());

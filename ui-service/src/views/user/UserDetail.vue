@@ -1,62 +1,62 @@
 <template>
   <div class="container mt-5">
-    <div class="user-detail">
-      <h2>{{ user.name }} 님 정보</h2>
+    <div class="member-detail">
+      <h2>{{ member.name }} 님 정보</h2>
 
       <div v-if="loading">로딩 중...</div>
       <div v-else>
-        <table class="user-table">
+        <table class="member-table">
           <tr>
             <th>아이디</th>
-            <td>{{ user.userid }}</td>
+            <td>{{ member.userid }}</td>
           </tr>
           <tr>
             <th>이메일</th>
-            <td>{{ user.email }}</td>
+            <td>{{ member.email }}</td>
           </tr>
           <tr>
             <th>나이</th>
-            <td>{{ user.age }}</td>
+            <td>{{ member.age }}</td>
           </tr>
           <tr>
             <th>닉네임</th>
-            <td>{{ user.nickname }}</td>
+            <td>{{ member.nickname }}</td>
           </tr>
           <tr>
             <th>전화번호</th>
-            <td>{{ user.phone }}</td>
+            <td>{{ member.phone }}</td>
           </tr>
           <tr>
             <th>주소</th>
-            <td>{{ user.address }}</td>
+            <td>{{ member.address }}</td>
           </tr>
           <tr>
             <th>상세 주소</th>
-            <td>{{ user.detailAddress }}</td>
+            <td>{{ member.detailAddress }}</td>
           </tr>
           <tr>
             <th>전체 주소</th>
-            <td>{{ user.fullAddress }}</td>
+            <td>{{ member.fullAddress }}</td>
           </tr>
           <tr>
             <th>권한</th>
-            <td>{{ user.role }}</td>
+            <td>{{ member.role }}</td>
           </tr>
           <tr>
             <th>계정 잠김 여부</th>
-            <td>{{ user.accountLocked ? '잠김' : '정상' }}</td>
+            <td>{{ member.accountLocked ? '잠김' : '정상' }}</td>
           </tr>
           <tr>
             <th>가입일</th>
-            <td>{{ this.formatDate(user.regDate) }}</td>
+            <td>{{ this.formatDate(member.regDate) }}</td>
           </tr>
           <tr>
             <th>최근 로그인</th>
-            <td>{{ this.formatDate(user.loginTime) }}</td>
+            <td>{{ this.formatDate(member.loginTime) }}</td>
           </tr>
           <tr>
             <th>로그인 실패 횟수</th>
-            <td>{{ user.loginFailCount }}</td>
+            <td>{{ member.loginFailCount }}</td>
           </tr>
         </table>
 
@@ -81,7 +81,7 @@ import '@/assets/css/userDetail.css';
 export default {
   data() {
     return {
-      user: {},
+      member: {},
       isLogin: false,
       isOwner: false,
       loading: true,
@@ -98,14 +98,14 @@ export default {
         headers: token ? {Authorization: `Bearer ${token}`} : {}
       })
           .then(response => {
-            this.user = response.data;
+            this.member = response.data;
 
             if (token) {
               try {
                 const decoded = jwtDecode(token);
                 const currentUserId = decoded.userid || decoded.sub || decoded.id;
                 this.isLogin = true;
-                this.isOwner = String(currentUserId) === String(this.user.userid);
+                this.isOwner = String(currentUserId) === String(this.member.userid);
               } catch (error) {
                 console.error('JWT decoding error:', error);
                 this.isLogin = false;
@@ -117,7 +117,7 @@ export default {
             }
           })
           .catch(error => {
-            console.error('Failed to fetch user:', error);
+            console.error('Failed to fetch member:', error);
             alert('사용자 정보를 불러올 수 없습니다.');
           })
           .finally(() => {
@@ -125,7 +125,7 @@ export default {
           });
     },
     editProfile() {
-      this.$router.push(`/users/edit/${this.user.userid}`);
+      this.$router.push(`/users/edit/${this.member.userid}`);
     },
     formatDate(dateString) {
       if (!dateString) return '';
@@ -160,11 +160,11 @@ export default {
             localStorage.removeItem('token');
 
             // 🔽 전역 상태도 초기화
-            this.$store?.user && (this.$store.user = { id: null, name: null, role: null }); // (store 방식에 따라 다름)
-            import("@/stores/userStore").then(({ user }) => {
-              user.id = null;
-              user.name = null;
-              user.role = null;
+            this.$store?.member && (this.$store.member = { id: null, name: null, role: null }); // (store 방식에 따라 다름)
+            import("@/stores/userStore").then(({ member }) => {
+              member.id = null;
+              member.name = null;
+              member.role = null;
             });
 
             // 🔽 홈으로 이동

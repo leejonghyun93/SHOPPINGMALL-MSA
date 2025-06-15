@@ -6,7 +6,6 @@ import Register from '../views/user/Register.vue'
 import Category from '../views/main/Category.vue'
 import FindId from "../views/user/FindId.vue";
 import FindPassword from "../views/user/FindPassword.vue";
-import MemberList from "../views/user/MemberList.vue";
 import BoardList from "../views/board/BoardList.vue";
 
 const routes = [
@@ -26,6 +25,11 @@ const routes = [
         component: Register
     },
     {
+        path: '/mypage',
+        name: 'MyPage',
+        component: () => import('@/views/user/MyPage.vue')
+    },
+    {
         path: '/category',
         name: 'category',
         component: Category
@@ -40,11 +44,6 @@ const routes = [
         name: 'CategoryWithSub',
         component: Category,
         props: true
-    },
-    {
-        path: '/members',
-        name: 'memberList',
-        component: MemberList
     },
     {
         path: '/users/:userid',

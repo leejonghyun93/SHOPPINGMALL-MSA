@@ -17,17 +17,25 @@ spring:
   cloud:
     gateway:
       globalcors:
-        cors-configurations:
+        corsConfigurations:
           '[/**]':
-            allowedOrigins: "http://localhost:5173"
+            allowedOriginPatterns:
+              - "http://localhost:5173"
+              - "http://localhost:3000"
+              - "http://localhost:*"
             allowedMethods:
               - GET
               - POST
               - PUT
               - DELETE
               - OPTIONS
+              - HEAD
+              - PATCH
             allowedHeaders: "*"
             allowCredentials: true
+            maxAge: 3600
+        add-to-simple-url-handler-mapping: true
+
       default-filters:
         - name: LoggingFilter
           args:
@@ -36,24 +44,38 @@ spring:
             postLogger: true
 
       routes:
-        #  공개 경로들 (JWT 인증 불필요)
+        # 🔴 AUTH SERVICE 라우팅 (수정됨)
         - id: auth-service-public
-          uri: lb://AUTH-SERVICE
+          uri: lb://AUTH-SERVICE  # 🔴 USER-SERVICE → AUTH-SERVICE로 변경
           predicates:
             - Path=/auth/**
           filters:
             - RewritePath=/auth/(?<segment>.*), /auth/${segment}
+            - name: LoggingFilter
+              args:
+                baseMessage: "Auth Service"
+                preLogger: true
+                postLogger: true
 
+        # USER SERVICE 라우팅
         - id: user-register-public
           uri: lb://USER-SERVICE
           predicates:
             - Path=/api/users/register
             - Method=POST
 
+        # 아이디 중복 확인
         - id: user-checkid-public
           uri: lb://USER-SERVICE
           predicates:
-            - Path=/api/users/checkUserid/**
+            - Path=/api/users/checkUserId
+            - Method=GET
+
+        # 헬스체크
+        - id: user-health-public
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/api/users/health
             - Method=GET
 
         - id: user-list-public
@@ -106,7 +128,7 @@ spring:
               args:
                 baseMessage: "Category Detail API"
 
-        # 보호된 경로들 (JWT 인증 필요)
+        # 보호된 경로들 (JWT 인증 필요) - 공개 경로 이후에 배치
         - id: user-service-protected
           uri: lb://USER-SERVICE
           predicates:
@@ -145,6 +167,8 @@ logging:
     org.kosa.apigatewayservice: DEBUG
     org.springframework.cloud.gateway.route: DEBUG
     org.springframework.cloud.gateway.handler: DEBUG
+    org.springframework.web: DEBUG
+    org.springframework.web.cors: DEBUG
 
 jwt:
   secret-key: "verySecretKeyThatIsAtLeast32BytesLong1234"

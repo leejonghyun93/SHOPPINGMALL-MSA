@@ -1,5 +1,6 @@
-import { fileURLToPath, URL } from 'node:url'
 
+// vite.config.js
+import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
@@ -18,14 +19,16 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:8080', // Gateway 주소
+        target: 'http://localhost:8080', // API Gateway
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, '/api'),
+        secure: false,
+        // rewrite 제거 - 경로 그대로 유지
       },
       '/auth': {
-        target: 'http://localhost:8082',
+        target: 'http://localhost:8080', // API Gateway
         changeOrigin: true,
-      },
-    },
-  },
+        secure: false,
+      }
+    }
+  }
 })

@@ -46,7 +46,7 @@ Spring Cloud, JWT, JPA, MyBatis를 통합하여 사용자 인증 및 게시글 C
     - 📂 eureka-server – Eureka Service Registry
     - 📂 gateway-service – API Gateway (JWT 필터 포함)
     - 📂 auth-service – 로그인/회원가입, JWT 발급
-    - 📂 user-service – 사용자 정보 관리
+    - 📂 member-service – 사용자 정보 관리
     - 📂 board-service – 게시글 CRUD 처리
     - 📂 ui-service – API 조합 및 프론트엔드용 응답
     - 📜 README.md
@@ -56,7 +56,7 @@ Spring Cloud, JWT, JPA, MyBatis를 통합하여 사용자 인증 및 게시글 C
 1. `config-service` 실행 (Git 설정값 먼저 로딩)
 2. `eureka-server` 실행 (서비스 등록)
 3. `gateway-service` 실행
-4. 나머지 서비스들 (auth, user, board, ui)
+4. 나머지 서비스들 (auth, member, board, ui)
 5. RabbitMQ 컨테이너 실행 (Spring Cloud Bus 사용 시)
 
 ---
@@ -72,8 +72,8 @@ Spring Cloud, JWT, JPA, MyBatis를 통합하여 사용자 인증 및 게시글 C
 
 ## 📡 Kafka 기반 비동기 이벤트 처리
 
-- `auth-service`에서 회원가입 및 탈퇴 요청이 처리되면, Kafka를 통해 관련 이벤트(`user.created`, `user.deleted`)가 발행됩니다.
-- `user-service`와 `board-service`는 해당 토픽을 구독하여, 사용자 정보 동기화 및 관련 데이터 정리를 비동기로 처리합니다.
+- `auth-service`에서 회원가입 및 탈퇴 요청이 처리되면, Kafka를 통해 관련 이벤트(`member.created`, `member.deleted`)가 발행됩니다.
+- `member-service`와 `board-service`는 해당 토픽을 구독하여, 사용자 정보 동기화 및 관련 데이터 정리를 비동기로 처리합니다.
 - 이 구조는 서비스 간 결합도를 낮추고, 확장성과 유지보수를 용이하게 합니다.
 
 

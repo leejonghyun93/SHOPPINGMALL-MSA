@@ -16,26 +16,51 @@
       <div class="input-group search-box me-2">
         <input type="text" class="form-control form-control-sm" placeholder="상품명 또는 브랜드 입력" />
         <span class="input-group-text">
-    🔍
-  </span>
+          🔍
+        </span>
       </div>
 
+      <!-- 로그인/회원가입 (로그인 안된 상태) -->
       <router-link v-if="!computedUser.id" to="/login" class="navbar-brand mx-2">로그인</router-link>
       <router-link v-if="!computedUser.id" to="/register" class="navbar-brand mx-2">회원가입</router-link>
 
-      <span v-if="computedUser.id" class="navbar-brand mx-2">{{ computedUser.name }}</span>
-      <button v-if="computedUser.id" @click="logout" class="navbar-brand mx-2 btn p-0">로그아웃</button>
+      <!-- 사용자 메뉴 (로그인된 상태) -->
+      <div v-if="computedUser.id" class="user-menu-container" @mouseenter="showDropdown" @mouseleave="hideDropdown">
+        <span class="navbar-brand mx-2 user-name">
+          {{ computedUser.name }} 님 ▼
+        </span>
+
+        <!-- 드롭다운 메뉴 -->
+        <div class="dropdown-menu" :class="{ 'show': isDropdownVisible }">
+          <router-link to="/mypage" class="dropdown-item" @click="hideDropdown">
+            <i class="fas fa-user"></i> 마이페이지
+          </router-link>
+          <router-link to="/orders" class="dropdown-item" @click="hideDropdown">
+            <i class="fas fa-shopping-bag"></i> 주문내역
+          </router-link>
+          <router-link to="/coupons" class="dropdown-item" @click="hideDropdown">
+            <i class="fas fa-ticket-alt"></i> 쿠폰
+          </router-link>
+          <router-link to="/profile" class="dropdown-item" @click="hideDropdown">
+            <i class="fas fa-cog"></i> 회원정보관리
+          </router-link>
+          <div class="dropdown-divider"></div>
+          <button @click="logout" class="dropdown-item logout-btn">
+            <i class="fas fa-sign-out-alt"></i> 로그아웃
+          </button>
+        </div>
+      </div>
     </div>
   </nav>
 </template>
 
-
 <script setup>
-import { onMounted, computed } from "vue";
+import { onMounted, computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import { user, setUserFromToken } from "@/stores/userStore";
 
 const router = useRouter();
+const isDropdownVisible = ref(false);
 
 const computedUser = computed(() => user);
 
@@ -46,11 +71,23 @@ onMounted(() => {
   }
 });
 
+function showDropdown() {
+  isDropdownVisible.value = true;
+}
+
+function hideDropdown() {
+  // 약간의 지연을 주어 메뉴 클릭이 가능하도록 함
+  setTimeout(() => {
+    isDropdownVisible.value = false;
+  }, 150);
+}
+
 function logout() {
   localStorage.removeItem("token");
   user.id = null;
   user.name = null;
   user.role = null;
+  isDropdownVisible.value = false;
   router.push("/login");
 }
 </script>

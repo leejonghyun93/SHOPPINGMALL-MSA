@@ -8,6 +8,7 @@ import org.kosa.authservice.security.AuthResponse;
 import org.kosa.authservice.security.JwtUtil;
 import org.kosa.authservice.security.UserClient;
 import org.springframework.stereotype.Service;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Service
 @RequiredArgsConstructor
@@ -16,52 +17,66 @@ public class AuthService {
 
     private final UserClient userClient;
     private final JwtUtil jwtUtil;
+    private final PasswordEncoder passwordEncoder;
 
     /**
      * 로그인 처리 (User Service와 연동)
      */
     public AuthResponse login(LoginRequest loginRequest) {
         try {
-            // User Service에서 사용자 정보 조회
-            UserDto user = userClient.getUserByUsername(loginRequest.getUsername());
+            UserDto user;
+            try {
+                user = userClient.getUserByUserId(loginRequest.getUserid());
+            } catch (Exception feignException) {
+                throw new IllegalArgumentException("사용자 서비스 연결 실패: " + feignException.getMessage());
+            }
+
             if (user == null) {
                 throw new IllegalArgumentException("사용자를 찾을 수 없습니다");
             }
 
-            // 계정 상태 확인
-            if (!"ACTIVE".equals(user.getStatus())) {
-                throw new IllegalArgumentException("비활성화된 계정입니다");
+            if (user.getPassword() == null || user.getPassword().isEmpty()) {
+                throw new IllegalArgumentException("비밀번호가 일치하지 않습니다");
             }
 
-            // User Service에서 비밀번호 검증
-            PasswordValidationRequest validationRequest = new PasswordValidationRequest(
-                    loginRequest.getUsername(), loginRequest.getPassword());
+            boolean isValidPassword;
+            try {
+                isValidPassword = passwordEncoder.matches(
+                        loginRequest.getPasswd(),
+                        user.getPassword()
+                );
+            } catch (Exception pwException) {
+                throw new IllegalArgumentException("비밀번호 검증 실패");
+            }
 
-            boolean isValidPassword = userClient.validatePassword(validationRequest);
             if (!isValidPassword) {
                 throw new IllegalArgumentException("비밀번호가 일치하지 않습니다");
             }
 
-            // JWT 토큰 생성
-            String token = jwtUtil.generateToken(user.getUserId(), user.getUsername());
+            try {
+                Long userIdLong = user.getUserIdAsLong();
+                String username = user.getUsername();
 
-            return AuthResponse.builder()
-                    .success(true)
-                    .message("로그인 성공")
-                    .token(token)
-                    .userId(user.getUserId())
-                    .username(user.getUsername())
-                    .build();
+                String token = jwtUtil.generateToken(userIdLong, username);
 
+                return AuthResponse.builder()
+                        .success(true)
+                        .message("로그인 성공")
+                        .token(token)
+                        .userId(userIdLong)
+                        .username(username)
+                        .build();
+            } catch (Exception tokenException) {
+                throw new IllegalArgumentException("토큰 생성 실패");
+            }
+
+        } catch (IllegalArgumentException e) {
+            throw e;
         } catch (Exception e) {
-            log.error("User Service 호출 실패: {}", e.getMessage());
-            throw new IllegalArgumentException("로그인 처리 중 오류가 발생했습니다");
+            throw new IllegalArgumentException("로그인 처리 중 오류가 발생했습니다: " + e.getMessage());
         }
     }
 
-    /**
-     * 토큰 검증
-     */
     public AuthResponse validateToken(String token) {
         if (!jwtUtil.validateToken(token)) {
             throw new IllegalArgumentException("유효하지 않은 토큰입니다");
@@ -71,9 +86,8 @@ public class AuthService {
         Long userId = jwtUtil.getUserIdFromToken(token);
 
         try {
-            // User Service에서 사용자 존재 여부 확인
-            UserDto user = userClient.getUserByUsername(username);
-            if (user == null || !"ACTIVE".equals(user.getStatus())) {
+            UserDto user = userClient.getUserByUserId(username);
+            if (user == null) {
                 throw new IllegalArgumentException("유효하지 않은 사용자입니다");
             }
 
@@ -85,14 +99,10 @@ public class AuthService {
                     .build();
 
         } catch (Exception e) {
-            log.error("User Service 호출 실패: {}", e.getMessage());
             throw new IllegalArgumentException("사용자 검증 중 오류가 발생했습니다");
         }
     }
 
-    /**
-     * 토큰 갱신
-     */
     public AuthResponse refreshToken(String token) {
         if (jwtUtil.isTokenExpired(token)) {
             throw new IllegalArgumentException("만료된 토큰입니다");
@@ -102,13 +112,11 @@ public class AuthService {
         Long userId = jwtUtil.getUserIdFromToken(token);
 
         try {
-            // User Service에서 사용자 존재 여부 확인
-            UserDto user = userClient.getUserByUsername(username);
-            if (user == null || !"ACTIVE".equals(user.getStatus())) {
+            UserDto user = userClient.getUserByUserId(username);
+            if (user == null) {
                 throw new IllegalArgumentException("유효하지 않은 사용자입니다");
             }
 
-            // 새 토큰 생성
             String newToken = jwtUtil.generateToken(userId, username);
 
             return AuthResponse.builder()
@@ -120,7 +128,6 @@ public class AuthService {
                     .build();
 
         } catch (Exception e) {
-            log.error("User Service 호출 실패: {}", e.getMessage());
             throw new IllegalArgumentException("토큰 갱신 중 오류가 발생했습니다");
         }
     }

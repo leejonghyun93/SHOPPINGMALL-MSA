@@ -1,27 +1,18 @@
 package org.kosa.userservice.userController;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
-
 import lombok.extern.slf4j.Slf4j;
-import org.kosa.userservice.dto.PageDto;
-import org.kosa.userservice.dto.PageRequestDto;
+import org.kosa.userservice.JwtUtil;
 import org.kosa.userservice.dto.UserDto;
-import org.kosa.userservice.dto.UserResponseDto;
-import org.kosa.userservice.entity.User;
+import org.kosa.userservice.entity.Member;
 import org.kosa.userservice.userService.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.beans.factory.annotation.Value;
 
-import javax.crypto.SecretKey;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
+
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
@@ -29,65 +20,24 @@ import java.util.*;
 public class UserApiController {
 
     private final UserService userService;
+    private final JwtUtil jwtUtil;
 
-    @Value("${jwt.secret-key}")
-    private String jwtSecret;
-    // 회원 등록
     @PostMapping("/register")
-    public ResponseEntity<User> registerUser(@RequestBody User user) {
-        User savedUser = userService.saveUser(user);
-        return ResponseEntity.ok(savedUser);
+    public ResponseEntity<Member> registerUser(@RequestBody Member member) {
+        Member savedMember = userService.saveMember(member);
+        return ResponseEntity.ok(savedMember);
     }
 
-    @GetMapping("/{userid}")
-    public ResponseEntity<?> getUserDetail(@PathVariable String userid) {
-        return userService.getUserDetail(userid)
+    @GetMapping("/{userId}")
+    public ResponseEntity<?> getUserDetail(@PathVariable String userId) {
+        return userService.getMemberDetail(userId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
-
-    @GetMapping("/list")
-    public PageDto<UserResponseDto> list(
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) String searchValue,
-            @RequestParam(required = false) String sortBy
-    ) {
-        PageRequestDto requestDto = new PageRequestDto();
-        requestDto.setPage(page);
-        requestDto.setSize(size);
-        requestDto.setSearchValue(StringUtils.hasText(searchValue) ? searchValue : null);
-        requestDto.setSortBy(StringUtils.hasText(sortBy) ? sortBy : "name");
-
-        return userService.list(requestDto);
-    }
-
-    @PostMapping("/{userid}/login-fail")
-    public ResponseEntity<Void> increaseLoginFail(@PathVariable String userid) {
-        try {
-            userService.increaseLoginFailCount(userid);
-            return ResponseEntity.ok().build();
-        } catch (RuntimeException ex) {
-            if (ex.getMessage().contains("잠겼습니다.")) {
-                return ResponseEntity.status(423).body(null); // 423 Locked
-            }
-            return ResponseEntity.status(400).body(null);
-        }
-    }
-
-    @PostMapping("/{userid}/login-success")
-    public ResponseEntity<Void> resetLoginFail(@PathVariable String userid) {
-        userService.resetLoginFailCount(userid);
-        return ResponseEntity.ok().build();
-    }
-
-
-    // 회원 삭제
-
-    @DeleteMapping("/delete/{userid}")
-    public ResponseEntity<Void> deleteUser(@PathVariable String userid, HttpServletRequest request) {
-        log.info("Delete request for userid: {}", userid);
+    @DeleteMapping("/delete/{userId}")
+    public ResponseEntity<Void> deleteUser(@PathVariable String userId, HttpServletRequest request) {
+        log.info("Delete request for userId: {}", userId);
 
         String authHeader = request.getHeader("Authorization");
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
@@ -96,36 +46,16 @@ public class UserApiController {
         }
 
         String token = authHeader.substring(7);
-        String tokenUserid;
 
         try {
-            SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
-
-            Claims claims = Jwts.parserBuilder()
-                    .setSigningKey(key)
-                    .build()
-                    .parseClaimsJws(token)
-                    .getBody();
-
-            // 프론트엔드와 동일한 로직으로 userid 추출
-            tokenUserid = claims.get("userid", String.class);
-            if (tokenUserid == null) {
-                tokenUserid = claims.getSubject(); // sub claim
-            }
-            if (tokenUserid == null) {
-                tokenUserid = claims.get("id", String.class); // id claim
-            }
-
-            log.info("URL userid: '{}', Token userid: '{}'", userid, tokenUserid);
-
-            if (tokenUserid == null) {
-                log.error("No userid found in JWT token");
+            if (!jwtUtil.validateToken(token)) {
+                log.error("Invalid JWT token");
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
             }
 
-            // 문자열 비교 (프론트엔드에서 String() 변환하므로)
-            if (!String.valueOf(userid).equals(String.valueOf(tokenUserid))) {
-                log.warn("User ID mismatch - URL: {}, Token: {}", userid, tokenUserid);
+            String tokenUserId = jwtUtil.getUsernameFromToken(token);
+            if (tokenUserId == null || !tokenUserId.equals(userId)) {
+                log.warn("User ID mismatch - URL: {}, Token: {}", userId, tokenUserId);
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
 
@@ -134,21 +64,27 @@ public class UserApiController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        if (!userService.isUserExists(userid)) {
-            log.warn("User does not exist: {}", userid);
+        if (!userService.isMemberExists(userId)) {
+            log.warn("User does not exist: {}", userId);
             return ResponseEntity.notFound().build();
         }
 
-        log.info("Deleting user: {}", userid);
-        userService.deleteUser(userid);
+        log.info("Deleting user: {}", userId);
+        userService.deleteMember(userId);
         return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/checkUserid")
-    public ResponseEntity<Map<String, Boolean>> checkUserid(@RequestParam String userid) {
-        boolean exists = userService.isUserExists(userid);
+    // 🔴 깨끗한 checkUserId 메서드 (CORS 헤더 수동 설정 제거)
+    @GetMapping("/checkUserId")
+    public ResponseEntity<Map<String, Boolean>> checkUserId(@RequestParam String userId) {
+        log.info("아이디 중복 확인 요청: {}", userId);
+
+        boolean exists = userService.isMemberExists(userId);
         Map<String, Boolean> response = new HashMap<>();
-        response.put("available", !exists); // 아이디가 없으면 사용 가능(available=true)
+        response.put("available", !exists);
+
+        log.info("아이디 중복 확인 결과 - userId: {}, available: {}", userId, !exists);
+
         return ResponseEntity.ok(response);
     }
 
@@ -163,58 +99,53 @@ public class UserApiController {
         return ResponseEntity.ok("User Service is running");
     }
 
-    // 회원 정보 수정
-    @PutMapping("/edit/{userid}")
+    @PutMapping("/edit/{userId}")
     public ResponseEntity<?> updateUser(
-            @PathVariable String userid,
+            @PathVariable String userId,
             @RequestBody UserDto userDto) {
 
-        if (!userid.equals(userDto.getUserid())) {
+        if (!userId.equals(userDto.getUserId())) {
             return ResponseEntity.badRequest().body("User ID mismatch");
         }
 
         try {
-            userService.updateUser(userDto);
+            userService.updateMember(userDto);
             return ResponseEntity.ok("User updated successfully");
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Update failed");
         }
     }
+
     @GetMapping("/search")
     public ResponseEntity<?> getUserByNameAndEmail(
             @RequestParam("name") String name,
             @RequestParam("email") String email) {
 
-        return userService.getUserByNameAndEmail(name, email)
+        return userService.getMemberByNameAndEmail(name, email)
                 .<ResponseEntity<?>>map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body("해당하는 사용자를 찾을 수 없습니다."));
     }
-    @PutMapping("/{userid}/password")
-    public ResponseEntity<?> updatePassword(@PathVariable String userid, @RequestBody String encodedPassword) {
+
+    @PutMapping("/{userId}/password")
+    public ResponseEntity<?> updatePassword(@PathVariable String userId, @RequestBody String encodedPassword) {
         try {
-            userService.updatePassword(userid, encodedPassword);
+            userService.updatePassword(userId, encodedPassword);
             return ResponseEntity.ok("비밀번호가 성공적으로 변경되었습니다.");
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("비밀번호 변경 중 오류가 발생했습니다.");
         }
     }
-    @PostMapping("/loginCheckOut")
-    public ResponseEntity<?> unlockLoginForUsers(@RequestBody Map<String, List<String>> payload) {
-        List<String> userIds = payload.get("userIds");
 
-        if (userIds == null || userIds.isEmpty()) {
-            return ResponseEntity.badRequest().body("userIds는 비어 있을 수 없습니다.");
-        }
-
+    @PutMapping("/{userId}/password-raw")
+    public ResponseEntity<?> updatePasswordRaw(@PathVariable String userId, @RequestBody String rawPassword) {
         try {
-            userService.unlockLoginForUsers(userIds);
-            return ResponseEntity.ok("선택된 회원들의 로그인 잠금이 해제되었습니다.");
+            userService.updatePasswordRaw(userId, rawPassword);
+            return ResponseEntity.ok("비밀번호가 성공적으로 변경되었습니다.");
         } catch (Exception e) {
-            log.error("로그인 잠금 해제 실패", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("로그인 잠금 해제 실패");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("비밀번호 변경 중 오류가 발생했습니다.");
         }
     }
-
 }

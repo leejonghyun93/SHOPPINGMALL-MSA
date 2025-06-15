@@ -3,23 +3,18 @@ package org.kosa.userservice;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
-import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
-import java.util.Date;
 
 @Component
 @Slf4j
 public class JwtUtil {
 
     private final JwtConfig jwtConfig;
-    private final long expiration = 1000 * 60 * 60; // 1시간
 
     public JwtUtil(JwtConfig jwtConfig) {
         this.jwtConfig = jwtConfig;
@@ -39,23 +34,22 @@ public class JwtUtil {
                 .getBody();
     }
 
-    public String generateToken(Long userId, String username) {
-        return Jwts.builder()
-                .setSubject(username)
-                .claim("userId", userId)
-                .setIssuer("auth-service")
-                .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + expiration))
-                .signWith(getKey(), SignatureAlgorithm.HS256)
-                .compact();
-    }
-
     public String getUsernameFromToken(String token) {
         try {
             Claims claims = parseToken(token);
             return claims.getSubject();
         } catch (JwtException e) {
             log.error("Invalid JWT token: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    public Long getUserIdFromToken(String token) {
+        try {
+            Claims claims = parseToken(token);
+            return claims.get("userId", Long.class);
+        } catch (JwtException e) {
+            log.error("JWT에서 userId 추출 실패: {}", e.getMessage());
             return null;
         }
     }
