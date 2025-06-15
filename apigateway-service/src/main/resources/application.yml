@@ -17,39 +17,97 @@ spring:
   cloud:
     gateway:
       globalcors:
-        corsConfigurations:
+        cors-configurations:
           '[/**]':
-            allowedOrigins: "*"
+            allowedOrigins: "http://localhost:5173"
             allowedMethods:
               - GET
               - POST
               - PUT
               - DELETE
+              - OPTIONS
             allowedHeaders: "*"
+            allowCredentials: true
       default-filters:
-        - name: GlobalFilter
+        - name: LoggingFilter
           args:
-            baseMessage: Spring Cloud Gateway Global Filter
+            baseMessage: "API Gateway"
             preLogger: true
             postLogger: true
+
       routes:
+        #  공개 경로들 (JWT 인증 불필요)
+        - id: auth-service-public
+          uri: lb://AUTH-SERVICE
+          predicates:
+            - Path=/auth/**
+          filters:
+            - RewritePath=/auth/(?<segment>.*), /auth/${segment}
+
         - id: user-register-public
           uri: lb://USER-SERVICE
           predicates:
             - Path=/api/users/register
             - Method=POST
-          filters:
-            - RewritePath=/api/users/register, /api/users/register
 
-        - id: user-checkUserid-public
+        - id: user-checkid-public
           uri: lb://USER-SERVICE
           predicates:
-            - Path=/api/users/checkUserid
+            - Path=/api/users/checkUserid/**
+            - Method=GET
+
+        - id: user-list-public
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/api/users/list
+            - Method=GET
+
+        # 카테고리 서비스 - 더 구체적인 패턴부터!
+        - id: category-sub-public
+          uri: lb://CATEGORY-SERVICE
+          predicates:
+            - Path=/api/categories/*/sub
             - Method=GET
           filters:
-            - RewritePath=/api/users/checkUserid, /api/users/checkUserid
+            - name: LoggingFilter
+              args:
+                baseMessage: "Category Sub API"
+                preLogger: true
+                postLogger: true
 
-        - id: user-service
+        - id: category-hierarchy-public
+          uri: lb://CATEGORY-SERVICE
+          predicates:
+            - Path=/api/categories/hierarchy
+            - Method=GET
+          filters:
+            - name: LoggingFilter
+              args:
+                baseMessage: "Category Hierarchy API"
+
+        - id: category-main-public
+          uri: lb://CATEGORY-SERVICE
+          predicates:
+            - Path=/api/categories/main
+            - Method=GET
+          filters:
+            - name: LoggingFilter
+              args:
+                baseMessage: "Category Main API"
+
+        # 가장 일반적인 패턴을 마지막에
+        - id: category-detail-public
+          uri: lb://CATEGORY-SERVICE
+          predicates:
+            - Path=/api/categories/*
+            - Method=GET
+          filters:
+            - name: LoggingFilter
+              args:
+                baseMessage: "Category Detail API"
+
+        # 보호된 경로들 (JWT 인증 필요)
+        - id: user-service-protected
           uri: lb://USER-SERVICE
           predicates:
             - Path=/api/users/**
@@ -57,64 +115,36 @@ spring:
             - name: JwtAuthorization
             - RewritePath=/api/users/(?<segment>.*), /api/users/${segment}
 
-        - id: user-service-root
+        - id: user-service-root-protected
           uri: lb://USER-SERVICE
           predicates:
             - Path=/api/users
           filters:
             - name: JwtAuthorization
-            - RewritePath=/api/users, /api/users
 
-        - id: board-service
-          uri: lb://BOARD-SERVICE
+        # 추가될 다른 서비스들
+        - id: product-service-protected
+          uri: lb://PRODUCT-SERVICE
           predicates:
-            - Path=/api/board/**
+            - Path=/api/products/**
           filters:
             - name: JwtAuthorization
-            - RewritePath=/api/board/(?<segment>.*), /api/board/${segment}
+            - RewritePath=/api/products/(?<segment>.*), /api/products/${segment}
 
-        - id: user-service-register
-          uri: lb://USER-SERVICE
+        - id: order-service-protected
+          uri: lb://ORDER-SERVICE
           predicates:
-            - Path=/user-service/users
-            - Method=POST
-          filters:
-            - RemoveRequestHeader=Cookie
-            - RewritePath=/user-service/(?<segment>.*), /${segment}
-
-        - id: user-service-list
-          uri: lb://USER-SERVICE
-          predicates:
-            - Path=/api/users/list
-          filters:
-            - RewritePath=/api/users/list, /api/users/list
-
-        - id: user-service-get
-          uri: lb://USER-SERVICE
-          predicates:
-            - Path=/user-service/**
-            - Method=GET
+            - Path=/api/orders/**
           filters:
             - name: JwtAuthorization
-            - RemoveRequestHeader=Cookie
-            - RewritePath=/user-service/(?<segment>.*), /${segment}
-
-        - id:  user-service-direct
-          uri: http://localhost:8081
-          predicates:
-            - Path=/users/**
-          filters:
-            - name: JwtAuthorization
-        - id: auth-service
-          uri: lb://AUTH-SERVICE
-          predicates:
-            - Path=/auth/**
-          filters:
-            - RewritePath=/auth/(?<segment>.*), /auth/${segment}
+            - RewritePath=/api/orders/(?<segment>.*), /api/orders/${segment}
 
 logging:
   level:
     org.springframework.cloud.gateway: DEBUG
+    org.kosa.apigatewayservice: DEBUG
+    org.springframework.cloud.gateway.route: DEBUG
+    org.springframework.cloud.gateway.handler: DEBUG
 
 jwt:
   secret-key: "verySecretKeyThatIsAtLeast32BytesLong1234"

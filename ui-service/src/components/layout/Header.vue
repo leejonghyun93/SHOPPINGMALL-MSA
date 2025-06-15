@@ -7,7 +7,7 @@
       <router-link to="/" class="navbar-brand">홈</router-link>
       <router-link to="/" class="navbar-brand">이벤트</router-link>
       <router-link to="/" class="navbar-brand">예고</router-link>
-      <router-link to="/categorie" class="navbar-brand">카테고리</router-link>
+      <router-link to="/category" class="navbar-brand">카테고리</router-link>
     </div>
 
     <!-- 오른쪽: 메뉴들 -->

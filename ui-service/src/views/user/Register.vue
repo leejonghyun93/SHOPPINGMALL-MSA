@@ -326,30 +326,35 @@ button:hover {
 .terms-wrap {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .checkbox-inline {
   display: flex;
   align-items: center;
-  gap: 8px; /* 각 요소 간 간격 */
-  /* justify-content: space-between 제거 */
+  flex-wrap: nowrap; /* ✅ 줄바꿈 방지 */
+  gap: 8px;
 }
 
 .checkbox-inline input[type="checkbox"] {
-  margin-right: 8px;
+  width: 10%;
+  flex-shrink: 0;
+  margin: 0;
 }
 
 .checkbox-inline span {
-  flex: 1;
+  font-size: 0.95em;
+  white-space: nowrap; /* ✅ 줄바꿈 방지 */
 }
 
 .checkbox-inline button {
-  font-size: 0.85em;
   background: none;
-  color: #007bff;
   border: none;
+  color: #007bff;
+  font-size: 0.85em;
+  padding: 0;
   cursor: pointer;
+  white-space: nowrap; /* ✅ 버튼도 한 줄 유지 */
 }
 
 .checkbox-inline button:hover {
@@ -357,12 +362,13 @@ button:hover {
 }
 
 .terms-content {
-  margin-left: 22px;
+  margin-left: 26px;
   background-color: #f9f9f9;
   padding: 10px;
   border-left: 3px solid #ccc;
   font-size: 0.9em;
   color: #333;
+  line-height: 1.4;
 }
 
 .error {
