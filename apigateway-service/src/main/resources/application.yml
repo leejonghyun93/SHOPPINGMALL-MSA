@@ -44,9 +44,9 @@ spring:
             postLogger: true
 
       routes:
-        # AUTH SERVICE 라우팅 (수정됨)
+        # AUTH SERVICE 라우팅
         - id: auth-service-public
-          uri: lb://AUTH-SERVICE  # USER-SERVICE → AUTH-SERVICE로 변경
+          uri: lb://AUTH-SERVICE
           predicates:
             - Path=/auth/**
           filters:
@@ -57,7 +57,7 @@ spring:
                 preLogger: true
                 postLogger: true
 
-        # USER SERVICE 라우팅
+        # USER SERVICE 공개 라우팅
         - id: user-register-public
           uri: lb://USER-SERVICE
           predicates:
@@ -83,6 +83,43 @@ spring:
           predicates:
             - Path=/api/users/list
             - Method=GET
+
+        # 🔥 마이페이지 관련 API들 (공개 경로로 추가)
+        - id: user-verify-password-public
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/api/users/verify-password
+            - Method=POST
+          filters:
+            - name: LoggingFilter
+              args:
+                baseMessage: "User Verify Password"
+                preLogger: true
+                postLogger: true
+
+        - id: user-profile-get-public
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/api/users/profile
+            - Method=GET
+          filters:
+            - name: LoggingFilter
+              args:
+                baseMessage: "User Profile GET"
+                preLogger: true
+                postLogger: true
+
+        - id: user-profile-put-public
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/api/users/profile
+            - Method=PUT
+          filters:
+            - name: LoggingFilter
+              args:
+                baseMessage: "User Profile PUT"
+                preLogger: true
+                postLogger: true
 
         # 카테고리 서비스 - 더 구체적인 패턴부터!
         - id: category-sub-public

@@ -23,8 +23,15 @@ public class GatewaySecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeExchange(exchanges ->
                         exchanges
-                                .pathMatchers("/auth/**", "/api/users/register", "/api/users/checkUserId",
-                                        "/api/users/health", "/api/users/list", "/api/categories/**").permitAll()
+                                // 🔥 마이페이지 관련 API들 추가!
+                                .pathMatchers("/auth/**",
+                                        "/api/users/register",
+                                        "/api/users/checkUserId",
+                                        "/api/users/health",
+                                        "/api/users/list",
+                                        "/api/users/verify-password",  // 추가
+                                        "/api/users/profile",          // 추가
+                                        "/api/categories/**").permitAll()
                                 .anyExchange().authenticated()
                 )
                 .build();
@@ -35,7 +42,7 @@ public class GatewaySecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
 
         configuration.setAllowedOriginPatterns(List.of("*"));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);

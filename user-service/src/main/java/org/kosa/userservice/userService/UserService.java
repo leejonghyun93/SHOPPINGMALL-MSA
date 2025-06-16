@@ -299,16 +299,6 @@ public class UserService {
         return userGradeRepository.findAllByOrderByGradeMinAmountAsc();
     }
 
-    // 등급별 회원 통계
-    public Map<String, Long> getGradeStatistics() {
-        List<MemberGrade> grades = userGradeRepository.findAll();
-        Map<String, Long> statistics = new HashMap<>();
 
-        for (MemberGrade grade : grades) {
-            long count = userRepository.countByMemberGradeGradeId(grade.getGradeId());
-            statistics.put(grade.getGradeName(), count);
-        }
 
-        return statistics;
-    }
 }

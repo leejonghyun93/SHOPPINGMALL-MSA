@@ -3,6 +3,7 @@ package org.kosa.apigatewayservice.filter;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
@@ -11,6 +12,9 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
+
+import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
 
 @Component
 @Slf4j
@@ -40,7 +44,7 @@ public class JwtAuthorizationGatewayFilterFactory extends AbstractGatewayFilterF
                 return chain.filter(exchange);
             }
 
-            // 공개 경로는 통과
+            // 🔥 공개 경로는 JWT 검증 스킵
             if (isPublicPath(path)) {
                 log.info("Public path accessed: {}", path);
                 return chain.filter(exchange);
@@ -58,17 +62,19 @@ public class JwtAuthorizationGatewayFilterFactory extends AbstractGatewayFilterF
             String token = authHeader.substring(7);
 
             try {
-                // JWT 토큰 검증
-                Claims claims = Jwts.parser()
-                        .setSigningKey(secretKey.getBytes())
+                SecretKey key = Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
+
+                Claims claims = Jwts.parserBuilder()
+                        .setSigningKey(key)
+                        .build()
                         .parseClaimsJws(token)
                         .getBody();
 
-                // 🔥 중요: 사용자 정보를 헤더에 추가하여 내부 서비스로 전달
+                // 사용자 정보를 헤더에 추가
                 ServerHttpRequest modifiedRequest = exchange.getRequest().mutate()
                         .header("X-User-Id", claims.getSubject())
-                        .header("X-User-Name", claims.get("username", String.class))
-                        .header("X-User-Role", claims.get("role", String.class))
+                        .header("X-User-Name", claims.get("name", String.class))
+                        .header("X-User-Role", "USER")
                         .build();
 
                 log.info("JWT validated successfully for user: {}", claims.getSubject());
@@ -83,16 +89,16 @@ public class JwtAuthorizationGatewayFilterFactory extends AbstractGatewayFilterF
         };
     }
 
-    /**
-     * 인증 없이 접근 가능한 공개 경로들
-     */
     private boolean isPublicPath(String path) {
         return path.equals("/api/users/register") ||
-                path.equals("/api/users/checkUserid") ||
-                path.startsWith("/api/users/checkUserid") ||
+                path.equals("/api/users/checkUserId") ||
+                path.startsWith("/api/users/checkUserId") ||
+                path.equals("/api/users/health") ||
                 path.equals("/api/users/list") ||
+                path.equals("/api/users/verify-password") ||
+                path.equals("/api/users/profile") ||
                 path.startsWith("/auth/") ||
                 path.startsWith("/api/auth/") ||
-                path.startsWith("/api/categories"); // 카테고리는 공개
+                path.startsWith("/api/categories");
     }
 }

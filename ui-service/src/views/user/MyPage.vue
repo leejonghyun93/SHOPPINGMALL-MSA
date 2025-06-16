@@ -6,23 +6,22 @@
         <div class="col-md-3 sidebar">
           <!-- 사용자 정보 섹션 -->
           <div class="user-info-section">
-            <div class="welcome-text">반가워요! <span class="username">{{ name }}</span></div>
+            <div class="welcome-text">반가워요! <span class="username">{{ userName }}</span></div>
 
             <div class="user-stats">
               <div class="stat-item">
                 <div class="stat-label">적립금</div>
-                <div class="stat-value">{{ points.toLocaleString() }}원</div>
+                <div class="stat-value">{{ (points || 0).toLocaleString() }}원</div>
               </div>
               <div class="stat-item">
                 <div class="stat-label">쿠폰수</div>
-                <div class="stat-value">{{ coupons }}개</div>
+                <div class="stat-value">{{ coupons || 0 }}개</div>
               </div>
               <div class="stat-item">
                 <div class="stat-label">상품권</div>
-                <div class="stat-value">{{ giftCards }}개</div>
+                <div class="stat-value">{{ giftCards || 0 }}개</div>
               </div>
             </div>
-
           </div>
 
           <!-- 메뉴 섹션 -->
@@ -173,14 +172,16 @@
             <div class="content-header">
               <h4>개인정보 수정</h4>
             </div>
-            <div class="personal-info-form">
+
+            <!-- 비밀번호 확인 단계 -->
+            <div v-if="!passwordVerified" class="personal-info-form">
               <div class="form-section">
                 <h5>비밀번호 재확인</h5>
                 <p class="text-muted">회원님의 정보를 안전하게 보호하기 위해 비밀번호를 다시 한번 확인해주세요.</p>
 
                 <div class="mb-3">
                   <label class="form-label">아이디</label>
-                  <input type="text" class="form-control" :value="computedUser.username || 'user123'" readonly>
+                  <input type="text" class="form-control" :value="computedUser.username || computedUser.id || ''" readonly>
                 </div>
 
                 <div class="mb-3">
@@ -188,79 +189,94 @@
                   <input type="password" class="form-control" placeholder="현재 비밀번호를 입력해주세요" v-model="currentPassword">
                 </div>
 
-                <div class="text-center">
-                  <button class="btn btn-primary px-5" @click="verifyPassword">확인</button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- 비밀번호 변경 탭 -->
-          <div v-if="activeTab === 'new-password'" class="tab-content">
-            <div class="content-header">
-              <h4>비밀번호 변경</h4>
-            </div>
-            <div class="personal-info-form">
-              <div class="form-section">
-                <div class="mb-3">
-                  <label class="form-label">현재 비밀번호 <span class="text-danger">*</span></label>
-                  <input type="password" class="form-control" v-model="passwordForm.current">
-                </div>
-
-                <div class="mb-3">
-                  <label class="form-label">새 비밀번호 <span class="text-danger">*</span></label>
-                  <input type="password" class="form-control" v-model="passwordForm.new">
-                  <div class="form-text">8자 이상, 영문/숫자/특수문자 조합</div>
-                </div>
-
-                <div class="mb-3">
-                  <label class="form-label">새 비밀번호 확인 <span class="text-danger">*</span></label>
-                  <input type="password" class="form-control" v-model="passwordForm.confirm">
+                <div v-if="passwordError" class="alert alert-danger">
+                  {{ passwordError }}
                 </div>
 
                 <div class="text-center">
-                  <button class="btn btn-secondary me-2" @click="resetPasswordForm">취소</button>
-                  <button class="btn btn-primary px-4" @click="updatePassword">변경</button>
+                  <button class="btn btn-primary px-5" @click="verifyPassword" :disabled="verifying">
+                    {{ verifying ? '확인 중...' : '확인' }}
+                  </button>
                 </div>
               </div>
             </div>
-          </div>
 
-          <!-- 이메일 변경 탭 -->
-          <div v-if="activeTab === 'email'" class="tab-content">
-            <div class="content-header">
-              <h4>이메일 변경</h4>
-            </div>
-            <div class="personal-info-form">
+            <!-- 개인정보 수정 폼 -->
+            <div v-else class="personal-info-form">
               <div class="form-section">
+                <h5>개인정보 수정</h5>
+
                 <div class="mb-3">
-                  <label class="form-label">현재 이메일</label>
-                  <input type="email" class="form-control" :value="computedUser.email || 'user@example.com'" readonly>
+                  <label class="form-label">아이디</label>
+                  <input type="text" class="form-control" :value="userInfo.username" readonly>
                 </div>
 
                 <div class="mb-3">
-                  <label class="form-label">새 이메일 <span class="text-danger">*</span></label>
-                  <input type="email" class="form-control" v-model="emailForm.new" placeholder="새 이메일을 입력하세요">
+                  <label class="form-label">이름 <span class="text-danger">*</span></label>
+                  <input type="text" class="form-control" v-model="userInfo.name" placeholder="이름을 입력하세요">
                 </div>
 
                 <div class="mb-3">
-                  <label class="form-label">인증번호</label>
-                  <div class="input-group">
-                    <input type="text" class="form-control" v-model="emailForm.verificationCode" placeholder="인증번호 입력">
-                    <button class="btn btn-outline-secondary" @click="sendVerificationCode">인증번호 발송</button>
+                  <label class="form-label">이메일 <span class="text-danger">*</span></label>
+                  <input type="email" class="form-control" v-model="userInfo.email" placeholder="이메일을 입력하세요">
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">휴대폰 번호</label>
+                  <input type="tel" class="form-control" v-model="userInfo.phone" placeholder="010-1234-5678">
+                </div>
+
+                <!-- 🔥 새 비밀번호 섹션 추가 -->
+                <div class="password-section">
+                  <h6 class="password-section-title">비밀번호 변경 (선택사항)</h6>
+
+                  <div class="mb-3">
+                    <label class="form-label">새 비밀번호</label>
+                    <input type="password" class="form-control" v-model="userInfo.newPassword" placeholder="새 비밀번호 (변경시에만 입력)">
+                    <div class="form-text">8자 이상, 영문/숫자/특수문자 조합</div>
+                  </div>
+
+                  <div class="mb-3">
+                    <label class="form-label">새 비밀번호 확인</label>
+                    <input type="password" class="form-control" v-model="userInfo.confirmNewPassword" placeholder="새 비밀번호 확인">
+                    <div v-if="passwordMismatch" class="text-danger mt-1">새 비밀번호가 일치하지 않습니다.</div>
+                  </div>
+                </div>
+
+                <!-- 🔥 생년월일 추가 -->
+                <div class="mb-3">
+                  <label class="form-label">생년월일</label>
+                  <input type="date" class="form-control" v-model="userInfo.birthDate">
+                </div>
+
+                <!-- 🔥 성별 추가 -->
+                <div class="mb-3">
+                  <label class="form-label">성별</label>
+                  <div class="gender-toggle">
+                    <label :class="{ active: userInfo.gender === 'M' }">
+                      <input type="radio" value="M" v-model="userInfo.gender"> 남자
+                    </label>
+                    <label :class="{ active: userInfo.gender === 'F' }">
+                      <input type="radio" value="F" v-model="userInfo.gender"> 여자
+                    </label>
+                    <label :class="{ active: userInfo.gender === 'U' }">
+                      <input type="radio" value="U" v-model="userInfo.gender"> 선택 안 함
+                    </label>
                   </div>
                 </div>
 
                 <div class="text-center">
-                  <button class="btn btn-secondary me-2" @click="resetEmailForm">취소</button>
-                  <button class="btn btn-primary px-4" @click="updateEmail">변경</button>
+                  <button class="btn btn-secondary me-2" @click="cancelEdit">취소</button>
+                  <button class="btn btn-primary px-4" @click="updateUserInfo" :disabled="updating">
+                    {{ updating ? '저장 중...' : '저장' }}
+                  </button>
                 </div>
               </div>
             </div>
           </div>
 
           <!-- 기타 탭들 플레이스홀더 -->
-          <div v-if="!['orders', 'profile', 'basic-info', 'new-password', 'email'].includes(activeTab)" class="tab-content">
+          <div v-if="!['orders', 'profile', 'basic-info'].includes(activeTab)" class="tab-content">
             <div class="content-header">
               <h4>{{ getTabTitle() }}</h4>
             </div>
@@ -286,27 +302,45 @@ const route = useRoute()
 
 // 사용자 데이터 - userStore에서 가져오기
 const computedUser = computed(() => user)
-const name = computed(() => {
+const userName = computed(() => {
   return computedUser.value.name ? computedUser.value.name + '님' : '사용자님'
 })
-const points = ref(0)
-const coupons = ref(0)
-const giftCards = ref(0)
 
 // 활성 탭
 const activeTab = ref('orders')
-const showPersonalInfo = ref(false)
+
+// 상태 관리
+const passwordVerified = ref(false)
+const verifying = ref(false)
+const updating = ref(false)
+const passwordError = ref('')
+
+// 사이드바에 표시할 정보
+const points = ref(12500)
+const coupons = ref(3)
+const giftCards = ref(1)
+
+// 🔥 userInfo 객체에 새 필드들 추가
+const userInfo = ref({
+  username: '',
+  name: '',
+  email: '',
+  phone: '',
+  birthDate: '',
+  gender: 'U',           // 🔥 성별 추가
+  newPassword: '',       // 🔥 새 비밀번호 추가
+  confirmNewPassword: '' // 🔥 새 비밀번호 확인 추가
+})
 
 // 폼 데이터
 const currentPassword = ref('')
-const passwordForm = ref({
-  current: '',
-  new: '',
-  confirm: ''
-})
-const emailForm = ref({
-  new: '',
-  verificationCode: ''
+
+// 🔥 새 비밀번호 검증 computed 추가
+const passwordMismatch = computed(() => {
+  if (!userInfo.value.newPassword && !userInfo.value.confirmNewPassword) {
+    return false // 둘 다 비어있으면 오류 없음
+  }
+  return userInfo.value.newPassword !== userInfo.value.confirmNewPassword
 })
 
 // 적립금, 쿠폰 등 추가 정보만 필요한 경우 별도 API 호출 (선택사항)
@@ -314,16 +348,42 @@ async function fetchUserExtraInfo() {
   try {
     const token = localStorage.getItem('token')
     if (!token) return
-
-    // 별도의 적립금/쿠폰 정보 API가 있다면 호출
-    // const response = await fetch('/api/user/points-coupons', ...)
-
-    // 임시로 기본값 설정
-    points.value = 12500
-    coupons.value = 3
-    giftCards.value = 1
   } catch (error) {
     // 에러 발생 시 기본값 유지
+  }
+}
+
+// 🔥 사용자 상세 정보 로드 함수 업데이트
+async function loadUserDetailInfo() {
+  try {
+    const token = localStorage.getItem('token')
+    if (!token) return
+
+    const response = await fetch('/api/users/profile', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (response.ok) {
+      const userData = await response.json()
+      userInfo.value = {
+        username: userData.userId,
+        name: userData.name || '',
+        email: userData.email || '',
+        phone: userData.phone || '',
+        birthDate: userData.birthDate || '',
+        gender: userData.gender || 'U',  // 🔥 성별 추가
+        newPassword: '',                 // 🔥 항상 빈 값으로 시작
+        confirmNewPassword: ''           // 🔥 항상 빈 값으로 시작
+      }
+    } else {
+      console.error('사용자 정보 로드 실패')
+    }
+  } catch (error) {
+    console.error('사용자 정보 로드 중 오류:', error)
   }
 }
 
@@ -340,9 +400,6 @@ onMounted(() => {
 
   if (route.query.tab) {
     activeTab.value = route.query.tab
-    if (['basic-info', 'current-password', 'new-password', 'confirm-password', 'name', 'email', 'phone', 'gender', 'birth', 'use-agreement'].includes(route.query.tab)) {
-      showPersonalInfo.value = true
-    }
   }
   if (route.query.section === 'profile') {
     activeTab.value = 'profile'
@@ -351,13 +408,6 @@ onMounted(() => {
 
 function setActiveTab(tab) {
   activeTab.value = tab
-  if (['basic-info', 'current-password', 'new-password', 'confirm-password', 'name', 'email', 'phone', 'gender', 'birth', 'use-agreement'].includes(tab)) {
-    showPersonalInfo.value = true
-  }
-}
-
-function togglePersonalInfo() {
-  showPersonalInfo.value = !showPersonalInfo.value
 }
 
 function getTabTitle() {
@@ -366,85 +416,154 @@ function getTabTitle() {
     'coupons': '쿠폰',
     'wishlist': '찜한 상품',
     'frequent': '자주 구매',
-    'colorever': '캘러베에서 · 컬러버해',
     'returns': '취소 · 반품 내역',
     'reviews': '상품 후기',
     'inquiries': '상품 문의',
-    'colorbertimes': '컬러버때스',
     'shipping': '배송지 관리',
     'colorstyle': '나의 컬러스타일',
     'profile': '회원 정보 관리',
     'vip': 'VIP 예상 등급',
-    'basic-info': '개인정보 수정',
-    'current-password': '현재 비밀번호',
-    'new-password': '새 비밀번호',
-    'confirm-password': '새 비밀번호 확인',
-    'name': '이름',
-    'email': '이메일',
-    'phone': '휴대폰',
-    'gender': '성별',
-    'birth': '생년월일',
-    'use-agreement': '이용약관동의'
+    'basic-info': '개인정보 수정'
   }
   return titles[activeTab.value] || '마이페이지'
 }
 
 // 폼 액션 함수들
-function verifyPassword() {
+async function verifyPassword() {
   if (!currentPassword.value) {
-    alert('비밀번호를 입력해주세요.')
+    passwordError.value = '비밀번호를 입력해주세요.'
     return
   }
-  // TODO: API 호출로 비밀번호 검증
-  alert('비밀번호가 확인되었습니다.')
+
+  verifying.value = true
+  passwordError.value = ''
+
+  try {
+    const token = localStorage.getItem('token')
+    if (!token) {
+      passwordError.value = '로그인이 필요합니다.'
+      return
+    }
+
+    // 실제 API 호출로 비밀번호 검증
+    const response = await fetch('/api/users/verify-password', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        password: currentPassword.value
+      })
+    })
+
+    const result = await response.json()
+
+    if (response.ok) {
+      // 비밀번호 검증 성공
+      passwordVerified.value = true
+      await loadUserDetailInfo()
+    } else {
+      // 비밀번호 검증 실패
+      passwordError.value = result.message || '비밀번호가 일치하지 않습니다.'
+    }
+
+  } catch (error) {
+    console.error('비밀번호 검증 중 오류:', error)
+    passwordError.value = '비밀번호 확인 중 오류가 발생했습니다.'
+  } finally {
+    verifying.value = false
+  }
 }
 
-function updatePassword() {
-  if (!passwordForm.value.current || !passwordForm.value.new || !passwordForm.value.confirm) {
-    alert('모든 필드를 입력해주세요.')
+// 🔥 개인정보 수정 함수 업데이트
+async function updateUserInfo() {
+  // 🔥 필수 필드 검증
+  if (!userInfo.value.name || !userInfo.value.email) {
+    alert('이름과 이메일은 필수 항목입니다.')
     return
   }
-  if (passwordForm.value.new !== passwordForm.value.confirm) {
+
+  // 🔥 새 비밀번호 검증
+  if (userInfo.value.newPassword && passwordMismatch.value) {
     alert('새 비밀번호가 일치하지 않습니다.')
     return
   }
-  // TODO: API 호출로 비밀번호 변경
-  alert('비밀번호가 변경되었습니다.')
-  resetPasswordForm()
-}
 
-function resetPasswordForm() {
-  passwordForm.value = {
-    current: '',
-    new: '',
-    confirm: ''
-  }
-}
-
-function sendVerificationCode() {
-  if (!emailForm.value.new) {
-    alert('새 이메일을 입력해주세요.')
+  // 🔥 새 비밀번호 강도 검증
+  if (userInfo.value.newPassword && userInfo.value.newPassword.length < 8) {
+    alert('새 비밀번호는 8자 이상이어야 합니다.')
     return
   }
-  // TODO: API 호출로 인증번호 발송
-  alert('인증번호가 발송되었습니다.')
+
+  updating.value = true
+
+  try {
+    const token = localStorage.getItem('token')
+    if (!token) {
+      alert('로그인이 필요합니다.')
+      return
+    }
+
+    // 🔥 업데이트 데이터 구성 (새 비밀번호가 있을 때만 포함)
+    const updateData = {
+      name: userInfo.value.name,
+      email: userInfo.value.email,
+      phone: userInfo.value.phone,
+      birthDate: userInfo.value.birthDate,
+      gender: userInfo.value.gender
+    }
+
+    // 새 비밀번호가 입력된 경우에만 추가
+    if (userInfo.value.newPassword) {
+      updateData.password = userInfo.value.newPassword
+    }
+
+    const response = await fetch('/api/users/profile', {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(updateData)
+    })
+
+    const result = await response.json()
+
+    if (response.ok) {
+      // userStore 업데이트
+      user.name = userInfo.value.name
+      user.email = userInfo.value.email
+
+      // 🔥 비밀번호 필드 초기화
+      userInfo.value.newPassword = ''
+      userInfo.value.confirmNewPassword = ''
+
+      alert('개인정보가 수정되었습니다.')
+      activeTab.value = 'profile'
+    } else {
+      alert(result.message || '개인정보 수정에 실패했습니다.')
+    }
+
+  } catch (error) {
+    console.error('개인정보 수정 중 오류:', error)
+    alert('개인정보 수정 중 오류가 발생했습니다.')
+  } finally {
+    updating.value = false
+  }
 }
 
-function updateEmail() {
-  if (!emailForm.value.new || !emailForm.value.verificationCode) {
-    alert('모든 필드를 입력해주세요.')
-    return
-  }
-  // TODO: API 호출로 이메일 변경
-  alert('이메일이 변경되었습니다.')
-  resetEmailForm()
-}
+// 🔥 취소 함수 업데이트
+function cancelEdit() {
+  passwordVerified.value = false
+  currentPassword.value = ''
+  passwordError.value = ''
 
-function resetEmailForm() {
-  emailForm.value = {
-    new: '',
-    verificationCode: ''
-  }
+  // 🔥 새 비밀번호 필드들도 초기화
+  userInfo.value.newPassword = ''
+  userInfo.value.confirmNewPassword = ''
+
+  activeTab.value = 'profile'
 }
 
 function handleLoginManagement() {
@@ -854,6 +973,69 @@ function handleLoginManagement() {
   margin-left: auto;
 }
 
+/* 🔥 새로 추가된 스타일들 */
+
+/* 비밀번호 섹션 스타일 */
+.password-section {
+  background-color: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  margin: 20px 0;
+
+}
+
+.password-section-title {
+  color: #495057;
+  margin-bottom: 15px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+/* 성별 토글 스타일 (회원가입과 동일) */
+.gender-toggle {
+  display: flex;
+  gap: 15px;
+  padding: 10px 0;
+}
+
+.gender-toggle label {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  border: 2px solid #e9ecef;
+  border-radius: 25px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 500;
+  background-color: white;
+}
+
+.gender-toggle label:hover {
+  border-color: #007bff;
+  background-color: #f8f9fa;
+}
+
+.gender-toggle label.active {
+  border-color: #007bff;
+  background-color: #007bff;
+  color: white;
+}
+
+.gender-toggle input[type="radio"] {
+  margin-right: 8px;
+}
+
+.gender-toggle label.active input[type="radio"] {
+  accent-color: white;
+}
+
+/* 폼 텍스트 스타일 */
+.form-text {
+  font-size: 12px;
+  color: #6c757d;
+  margin-top: 5px;
+}
+
 /* 반응형 */
 @media (max-width: 768px) {
   .main-content {
@@ -884,6 +1066,15 @@ function handleLoginManagement() {
 
   .product-details {
     width: 100%;
+  }
+
+  .gender-toggle {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .gender-toggle label {
+    justify-content: center;
   }
 }
 </style>

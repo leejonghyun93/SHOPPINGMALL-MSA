@@ -148,4 +148,157 @@ public class UserApiController {
                     .body("비밀번호 변경 중 오류가 발생했습니다.");
         }
     }
+    @PostMapping("/verify-password")
+    public ResponseEntity<?> verifyPassword(
+            @RequestBody Map<String, String> request,
+            HttpServletRequest httpRequest) {
+
+        try {
+            String password = request.get("password");
+            if (password == null || password.trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("message", "비밀번호를 입력해주세요."));
+            }
+
+            // JWT 토큰 추출
+            String authHeader = httpRequest.getHeader("Authorization");
+            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("message", "인증이 필요합니다."));
+            }
+
+            String token = authHeader.substring(7);
+            if (!jwtUtil.validateToken(token)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("message", "유효하지 않은 토큰입니다."));
+            }
+
+            String userId = jwtUtil.getUsernameFromToken(token);
+            log.info("비밀번호 검증 요청 - userId: {}", userId);
+
+            // 실제 DB에서 사용자 조회
+            Optional<UserDto> userOpt = userService.getMemberDetail(userId);
+            if (userOpt.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("message", "사용자를 찾을 수 없습니다."));
+            }
+
+            UserDto user = userOpt.get();
+
+            // 실제 비밀번호 검증 (DB 암호화된 비밀번호와 비교)
+            boolean isValid = userService.matchesPassword(password, user.getPassword());
+
+            log.info("비밀번호 검증 결과 - userId: {}, 결과: {}", userId, isValid ? "성공" : "실패");
+
+            if (isValid) {
+                return ResponseEntity.ok(Map.of("message", "비밀번호가 확인되었습니다."));
+            } else {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("message", "비밀번호가 일치하지 않습니다."));
+            }
+
+        } catch (Exception e) {
+            log.error("비밀번호 검증 중 오류: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "비밀번호 확인 중 오류가 발생했습니다."));
+        }
+    }
+
+    @GetMapping("/profile")
+    public ResponseEntity<?> getUserProfile(HttpServletRequest httpRequest) {
+        try {
+            // JWT 토큰 추출
+            String authHeader = httpRequest.getHeader("Authorization");
+            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("message", "인증이 필요합니다."));
+            }
+
+            String token = authHeader.substring(7);
+            if (!jwtUtil.validateToken(token)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("message", "유효하지 않은 토큰입니다."));
+            }
+
+            String userId = jwtUtil.getUsernameFromToken(token);
+            log.info("프로필 조회 요청 - userId: {}", userId);
+
+            // 실제 DB에서 사용자 상세 정보 조회
+            Optional<UserDto> userOpt = userService.getMemberDetail(userId);
+            if (userOpt.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("message", "사용자를 찾을 수 없습니다."));
+            }
+
+            UserDto user = userOpt.get();
+
+            // 응답용 데이터 (비밀번호 제외)
+            Map<String, Object> response = new HashMap<>();
+            response.put("userId", user.getUserId());
+            response.put("name", user.getName());
+            response.put("email", user.getEmail());
+            response.put("phone", user.getPhone());
+            response.put("birthDate", user.getBirthDate());
+            response.put("address", user.getAddress());
+            response.put("zipcode", user.getZipcode());
+            response.put("gender", user.getGender());
+
+            log.info("프로필 조회 성공 - userId: {}", userId);
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("프로필 조회 중 오류: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "프로필 정보를 불러올 수 없습니다."));
+        }
+    }
+
+    @PutMapping("/profile")
+    public ResponseEntity<?> updateUserProfile(
+            @RequestBody UserDto userDto,
+            HttpServletRequest httpRequest) {
+
+        try {
+            // JWT 토큰 추출
+            String authHeader = httpRequest.getHeader("Authorization");
+            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("message", "인증이 필요합니다."));
+            }
+
+            String token = authHeader.substring(7);
+            if (!jwtUtil.validateToken(token)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("message", "유효하지 않은 토큰입니다."));
+            }
+
+            String userId = jwtUtil.getUsernameFromToken(token);
+            log.info("프로필 수정 요청 - userId: {}", userId);
+
+            // 필수 필드 검증
+            if (userDto.getName() == null || userDto.getName().trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("message", "이름은 필수 항목입니다."));
+            }
+
+            if (userDto.getEmail() == null || userDto.getEmail().trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("message", "이메일은 필수 항목입니다."));
+            }
+
+            // UserDto에 userId 설정
+            userDto.setUserId(userId);
+
+            // 실제 DB 업데이트 (기존 updateMember 메서드 사용)
+            userService.updateMember(userDto);
+
+            log.info("프로필 수정 완료 - userId: {}", userId);
+            return ResponseEntity.ok(Map.of("message", "프로필이 성공적으로 수정되었습니다."));
+
+        } catch (Exception e) {
+            log.error("프로필 수정 중 오류: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "프로필 수정 중 오류가 발생했습니다."));
+        }
+    }
 }
