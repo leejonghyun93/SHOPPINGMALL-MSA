@@ -20,9 +20,9 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final WithdrawnUserRepository withdrawnUserRepository;
-    private final UserGradeRepository userGradeRepository; // 🔴 이름 변경
+    private final UserGradeRepository userGradeRepository; //  이름 변경
 
-    // 🔴 회원 저장 - DB에서 최소 금액 등급 자동 설정
+    // 회원 저장 - DB에서 최소 금액 등급 자동 설정
     @Transactional
     public Member saveMember(Member member) {
         log.info("회원 등록 시작 - userId: {}", member.getUserId());
@@ -30,7 +30,7 @@ public class UserService {
         // 비밀번호 암호화
         member.setPassword(passwordEncoder.encode(member.getPassword()));
 
-        // 🔴 DB에서 최소 금액(0원) 등급을 기본 등급으로 설정
+        // DB에서 최소 금액(0원) 등급을 기본 등급으로 설정
         if (member.getMemberGrade() == null) {
             MemberGrade defaultGrade = getLowestGrade();
             member.setMemberGrade(defaultGrade);
@@ -68,13 +68,13 @@ public class UserService {
         return savedMember;
     }
 
-    // 🔴 DB에서 최소 금액 등급 찾기 (GRADE_MIN_AMOUNT가 가장 낮은 등급)
+    // DB에서 최소 금액 등급 찾기 (GRADE_MIN_AMOUNT가 가장 낮은 등급)
     private MemberGrade getLowestGrade() {
         return userGradeRepository.findTopByOrderByGradeMinAmountAsc()
                 .orElseThrow(() -> new RuntimeException("기본 등급을 찾을 수 없습니다."));
     }
 
-    // 🔴 DB 등급 테이블 기반 등급 업그레이드
+    // DB 등급 테이블 기반 등급 업그레이드
     @Transactional
     public void updateMemberGradeByPurchaseAmount(String userId, int totalPurchaseAmount) {
         log.info("등급 업데이트 확인 - userId: {}, 누적구매금액: {}", userId, totalPurchaseAmount);
@@ -82,14 +82,14 @@ public class UserService {
         Member member = userRepository.findByUserId(userId)
                 .orElseThrow(() -> new RuntimeException("회원을 찾을 수 없습니다."));
 
-        // 🔴 관리자/호스트 등급은 변경하지 않음 (DB에서 확인)
+        // 관리자/호스트 등급은 변경하지 않음 (DB에서 확인)
         if (isSpecialGrade(member.getMemberGrade())) {
             log.info("특별 등급은 변경하지 않음 - userId: {}, 등급: {}",
                     userId, member.getMemberGrade().getGradeName());
             return;
         }
 
-        // 🔴 DB에서 구매 금액에 맞는 최고 등급 찾기
+        // DB에서 구매 금액에 맞는 최고 등급 찾기
         Optional<MemberGrade> newGrade = userGradeRepository.findBestGradeByPurchaseAmount(totalPurchaseAmount);
 
         if (newGrade.isPresent() &&
@@ -104,14 +104,14 @@ public class UserService {
         }
     }
 
-    // 🔴 특별 등급 여부 확인 (등급명으로 판단)
+    // 특별 등급 여부 확인 (등급명으로 판단)
     private boolean isSpecialGrade(MemberGrade grade) {
         String gradeName = grade.getGradeName().toUpperCase();
         return gradeName.contains("관리자") || gradeName.contains("ADMIN") ||
                 gradeName.contains("호스트") || gradeName.contains("HOST");
     }
 
-    // 🔴 구매 금액에 따른 최적 등급 찾기
+    // 구매 금액에 따른 최적 등급 찾기
     private Optional<MemberGrade> findBestGradeByPurchaseAmount(int purchaseAmount) {
         return userGradeRepository.findBestGradeByPurchaseAmount(purchaseAmount);
     }
@@ -294,12 +294,12 @@ public class UserService {
                 userId, oldGradeName, newGrade.getGradeName());
     }
 
-    // 🔴 모든 등급 정보 조회 (관리자용)
+    // 모든 등급 정보 조회 (관리자용)
     public List<MemberGrade> getAllGrades() {
         return userGradeRepository.findAllByOrderByGradeMinAmountAsc();
     }
 
-    // 🔴 등급별 회원 통계
+    // 등급별 회원 통계
     public Map<String, Long> getGradeStatistics() {
         List<MemberGrade> grades = userGradeRepository.findAll();
         Map<String, Long> statistics = new HashMap<>();

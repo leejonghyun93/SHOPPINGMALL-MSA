@@ -56,8 +56,9 @@ public class AuthService {
             try {
                 Long userIdLong = user.getUserIdAsLong();
                 String username = user.getUsername();
+                String name = user.getName();
 
-                String token = jwtUtil.generateToken(userIdLong, username);
+                String token = jwtUtil.generateToken(userIdLong, username, name);
 
                 return AuthResponse.builder()
                         .success(true)
@@ -65,6 +66,7 @@ public class AuthService {
                         .token(token)
                         .userId(userIdLong)
                         .username(username)
+                        .name(name)
                         .build();
             } catch (Exception tokenException) {
                 throw new IllegalArgumentException("토큰 생성 실패");
@@ -110,6 +112,7 @@ public class AuthService {
 
         String username = jwtUtil.getUsernameFromToken(token);
         Long userId = jwtUtil.getUserIdFromToken(token);
+        String name = jwtUtil.getNameFromToken(token);
 
         try {
             UserDto user = userClient.getUserByUserId(username);
@@ -117,7 +120,7 @@ public class AuthService {
                 throw new IllegalArgumentException("유효하지 않은 사용자입니다");
             }
 
-            String newToken = jwtUtil.generateToken(userId, username);
+            String newToken = jwtUtil.generateToken(userId, username,name);
 
             return AuthResponse.builder()
                     .success(true)

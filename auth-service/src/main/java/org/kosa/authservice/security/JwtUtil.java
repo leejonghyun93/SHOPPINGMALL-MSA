@@ -45,13 +45,14 @@ public class JwtUtil {
     /**
      * 토큰 생성
      */
-    public String generateToken(Long userId, String username) {
+    public String generateToken(Long userId, String username,String name) {
         Date now = new Date();
         Date expireDate = new Date(now.getTime() + expiration);
 
         return Jwts.builder()
                 .setSubject(username)
                 .claim("userId", userId)
+                .claim("name", name)
                 .setIssuer("auth-service")
                 .setIssuedAt(now)
                 .setExpiration(expireDate)
@@ -81,6 +82,18 @@ public class JwtUtil {
             return claims.get("userId", Long.class);
         } catch (Exception e) {
             log.error("토큰에서 사용자 ID 추출 실패: {}", e.getMessage());
+            return null;
+        }
+    }
+    /**
+     * 토큰에서 이름 추출 - 새로 추가!
+     */
+    public String getNameFromToken(String token) {
+        try {
+            Claims claims = parseToken(token);
+            return claims.get("name", String.class);
+        } catch (Exception e) {
+            log.error("토큰에서 이름 추출 실패: {}", e.getMessage());
             return null;
         }
     }

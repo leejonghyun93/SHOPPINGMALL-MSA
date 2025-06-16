@@ -6,7 +6,7 @@
         <div class="col-md-3 sidebar">
           <!-- 사용자 정보 섹션 -->
           <div class="user-info-section">
-            <div class="welcome-text">반가워요! <span class="username">{{ userName }}</span></div>
+            <div class="welcome-text">반가워요! <span class="username">{{ name }}</span></div>
 
             <div class="user-stats">
               <div class="stat-item">
@@ -23,11 +23,6 @@
               </div>
             </div>
 
-            <div class="quick-action">
-              <button class="btn btn-outline-primary w-100">
-                혈 압약으로 매일 은혜 배송 받기 →
-              </button>
-            </div>
           </div>
 
           <!-- 메뉴 섹션 -->
@@ -44,7 +39,7 @@
               <div class="menu-header">
                 <i class="fas fa-ticket-alt text-success"></i>
                 <span>쿠폰</span>
-                <span class="menu-badge">쿠폰대전</span>
+                <span class="menu-count">0</span>
               </div>
             </div>
 
@@ -67,18 +62,9 @@
             <div class="social-section">
               <h6>소셜</h6>
               <ul class="social-menu">
-                <li><a href="#" @click="setActiveTab('colorever')">캘러베에서 · 컬러버해</a></li>
                 <li><a href="#" @click="setActiveTab('returns')">취소 · 반품 내역</a></li>
                 <li><a href="#" @click="setActiveTab('reviews')">상품 후기</a></li>
                 <li><a href="#" @click="setActiveTab('inquiries')">상품 문의</a></li>
-              </ul>
-            </div>
-
-            <!-- 혜택 섹션 -->
-            <div class="benefit-section">
-              <h6>혜택</h6>
-              <ul class="benefit-menu">
-                <li><a href="#" @click="setActiveTab('colorbertimes')">컬러버때스</a></li>
               </ul>
             </div>
 
@@ -89,32 +75,8 @@
                 <li><a href="#" @click="setActiveTab('shipping')" :class="{ active: activeTab === 'shipping' }">배송지 관리</a></li>
                 <li><a href="#" @click="setActiveTab('colorstyle')" :class="{ active: activeTab === 'colorstyle' }">나의 컬러스타일</a></li>
                 <li><a href="#" @click="setActiveTab('profile')" :class="{ active: activeTab === 'profile' }">회원 정보 관리</a></li>
-                <li><a href="#" @click="setActiveTab('vip')" :class="{ active: activeTab === 'vip' }">VIP 혜상 등급</a></li>
+                <li><a href="#" @click="setActiveTab('vip')" :class="{ active: activeTab === 'vip' }">VIP 예상 등급</a></li>
               </ul>
-            </div>
-
-            <!-- 개인정보 수정 섹션 -->
-            <div class="personal-info-section">
-              <div class="section-header" @click="togglePersonalInfo" :class="{ expanded: showPersonalInfo }">
-                <span>개인정보 수정</span>
-                <i class="fas fa-chevron-right" :class="{ rotated: showPersonalInfo }"></i>
-              </div>
-              <div class="submenu" v-show="showPersonalInfo">
-                <ul class="submenu-list">
-                  <li><a href="#" @click="setActiveTab('basic-info')" :class="{ active: activeTab === 'basic-info' }">아이디</a></li>
-                  <li><a href="#" @click="setActiveTab('current-password')" :class="{ active: activeTab === 'current-password' }">현재 비밀번호</a></li>
-                  <li><a href="#" @click="setActiveTab('new-password')" :class="{ active: activeTab === 'new-password' }">새 비밀번호</a></li>
-                  <li><a href="#" @click="setActiveTab('confirm-password')" :class="{ active: activeTab === 'confirm-password' }">새 비밀번호 확인</a></li>
-                  <li><a href="#" @click="setActiveTab('name')" :class="{ active: activeTab === 'name' }">이름</a></li>
-                  <li><a href="#" @click="setActiveTab('email')" :class="{ active: activeTab === 'email' }">이메일</a></li>
-                  <li><a href="#" @click="setActiveTab('phone')" :class="{ active: activeTab === 'phone' }">휴대폰</a></li>
-                  <li><a href="#" @click="setActiveTab('gender')" :class="{ active: activeTab === 'gender' }">성별</a></li>
-                  <li><a href="#" @click="setActiveTab('birth')" :class="{ active: activeTab === 'birth' }">생년월일</a></li>
-                </ul>
-                <div class="submenu-footer">
-                  <a href="#" @click="setActiveTab('use-agreement')" :class="{ active: activeTab === 'use-agreement' }">이용약관동의</a>
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -183,36 +145,23 @@
             <div class="profile-management">
               <div class="info-section">
                 <h5>개인정보</h5>
-                <div class="row mb-3">
-                  <div class="col-md-3">
-                    <button class="btn btn-primary w-100" @click="setActiveTab('basic-info')">개인 정보 수정</button>
-                  </div>
-                  <div class="col-md-9">
-                    <i class="fas fa-chevron-right"></i>
-                  </div>
+                <div class="info-item" @click="setActiveTab('basic-info')">
+                  <span>개인 정보 수정</span>
+                  <i class="fas fa-chevron-right arrow-icon"></i>
                 </div>
               </div>
 
               <div class="info-section">
                 <h5>보안관리</h5>
-                <div class="row mb-3">
-                  <div class="col-md-3">
-                    <span>로그인 관리</span>
-                  </div>
-                  <div class="col-md-9">
-                    <i class="fas fa-chevron-right"></i>
-                  </div>
+                <div class="info-item" @click="handleLoginManagement">
+                  <span>로그인 관리</span>
+                  <i class="fas fa-chevron-right arrow-icon"></i>
                 </div>
 
-                <div class="row mb-3">
-                  <div class="col-md-3">
-                    <span>해외 지역 로그인 차단</span>
-                  </div>
-                  <div class="col-md-6"></div>
-                  <div class="col-md-3">
-                    <div class="form-check form-switch">
-                      <input class="form-check-input" type="checkbox" checked>
-                    </div>
+                <div class="info-item">
+                  <span>해외 지역 로그인 차단</span>
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" checked>
                   </div>
                 </div>
               </div>
@@ -231,7 +180,7 @@
 
                 <div class="mb-3">
                   <label class="form-label">아이디</label>
-                  <input type="text" class="form-control" value="fhohfodf" readonly>
+                  <input type="text" class="form-control" :value="computedUser.username || 'user123'" readonly>
                 </div>
 
                 <div class="mb-3">
@@ -286,7 +235,7 @@
               <div class="form-section">
                 <div class="mb-3">
                   <label class="form-label">현재 이메일</label>
-                  <input type="email" class="form-control" value="user@example.com" readonly>
+                  <input type="email" class="form-control" :value="computedUser.email || 'user@example.com'" readonly>
                 </div>
 
                 <div class="mb-3">
@@ -329,13 +278,17 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { user, setUserFromToken } from '@/stores/userStore'
 
 const route = useRoute()
 
-// 사용자 데이터
-const userName = ref('이종현님')
+// 사용자 데이터 - userStore에서 가져오기
+const computedUser = computed(() => user)
+const name = computed(() => {
+  return computedUser.value.name ? computedUser.value.name + '님' : '사용자님'
+})
 const points = ref(0)
 const coupons = ref(0)
 const giftCards = ref(0)
@@ -356,8 +309,35 @@ const emailForm = ref({
   verificationCode: ''
 })
 
+// 적립금, 쿠폰 등 추가 정보만 필요한 경우 별도 API 호출 (선택사항)
+async function fetchUserExtraInfo() {
+  try {
+    const token = localStorage.getItem('token')
+    if (!token) return
+
+    // 별도의 적립금/쿠폰 정보 API가 있다면 호출
+    // const response = await fetch('/api/user/points-coupons', ...)
+
+    // 임시로 기본값 설정
+    points.value = 12500
+    coupons.value = 3
+    giftCards.value = 1
+  } catch (error) {
+    // 에러 발생 시 기본값 유지
+  }
+}
+
 // URL 파라미터에 따라 초기 탭 설정
 onMounted(() => {
+  // userStore에서 사용자 정보 설정 (헤더와 동일한 방식)
+  const token = localStorage.getItem('token')
+  if (token) {
+    setUserFromToken(token)
+  }
+
+  // 추가 정보 가져오기 (적립금, 쿠폰 등)
+  fetchUserExtraInfo()
+
   if (route.query.tab) {
     activeTab.value = route.query.tab
     if (['basic-info', 'current-password', 'new-password', 'confirm-password', 'name', 'email', 'phone', 'gender', 'birth', 'use-agreement'].includes(route.query.tab)) {
@@ -394,7 +374,7 @@ function getTabTitle() {
     'shipping': '배송지 관리',
     'colorstyle': '나의 컬러스타일',
     'profile': '회원 정보 관리',
-    'vip': 'VIP 혜상 등급',
+    'vip': 'VIP 예상 등급',
     'basic-info': '개인정보 수정',
     'current-password': '현재 비밀번호',
     'new-password': '새 비밀번호',
@@ -416,8 +396,7 @@ function verifyPassword() {
     return
   }
   // TODO: API 호출로 비밀번호 검증
-  console.log('비밀번호 검증:', currentPassword.value)
-  // 검증 성공 시 실제 개인정보 수정 화면으로 이동하거나 다른 처리
+  alert('비밀번호가 확인되었습니다.')
 }
 
 function updatePassword() {
@@ -430,7 +409,6 @@ function updatePassword() {
     return
   }
   // TODO: API 호출로 비밀번호 변경
-  console.log('비밀번호 변경:', passwordForm.value)
   alert('비밀번호가 변경되었습니다.')
   resetPasswordForm()
 }
@@ -449,7 +427,6 @@ function sendVerificationCode() {
     return
   }
   // TODO: API 호출로 인증번호 발송
-  console.log('인증번호 발송:', emailForm.value.new)
   alert('인증번호가 발송되었습니다.')
 }
 
@@ -459,7 +436,6 @@ function updateEmail() {
     return
   }
   // TODO: API 호출로 이메일 변경
-  console.log('이메일 변경:', emailForm.value)
   alert('이메일이 변경되었습니다.')
   resetEmailForm()
 }
@@ -470,26 +446,44 @@ function resetEmailForm() {
     verificationCode: ''
   }
 }
+
+function handleLoginManagement() {
+  // 로그인 관리 기능 처리
+  alert('로그인 관리 기능은 준비 중입니다.')
+}
 </script>
 
 <style scoped>
 .mypage-container {
-  background-color: #f8f9fa;
-  min-height: 100vh;
+  background-color: #afafaf;
   padding: 20px 0;
 }
 
 /* 사이드바 */
 .sidebar {
-  background-color: white;
-  border-radius: 8px;
+  background-color: transparent;
   padding: 0;
+  padding-right: 15px;
   height: fit-content;
 }
 
+/* 사용자 정보 섹션 - 독립적인 카드 */
 .user-info-section {
+  background-color: white;
   padding: 20px;
-  border-bottom: 1px solid #eee;
+  border: 1px solid #b3b3b3;
+  margin-bottom: 15px;
+  border-radius: 10px;
+}
+
+/* 메뉴 섹션 - 독립적인 카드 */
+.menu-section {
+  background-color: white;
+  border: 1px solid #b3b3b3;
+  border-radius: 10px;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
 }
 
 .welcome-text {
@@ -525,23 +519,13 @@ function resetEmailForm() {
   color: #333;
 }
 
-.quick-action {
-  margin-top: 15px;
-}
-
-.quick-action .btn {
-  font-size: 12px;
-  padding: 8px 12px;
-}
-
-/* 메뉴 섹션 */
-.menu-section {
-  padding: 0;
-}
-
 .menu-category {
   border-bottom: 1px solid #f0f0f0;
   cursor: pointer;
+}
+
+.menu-category:last-child {
+  border-bottom: none;
 }
 
 .menu-category.active {
@@ -578,159 +562,76 @@ function resetEmailForm() {
   margin-left: auto;
 }
 
-.menu-badge {
-  background-color: #28a745;
-  color: white;
-  font-size: 10px;
-  padding: 2px 6px;
-  border-radius: 8px;
-  margin-left: auto;
-}
-
 /* 하위 메뉴들 */
-.social-section, .benefit-section, .profile-section, .personal-info-section {
+.social-section, .profile-section, .personal-info-section {
   padding: 20px;
   border-bottom: 1px solid #f0f0f0;
 }
 
-.social-section h6, .benefit-section h6, .profile-section h6 {
+.social-section:last-child, .profile-section:last-child, .personal-info-section:last-child {
+  border-bottom: none;
+}
+
+.social-section h6, .profile-section h6 {
   color: #666;
   font-size: 12px;
   margin-bottom: 10px;
   text-transform: uppercase;
 }
 
-.social-menu, .benefit-menu, .profile-menu {
+.social-menu, .profile-menu {
   list-style: none;
   padding: 0;
   margin: 0;
 }
 
-.social-menu li, .benefit-menu li, .profile-menu li {
+.social-menu li, .profile-menu li {
   margin-bottom: 8px;
 }
 
-.social-menu a, .benefit-menu a, .profile-menu a {
+.social-menu a, .profile-menu a {
   color: #333;
   text-decoration: none;
   font-size: 14px;
   transition: color 0.2s;
-}
-
-.social-menu a:hover, .benefit-menu a:hover, .profile-menu a:hover,
-.social-menu a.active, .benefit-menu a.active, .profile-menu a.active {
-  color: #007bff;
-  font-weight: bold;
-}
-
-/* 개인정보 수정 섹션 */
-.personal-info-section {
-  padding: 0;
-}
-
-.section-header {
-  display: flex;
-  justify-content: between;
-  align-items: center;
-  padding: 20px;
   cursor: pointer;
-  border-bottom: 1px solid #f0f0f0;
-  transition: background-color 0.2s;
 }
 
-.section-header:hover {
-  background-color: #f8f9fa;
-}
-
-.section-header span {
-  flex: 1;
-  font-weight: 500;
-  color: #333;
-}
-
-.section-header i {
-  transition: transform 0.3s ease;
-}
-
-.section-header.expanded i.rotated {
-  transform: rotate(90deg);
-}
-
-.submenu {
-  background-color: #f8f9fa;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.submenu-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.submenu-list li {
-  border-bottom: 1px solid #e9ecef;
-}
-
-.submenu-list li:last-child {
-  border-bottom: none;
-}
-
-.submenu-list a {
-  display: block;
-  padding: 12px 20px;
-  color: #666;
-  text-decoration: none;
-  font-size: 14px;
-  transition: all 0.2s;
-}
-
-.submenu-list a:hover,
-.submenu-list a.active {
-  background-color: #007bff;
-  color: white;
-  padding-left: 30px;
-}
-
-.submenu-footer {
-  padding: 15px 20px;
-  border-top: 1px solid #e9ecef;
-}
-
-.submenu-footer a {
-  color: #666;
-  text-decoration: none;
-  font-size: 14px;
-  transition: color 0.2s;
-}
-
-.submenu-footer a:hover,
-.submenu-footer a.active {
+.social-menu a:hover, .profile-menu a:hover,
+.social-menu a.active, .profile-menu a.active {
   color: #007bff;
   font-weight: bold;
 }
 
 /* 메인 컨텐츠 */
 .main-content {
-  background-color: white;
-  border-radius: 8px;
+  background-color: transparent;
   padding: 0;
+  overflow: visible;
 }
 
 .tab-content {
   min-height: 400px;
 }
 
+/* 헤더 영역 - 독립적인 카드 */
 .content-header {
+  background-color: white;
+  border: 1px solid #b3b3b3;
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 15px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px;
-  border-bottom: 1px solid #eee;
 }
 
 .content-header h4 {
   margin: 0;
   color: #333;
+  border-bottom: 2px solid #000;
+  padding-bottom: 5px;
+  display: inline-block;
 }
 
 .filter-section {
@@ -764,15 +665,15 @@ function resetEmailForm() {
 
 /* 주문 카드 */
 .order-card {
-  margin: 20px;
   border: 1px solid #eee;
   border-radius: 8px;
   overflow: hidden;
+  background-color: white;
 }
 
 .order-header {
   display: flex;
-  justify-content: between;
+  justify-content: space-between;
   align-items: center;
   padding: 15px 20px;
   background-color: #f8f9fa;
@@ -877,35 +778,10 @@ function resetEmailForm() {
   font-size: 14px;
 }
 
-/* 회원정보 관리 */
-.profile-management {
-  padding: 20px;
-}
-
-.info-section {
-  margin-bottom: 30px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid #eee;
-}
-
-.info-section h5 {
-  color: #333;
-  margin-bottom: 15px;
-  font-weight: 600;
-}
-
-.info-section .row {
-  align-items: center;
-  padding: 10px 0;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.info-section .row:last-child {
-  border-bottom: none;
-}
-
-/* 개인정보 수정 폼 */
 .personal-info-form {
+  background-color: white;
+  border: 1px solid #eee;
+  border-radius: 10px;
   padding: 20px;
 }
 
@@ -926,6 +802,56 @@ function resetEmailForm() {
 
 .placeholder-content {
   padding: 40px 20px;
+  background-color: white;
+  border: 1px solid #eee;
+  border-radius: 10px;
+}
+
+.profile-management {
+  padding: 20px;
+  background-color: white;
+  border-radius: 10px;
+  border: 1px solid #eee;
+}
+
+.info-section {
+  margin-bottom: 30px;
+}
+
+.info-section h5 {
+  color: #333;
+  margin-bottom: 15px;
+  font-weight: 600;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px 0;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.info-item:hover {
+  background-color: #f8f9fa;
+}
+
+.info-item:last-child {
+  border-bottom: none;
+}
+
+.info-item span {
+  font-size: 16px;
+  color: #333;
+  font-weight: 500;
+}
+
+.arrow-icon {
+  color: #666;
+  font-size: 16px;
+  margin-left: auto;
 }
 
 /* 반응형 */

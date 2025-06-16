@@ -13,7 +13,7 @@ eureka:
 
 spring:
   application:
-    name: apigateway-service
+    name: APIGATEWAY-SERVICE
   cloud:
     gateway:
       globalcors:
@@ -44,9 +44,9 @@ spring:
             postLogger: true
 
       routes:
-        # 🔴 AUTH SERVICE 라우팅 (수정됨)
+        # AUTH SERVICE 라우팅 (수정됨)
         - id: auth-service-public
-          uri: lb://AUTH-SERVICE  # 🔴 USER-SERVICE → AUTH-SERVICE로 변경
+          uri: lb://AUTH-SERVICE  # USER-SERVICE → AUTH-SERVICE로 변경
           predicates:
             - Path=/auth/**
           filters:
