@@ -1,6 +1,8 @@
 package org.kosa.productservice.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.kosa.productservice.client.CategoryServiceClient;
 import org.kosa.productservice.dto.Product;
 import org.kosa.productservice.dto.ProductDto;
 import org.kosa.productservice.mapper.ProductRepository;
@@ -9,143 +11,263 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
 import java.util.stream.Collectors;
-
 
 @Service
 @Transactional(readOnly = true)
 @RequiredArgsConstructor
+@Slf4j
 public class ProductService {
 
     private final ProductRepository productRepository;
-//    private final CategoryService categoryService; // Feign Client로 호출
+    private final CategoryServiceClient categoryServiceClient;
 
-    // 전체 상품 조회 (라이브/일반 필터링)
-    public List<ProductDto> getAllProducts(String filter, int limit) {
-        LocalDateTime now = LocalDateTime.now();
-        Pageable pageable = PageRequest.of(0, limit);
+    // ================== 메인 비즈니스 메서드들 ==================
 
-        List<Product> products;
-        if ("live".equals(filter)) {
-            products = productRepository.findLiveProducts("ACTIVE", now, pageable);
-        } else {
-            products = productRepository.findByProductStatusOrderByCreatedDateDesc("ACTIVE")
-                    .stream().limit(limit).collect(Collectors.toList());
+    /**
+     * 상품 ID로 상품 상세 조회
+     */
+    public ProductDto getProductById(String productId) {
+        try {
+            log.info("상품 상세 조회 - productId: {}", productId);
+
+            Optional<Product> productOpt = productRepository.findByProductIdAndProductStatus(productId, "ACTIVE");
+            if (productOpt.isPresent()) {
+                ProductDto dto = convertToDto(productOpt.get());
+                log.info("상품 상세 조회 성공 - productId: {}", productId);
+                return dto;
+            }
+
+            log.warn("상품을 찾을 수 없음 - productId: {}", productId);
+            return null;
+        } catch (Exception e) {
+            log.error("상품 상세 조회 실패 - productId: {}", productId, e);
+            throw new RuntimeException("상품 조회 중 오류가 발생했습니다.", e);
         }
-
-        return products.stream()
-                .map(this::convertToDto)
-                .collect(Collectors.toList());
     }
 
-    // 카테고리별 상품 조회
-    public List<ProductDto> getProductsByCategory(String categoryId, String subcategoryId, String filter, int limit) {
-        LocalDateTime now = LocalDateTime.now();
-        Pageable pageable = PageRequest.of(0, limit);
+    /**
+     * 연관 상품 조회 (같은 카테고리의 다른 상품들)
+     */
+    public List<ProductDto> getRelatedProducts(String productId, int limit) {
+        try {
+            log.info("연관 상품 조회 - productId: {}, limit: {}", productId, limit);
 
-        List<String> targetCategoryIds = new ArrayList<>();
+            // 1. 먼저 해당 상품의 카테고리 조회
+            Optional<Product> currentProductOpt = productRepository.findByProductIdAndProductStatus(productId, "ACTIVE");
+            if (!currentProductOpt.isPresent()) {
+                log.warn("기준 상품을 찾을 수 없음 - productId: {}", productId);
+                return new ArrayList<>();
+            }
 
-        if (subcategoryId != null && !"ALL".equals(subcategoryId)) {
-            targetCategoryIds.add(subcategoryId);
-        } else if (categoryId != null && !"ALL".equals(categoryId)) {
-            targetCategoryIds.add(categoryId);
-            // 하위 카테고리도 포함
-            List<CategoryDto> subCategories = categoryService.getSubCategories(categoryId);
-            targetCategoryIds.addAll(subCategories.stream()
-                    .map(CategoryDto::getCategoryId)
-                    .collect(Collectors.toList()));
+            Product currentProduct = currentProductOpt.get();
+            String categoryId = currentProduct.getCategoryId();
+
+            // 2. 같은 카테고리의 다른 상품들 조회 (현재 상품 제외)
+            Pageable pageable = PageRequest.of(0, limit);
+            List<Product> relatedProducts = productRepository.findByCategoryIdAndProductStatusAndProductIdNot(
+                    categoryId, "ACTIVE", productId, pageable
+            );
+
+            List<ProductDto> result = relatedProducts.stream()
+                    .map(this::convertToDto)
+                    .collect(Collectors.toList());
+
+            log.info("연관 상품 조회 완료 - 결과: {}개", result.size());
+            return result;
+        } catch (Exception e) {
+            log.error("연관 상품 조회 실패 - productId: {}", productId, e);
+            return new ArrayList<>();
         }
+    }
 
-        List<Product> products;
-        if ("live".equals(filter)) {
-            if (targetCategoryIds.isEmpty()) {
-                products = productRepository.findLiveProducts("ACTIVE", now, pageable);
-            } else {
-                products = new ArrayList<>();
-                for (String catId : targetCategoryIds) {
-                    products.addAll(productRepository.findLiveProductsByCategory(catId, "ACTIVE", now, pageable));
+    /**
+     * 상품 조회수 증가
+     */
+    @Transactional
+    public void increaseViewCount(String productId) {
+        try {
+            Optional<Product> productOpt = productRepository.findByProductIdAndProductStatus(productId, "ACTIVE");
+            if (productOpt.isPresent()) {
+                Product product = productOpt.get();
+                // 조회수 필드가 있다면 증가
+                // product.setViewCount(product.getViewCount() + 1);
+                // productRepository.save(product);
+            }
+        } catch (Exception e) {
+            log.error("상품 조회수 증가 실패 - productId: {}", productId, e);
+        }
+    }
+
+    /**
+     * 전체 상품 조회
+     */
+    public List<ProductDto> getAllProducts(int limit) {
+        try {
+            Pageable pageable = PageRequest.of(0, limit);
+            List<Product> products = productRepository.findAllActiveProducts(pageable);
+            return convertToDtoList(products);
+        } catch (Exception e) {
+            log.error("전체 상품 조회 실패:", e);
+            return new ArrayList<>();
+        }
+    }
+
+    /**
+     * 카테고리별 상품 조회
+     */
+    public List<ProductDto> getProductsByCategory(String categoryId, int limit) {
+        try {
+            log.info("카테고리별 상품 조회 - categoryId: {}, limit: {}", categoryId, limit);
+
+            // ALL 카테고리인 경우 전체 상품 조회
+            if ("ALL".equals(categoryId)) {
+                return getAllProducts(limit);
+            }
+
+            Pageable pageable = PageRequest.of(0, limit);
+            List<Product> products = new ArrayList<>();
+
+            // 카테고리 ID 길이로 레벨 판단
+            if (categoryId.length() == 1) {
+                // 메인 카테고리 - 하위 카테고리 포함 조회
+                List<String> childrenCategoryIds = categoryServiceClient.getChildrenCategoryIds(categoryId);
+
+                if (!childrenCategoryIds.isEmpty()) {
+                    products = productRepository.findByMultipleCategoriesActive(childrenCategoryIds, pageable);
+                } else {
+                    products = productRepository.findByCategoryIdActive(categoryId, pageable);
                 }
-                products = products.stream()
-                        .sorted((p1, p2) -> p2.getProductSalesCount().compareTo(p1.getProductSalesCount()))
-                        .limit(limit)
-                        .collect(Collectors.toList());
-            }
-        } else {
-            if (targetCategoryIds.isEmpty()) {
-                products = productRepository.findByProductStatusOrderByCreatedDateDesc("ACTIVE")
-                        .stream().limit(limit).collect(Collectors.toList());
             } else {
-                products = productRepository.findByCategoryIdsAndProductStatus(targetCategoryIds, "ACTIVE")
-                        .stream().limit(limit).collect(Collectors.toList());
+                // 하위 카테고리 - 정확한 카테고리 ID로 조회
+                products = productRepository.findByCategoryIdActive(categoryId, pageable);
             }
+
+            return convertToDtoList(products);
+        } catch (Exception e) {
+            log.error("카테고리별 상품 조회 실패:", e);
+            return new ArrayList<>();
+        }
+    }
+
+    /**
+     * 카테고리별 상품 개수 조회
+     */
+    public Long getProductCountByCategory(String categoryId) {
+        try {
+            if ("ALL".equals(categoryId)) {
+                return productRepository.countAllActiveProducts();
+            }
+            return productRepository.countByCategoryActive(categoryId);
+        } catch (Exception e) {
+            log.error("카테고리별 상품 개수 조회 실패:", e);
+            return 0L;
+        }
+    }
+
+    /**
+     * 전체 활성 상품 개수 조회
+     */
+    public Long getTotalActiveProductCount() {
+        try {
+            return productRepository.countAllActiveProducts();
+        } catch (Exception e) {
+            log.error("전체 활성 상품 개수 조회 실패:", e);
+            return 0L;
+        }
+    }
+
+    /**
+     * 카테고리별 상품 개수 통계
+     */
+    public Map<String, Long> getProductCountsByAllCategories() {
+        try {
+            List<Object[]> results = productRepository.getProductCountsByCategory();
+            return results.stream()
+                    .collect(Collectors.toMap(
+                            result -> (String) result[0],
+                            result -> ((Number) result[1]).longValue()
+                    ));
+        } catch (Exception e) {
+            log.error("카테고리별 상품 개수 조회 실패:", e);
+            return new HashMap<>();
+        }
+    }
+
+    // ================== 변환 메서드들 ==================
+
+    private List<ProductDto> convertToDtoList(List<Product> products) {
+        if (products == null || products.isEmpty()) {
+            return new ArrayList<>();
         }
 
         return products.stream()
                 .map(this::convertToDto)
+                .filter(Objects::nonNull)
                 .collect(Collectors.toList());
-    }
-
-    // 인기 상품 조회
-    public List<ProductDto> getPopularProducts(int limit) {
-        Pageable pageable = PageRequest.of(0, limit);
-        List<Product> products = productRepository.findByProductStatusOrderByProductSalesCountDesc("ACTIVE", pageable);
-
-        return products.stream()
-                .map(this::convertToDto)
-                .collect(Collectors.toList());
-    }
-
-    // 상품 검색
-    public List<ProductDto> searchProducts(String keyword) {
-        List<Product> products = productRepository.searchProducts(keyword, "ACTIVE");
-
-        return products.stream()
-                .map(this::convertToDto)
-                .collect(Collectors.toList());
-    }
-
-    // 상품 상세 조회
-    public ProductDto getProduct(String productId) {
-        Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new RuntimeException("상품을 찾을 수 없습니다: " + productId));
-
-        return convertToDto(product);
     }
 
     private ProductDto convertToDto(Product product) {
-        Integer discount = calculateDiscountRate(product.getPrice(), product.getSalePrice());
-        Boolean isLive = isLiveProduct(product);
+        try {
+            Integer discount = calculateDiscountRate(product.getPrice(), product.getSalePrice());
 
-        return ProductDto.builder()
-                .productId(product.getProductId())
-                .categoryId(product.getCategoryId())
-                .name(product.getName())
-                .title(product.getName()) // 프론트엔드 호환성
-                .price(product.getSalePrice() != null ? product.getSalePrice() : product.getPrice())
-                .salePrice(product.getSalePrice())
-                .originalPrice(product.getPrice())
-                .productDescription(product.getProductDescription())
-                .productShortDescription(product.getProductShortDescription())
-                .productStatus(product.getProductStatus())
-                .productSalesCount(product.getProductSalesCount())
-                .productRating(product.getProductRating())
-                .productReviewCount(product.getProductReviewCount())
-                .createdDate(product.getCreatedDate())
-                .updatedDate(product.getUpdatedDate())
-                .startDate(product.getStartDate())
-                .endDate(product.getEndDate())
-                .mainImage(product.getMainImage())
-                .image(product.getMainImage()) // 프론트엔드 호환성
-                .viewCount(product.getViewCount())
-                .discount(discount)
-                .isLive(isLive)
-                .viewers(isLive ? generateViewersCount() : null)
-                .build();
+            return ProductDto.builder()
+                    // 기존 필드들
+                    .productId(product.getProductId())
+                    .categoryId(product.getCategoryId())
+                    .name(product.getName())
+                    .title(product.getName())
+                    .price(product.getPrice())
+                    .salePrice(product.getSalePrice())
+                    .originalPrice(product.getPrice())
+                    .productDescription(product.getProductDescription())
+                    .productShortDescription(product.getProductShortDescription())
+                    .productStatus(product.getProductStatus())
+                    .productSalesCount(product.getProductSalesCount())
+                    .productRating(product.getProductRating())
+                    .productReviewCount(product.getProductReviewCount())
+                    .createdDate(product.getCreatedDate())
+                    .updatedDate(product.getUpdatedDate())
+                    .startDate(product.getStartDate())
+                    .endDate(product.getEndDate())
+                    .mainImage(product.getMainImage())
+                    .image(getProductImageUrl(product))
+                    .viewCount(product.getViewCount())
+                    .discount(discount)
+                    .isLive(false)
+                    .viewers(null)
+
+                    // 상품 상세보기용 추가 필드들
+                    .subtitle(product.getProductShortDescription())
+                    .brand(extractBrandFromName(product.getName()))
+                    .origin("상품설명/상세정보 참조")
+                    .deliveryInfo("냉동 (종이포장)")
+                    .packaging("1팩")
+                    .weight("상품설명 참조")
+                    .ingredients("상품설명 참조")
+                    .allergyInfo("상품설명 참조")
+                    .images(createImageList(product.getMainImage()))
+                    .detailImages(new ArrayList<>())
+                    .discountRate(discount)
+                    .discountPrice(product.getSalePrice())
+                    .averageRating(product.getProductRating() != null ? product.getProductRating().doubleValue() : 4.5)
+                    .reviewCount(product.getProductReviewCount() != null ? product.getProductReviewCount() : 0)
+                    .stockQuantity(999L)
+                    .categoryName("카테고리")
+                    .build();
+        } catch (Exception e) {
+            log.error("상품 DTO 변환 실패 - productId: {}", product.getProductId(), e);
+            return null;
+        }
+    }
+
+    private String getProductImageUrl(Product product) {
+        if (product.getMainImage() != null && !product.getMainImage().trim().isEmpty()) {
+            return product.getMainImage();
+        }
+        return "https://via.placeholder.com/300x200?text=" +
+                (product.getName() != null ? product.getName().substring(0, Math.min(product.getName().length(), 10)) : "No+Image");
     }
 
     private Integer calculateDiscountRate(Integer originalPrice, Integer salePrice) {
@@ -155,19 +277,42 @@ public class ProductService {
         return (int) Math.round(((double) (originalPrice - salePrice) / originalPrice) * 100);
     }
 
-    private Boolean isLiveProduct(Product product) {
-        if (product.getStartDate() == null) {
-            return false;
+    /**
+     * 상품명에서 브랜드 추출
+     */
+    private String extractBrandFromName(String productName) {
+        if (productName != null) {
+            // [브랜드명] 형태
+            if (productName.contains("[") && productName.contains("]")) {
+                int start = productName.indexOf("[") + 1;
+                int end = productName.indexOf("]");
+                if (start < end && start > 0) {
+                    return productName.substring(start, end);
+                }
+            }
+
+            // (브랜드명) 형태
+            if (productName.contains("(") && productName.contains(")")) {
+                int start = productName.indexOf("(") + 1;
+                int end = productName.indexOf(")");
+                if (start < end && start > 0) {
+                    return productName.substring(start, end);
+                }
+            }
         }
-        LocalDateTime now = LocalDateTime.now();
-        return product.getStartDate().isBefore(now) || product.getStartDate().isEqual(now) &&
-                (product.getEndDate() == null || product.getEndDate().isAfter(now) || product.getEndDate().isEqual(now));
+        return "브랜드명";
     }
 
-    private String generateViewersCount() {
-        // 실제로는 라이브 시청자 수를 별도 서비스에서 가져와야 함
-        Random random = new Random();
-        int viewers = random.nextInt(200) + 1; // 1~200 사이
-        return viewers + "만";
+    /**
+     * 메인 이미지를 기반으로 이미지 리스트 생성
+     */
+    private List<String> createImageList(String mainImage) {
+        List<String> images = new ArrayList<>();
+        if (mainImage != null && !mainImage.trim().isEmpty()) {
+            images.add(mainImage);
+        } else {
+            images.add("https://via.placeholder.com/600x600?text=상품+이미지");
+        }
+        return images;
     }
 }

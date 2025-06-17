@@ -41,12 +41,13 @@ public class JwtAuthorizationGatewayFilterFactory extends AbstractGatewayFilterF
 
             // CORS Preflight 요청은 통과
             if (method == HttpMethod.OPTIONS) {
+                log.info("CORS Preflight request - allowing: {}", path);
                 return chain.filter(exchange);
             }
 
-            // 🔥 공개 경로는 JWT 검증 스킵
-            if (isPublicPath(path)) {
-                log.info("Public path accessed: {}", path);
+            // 🔥 공개 경로는 JWT 검증 스킵 (더 구체적으로 정의)
+            if (isPublicPath(path, method)) {
+                log.info("Public path accessed: {} [{}]", path, method);
                 return chain.filter(exchange);
             }
 
@@ -54,7 +55,7 @@ public class JwtAuthorizationGatewayFilterFactory extends AbstractGatewayFilterF
             String authHeader = exchange.getRequest().getHeaders().getFirst("Authorization");
 
             if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                log.warn("Missing or invalid Authorization header for path: {}", path);
+                log.warn("Missing or invalid Authorization header for path: {} [{}]", path, method);
                 exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
                 return exchange.getResponse().setComplete();
             }
@@ -89,16 +90,52 @@ public class JwtAuthorizationGatewayFilterFactory extends AbstractGatewayFilterF
         };
     }
 
-    private boolean isPublicPath(String path) {
-        return path.equals("/api/users/register") ||
-                path.equals("/api/users/checkUserId") ||
-                path.startsWith("/api/users/checkUserId") ||
-                path.equals("/api/users/health") ||
-                path.equals("/api/users/list") ||
-                path.equals("/api/users/verify-password") ||
-                path.equals("/api/users/profile") ||
-                path.startsWith("/auth/") ||
-                path.startsWith("/api/auth/") ||
-                path.startsWith("/api/categories");
+    /**
+     * 🔥 공개 경로 판단 (메서드별로 세분화)
+     */
+    private boolean isPublicPath(String path, HttpMethod method) {
+        // 🔥 인증/회원가입 관련 경로
+        if (path.startsWith("/auth/") || path.startsWith("/api/auth/")) {
+            return true;
+        }
+
+        // 🔥 사용자 서비스 공개 경로
+        if (path.equals("/api/users/register") && method == HttpMethod.POST) {
+            return true;
+        }
+        if (path.equals("/api/users/checkUserId") || path.startsWith("/api/users/checkUserId")) {
+            return true;
+        }
+        if (path.equals("/api/users/health") || path.equals("/api/users/list")) {
+            return true;
+        }
+        if (path.equals("/api/users/verify-password") && method == HttpMethod.POST) {
+            return true;
+        }
+        if (path.equals("/api/users/profile") && (method == HttpMethod.GET || method == HttpMethod.PUT)) {
+            return true;
+        }
+
+        // 🔥 카테고리 서비스 (GET 요청만 공개)
+        if (path.startsWith("/api/categories") && method == HttpMethod.GET) {
+            return true;
+        }
+
+        // 🔥 상품 서비스 (GET 요청만 공개)
+        if (path.startsWith("/api/products") && method == HttpMethod.GET) {
+            return true;
+        }
+
+        // 🔥 이미지 서비스 (GET 요청만 공개) - 추가!
+        if (path.startsWith("/api/images") && method == HttpMethod.GET) {
+            return true;
+        }
+
+        // 🔥 정적 리소스 (이미지, CSS, JS 등)
+        if (path.startsWith("/images/") || path.startsWith("/static/") || path.startsWith("/assets/")) {
+            return true;
+        }
+
+        return false;
     }
 }

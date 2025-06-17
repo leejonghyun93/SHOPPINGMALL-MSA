@@ -16,13 +16,13 @@ spring:
     name: APIGATEWAY-SERVICE
   cloud:
     gateway:
+      # 🔥 CORS 설정을 하나로 통합 (중복 제거)
       globalcors:
-        corsConfigurations:
+        cors-configurations:
           '[/**]':
             allowedOriginPatterns:
               - "http://localhost:5173"
               - "http://localhost:3000"
-              - "http://localhost:*"
             allowedMethods:
               - GET
               - POST
@@ -57,21 +57,31 @@ spring:
                 preLogger: true
                 postLogger: true
 
-        # USER SERVICE 공개 라우팅
+        # USER SERVICE 공개 라우팅 (구체적인 경로부터 먼저)
         - id: user-register-public
           uri: lb://USER-SERVICE
           predicates:
             - Path=/api/users/register
             - Method=POST
+          filters:
+            - name: LoggingFilter
+              args:
+                baseMessage: "User Register"
+                preLogger: true
+                postLogger: true
 
-        # 아이디 중복 확인
         - id: user-checkid-public
           uri: lb://USER-SERVICE
           predicates:
             - Path=/api/users/checkUserId
             - Method=GET
+          filters:
+            - name: LoggingFilter
+              args:
+                baseMessage: "User Check ID"
+                preLogger: true
+                postLogger: true
 
-        # 헬스체크
         - id: user-health-public
           uri: lb://USER-SERVICE
           predicates:
@@ -84,7 +94,6 @@ spring:
             - Path=/api/users/list
             - Method=GET
 
-        # 🔥 마이페이지 관련 API들 (공개 경로로 추가)
         - id: user-verify-password-public
           uri: lb://USER-SERVICE
           predicates:
@@ -97,31 +106,19 @@ spring:
                 preLogger: true
                 postLogger: true
 
-        - id: user-profile-get-public
+        - id: user-profile-public
           uri: lb://USER-SERVICE
           predicates:
             - Path=/api/users/profile
-            - Method=GET
+            - Method=GET,PUT
           filters:
             - name: LoggingFilter
               args:
-                baseMessage: "User Profile GET"
+                baseMessage: "User Profile"
                 preLogger: true
                 postLogger: true
 
-        - id: user-profile-put-public
-          uri: lb://USER-SERVICE
-          predicates:
-            - Path=/api/users/profile
-            - Method=PUT
-          filters:
-            - name: LoggingFilter
-              args:
-                baseMessage: "User Profile PUT"
-                preLogger: true
-                postLogger: true
-
-        # 카테고리 서비스 - 더 구체적인 패턴부터!
+        # 카테고리 서비스 - 구체적인 패턴부터 먼저
         - id: category-sub-public
           uri: lb://CATEGORY-SERVICE
           predicates:
@@ -134,6 +131,30 @@ spring:
                 preLogger: true
                 postLogger: true
 
+        - id: category-children-ids-public
+          uri: lb://CATEGORY-SERVICE
+          predicates:
+            - Path=/api/categories/*/children-ids
+            - Method=GET
+          filters:
+            - name: LoggingFilter
+              args:
+                baseMessage: "Category Children IDs API"
+                preLogger: true
+                postLogger: true
+
+        - id: category-exists-public
+          uri: lb://CATEGORY-SERVICE
+          predicates:
+            - Path=/api/categories/*/exists
+            - Method=GET
+          filters:
+            - name: LoggingFilter
+              args:
+                baseMessage: "Category Exists API"
+                preLogger: true
+                postLogger: true
+
         - id: category-hierarchy-public
           uri: lb://CATEGORY-SERVICE
           predicates:
@@ -143,6 +164,8 @@ spring:
             - name: LoggingFilter
               args:
                 baseMessage: "Category Hierarchy API"
+                preLogger: true
+                postLogger: true
 
         - id: category-main-public
           uri: lb://CATEGORY-SERVICE
@@ -153,42 +176,124 @@ spring:
             - name: LoggingFilter
               args:
                 baseMessage: "Category Main API"
+                preLogger: true
+                postLogger: true
 
-        # 가장 일반적인 패턴을 마지막에
+        # 가장 일반적인 카테고리 패턴을 마지막에
         - id: category-detail-public
           uri: lb://CATEGORY-SERVICE
           predicates:
-            - Path=/api/categories/*
+            - Path=/api/categories/**
             - Method=GET
           filters:
             - name: LoggingFilter
               args:
                 baseMessage: "Category Detail API"
+                preLogger: true
+                postLogger: true
 
-        # 보호된 경로들 (JWT 인증 필요) - 공개 경로 이후에 배치
+        # 🔥 상품 서비스 공개 라우팅 (중복 제거 및 ORDER 조정)
+        # 더 구체적인 패턴부터 먼저 배치
+        - id: product-debug-public
+          uri: lb://PRODUCT-SERVICE
+          predicates:
+            - Path=/api/products/debug/**
+            - Method=GET
+          filters:
+            - name: LoggingFilter
+              args:
+                baseMessage: "Product Debug API"
+                preLogger: true
+                postLogger: true
+
+        - id: product-test-public
+          uri: lb://PRODUCT-SERVICE
+          predicates:
+            - Path=/api/products/test/**
+            - Method=GET
+          filters:
+            - name: LoggingFilter
+              args:
+                baseMessage: "Product Test API"
+                preLogger: true
+                postLogger: true
+
+        - id: product-stats-public
+          uri: lb://PRODUCT-SERVICE
+          predicates:
+            - Path=/api/products/stats/**
+            - Method=GET
+          filters:
+            - name: LoggingFilter
+              args:
+                baseMessage: "Product Stats API"
+                preLogger: true
+                postLogger: true
+
+        - id: product-filter-public
+          uri: lb://PRODUCT-SERVICE
+          predicates:
+            - Path=/api/products/filter
+            - Method=GET
+          filters:
+            - name: LoggingFilter
+              args:
+                baseMessage: "Product Filter API"
+                preLogger: true
+                postLogger: true
+
+        - id: product-category-public
+          uri: lb://PRODUCT-SERVICE
+          predicates:
+            - Path=/api/products/category/**
+            - Method=GET
+          filters:
+            - name: LoggingFilter
+              args:
+                baseMessage: "Product Category API"
+                preLogger: true
+                postLogger: true
+
+        # 🔥 일반적인 상품 조회 (GET만 허용)
+        - id: product-service-public-get
+          uri: lb://PRODUCT-SERVICE
+          predicates:
+            - Path=/api/products/**
+            - Method=GET
+          filters:
+            - name: LoggingFilter
+              args:
+                baseMessage: "Product Service Public GET"
+                preLogger: true
+                postLogger: true
+
+        # 🔥 보호된 경로들 (JWT 인증 필요) - 공개 경로 이후에 배치
         - id: user-service-protected
           uri: lb://USER-SERVICE
           predicates:
             - Path=/api/users/**
+            - Method=POST,PUT,DELETE,PATCH
           filters:
             - name: JwtAuthorization
-            - RewritePath=/api/users/(?<segment>.*), /api/users/${segment}
+            - name: LoggingFilter
+              args:
+                baseMessage: "User Service Protected"
+                preLogger: true
+                postLogger: true
 
-        - id: user-service-root-protected
-          uri: lb://USER-SERVICE
-          predicates:
-            - Path=/api/users
-          filters:
-            - name: JwtAuthorization
-
-        # 추가될 다른 서비스들
+        # 🔥 상품 서비스 보호된 라우팅 (POST, PUT, DELETE 등)
         - id: product-service-protected
           uri: lb://PRODUCT-SERVICE
           predicates:
             - Path=/api/products/**
+            - Method=POST,PUT,DELETE,PATCH
           filters:
             - name: JwtAuthorization
-            - RewritePath=/api/products/(?<segment>.*), /api/products/${segment}
+            - name: LoggingFilter
+              args:
+                baseMessage: "Product Service Protected"
+                preLogger: true
+                postLogger: true
 
         - id: order-service-protected
           uri: lb://ORDER-SERVICE
@@ -196,7 +301,11 @@ spring:
             - Path=/api/orders/**
           filters:
             - name: JwtAuthorization
-            - RewritePath=/api/orders/(?<segment>.*), /api/orders/${segment}
+            - name: LoggingFilter
+              args:
+                baseMessage: "Order Service"
+                preLogger: true
+                postLogger: true
 
 logging:
   level:

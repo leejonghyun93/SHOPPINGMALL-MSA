@@ -1,12 +1,13 @@
+// router/index.js 수정
+
 import {createRouter, createWebHistory} from 'vue-router'
 import Home from '../views/Home.vue'
-
 import Login from '../views/user/Login.vue'
 import Register from '../views/user/Register.vue'
 import Category from '../views/main/Category.vue'
-import FindId from "../views/user/FindId.vue";
-import FindPassword from "../views/user/FindPassword.vue";
-import BoardList from "../views/board/BoardList.vue";
+import FindId from "../views/user/FindId.vue"
+import FindPassword from "../views/user/FindPassword.vue"
+import BoardList from "../views/board/BoardList.vue"
 
 const routes = [
     {
@@ -40,15 +41,14 @@ const routes = [
         component: Category
     },
     {
-        path: '/category/:categoryId/:subCategoryId',
-        name: 'CategoryWithSub',
-        component: Category,
-        props: true
+        path: '/product/:id',
+        name: 'ProductDetail',
+        component: () => import('@/views/product/ProductDetail.vue')
     },
     {
         path: '/users/:userid',
         name: 'UserDetail',
-        component: () => import('@/views/user/UserDetail.vue')  // 혹은 UserDetailView.vue
+        component: () => import('@/views/user/UserDetail.vue')
     },
     {
         path: '/users/edit/:userid',

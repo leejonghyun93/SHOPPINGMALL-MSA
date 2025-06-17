@@ -1,87 +1,77 @@
-// @/api/axiosInstance.js
+// axiosInstance.js
 import axios from 'axios'
 
-// 기본 axios 인스턴스 생성
+// 🔥 프록시 사용하므로 baseURL 제거
 const apiClient = axios.create({
-    baseURL: process.env.NODE_ENV === 'development' ? 'http://localhost:8080' : '',
-    timeout: 10000,
+    // baseURL 제거 - Vite 프록시가 '/api' 요청을 Gateway로 전달
+    timeout: 30000,
     headers: {
         'Content-Type': 'application/json',
     },
-    withCredentials: false
 })
 
+// 🔥 요청 인터셉터
 apiClient.interceptors.request.use(
     (config) => {
-        if (process.env.NODE_ENV === 'development') {
-            console.log('🚀 Request Config:', {
-                url: config.url,
-                method: config.method,
-                withAuth: config.withAuth,
-                headers: config.headers
-            })
-        }
+        console.log('🚀 Request Config:', {
+            url: config.url,
+            method: config.method,
+            withAuth: config.withAuth,
+            headers: config.headers
+        })
 
+        // withAuth가 false인 경우 Authorization 헤더 제거
         if (config.withAuth === false) {
             delete config.headers.Authorization
+            console.log('🔓 Public API 호출 - Authorization 헤더 제거')
         } else {
-            const token = localStorage.getItem('accessToken')
+            // JWT 토큰이 있으면 헤더에 추가
+            const token = localStorage.getItem('authToken')
             if (token) {
                 config.headers.Authorization = `Bearer ${token}`
-                if (process.env.NODE_ENV === 'development') {
-                    console.log('🔒 인증 토큰 추가됨')
-                }
-            } else if (process.env.NODE_ENV === 'development') {
-                console.log('⚠️ 토큰이 없습니다')
+                console.log('🔐 JWT 토큰 추가')
             }
         }
 
         return config
     },
-    (error) => Promise.reject(error)
+    (error) => {
+        console.error('❌ Request Error:', error)
+        return Promise.reject(error)
+    }
 )
 
+// 🔥 응답 인터셉터
 apiClient.interceptors.response.use(
     (response) => {
-        if (process.env.NODE_ENV === 'development') {
-            console.log('✅ Response Success:', {
-                status: response.status,
-                url: response.config.url,
-                data: response.data
-            })
-        }
+        console.log('✅ Response Success:', {
+            status: response.status,
+            url: response.config.url,
+            dataType: typeof response.data,
+            dataLength: Array.isArray(response.data) ? response.data.length : 'N/A'
+        })
+
         return response
     },
     (error) => {
-        if (process.env.NODE_ENV === 'development') {
-            console.error('❌ Response Error:', {
-                status: error.response?.status,
-                url: error.config?.url,
-                message: error.message,
-                data: error.response?.data
-            })
-        }
+        console.error('❌ Response Error:', {
+            status: error.response?.status,
+            url: error.config?.url,
+            message: error.message,
+            data: error.response?.data
+        })
 
-        if (error.code === 'ERR_NETWORK') {
-            console.error('🌐 네트워크 연결 오류: 서버가 실행 중인지 확인하세요')
+        if (error.message === 'Network Error') {
+            console.error('🌐 프록시 연결 오류: Gateway 서버 상태를 확인하세요')
         }
 
         if (error.response?.status === 401) {
-            console.error('🔒 인증 오류: 토큰이 유효하지 않거나 만료되었습니다')
-            window.location.href = '/login'
-        }
-
-        if (error.response?.status === 403) {
-            console.error('🚫 접근 권한이 없습니다')
-        }
-
-        if (error.response?.status === 404) {
-            console.error('🔍 요청한 리소스를 찾을 수 없습니다')
+            console.warn('🚫 인증 실패')
+            localStorage.removeItem('authToken')
         }
 
         return Promise.reject(error)
     }
 )
-
 
 export default apiClient
