@@ -85,7 +85,34 @@ const routes = [
         path: '/board/edit/:bno',
         name: 'BoardEdit',
         component: () => import('@/views/board/BoardEdit.vue')
+    },
+    // 장바구니 관련 라우트 추가
+    {
+        path: '/cart',
+        name: 'Cart',
+        component: () => import('@/views/product/Cart.vue')
+    },
+    {
+        path: '/checkout',
+        name: 'Checkout',
+        component: () => import('@/views/order/Checkout.vue')
     }
+    // 주문 관련 라우트
+    // {
+    //     path: '/order/complete',
+    //     name: 'OrderComplete',
+    //     component: () => import('@/views/order/OrderComplete.vue')
+    // },
+    // {
+    //     path: '/orders',
+    //     name: 'OrderList',
+    //     component: () => import('@/views/order/OrderList.vue')
+    // },
+    // {
+    //     path: '/order/:orderId',
+    //     name: 'OrderDetail',
+    //     component: () => import('@/views/order/OrderDetail.vue')
+    // }
 ]
 
 const router = createRouter({

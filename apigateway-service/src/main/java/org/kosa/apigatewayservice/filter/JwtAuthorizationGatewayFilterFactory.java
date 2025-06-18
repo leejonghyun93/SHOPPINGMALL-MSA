@@ -126,13 +126,24 @@ public class JwtAuthorizationGatewayFilterFactory extends AbstractGatewayFilterF
             return true;
         }
 
-        // 🔥 이미지 서비스 (GET 요청만 공개) - 추가!
+        // 🛒 Cart Service 공개 경로 추가 (임시 - 실제로는 인증 필요)
+        if (path.startsWith("/api/cart")) {
+            log.info("Cart API accessed without authentication: {} [{}]", path, method);
+            return true;  // 현재는 테스트를 위해 모든 Cart API를 공개
+        }
+
+        // 🔥 이미지 서비스 (GET 요청만 공개)
         if (path.startsWith("/api/images") && method == HttpMethod.GET) {
             return true;
         }
 
         // 🔥 정적 리소스 (이미지, CSS, JS 등)
         if (path.startsWith("/images/") || path.startsWith("/static/") || path.startsWith("/assets/")) {
+            return true;
+        }
+
+        // 🔥 Actuator Health Check
+        if (path.startsWith("/actuator/health")) {
             return true;
         }
 

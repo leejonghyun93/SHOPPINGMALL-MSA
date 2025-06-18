@@ -57,6 +57,19 @@ spring:
                 preLogger: true
                 postLogger: true
 
+        # 🛒 CART SERVICE 라우팅 - 비회원도 접근 가능하도록 공개
+        - id: cart-service-public
+          uri: lb://CART-SERVICE
+          predicates:
+            - Path=/api/cart/**
+          filters:
+            - name: SimpleJwtFilter
+            - name: LoggingFilter
+              args:
+                baseMessage: "Cart Service Public"
+                preLogger: true
+                postLogger: true
+
         # USER SERVICE 공개 라우팅 (구체적인 경로부터 먼저)
         - id: user-register-public
           uri: lb://USER-SERVICE
@@ -267,6 +280,19 @@ spring:
                 preLogger: true
                 postLogger: true
 
+        # 🛒 ORDER SERVICE 공개 라우팅 (체크아웃 페이지는 공개)
+        - id: order-service-public
+          uri: lb://ORDER-SERVICE
+          predicates:
+            - Path=/api/orders/checkout, /api/checkout/**
+            - Method=GET,POST
+          filters:
+            - name: LoggingFilter
+              args:
+                baseMessage: "Order Service Public"
+                preLogger: true
+                postLogger: true
+
         # 🔥 보호된 경로들 (JWT 인증 필요) - 공개 경로 이후에 배치
         - id: user-service-protected
           uri: lb://USER-SERVICE
@@ -295,15 +321,31 @@ spring:
                 preLogger: true
                 postLogger: true
 
+        # 🛒 Order Service 보호된 라우팅 (실제 주문 생성/수정/삭제는 인증 필요)
         - id: order-service-protected
           uri: lb://ORDER-SERVICE
           predicates:
             - Path=/api/orders/**
+            - Method=PUT,DELETE,PATCH
           filters:
             - name: JwtAuthorization
             - name: LoggingFilter
               args:
-                baseMessage: "Order Service"
+                baseMessage: "Order Service Protected"
+                preLogger: true
+                postLogger: true
+
+        # 🛒 Order Service 사용자별 주문 조회 (인증 필요)
+        - id: order-service-user-protected
+          uri: lb://ORDER-SERVICE
+          predicates:
+            - Path=/api/orders/list, /api/orders/list/**, /api/orders/*/cancel
+            - Method=GET,PUT
+          filters:
+            - name: JwtAuthorization
+            - name: LoggingFilter
+              args:
+                baseMessage: "Order Service User Protected"
                 preLogger: true
                 postLogger: true
 

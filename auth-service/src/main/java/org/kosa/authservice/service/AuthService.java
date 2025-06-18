@@ -105,33 +105,73 @@ public class AuthService {
         }
     }
 
+    /**
+     * 토큰 갱신 - 만료된 토큰도 처리 가능하도록 수정
+     */
     public AuthResponse refreshToken(String token) {
-        if (jwtUtil.isTokenExpired(token)) {
-            throw new IllegalArgumentException("만료된 토큰입니다");
-        }
-
-        String username = jwtUtil.getUsernameFromToken(token);
-        Long userId = jwtUtil.getUserIdFromToken(token);
-        String name = jwtUtil.getNameFromToken(token);
-
         try {
-            UserDto user = userClient.getUserByUserId(username);
-            if (user == null) {
-                throw new IllegalArgumentException("유효하지 않은 사용자입니다");
+            log.info("토큰 갱신 요청 처리 시작");
+
+            // 토큰에서 사용자 정보 추출 (만료되었어도 시도)
+            String username = null;
+            Long userId = null;
+            String name = null;
+
+            try {
+                // 만료되지 않은 경우
+                if (!jwtUtil.isTokenExpired(token)) {
+                    username = jwtUtil.getUsernameFromToken(token);
+                    userId = jwtUtil.getUserIdFromToken(token);
+                    name = jwtUtil.getNameFromToken(token);
+                } else {
+                    // 만료된 토큰에서도 정보 추출 시도
+                    log.info("만료된 토큰에서 사용자 정보 추출 시도");
+                    username = jwtUtil.getUsernameFromExpiredToken(token);
+                    userId = jwtUtil.getUserIdFromExpiredToken(token);
+                    name = jwtUtil.getNameFromExpiredToken(token);
+                }
+            } catch (Exception e) {
+                log.error("토큰에서 사용자 정보 추출 실패: {}", e.getMessage());
+                throw new IllegalArgumentException("토큰에서 사용자 정보를 추출할 수 없습니다");
             }
 
-            String newToken = jwtUtil.generateToken(userId, username,name);
+            if (username == null || userId == null) {
+                throw new IllegalArgumentException("토큰에서 사용자 정보를 찾을 수 없습니다");
+            }
 
-            return AuthResponse.builder()
-                    .success(true)
-                    .message("토큰이 갱신되었습니다")
-                    .token(newToken)
-                    .userId(userId)
-                    .username(username)
-                    .build();
+            log.info("토큰 갱신 요청 사용자: userId={}, username={}", userId, username);
 
+            // 사용자가 여전히 유효한지 확인
+            try {
+                UserDto user = userClient.getUserByUserId(username);
+                if (user == null) {
+                    throw new IllegalArgumentException("유효하지 않은 사용자입니다");
+                }
+
+                // 새 토큰 생성
+                String newToken = jwtUtil.generateToken(userId, username, name != null ? name : user.getName());
+
+                log.info("토큰 갱신 성공: userId={}", userId);
+
+                return AuthResponse.builder()
+                        .success(true)
+                        .message("토큰이 갱신되었습니다")
+                        .token(newToken)
+                        .userId(userId)
+                        .username(username)
+                        .name(name != null ? name : user.getName())
+                        .build();
+
+            } catch (Exception e) {
+                log.error("사용자 검증 실패: {}", e.getMessage());
+                throw new IllegalArgumentException("사용자 검증 중 오류가 발생했습니다: " + e.getMessage());
+            }
+
+        } catch (IllegalArgumentException e) {
+            throw e;
         } catch (Exception e) {
-            throw new IllegalArgumentException("토큰 갱신 중 오류가 발생했습니다");
+            log.error("토큰 갱신 처리 중 예상치 못한 오류: {}", e.getMessage(), e);
+            throw new IllegalArgumentException("토큰 갱신 중 오류가 발생했습니다: " + e.getMessage());
         }
     }
 }

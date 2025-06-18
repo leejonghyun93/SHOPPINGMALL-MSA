@@ -1,3 +1,4 @@
+// GatewaySecurityConfig.java - Cart Service 부분 수정
 package org.kosa.apigatewayservice.config;
 
 import org.springframework.context.annotation.Bean;
@@ -24,26 +25,40 @@ public class GatewaySecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeExchange(exchanges ->
                         exchanges
-                                // 🔥 명시적으로 공개 경로 정의
+                                // 🔥 완전 공개 경로 (인증 불필요)
                                 .pathMatchers(
                                         "/auth/**",
                                         "/api/users/register",
                                         "/api/users/checkUserId/**",
                                         "/api/users/health",
                                         "/api/users/list",
-                                        "/api/users/verify-password",
-                                        "/api/users/profile"
+                                        "/api/users/verify-password"
                                 ).permitAll()
-                                // 🔥 카테고리와 상품 서비스는 GET 요청만 허용
+
+                                // 🔥 조회성 API는 인증 불필요
                                 .pathMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
                                 .pathMatchers(HttpMethod.GET, "/api/products/**").permitAll()
-                                // 🔥 이미지 서비스 추가!
+                                .pathMatchers(HttpMethod.GET, "/api/users/profile").permitAll()
+
+                                // 🛒 Cart Service - 비회원도 사용 가능
+                                .pathMatchers("/api/cart/**").permitAll()
+                                .pathMatchers("/api/cart/guest/**").permitAll()
+
+                                // 🛒 Order Service - 조회는 공개, 주문은 인증 필요
+                                .pathMatchers(HttpMethod.GET, "/api/orders/checkout/**").permitAll()
+                                .pathMatchers(HttpMethod.GET, "/api/checkout/**").permitAll()
+                                // 실제 주문 생성/수정/삭제는 인증 필요 (나중에 처리)
+
+                                // 🔥 정적 리소스
                                 .pathMatchers(HttpMethod.GET, "/api/images/**").permitAll()
                                 .pathMatchers(HttpMethod.GET, "/images/**").permitAll()
                                 .pathMatchers(HttpMethod.GET, "/static/**").permitAll()
                                 .pathMatchers(HttpMethod.GET, "/assets/**").permitAll()
-                                // 🔥 OPTIONS 요청은 모두 허용 (CORS preflight)
+                                .pathMatchers("/actuator/health/**").permitAll()
+
+                                // 🔥 CORS preflight 요청
                                 .pathMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
                                 // 나머지는 인증 필요
                                 .anyExchange().authenticated()
                 )
@@ -54,7 +69,6 @@ public class GatewaySecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // 🔥 allowedOrigins 대신 allowedOriginPatterns 사용 (더 안전)
         configuration.setAllowedOriginPatterns(List.of(
                 "http://localhost:5173",
                 "http://localhost:3000",
@@ -69,7 +83,6 @@ public class GatewaySecurityConfig {
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 
-        // 🔥 노출할 헤더 명시적 설정
         configuration.setExposedHeaders(List.of(
                 "Authorization",
                 "Content-Type",

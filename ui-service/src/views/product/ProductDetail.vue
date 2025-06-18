@@ -248,13 +248,12 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ChevronLeft, Share2, Heart, Bell, Star, Plus } from 'lucide-vue-next'
-import axios from 'axios'
+// 🔥 수정: axios 대신 apiClient 사용
+import apiClient from '@/api/axiosInstance' // 실제 파일 위치에 맞게 수정 필요
 
-// 라우터 설정
 const router = useRouter()
 const route = useRoute()
 
-// 반응형 상태
 const loading = ref(false)
 const error = ref(null)
 const product = ref(null)
@@ -266,10 +265,6 @@ const isWishlisted = ref(false)
 const showNotification = ref(false)
 const currentImageIndex = ref(0)
 
-// API 기본 URL
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080'
-
-// 탭 데이터 (computed로 만들어서 동적 업데이트)
 const tabs = computed(() => [
   { id: 'details', label: '상품설명' },
   { id: 'info', label: '상세정보' },
@@ -277,87 +272,107 @@ const tabs = computed(() => [
   { id: 'inquiry', label: '문의' }
 ])
 
-// 유틸리티 메소드들
-const getDiscountRate = () => {
-  if (!product.value) return 0
-  return product.value.discountRate || product.value.discount || 0
+// 🔥 수정: 토큰 키 이름 통일
+const getAuthToken = () => {
+  return localStorage.getItem('token') // 실제 저장된 키 이름과 일치
 }
 
-const getAverageRating = () => {
-  if (!product.value) return 4.5
-  return product.value.averageRating ||
-      (product.value.productRating ? product.value.productRating : 4.5)
+// 🔥 수정: JWT 디코딩 함수 개선
+function base64UrlDecode(str) {
+  let base64 = str.replace(/-/g, '+').replace(/_/g, '/')
+  while (base64.length % 4) {
+    base64 += '='
+  }
+  return atob(base64)
 }
 
-const getReviewCount = () => {
-  if (!product.value) return 0
-  return product.value.reviewCount || product.value.productReviewCount || 0
+const isAuthenticated = () => {
+  const token = getAuthToken()
+  if (!token) {
+    console.log('🔓 토큰이 없음')
+    return false
+  }
+  try {
+    const payloadJson = base64UrlDecode(token.split('.')[1])
+    const payload = JSON.parse(payloadJson)
+    const isValid = payload.exp > Date.now() / 1000
+    console.log('🔐 토큰 검증:', {
+      valid: isValid,
+      exp: new Date(payload.exp * 1000),
+      now: new Date()
+    })
+    return isValid
+  } catch (e) {
+    console.error('❌ JWT 디코딩 실패:', e)
+    return false
+  }
 }
+
+// 🔥 제거: setupAxiosInterceptors 함수 삭제 (apiClient에서 처리)
+
+const getDiscountRate = () => product.value?.discountRate || product.value?.discount || 0
+const getAverageRating = () => product.value?.averageRating || product.value?.productRating || 4.5
+const getReviewCount = () => product.value?.reviewCount || product.value?.productReviewCount || 0
 
 const getProductImage = (prod) => {
-  if (prod.images && prod.images.length > 0) {
-    return prod.images[0]
-  }
+  if (prod.images?.length > 0) return prod.images[0]
   return prod.mainImage || prod.image || 'https://via.placeholder.com/300x200?text=상품+이미지'
 }
 
-// 메소드들
+// 🔥 수정: loadProduct 함수 - apiClient 사용
 const loadProduct = async () => {
   try {
     loading.value = true
     error.value = null
-
     const productId = route.params.id
-    console.log('상품 ID:', productId)
 
-    // 상품 상세 정보 조회
-    const response = await axios.get(`${API_BASE_URL}/api/products/${productId}`)
+    console.log('🔍 상품 조회 시작:', productId)
 
-    if (response.data) {
-      product.value = response.data
-      console.log('상품 정보 로드 완료:', product.value)
+    // 🔥 프록시 사용으로 /api 경로 사용
+    const response = await apiClient.get(`/api/products/${productId}`, {
+      withAuth: false // 상품 조회는 인증 불필요
+    })
 
-      // 연관 상품 로드
-      loadRelatedProducts(productId)
-    } else {
-      throw new Error('상품 정보를 찾을 수 없습니다.')
-    }
+    product.value = response.data
+    console.log('✅ 상품 조회 성공:', product.value)
+
+    await loadRelatedProducts(productId)
   } catch (err) {
-    console.error('상품 로드 실패:', err)
+    console.error('❌ 상품 조회 실패:', err)
     error.value = err.response?.data?.message || '상품 정보를 불러오는데 실패했습니다.'
   } finally {
     loading.value = false
   }
 }
 
+// 🔥 수정: loadRelatedProducts 함수 - apiClient 사용
 const loadRelatedProducts = async (productId) => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/api/products/${productId}/related?limit=4`)
-    relatedProducts.value = response.data || []
-    console.log('연관 상품 로드 완료:', relatedProducts.value.length, '개')
+    console.log('🔍 연관 상품 조회 시작:', productId)
+
+    const res = await apiClient.get(`/api/products/${productId}/related?limit=4`, {
+      withAuth: false // 연관 상품 조회도 인증 불필요
+    })
+
+    relatedProducts.value = res.data || []
+    console.log('✅ 연관 상품 조회 성공:', relatedProducts.value.length)
   } catch (err) {
-    console.error('연관 상품 로드 실패:', err)
+    console.error('❌ 연관 상품 조회 실패:', err)
     relatedProducts.value = []
   }
 }
 
-const goBack = () => {
-  router.go(-1)
-}
-
-const goToProduct = (productId) => {
-  router.push(`/product/${productId}`)
-}
+const goBack = () => router.go(-1)
+const goToProduct = (id) => router.push(`/product/${id}`)
 
 const handleShare = () => {
   if (navigator.share) {
     navigator.share({
-      title: product.value.name || product.value.title,
-      text: product.value.subtitle || product.value.productShortDescription || product.value.name,
+      title: product.value?.name,
+      text: product.value?.subtitle || product.value?.productShortDescription,
       url: window.location.href
     }).catch(console.error)
   } else {
-    // 폴백: URL 복사
     navigator.clipboard.writeText(window.location.href)
     alert('상품 링크가 복사되었습니다!')
   }
@@ -365,728 +380,156 @@ const handleShare = () => {
 
 const toggleWishlist = () => {
   isWishlisted.value = !isWishlisted.value
-  console.log('찜하기 토글:', isWishlisted.value)
-  // TODO: 찜하기 API 호출
 }
 
 const toggleNotification = () => {
   showNotification.value = !showNotification.value
-  console.log('알림 설정 토글:', showNotification.value)
-  // TODO: 알림 설정 API 호출
 }
 
-const handleAddToCart = () => {
-  console.log('장바구니 담기:', {
+// 🔥 수정: handleAddToCart 함수 완전 개선
+const handleAddToCart = async () => {
+  console.log('🛒 장바구니 담기 시작');
+
+  // 상품 정보 검증
+  if (!product.value?.productId) {
+    alert('상품 정보를 찾을 수 없습니다.');
+    return;
+  }
+
+  const cartItem = {
     productId: product.value.productId,
-    quantity: quantity.value
-  })
-  // TODO: 장바구니 추가 API 호출
-  alert('장바구니에 상품이 추가되었습니다!')
-}
+    quantity: quantity.value,
+    productOptionId: null
+  };
+
+  // 🔍 토큰 상태 상세 확인
+  const token = localStorage.getItem('token');
+  console.log('🔐 토큰 확인:', {
+    exists: !!token,
+    length: token?.length,
+    preview: token ? token.substring(0, 50) + '...' : 'No token'
+  });
+
+  if (token) {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      console.log('🔍 JWT 페이로드:', {
+        sub: payload.sub,
+        name: payload.name,
+        iss: payload.iss,
+        exp: new Date(payload.exp * 1000),
+        valid: payload.exp > Date.now() / 1000
+      });
+    } catch (e) {
+      console.error('❌ JWT 디코딩 실패:', e);
+    }
+  }
+
+  // 비인증 사용자 처리
+  if (!isAuthenticated()) {
+    console.log('🔓 비인증 사용자 - 로컬 스토리지 사용');
+    // ... 기존 로컬 스토리지 로직
+    return;
+  }
+
+  // 🔍 Manual 요청 테스트 (디버깅용)
+  try {
+    console.log('📡 수동 요청 테스트 시작');
+
+    const headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    };
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    console.log('📤 요청 헤더:', headers);
+    console.log('📦 요청 데이터:', cartItem);
+
+    const response = await fetch('/api/cart', {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify(cartItem)
+    });
+
+    console.log('📨 응답 상태:', response.status);
+    console.log('📨 응답 헤더:', Object.fromEntries(response.headers.entries()));
+
+    if (response.ok) {
+      const data = await response.json();
+      console.log('✅ 응답 데이터:', data);
+
+      const goToCart = confirm('장바구니에 추가되었습니다! 장바구니로 이동하시겠습니까?');
+      if (goToCart) {
+        router.push('/cart');
+      }
+    } else {
+      const errorText = await response.text();
+      console.error('❌ 에러 응답:', {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorText
+      });
+
+      if (response.status === 401) {
+        alert('인증이 필요합니다. 다시 로그인해주세요.');
+        localStorage.removeItem('token');
+        router.push('/login');
+      } else {
+        alert(`요청 실패: ${response.status} ${response.statusText}`);
+      }
+    }
+
+  } catch (error) {
+    console.error('❌ 네트워크 오류:', error);
+    alert('네트워크 오류가 발생했습니다.');
+  }
+};
 
 const showSelectionModal = () => {
-  console.log('상품 선택 모달 열기')
-  // TODO: 상품 선택 모달 구현
+  // 상품 옵션 선택 모달 표시 로직
 }
 
 const getCurrentImage = () => {
-  if (!product.value) return 'https://via.placeholder.com/600x600?text=상품+이미지'
-
-  if (product.value.images && product.value.images.length > 0) {
+  if (product.value?.images?.length > 0)
     return product.value.images[currentImageIndex.value] || product.value.images[0]
-  }
-
-  return product.value.mainImage || product.value.image || 'https://via.placeholder.com/600x600?text=상품+이미지'
+  return product.value?.mainImage || product.value?.image || 'https://via.placeholder.com/600x600?text=상품+이미지'
 }
 
 const getFinalPrice = () => {
   if (!product.value) return 0
-
-  // salePrice가 있으면 우선 사용
-  if (product.value.salePrice && product.value.salePrice > 0) {
-    return product.value.salePrice
-  }
-
-  // discountPrice가 있으면 사용
-  if (product.value.discountPrice && product.value.discountPrice > 0) {
-    return product.value.discountPrice
-  }
-
-  // 할인율이 있으면 계산
+  if (product.value.salePrice > 0) return product.value.salePrice
+  if (product.value.discountPrice > 0) return product.value.discountPrice
   const discountRate = getDiscountRate()
   if (discountRate > 0 && product.value.price) {
     return Math.floor(product.value.price * (100 - discountRate) / 100)
   }
-
   return product.value.price || 0
 }
 
-const formatPrice = (price) => {
-  return price?.toLocaleString() || '0'
-}
-
-const formatDate = (dateString) => {
-  if (!dateString) return ''
-  const date = new Date(dateString)
-  return date.toLocaleDateString('ko-KR')
-}
-
-const maskUserName = (userName) => {
-  if (!userName || userName.length < 2) return userName
-  return userName.charAt(0) + '*'.repeat(userName.length - 1)
-}
-
-const handleImageError = (event) => {
-  // 한 번만 처리하도록 플래그 확인
-  if (event.target.dataset.errorHandled) {
-    return
-  }
-
-  event.target.dataset.errorHandled = 'true'
-  event.target.style.display = 'none' // 이미지 숨기기
-
-  // 또는 CSS로 스타일링된 div로 대체
+const formatPrice = (price) => price?.toLocaleString() || '0'
+const formatDate = (date) => new Date(date).toLocaleDateString('ko-KR')
+const maskUserName = (name) => name?.charAt(0) + '*'.repeat(name.length - 1)
+const handleImageError = (e) => {
+  if (e.target.dataset.errorHandled) return
+  e.target.dataset.errorHandled = 'true'
+  e.target.style.display = 'none'
   const placeholder = document.createElement('div')
   placeholder.className = 'image-placeholder'
   placeholder.innerHTML = '이미지 없음'
-  event.target.parentNode.appendChild(placeholder)
+  e.target.parentNode.appendChild(placeholder)
 }
-// 컴포넌트 마운트 시 상품 정보 로드
+
 onMounted(() => {
+  // 🔥 제거: setupAxiosInterceptors() 호출 삭제
   loadProduct()
 })
 
-// 라우트 변경 감지
 watch(() => route.params.id, (newId) => {
-  if (newId) {
-    loadProduct()
-  }
+  if (newId) loadProduct()
 })
 </script>
 
-<style scoped>
-.product-detail-container {
-  margin: 0 auto;
-  background: white;
-  min-height: 100vh;
-  position: relative;
-}
-
-/* 로딩 및 에러 상태 */
-.loading-container, .error-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 50vh;
-  padding: 20px;
-}
-
-.loading-spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid #f3f3f3;
-  border-top: 3px solid #8b5cf6;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-bottom: 16px;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-.retry-button {
-  background: #8b5cf6;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 6px;
-  cursor: pointer;
-  margin-top: 16px;
-}
-
-/* 헤더 */
-.product-header {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  background: white;
-  padding: 12px 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.back-button, .share-button {
-  background: none;
-  border: none;
-  padding: 8px;
-  cursor: pointer;
-  border-radius: 50%;
-  transition: background-color 0.2s;
-}
-
-.back-button:hover, .share-button:hover {
-  background: #f5f5f5;
-}
-
-/* 상품 이미지 */
-.product-images {
-  position: relative;
-  width: 100%;
-  height: 400px;
-  background: #f8f9fa;
-}
-
-.main-image {
-  width: 100%;
-  height: 100%;
-  position: relative;
-  overflow: hidden;
-}
-
-.main-image img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.live-badge {
-  position: absolute;
-  top: 16px;
-  left: 16px;
-  background: #ff4444;
-  color: white;
-  padding: 6px 12px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: bold;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.live-dot {
-  width: 6px;
-  height: 6px;
-  background: white;
-  border-radius: 50%;
-  animation: pulse 1.5s infinite;
-}
-
-.discount-badge {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  background: #8b5cf6;
-  color: white;
-  padding: 8px 12px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.image-indicators {
-  position: absolute;
-  bottom: 16px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 6px;
-}
-
-.indicator {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.5);
-  transition: background-color 0.2s;
-  cursor: pointer;
-}
-
-.indicator.active {
-  background: white;
-}
-
-/* 상품 정보 섹션 */
-.product-info-section {
-  padding: 20px 16px;
-}
-
-.brand-info {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.brand-label {
-  background: #f3f4f6;
-  color: #6b7280;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-}
-
-.brand-name {
-  color: #8b5cf6;
-  font-weight: 500;
-  font-size: 14px;
-}
-
-.product-title {
-  font-size: 20px;
-  font-weight: 600;
-  color: #1f2937;
-  margin: 8px 0 4px 0;
-  line-height: 1.4;
-}
-
-.product-subtitle {
-  color: #6b7280;
-  font-size: 14px;
-  margin-bottom: 16px;
-}
-
-.price-section {
-  margin-bottom: 16px;
-}
-
-.discount-info {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 4px;
-}
-
-.discount-rate {
-  color: #ef4444;
-  font-size: 20px;
-  font-weight: 700;
-}
-
-.final-price {
-  color: #1f2937;
-  font-size: 24px;
-  font-weight: 700;
-}
-
-.original-price {
-  color: #9ca3af;
-  text-decoration: line-through;
-  font-size: 14px;
-}
-
-.delivery-notice {
-  background: #fef3c7;
-  border: 1px solid #fbbf24;
-  border-radius: 6px;
-  padding: 12px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.delivery-text {
-  color: #92400e;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.chevron-right {
-  transform: rotate(180deg);
-  color: #92400e;
-}
-
-/* 상품 상세 정보 테이블 */
-.product-details-table {
-  border-top: 1px solid #e5e7eb;
-  margin-top: 20px;
-}
-
-.detail-row {
-  display: flex;
-  padding: 12px 0;
-  border-bottom: 1px solid #f3f4f6;
-}
-
-.detail-row:last-child {
-  border-bottom: none;
-}
-
-.detail-label {
-  flex: 0 0 80px;
-  color: #6b7280;
-  font-size: 14px;
-}
-
-.detail-value {
-  flex: 1;
-  color: #1f2937;
-  font-size: 14px;
-  line-height: 1.4;
-}
-
-/* 구매 액션 섹션 */
-.purchase-section {
-  position: sticky;
-  bottom: 0;
-  background: white;
-  padding: 16px;
-  border-top: 1px solid #e5e7eb;
-  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
-}
-
-.total-price {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.total-label {
-  color: #6b7280;
-  font-size: 14px;
-}
-
-.total-amount {
-  color: #1f2937;
-  font-size: 18px;
-  font-weight: 700;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.quantity-and-wishlist {
-  display: flex;
-  gap: 8px;
-}
-
-.wishlist-button, .notification-button {
-  width: 48px;
-  height: 48px;
-  border: 1px solid #e5e7eb;
-  background: white;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.wishlist-button:hover, .notification-button:hover {
-  border-color: #d1d5db;
-  background: #f9fafb;
-}
-
-.wishlist-button.active {
-  border-color: #ef4444;
-  background: #fef2f2;
-}
-
-.buy-now-button {
-  flex: 1;
-  height: 48px;
-  background: #8b5cf6;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.buy-now-button:hover {
-  background: #7c3aed;
-}
-
-/* 탭 섹션 */
-.tabs-section {
-  margin-top: 20px;
-}
-
-.tab-headers {
-  display: flex;
-  border-bottom: 1px solid #e5e7eb;
-  background: #f9fafb;
-}
-
-.tab-header {
-  flex: 1;
-  padding: 16px 8px;
-  background: none;
-  border: none;
-  font-size: 14px;
-  font-weight: 500;
-  color: #6b7280;
-  cursor: pointer;
-  transition: all 0.2s;
-  border-bottom: 2px solid transparent;
-}
-
-.tab-header.active {
-  color: #1f2937;
-  background: white;
-  border-bottom-color: #8b5cf6;
-}
-
-.tab-content {
-  min-height: 400px;
-  padding: 20px 16px;
-}
-
-.details-content img {
-  width: 100%;
-  height: auto;
-  border-radius: 8px;
-  margin-bottom: 16px;
-}
-
-.no-detail-images {
-  text-align: center;
-  padding: 40px 20px;
-  color: #6b7280;
-}
-
-.info-content h3 {
-  margin-bottom: 16px;
-  color: #1f2937;
-}
-
-.info-content p {
-  margin-bottom: 8px;
-  color: #4b5563;
-  line-height: 1.5;
-}
-
-.review-summary {
-  margin-bottom: 24px;
-  padding: 16px;
-  background: #f9fafb;
-  border-radius: 8px;
-}
-
-.rating-overview {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.average-rating {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.rating-score {
-  font-size: 24px;
-  font-weight: 700;
-  color: #1f2937;
-}
-
-.stars {
-  display: flex;
-  gap: 2px;
-}
-
-.review-count {
-  color: #6b7280;
-  font-size: 14px;
-}
-
-.no-reviews {
-  text-align: center;
-  padding: 40px 20px;
-  color: #6b7280;
-}
-
-.review-item {
-  padding: 16px 0;
-  border-bottom: 1px solid #f3f4f6;
-}
-
-.reviewer-info {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.reviewer-name {
-  font-weight: 500;
-  color: #1f2937;
-}
-
-.review-rating {
-  display: flex;
-  gap: 1px;
-}
-
-.review-text {
-  color: #4b5563;
-  line-height: 1.5;
-  margin-bottom: 8px;
-}
-
-.review-date {
-  color: #9ca3af;
-  font-size: 12px;
-}
-
-.contact-info {
-  background: #f9fafb;
-  padding: 16px;
-  border-radius: 8px;
-  margin-top: 16px;
-}
-
-.contact-info p {
-  margin-bottom: 8px;
-  color: #4b5563;
-}
-
-/* 연관 상품 섹션 */
-.related-products-section {
-  padding: 20px 16px;
-  border-top: 8px solid #f9fafb;
-}
-
-.related-products-section h3 {
-  margin-bottom: 16px;
-  color: #1f2937;
-  font-size: 18px;
-  font-weight: 600;
-}
-
-.related-products-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-}
-
-.related-product-item {
-  background: white;
-  border: 1px solid #f3f4f6;
-  border-radius: 8px;
-  overflow: hidden;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.related-product-item:hover {
-  border-color: #d1d5db;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.related-product-item img {
-  width: 100%;
-  height: 120px;
-  object-fit: cover;
-}
-
-.related-product-info {
-  padding: 12px;
-}
-
-.related-product-title {
-  font-size: 14px;
-  color: #1f2937;
-  margin-bottom: 4px;
-  line-height: 1.4;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.related-product-price {
-  font-size: 16px;
-  font-weight: 600;
-  color: #8b5cf6;
-  margin: 0;
-}
-
-/* 하단 선택 상세 버튼 */
-.detail-selection-button {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  z-index: 100;
-}
-
-.selection-detail-btn {
-  background: #1f2937;
-  color: white;
-  border: none;
-  padding: 12px 16px;
-  border-radius: 25px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  transition: transform 0.2s;
-}
-
-.selection-detail-btn:hover {
-  transform: translateY(-1px);
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
-@media (max-width: 480px) {
-  .product-detail-container {
-    max-width: 100%;
-  }
-
-  .product-title {
-    font-size: 18px;
-  }
-
-  .final-price {
-    font-size: 20px;
-  }
-
-  .tab-header {
-    font-size: 13px;
-    padding: 14px 4px;
-  }
-
-  .related-products-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
-  }
-
-  .related-product-item img {
-    height: 100px;
-  }
-
-  .related-product-info {
-    padding: 8px;
-  }
-
-  .related-product-title {
-    font-size: 12px;
-  }
-
-  .related-product-price {
-    font-size: 14px;
-  }
-}
-</style>
+<style scoped src="@/assets/css/productDetail.css"></style>

@@ -45,7 +45,7 @@ public class JwtUtil {
     /**
      * 토큰 생성
      */
-    public String generateToken(Long userId, String username,String name) {
+    public String generateToken(Long userId, String username, String name) {
         Date now = new Date();
         Date expireDate = new Date(now.getTime() + expiration);
 
@@ -85,8 +85,9 @@ public class JwtUtil {
             return null;
         }
     }
+
     /**
-     * 토큰에서 이름 추출 - 새로 추가!
+     * 토큰에서 이름 추출
      */
     public String getNameFromToken(String token) {
         try {
@@ -94,6 +95,45 @@ public class JwtUtil {
             return claims.get("name", String.class);
         } catch (Exception e) {
             log.error("토큰에서 이름 추출 실패: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 만료된 토큰에서 사용자명 추출 (토큰 갱신용)
+     */
+    public String getUsernameFromExpiredToken(String token) {
+        try {
+            Claims claims = parseExpiredToken(token);
+            return claims.getSubject();
+        } catch (Exception e) {
+            log.error("만료된 토큰에서 사용자명 추출 실패: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 만료된 토큰에서 사용자 ID 추출 (토큰 갱신용)
+     */
+    public Long getUserIdFromExpiredToken(String token) {
+        try {
+            Claims claims = parseExpiredToken(token);
+            return claims.get("userId", Long.class);
+        } catch (Exception e) {
+            log.error("만료된 토큰에서 사용자 ID 추출 실패: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 만료된 토큰에서 이름 추출 (토큰 갱신용)
+     */
+    public String getNameFromExpiredToken(String token) {
+        try {
+            Claims claims = parseExpiredToken(token);
+            return claims.get("name", String.class);
+        } catch (Exception e) {
+            log.error("만료된 토큰에서 이름 추출 실패: {}", e.getMessage());
             return null;
         }
     }
@@ -118,13 +158,17 @@ public class JwtUtil {
         try {
             Claims claims = parseToken(token);
             return claims.getExpiration().before(new Date());
+        } catch (ExpiredJwtException e) {
+            // 만료된 경우
+            return true;
         } catch (Exception e) {
+            // 다른 에러 (형식 오류 등)
             return true;
         }
     }
 
     /**
-     * 토큰 파싱
+     * 토큰 파싱 (유효한 토큰만)
      */
     private Claims parseToken(String token) {
         return Jwts.parserBuilder()
@@ -132,5 +176,25 @@ public class JwtUtil {
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
+    }
+
+    /**
+     * 만료된 토큰 파싱 (토큰 갱신용)
+     */
+    private Claims parseExpiredToken(String token) {
+        try {
+            return Jwts.parserBuilder()
+                    .setSigningKey(key)
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+        } catch (ExpiredJwtException e) {
+            // 만료된 토큰의 경우 Claims를 여전히 얻을 수 있음
+            log.info("만료된 토큰에서 Claims 추출 성공");
+            return e.getClaims();
+        } catch (Exception e) {
+            log.error("토큰 파싱 실패: {}", e.getMessage());
+            throw e;
+        }
     }
 }

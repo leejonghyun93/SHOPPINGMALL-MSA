@@ -26,18 +26,22 @@ public class LoggingFilter extends AbstractGatewayFilterFactory<LoggingFilter.Co
             ServerHttpResponse response = exchange.getResponse();
 
             if (config.isPreLogger()) {
-                log.info("🚀 Request: {} {} from {}",
+                log.info("🚀 [{}] Request: {} {} from {} | Headers: {}",
+                        config.getBaseMessage(),
                         request.getMethod(),
                         request.getURI().getPath(),
-                        request.getRemoteAddress());
+                        request.getRemoteAddress(),
+                        request.getHeaders().getFirst("User-Agent"));
             }
 
             return chain.filter(exchange).then(Mono.fromRunnable(() -> {
                 if (config.isPostLogger()) {
-                    log.info("✅ Response: {} for {} {}",
+                    log.info("✅ [{}] Response: {} for {} {} | Content-Type: {}",
+                            config.getBaseMessage(),
                             response.getStatusCode(),
                             request.getMethod(),
-                            request.getURI().getPath());
+                            request.getURI().getPath(),
+                            response.getHeaders().getFirst("Content-Type"));
                 }
             }));
         }, Ordered.LOWEST_PRECEDENCE);
@@ -47,8 +51,8 @@ public class LoggingFilter extends AbstractGatewayFilterFactory<LoggingFilter.Co
 
     @Data
     public static class Config {
-        private String baseMessage;
-        private boolean preLogger;
-        private boolean postLogger;
+        private String baseMessage = "Gateway";
+        private boolean preLogger = true;
+        private boolean postLogger = true;
     }
 }

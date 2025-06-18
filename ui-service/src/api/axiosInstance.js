@@ -25,11 +25,13 @@ apiClient.interceptors.request.use(
             delete config.headers.Authorization
             console.log('🔓 Public API 호출 - Authorization 헤더 제거')
         } else {
-            // JWT 토큰이 있으면 헤더에 추가
-            const token = localStorage.getItem('authToken')
+            // 🔥 수정: 'authToken' → 'token'으로 변경
+            const token = localStorage.getItem('token')
             if (token) {
                 config.headers.Authorization = `Bearer ${token}`
-                console.log('🔐 JWT 토큰 추가')
+                console.log('🔐 JWT 토큰 추가:', token.substring(0, 20) + '...')
+            } else {
+                console.log('🔓 JWT 토큰 없음')
             }
         }
 
@@ -67,7 +69,8 @@ apiClient.interceptors.response.use(
 
         if (error.response?.status === 401) {
             console.warn('🚫 인증 실패')
-            localStorage.removeItem('authToken')
+            // 🔥 수정: 'authToken' → 'token'으로 변경
+            localStorage.removeItem('token')
         }
 
         return Promise.reject(error)
