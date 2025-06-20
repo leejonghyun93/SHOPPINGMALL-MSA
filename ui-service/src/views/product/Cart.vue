@@ -3,7 +3,7 @@
     <!-- 헤더 -->
     <div class="cart-header">
       <button class="back-button" @click="goBack">
-        <ChevronLeft :size="24" />
+        <ChevronLeft :size="24"/>
       </button>
       <h1 class="cart-title">장바구니</h1>
       <div class="header-spacer"></div>
@@ -81,17 +81,26 @@
                 </label>
 
                 <div class="item-image">
-                  <img :src="item.image" :alt="item.name" @error="handleImageError" />
+                  <img :src="item.image" :alt="item.name" @error="handleImageError"/>
                 </div>
 
                 <div class="item-details">
                   <h3 class="item-name">{{ item.name }}</h3>
+
                   <div class="item-price-section">
                     <div class="price-info">
-                      <span v-if="item.discountRate > 0" class="discount-rate">{{ item.discountRate }}%</span>
+                      <span v-if="hasItemDiscount(item)" class="discount-rate">{{ item.discountRate }}%</span>
                       <span class="final-price">{{ formatPrice(item.salePrice) }}원</span>
                     </div>
-                    <div v-if="item.discountRate > 0" class="original-price">{{ formatPrice(item.price) }}원</div>
+                    <div v-if="hasItemDiscount(item)" class="original-price">{{ formatPrice(item.price) }}원</div>
+                  </div>
+
+                  <div class="item-total-price">
+                    <span class="total-label">소계: </span>
+                    <span class="total-amount">{{ formatPrice(getItemTotalPrice(item)) }}원</span>
+                    <span v-if="hasItemDiscount(item)" class="total-discount">
+                      ({{ formatPrice(getItemTotalDiscount(item)) }}원 할인)
+                    </span>
                   </div>
 
                   <div class="quantity-controls">
@@ -100,20 +109,20 @@
                         @click="decreaseQuantity(item)"
                         :disabled="item.quantity <= 1"
                     >
-                      <Minus :size="16" />
+                      <Minus :size="16"/>
                     </button>
                     <span class="quantity">{{ item.quantity }}</span>
                     <button
                         class="quantity-btn"
                         @click="increaseQuantity(item)"
                     >
-                      <Plus :size="16" />
+                      <Plus :size="16"/>
                     </button>
                   </div>
                 </div>
 
                 <button class="delete-item-btn" @click="deleteItem(item.id)">
-                  <X :size="20" />
+                  <X :size="20"/>
                 </button>
               </div>
             </div>
@@ -144,17 +153,26 @@
                 </label>
 
                 <div class="item-image">
-                  <img :src="item.image" :alt="item.name" @error="handleImageError" />
+                  <img :src="item.image" :alt="item.name" @error="handleImageError"/>
                 </div>
 
                 <div class="item-details">
                   <h3 class="item-name">{{ item.name }}</h3>
+
                   <div class="item-price-section">
                     <div class="price-info">
-                      <span v-if="item.discountRate > 0" class="discount-rate">{{ item.discountRate }}%</span>
+                      <span v-if="hasItemDiscount(item)" class="discount-rate">{{ item.discountRate }}%</span>
                       <span class="final-price">{{ formatPrice(item.salePrice) }}원</span>
                     </div>
-                    <div v-if="item.discountRate > 0" class="original-price">{{ formatPrice(item.price) }}원</div>
+                    <div v-if="hasItemDiscount(item)" class="original-price">{{ formatPrice(item.price) }}원</div>
+                  </div>
+
+                  <div class="item-total-price">
+                    <span class="total-label">소계: </span>
+                    <span class="total-amount">{{ formatPrice(getItemTotalPrice(item)) }}원</span>
+                    <span v-if="hasItemDiscount(item)" class="total-discount">
+                      ({{ formatPrice(getItemTotalDiscount(item)) }}원 할인)
+                    </span>
                   </div>
 
                   <div class="quantity-controls">
@@ -163,20 +181,20 @@
                         @click="decreaseQuantity(item)"
                         :disabled="item.quantity <= 1"
                     >
-                      <Minus :size="16" />
+                      <Minus :size="16"/>
                     </button>
                     <span class="quantity">{{ item.quantity }}</span>
                     <button
                         class="quantity-btn"
                         @click="increaseQuantity(item)"
                     >
-                      <Plus :size="16" />
+                      <Plus :size="16"/>
                     </button>
                   </div>
                 </div>
 
                 <button class="delete-item-btn" @click="deleteItem(item.id)">
-                  <X :size="20" />
+                  <X :size="20"/>
                 </button>
               </div>
             </div>
@@ -194,11 +212,14 @@
               <span class="summary-label">상품금액</span>
               <span class="summary-value">{{ formatPrice(totalProductPrice) }}원</span>
             </div>
-            <div class="summary-row discount">
+            <div v-if="totalDiscount > 0" class="summary-row discount">
               <span class="summary-label">상품할인금액</span>
-              <span class="summary-value discount-text">{{ formatPrice(totalDiscount) }}원</span>
+              <span class="summary-value discount-text">-{{ formatPrice(totalDiscount) }}원</span>
             </div>
-            <div class="summary-note-text">로그인 후 할인 금액 적용</div>
+            <div class="summary-row">
+              <span class="summary-label">할인적용가격</span>
+              <span class="summary-value">{{ formatPrice(totalSalePrice) }}원</span>
+            </div>
             <div class="summary-row">
               <span class="summary-label">배송비</span>
               <span class="summary-value">{{ formatPrice(deliveryFee) }}원</span>
@@ -231,12 +252,14 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { ChevronLeft, Minus, Plus, X } from 'lucide-vue-next'
-import axios from 'axios'
+import { useRouter } from 'vue-router'
+import apiClient from '@/api/axiosInstance'
+
+const router = useRouter()
 
 // 상수 설정
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080'
 const FREE_DELIVERY_THRESHOLD = 40000
-const DELIVERY_FEE = 3000
+const DELIVERY_FEE = 0
 
 // 반응형 상태
 const loading = ref(false)
@@ -244,168 +267,39 @@ const cartItems = ref([])
 const selectedItems = ref([])
 const selectAll = ref(false)
 const freeDeliveryThreshold = ref(FREE_DELIVERY_THRESHOLD)
-const isLoggedIn = ref(false)
 
-// JWT 토큰에서 사용자 ID 추출
-const extractUserIdFromJWT = () => {
-  try {
-    const token = localStorage.getItem('auth_token') ||
-        localStorage.getItem('token') ||
-        localStorage.getItem('access_token') ||
-        sessionStorage.getItem('auth_token')
-
-    if (!token) return null
-
-    const parts = token.split('.')
-    if (parts.length !== 3) return null
-
-    let payload = parts[1]
-    while (payload.length % 4) payload += '='
-    payload = payload.replace(/-/g, '+').replace(/_/g, '/')
-
-    const decoded = JSON.parse(atob(payload))
-    return decoded.sub || decoded.userId || decoded.username || null
-  } catch (error) {
-    return null
-  }
-}
-
-// 로그인 상태 및 사용자 ID 확인
-const checkLoginStatus = () => {
-  const token = localStorage.getItem('auth_token') ||
-      localStorage.getItem('token') ||
-      localStorage.getItem('access_token') ||
-      sessionStorage.getItem('auth_token')
-
-  isLoggedIn.value = !!token
-
-  if (token) {
-    const userId = extractUserIdFromJWT()
-    if (userId) {
-      localStorage.setItem('user_id', userId)
-    }
-  }
-
-  return isLoggedIn.value
-}
-
-// 사용자 ID 가져오기
-const getUserId = () => {
-  if (isLoggedIn.value) {
-    const jwtUserId = extractUserIdFromJWT()
-    if (jwtUserId) return jwtUserId
-
-    const storedUserId = localStorage.getItem('user_id') || localStorage.getItem('userId')
-    if (storedUserId) return storedUserId
-  }
-
-  return generateGuestId() // guestId 없으면 여기서 생성해서 반환
-}
-
-// 게스트 ID 생성
-const generateGuestId = () => {
-  let guestId = localStorage.getItem('guestId')
-  if (!guestId) {
-    guestId = crypto.randomUUID()
-    localStorage.setItem('guestId', guestId)
-  }
-  return guestId // 이게 없으면 undefined 반환됨!
-}
-
-// 인증 헤더 생성
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('token') // 또는 다른 키들
-
-  const userId = getUserId()
-  console.log('🚀 X-User-Id:', userId)
-
-  const headers = {
-    'Content-Type': 'application/json',
-    'X-User-Id': userId
-  }
-
-  if (token) {
-    headers.Authorization = `Bearer ${token}`
-  }
-
-  return headers
-}
-
-
-// 로컬 스토리지 관리
-const loadLocalCart = () => {
-  try {
-    const localCart = localStorage.getItem('temp_cart')
-    if (localCart) {
-      const parsedCart = JSON.parse(localCart)
-      cartItems.value = parsedCart
-      selectedItems.value = parsedCart.map(item => item.id)
-      selectAll.value = parsedCart.length > 0
-    }
-  } catch (error) {
-    cartItems.value = []
-  }
-}
-
-const saveLocalCart = () => {
-  try {
-    localStorage.setItem('temp_cart', JSON.stringify(cartItems.value))
-  } catch (error) {
-    // 저장 실패 시 무시
-  }
-}
-
-// 서버 장바구니 로드
-const loadServerCart = async () => {
-  try {
-    const response = await axios.get(`${API_BASE_URL}/api/cart`, {
-      headers: getAuthHeaders()
-    })
-    console.log('장바구니 응답 데이터:', response.data)
-    if (response.data.success && response.data.data?.cartItems?.length > 0) {
-      const serverItems = response.data.data.cartItems.map(mapCartItemToProduct)
-      cartItems.value = serverItems
-      selectedItems.value = serverItems.map(item => item.id)
-      selectAll.value = serverItems.length > 0
-      saveLocalCart()
-    }
-  } catch (error) {
-    // 서버 로드 실패 시 로컬 데이터 사용
-    loadLocalCart()
-  }
-}
-
-// 장바구니 데이터 로드
-const loadCartItems = async () => {
-  try {
-    loading.value = true
-
-    if (checkLoginStatus()) {
-      await loadServerCart()
-    } else {
-      loadLocalCart()
-    }
-  } catch (error) {
-    loadLocalCart()
-  } finally {
-    loading.value = false
-  }
-}
-
-// 상품 매핑
+// 상품 매핑 함수
 const mapCartItemToProduct = (cartItem) => {
+  const originalPrice = cartItem.productPrice || cartItem.price || 0;
+  const salePrice = cartItem.salePrice || originalPrice;
+
+  // 할인율 계산 개선
+  let discountRate = 0;
+  if (originalPrice > 0 && salePrice < originalPrice) {
+    discountRate = Math.floor(((originalPrice - salePrice) / originalPrice) * 100);
+    // 할인율 제한: 0% ~ 99%
+    if (discountRate <= 0 || discountRate >= 100) {
+      discountRate = 0;
+    }
+  }
+
   return {
-    id: cartItem.cartItemId || cartItem.id || Date.now(),
+    id: cartItem.cartItemId || cartItem.id || `item_${cartItem.productId}_${Date.now()}`,
     productId: cartItem.productId,
     name: cartItem.productName || cartItem.name || '상품명 없음',
-    price: cartItem.productPrice || cartItem.price || 0,
-    salePrice: cartItem.salePrice || cartItem.productPrice || cartItem.price || 0,
-    discountRate: cartItem.discountRate || 0,
+    price: originalPrice,
+    salePrice: salePrice > 0 && salePrice < originalPrice ? salePrice : originalPrice,
+    discountRate: discountRate,
     quantity: cartItem.quantity || 1,
     image: cartItem.productImage || cartItem.image || generatePlaceholderImage(),
     category: cartItem.category || 'normal',
     deliveryType: cartItem.deliveryType || 'normal'
   }
+}
+
+// 개별 상품 할인 여부 확인 함수
+const hasItemDiscount = (item) => {
+  return item.discountRate > 0 && item.salePrice < item.price;
 }
 
 // 컴퓨티드 속성들
@@ -422,106 +316,33 @@ const selectedCartItems = computed(() =>
 )
 
 const totalProductPrice = computed(() =>
-    selectedCartItems.value.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+    selectedCartItems.value.reduce((sum, item) => {
+      return sum + (item.price * item.quantity);
+    }, 0)
 )
 
-const totalDiscount = computed(() =>
-    selectedCartItems.value.reduce((sum, item) =>
-        sum + ((item.price - item.salePrice) * item.quantity), 0
-    )
+const totalSalePrice = computed(() =>
+    selectedCartItems.value.reduce((sum, item) => {
+      return sum + (item.salePrice * item.quantity);
+    }, 0)
 )
 
-const deliveryFee = computed(() => {
-  const subtotal = selectedCartItems.value.reduce((sum, item) =>
-      sum + (item.salePrice * item.quantity), 0
-  )
-  return subtotal >= freeDeliveryThreshold.value ? 0 : DELIVERY_FEE
+const totalDiscount = computed(() => {
+  return selectedCartItems.value.reduce((sum, item) => {
+    if (hasItemDiscount(item)) {
+      return sum + ((item.price - item.salePrice) * item.quantity);
+    }
+    return sum;
+  }, 0)
 })
 
-const finalTotal = computed(() =>
-    selectedCartItems.value.reduce((sum, item) =>
-        sum + (item.salePrice * item.quantity), 0
-    ) + deliveryFee.value
-)
+const deliveryFee = computed(() => {
+  return totalSalePrice.value >= freeDeliveryThreshold.value ? 0 : DELIVERY_FEE;
+})
 
-// 수량 변경
-const updateCartItemQuantity = async (cartItemId, newQuantity) => {
-  try {
-    if (isLoggedIn.value) {
-      const response = await axios.put(`${API_BASE_URL}/api/cart/items`, {
-        cartItemId,
-        quantity: newQuantity
-      }, {
-        headers: getAuthHeaders()
-      })
-
-      if (!response.data.success) {
-        throw new Error(response.data.message)
-      }
-    }
-    saveLocalCart()
-    return true
-  } catch (error) {
-    if (isLoggedIn.value) {
-      alert('수량 변경에 실패했습니다.')
-      return false
-    } else {
-      saveLocalCart()
-      return true
-    }
-  }
-}
-
-// 상품 삭제
-const deleteCartItem = async (cartItemId) => {
-  try {
-    if (isLoggedIn.value) {
-      const response = await axios.delete(`${API_BASE_URL}/api/cart/items/${cartItemId}`, {
-        headers: getAuthHeaders()
-      })
-
-      if (!response.data.success) {
-        throw new Error(response.data.message)
-      }
-    }
-    saveLocalCart()
-    return true
-  } catch (error) {
-    if (isLoggedIn.value) {
-      alert('상품 삭제에 실패했습니다.')
-      return false
-    } else {
-      saveLocalCart()
-      return true
-    }
-  }
-}
-
-// 다중 상품 삭제
-const deleteMultipleCartItems = async (cartItemIds) => {
-  try {
-    if (isLoggedIn.value) {
-      const response = await axios.delete(`${API_BASE_URL}/api/cart/items`, {
-        data: { cartItemIds },
-        headers: getAuthHeaders()
-      })
-
-      if (!response.data.success) {
-        throw new Error(response.data.message)
-      }
-    }
-    saveLocalCart()
-    return true
-  } catch (error) {
-    if (isLoggedIn.value) {
-      alert('상품 삭제에 실패했습니다.')
-      return false
-    } else {
-      saveLocalCart()
-      return true
-    }
-  }
-}
+const finalTotal = computed(() => {
+  return totalSalePrice.value + deliveryFee.value;
+})
 
 // 이벤트 핸들러들
 const toggleSelectAll = () => {
@@ -533,50 +354,172 @@ const toggleSelectAll = () => {
 }
 
 const increaseQuantity = async (item) => {
-  const success = await updateCartItemQuantity(item.id, item.quantity + 1)
-  if (success) {
-    item.quantity++
-    saveLocalCart()
+  const token = localStorage.getItem('token');
+  const originalQuantity = item.quantity;
+  item.quantity++;
+
+  if (token) {
+    try {
+      await apiClient.put('/api/cart/items', {
+        cartItemId: item.id,
+        quantity: item.quantity
+      }, {
+        withAuth: true
+      });
+    } catch (error) {
+      item.quantity = originalQuantity;
+      if (error.response?.status === 404) {
+        alert('장바구니 상품을 찾을 수 없습니다. 페이지를 새로고침합니다.');
+        window.location.reload();
+      } else {
+        alert('수량 변경에 실패했습니다.');
+      }
+    }
+  } else {
+    updateGuestCartQuantity(item.productId, item.quantity);
   }
 }
 
 const decreaseQuantity = async (item) => {
-  if (item.quantity <= 1) return
+  if (item.quantity <= 1) return;
 
-  const success = await updateCartItemQuantity(item.id, item.quantity - 1)
-  if (success) {
-    item.quantity--
-    saveLocalCart()
+  const token = localStorage.getItem('token');
+  const originalQuantity = item.quantity;
+  item.quantity--;
+
+  if (token) {
+    try {
+      await apiClient.put('/api/cart/items', {
+        cartItemId: item.id,
+        quantity: item.quantity
+      }, {
+        withAuth: true
+      });
+    } catch (error) {
+      item.quantity = originalQuantity;
+      if (error.response?.status === 404) {
+        alert('장바구니 상품을 찾을 수 없습니다. 페이지를 새로고침합니다.');
+        window.location.reload();
+      } else {
+        alert('수량 변경에 실패했습니다.');
+      }
+    }
+  } else {
+    updateGuestCartQuantity(item.productId, item.quantity);
   }
 }
 
 const deleteItem = async (itemId) => {
-  if (confirm('상품을 장바구니에서 제거하시겠습니까?')) {
-    const success = await deleteCartItem(itemId)
-    if (success) {
-      cartItems.value = cartItems.value.filter(item => item.id !== itemId)
-      selectedItems.value = selectedItems.value.filter(id => id !== itemId)
-      saveLocalCart()
+  if (!confirm('상품을 장바구니에서 제거하시겠습니까?')) return;
+
+  const token = localStorage.getItem('token');
+  const item = cartItems.value.find(item => item.id === itemId);
+
+  if (token) {
+    try {
+      await apiClient.delete(`/api/cart/items/${itemId}`, {
+        withAuth: true
+      });
+    } catch (error) {
+      if (error.response?.status === 404) {
+        // 서버에 없어도 UI에서는 제거
+      } else {
+        alert('상품 삭제에 실패했습니다.');
+        return;
+      }
+    }
+  } else {
+    if (item) {
+      const guestCart = JSON.parse(localStorage.getItem('guestCart') || '[]');
+      const updatedCart = guestCart.filter(cartItem => cartItem.productId !== item.productId);
+      localStorage.setItem('guestCart', JSON.stringify(updatedCart));
     }
   }
+
+  cartItems.value = cartItems.value.filter(item => item.id !== itemId);
+  selectedItems.value = selectedItems.value.filter(id => id !== itemId);
 }
 
 const deleteSelectedItems = async () => {
-  if (selectedItems.value.length === 0) return
+  if (selectedItems.value.length === 0) return;
 
-  if (confirm(`선택한 ${selectedItems.value.length}개 상품을 삭제하시겠습니까?`)) {
-    const success = await deleteMultipleCartItems(selectedItems.value)
-    if (success) {
-      cartItems.value = cartItems.value.filter(item => !selectedItems.value.includes(item.id))
-      selectedItems.value = []
-      selectAll.value = false
-      saveLocalCart()
+  if (!confirm(`선택한 ${selectedItems.value.length}개 상품을 삭제하시겠습니까?`)) return;
+
+  const token = localStorage.getItem('token');
+
+  if (token) {
+    const selectedCartItemIds = cartItems.value
+        .filter(item => selectedItems.value.includes(item.id))
+        .map(item => item.id);
+
+    try {
+      await apiClient.delete('/api/cart/items', {
+        data: {
+          cartItemIds: selectedCartItemIds
+        },
+        withAuth: true
+      });
+    } catch (error) {
+      for (const cartItemId of selectedCartItemIds) {
+        try {
+          await apiClient.delete(`/api/cart/items/${cartItemId}`, {
+            withAuth: true
+          });
+        } catch (individualError) {
+          console.error(`상품 ${cartItemId} 삭제 실패:`, individualError);
+        }
+      }
     }
+  } else {
+    const selectedProductIds = cartItems.value
+        .filter(item => selectedItems.value.includes(item.id))
+        .map(item => item.productId);
+
+    const guestCart = JSON.parse(localStorage.getItem('guestCart') || '[]');
+    const updatedCart = guestCart.filter(cartItem =>
+        !selectedProductIds.includes(cartItem.productId)
+    );
+    localStorage.setItem('guestCart', JSON.stringify(updatedCart));
+  }
+
+  cartItems.value = cartItems.value.filter(item => !selectedItems.value.includes(item.id));
+  selectedItems.value = [];
+  selectAll.value = false;
+}
+
+const getItemTotalPrice = (item) => {
+  return item.salePrice * item.quantity;
+}
+
+const getItemTotalDiscount = (item) => {
+  if (hasItemDiscount(item)) {
+    return (item.price - item.salePrice) * item.quantity;
+  }
+  return 0;
+}
+
+const updateGuestCartQuantity = (productId, newQuantity) => {
+  try {
+    const guestCart = JSON.parse(localStorage.getItem('guestCart') || '[]');
+    const itemIndex = guestCart.findIndex(item => item.productId === productId);
+
+    if (itemIndex >= 0) {
+      guestCart[itemIndex].quantity = newQuantity;
+      localStorage.setItem('guestCart', JSON.stringify(guestCart));
+    }
+  } catch (error) {
+    console.error('게스트 장바구니 업데이트 실패:', error);
   }
 }
 
-// 체크아웃
 const goToCheckout = () => {
+  const token = localStorage.getItem('token')
+  if (!token) {
+    alert('주문하려면 로그인이 필요합니다.')
+    router.push('/login')
+    return
+  }
+
   if (selectedItems.value.length === 0) {
     alert('주문할 상품을 선택해주세요.')
     return
@@ -592,66 +535,20 @@ const goToCheckout = () => {
       totalPrice: finalTotal.value,
       productAmount: totalProductPrice.value,
       discountAmount: totalDiscount.value,
-      deliveryFee: deliveryFee.value,
-      userId: getUserId()
+      deliveryFee: deliveryFee.value
     }
 
     sessionStorage.setItem('checkout_data', JSON.stringify(checkoutData))
-    window.location.href = '/checkout'
+    router.push('/checkout')
   } catch (error) {
     alert('주문 페이지로 이동 중 오류가 발생했습니다.')
   }
 }
 
-// 네비게이션
 const goBack = () => {
-  window.history.back()
+  router.go(-1)
 }
 
-// 로그인 후 처리
-const handleAfterLogin = async () => {
-  isLoggedIn.value = true
-
-  if (cartItems.value.length > 0) {
-    try {
-      for (const item of cartItems.value) {
-        await axios.post(`${API_BASE_URL}/api/cart/items`, {
-          productId: productId,
-          quantity: quantity
-        }, {
-          headers: getAuthHeaders()
-        })
-      }
-    } catch (error) {
-      // 저장 실패는 무시
-    }
-  }
-
-  const shouldRedirectToCheckout = sessionStorage.getItem('checkout_redirect')
-  const savedSelectedItems = sessionStorage.getItem('selected_items')
-
-  if (shouldRedirectToCheckout && savedSelectedItems) {
-    sessionStorage.removeItem('checkout_redirect')
-    sessionStorage.removeItem('selected_items')
-
-    const selectedItemIds = JSON.parse(savedSelectedItems)
-    selectedItems.value = selectedItemIds
-
-    const selectedProducts = cartItems.value.filter(item => selectedItemIds.includes(item.id))
-
-    sessionStorage.setItem('checkout_data', JSON.stringify({
-      selectedItems: selectedProducts,
-      totalAmount: finalTotal.value
-    }))
-
-    window.location.href = '/checkout'
-  }
-}
-
-// 전역 함수 노출
-window.handleCartAfterLogin = handleAfterLogin
-
-// 유틸리티 함수들
 const formatPrice = (price) => {
   return price?.toLocaleString() || '0'
 }
@@ -666,23 +563,80 @@ const handleImageError = (event) => {
   event.target.src = generatePlaceholderImage()
 }
 
-// 워처
 watch(selectedItems, () => {
   selectAll.value = selectedItems.value.length === cartItems.value.length && cartItems.value.length > 0
 }, { deep: true })
 
-// 마운트
-onMounted(() => {
-  // 비회원일 경우 guestId 생성
-  if (!checkLoginStatus()) {
-    let guestId = localStorage.getItem('guestId');
-    if (!guestId) {
-      guestId = crypto.randomUUID(); // 또는 uuidv4()
-      localStorage.setItem('guestId', guestId);
+onMounted(async () => {
+  loading.value = true
+
+  const token = localStorage.getItem('token')
+  const isLoggedIn = !!token
+
+  if (isLoggedIn) {
+    try {
+      const response = await apiClient.get('/api/cart', {
+        withAuth: true
+      })
+
+      if (response.data.success && response.data.data?.cartItems?.length > 0) {
+        const serverItems = response.data.data.cartItems.map(mapCartItemToProduct)
+        cartItems.value = serverItems
+        selectedItems.value = serverItems.map(item => item.id)
+        selectAll.value = serverItems.length > 0
+      } else {
+        cartItems.value = []
+      }
+
+    } catch (error) {
+      if (error.response?.status === 401) {
+        localStorage.removeItem('token')
+      }
+      cartItems.value = []
+    }
+  } else {
+    try {
+      const localCart = JSON.parse(localStorage.getItem('guestCart') || '[]')
+
+      if (localCart.length > 0) {
+        const productIds = localCart.map(item => item.productId)
+
+        const requestData = productIds.map(productId => ({
+          productId: productId,
+          quantity: localCart.find(item => item.productId === productId)?.quantity || 1
+        }))
+
+        const response = await apiClient.post('/api/products/guest-cart-details', requestData, {
+          withAuth: false
+        })
+
+        const enrichedItems = response.data.map(product => {
+          const localItem = localCart.find(i => i.productId === product.productId)
+          return mapCartItemToProduct({
+            ...product,
+            cartItemId: `local_${product.productId}`,
+            quantity: localItem?.quantity || 1,
+            productName: product.name || product.title,
+            productImage: product.mainImage || product.image,
+            productPrice: product.price,
+            salePrice: product.salePrice || product.price,
+            discountRate: product.discountRate || 0
+          })
+        })
+
+        cartItems.value = enrichedItems
+        selectedItems.value = enrichedItems.map(item => item.id)
+        selectAll.value = enrichedItems.length > 0
+      } else {
+        cartItems.value = []
+      }
+
+    } catch (error) {
+      cartItems.value = []
     }
   }
 
-  loadCartItems()
+  loading.value = false
 })
 </script>
 

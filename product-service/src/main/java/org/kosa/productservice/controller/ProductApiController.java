@@ -1,13 +1,17 @@
 package org.kosa.productservice.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.kosa.productservice.dto.GuestCartItemDTO;
+import org.kosa.productservice.dto.ProductDetailDTO;
 import org.kosa.productservice.dto.ProductDto;
 import org.kosa.productservice.service.ProductService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/products")
@@ -192,6 +196,29 @@ public class ProductApiController {
             log.error("데이터베이스 상태 확인 중 오류:", e);
             result.put("error", e.getMessage());
             return ResponseEntity.ok(result);
+        }
+    }
+    // ================== 신규 추가: 게스트 장바구니 상세 조회 ==================
+
+    // ProductApiController에 임시 추가
+    @PostMapping("/test-simple")
+    public ResponseEntity<String> testSimple(@RequestBody String rawData) {
+        log.info("🔍 받은 데이터: {}", rawData);
+        return ResponseEntity.ok("OK");
+    }
+
+    // 그리고 기존 guest-cart-details를 잠시 이렇게 수정
+    @PostMapping("/guest-cart-details")
+    public ResponseEntity<List<ProductDetailDTO>> getGuestCartDetails(@RequestBody List<GuestCartItemDTO> cartItems) {
+        log.info("🔍 게스트 장바구니 상세 조회 요청: {}", cartItems);
+
+        try {
+            List<ProductDetailDTO> result = productService.getProductsForGuestCart(cartItems);
+            log.info("🔍 게스트 장바구니 상세 조회 결과: {}개 상품", result.size());
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("🔥 게스트 장바구니 처리 실패: ", e);
+            return ResponseEntity.internalServerError().build();
         }
     }
 }

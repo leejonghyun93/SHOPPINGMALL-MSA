@@ -57,8 +57,10 @@ public class AuthService {
                 Long userIdLong = user.getUserIdAsLong();
                 String username = user.getUsername();
                 String name = user.getName();
+                String email = user.getEmail();
+                String phone = user.getPhone();
 
-                String token = jwtUtil.generateToken(userIdLong, username, name);
+                String token = jwtUtil.generateToken(userIdLong, username, name,email,phone);
 
                 return AuthResponse.builder()
                         .success(true)
@@ -67,6 +69,8 @@ public class AuthService {
                         .userId(userIdLong)
                         .username(username)
                         .name(name)
+                        .email(email)
+                        .phone(phone)
                         .build();
             } catch (Exception tokenException) {
                 throw new IllegalArgumentException("토큰 생성 실패");
@@ -116,6 +120,8 @@ public class AuthService {
             String username = null;
             Long userId = null;
             String name = null;
+            String email = null;    // 🔥 email 추가
+            String phone = null;    // 🔥 phone 추가
 
             try {
                 // 만료되지 않은 경우
@@ -123,12 +129,16 @@ public class AuthService {
                     username = jwtUtil.getUsernameFromToken(token);
                     userId = jwtUtil.getUserIdFromToken(token);
                     name = jwtUtil.getNameFromToken(token);
+                    email = jwtUtil.getEmailFromToken(token);     // 🔥 email 추출
+                    phone = jwtUtil.getPhoneFromToken(token);     // 🔥 phone 추출
                 } else {
                     // 만료된 토큰에서도 정보 추출 시도
                     log.info("만료된 토큰에서 사용자 정보 추출 시도");
                     username = jwtUtil.getUsernameFromExpiredToken(token);
                     userId = jwtUtil.getUserIdFromExpiredToken(token);
                     name = jwtUtil.getNameFromExpiredToken(token);
+                    email = jwtUtil.getEmailFromExpiredToken(token);   // 🔥 만료된 토큰에서 email 추출
+                    phone = jwtUtil.getPhoneFromExpiredToken(token);   // 🔥 만료된 토큰에서 phone 추출
                 }
             } catch (Exception e) {
                 log.error("토큰에서 사용자 정보 추출 실패: {}", e.getMessage());
@@ -148,8 +158,14 @@ public class AuthService {
                     throw new IllegalArgumentException("유효하지 않은 사용자입니다");
                 }
 
-                // 새 토큰 생성
-                String newToken = jwtUtil.generateToken(userId, username, name != null ? name : user.getName());
+                // 🔥 새 토큰 생성 시 email, phone 포함
+                String newToken = jwtUtil.generateToken(
+                        userId,
+                        username,
+                        name != null ? name : user.getName(),
+                        email != null ? email : user.getEmail(),     // 토큰에서 추출한 email 또는 DB에서 가져온 email
+                        phone != null ? phone : user.getPhone()      // 토큰에서 추출한 phone 또는 DB에서 가져온 phone
+                );
 
                 log.info("토큰 갱신 성공: userId={}", userId);
 
@@ -160,6 +176,8 @@ public class AuthService {
                         .userId(userId)
                         .username(username)
                         .name(name != null ? name : user.getName())
+                        .email(email != null ? email : user.getEmail())     // 🔥 응답에 email 추가
+                        .phone(phone != null ? phone : user.getPhone())     // 🔥 응답에 phone 추가
                         .build();
 
             } catch (Exception e) {

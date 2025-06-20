@@ -1,7 +1,7 @@
 package org.kosa.orderservice.mapper;
 
-
 import org.kosa.orderservice.dto.Order;
+import org.kosa.orderservice.dto.OrderItem;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -43,4 +43,16 @@ public interface OrderRepository extends JpaRepository<Order, String> {
     @Query("SELECT COUNT(o) FROM Order o WHERE o.userId = :userId AND o.orderDate >= :fromDate")
     Long countByUserIdAndOrderDateAfter(@Param("userId") String userId,
                                         @Param("fromDate") LocalDateTime fromDate);
+
+    // 🔧 수정: ORDER_ID가 Primary Key이므로 findById 사용하거나 별도 메서드 생성
+    // ORDER_ID로 주문 조회 (Primary Key가 ORDER_ID인 경우)
+    // JpaRepository<Order, String>에서 이미 제공하는 findById 사용 가능
+
+    // 🔧 추가: 디버깅용 - 모든 주문 ID 목록 조회
+    @Query("SELECT o.orderId FROM Order o ORDER BY o.orderDate DESC")
+    List<String> findAllOrderIds();
+
+    // 🔧 사용자별 기간 조회
+    @Query("SELECT o FROM Order o WHERE o.userId = :userId AND o.orderDate >= :fromDate ORDER BY o.orderDate DESC")
+    List<Order> findByUserIdAndOrderDateAfter(@Param("userId") String userId, @Param("fromDate") LocalDateTime fromDate);
 }

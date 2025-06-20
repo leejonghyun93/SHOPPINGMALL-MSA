@@ -1,0 +1,1043 @@
+.checkout-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    background: #f8f9fa;
+    min-height: 100vh;
+    padding: 0 20px;
+    position: relative;
+}
+
+.checkout-header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: white;
+    padding: 16px 0;
+    display: flex;
+    align-items: center;
+    margin-bottom: 30px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.back-button {
+    background: none;
+    border: none;
+    padding: 8px;
+    cursor: pointer;
+    border-radius: 50%;
+    transition: background-color 0.2s;
+    margin-right: 16px;
+}
+
+.back-button:hover {
+    background: #f3f4f6;
+}
+
+.checkout-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0;
+}
+
+.header-spacer {
+    flex: 1;
+}
+
+.checkout-content {
+    display: grid;
+    grid-template-columns: 1fr 350px;
+    gap: 40px;
+    margin-bottom: 40px;
+    align-items: start;
+    min-height: 200vh; /* 충분한 높이로 스크롤 가능하게 */
+}
+
+.order-form {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+}
+
+.form-section {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    border: 1px solid #e5e7eb;
+}
+
+.section-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0 0 20px 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.modify-btn {
+    background: none;
+    border: 1px solid #d1d5db;
+    color: #6b7280;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+/* 주문 상품 */
+.order-items {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.order-item {
+    display: flex;
+    gap: 12px;
+    padding: 16px;
+    border: 1px solid #f3f4f6;
+    border-radius: 8px;
+}
+
+.item-image {
+    width: 60px;
+    height: 60px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #f3f4f6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #9ca3af;
+    font-size: 12px;
+}
+
+.item-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.item-details {
+    flex: 1;
+}
+
+.item-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: #1f2937;
+    margin: 0 0 8px 0;
+}
+
+.item-price {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+}
+
+.discount-rate {
+    color: #ef4444;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.final-price {
+    color: #1f2937;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.item-quantity {
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.delivery-notice {
+    margin-top: 16px;
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 6px;
+}
+
+.delivery-text {
+    font-size: 14px;
+    color: #6b7280;
+}
+
+/* 주문자 정보 */
+.form-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.form-group {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+}
+
+.form-label {
+    min-width: 80px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #374151;
+}
+
+.form-value {
+    font-size: 14px;
+    color: #1f2937;
+}
+
+.email-info {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.email-notice {
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.email-notice p {
+    margin: 0;
+    line-height: 1.4;
+}
+
+/* 배송 정보 */
+.delivery-address {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.address-label {
+    min-width: 80px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #374151;
+}
+
+.address-content {
+    flex: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.address-content p {
+    margin: 0;
+    font-size: 14px;
+    color: #1f2937;
+    line-height: 1.4;
+    flex: 1;
+}
+
+.change-btn, .edit-btn {
+    background: none;
+    border: 1px solid #d1d5db;
+    color: #6b7280;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.change-btn:hover, .edit-btn:hover {
+    background: #f3f4f6;
+    border-color: #9ca3af;
+}
+
+.delivery-info-section {
+    display: flex;
+    gap: 16px;
+}
+
+.delivery-info-label {
+    min-width: 80px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #374151;
+}
+
+.delivery-options {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.delivery-options span {
+    font-size: 14px;
+    color: #1f2937;
+}
+
+.delivery-options p {
+    margin: 0;
+    font-size: 12px;
+    color: #6b7280;
+}
+
+/* 주소 변경 모달 */
+.address-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.address-modal {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 500px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.modal-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    padding: 4px;
+    cursor: pointer;
+    border-radius: 4px;
+    color: #6b7280;
+}
+
+.close-btn:hover {
+    background: #f3f4f6;
+}
+
+.address-search-section {
+    margin-bottom: 20px;
+}
+
+.search-input-group {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.search-input {
+    flex: 1;
+    padding: 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.search-btn {
+    background: #8b5cf6;
+    color: white;
+    border: none;
+    padding: 12px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.search-btn:hover {
+    background: #7c3aed;
+}
+
+.detail-address-group {
+    margin-top: 12px;
+}
+
+.detail-address-input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+.address-info {
+    background: #f8f9fa;
+    padding: 12px;
+    border-radius: 6px;
+    margin-bottom: 16px;
+}
+
+.address-info p {
+    margin: 0;
+    font-size: 12px;
+    color: #6b7280;
+    line-height: 1.4;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    padding-top: 16px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.cancel-btn {
+    background: white;
+    color: #6b7280;
+    border: 1px solid #d1d5db;
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.save-btn {
+    background: #8b5cf6;
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.save-btn:disabled {
+    background: #d1d5db;
+    cursor: not-allowed;
+}
+
+/* 결제 수단 */
+.payment-methods {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.payment-option {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 16px;
+}
+
+.radio-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.radio-container input[type="radio"] {
+    display: none;
+}
+
+.radio-mark {
+    width: 18px;
+    height: 18px;
+    border: 2px solid #d1d5db;
+    border-radius: 50%;
+    position: relative;
+    transition: all 0.2s;
+}
+
+.radio-container input[type="radio"]:checked + .radio-mark {
+    border-color: #8b5cf6;
+    background: white;
+}
+
+.radio-container input[type="radio"]:checked + .radio-mark::after {
+    content: '';
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #8b5cf6;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.payment-label {
+    flex: 1;
+    color: #1f2937;
+}
+
+.recommended-badge {
+    background: #8b5cf6;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.new-badge {
+    background: #10b981;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.hot-badge {
+    background: #ef4444;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    margin-left: 4px;
+}
+
+.event-badge {
+    background: #f59e0b;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.payment-notice {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.sub-payment-methods {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #f3f4f6;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.sub-payment-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.card-options {
+    display: flex;
+    gap: 8px;
+    margin-left: 26px;
+}
+
+.card-option-btn {
+    padding: 6px 12px;
+    border: 1px solid #d1d5db;
+    background: white;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.card-option-btn.active {
+    background: #8b5cf6;
+    color: white;
+    border-color: #8b5cf6;
+}
+
+.payment-notice-section {
+    margin-top: 20px;
+    padding: 16px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.notice-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0 0 8px 0;
+}
+
+.notice-list {
+    margin: 0;
+    padding-left: 16px;
+    font-size: 12px;
+    color: #6b7280;
+    line-height: 1.4;
+}
+
+.notice-list li {
+    margin-bottom: 4px;
+}
+
+.details-link {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #8b5cf6;
+    cursor: pointer;
+}
+
+/* 쿠폰 */
+.coupon-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.coupon-input-field {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+.coupon-notice, .coupon-terms {
+    font-size: 12px;
+    color: #6b7280;
+    margin: 0;
+}
+
+.coupon-link {
+    font-size: 12px;
+    color: #3b82f6;
+    text-decoration: none;
+}
+
+/* 적립금 */
+.points-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.points-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+}
+
+.points-label {
+    color: #374151;
+}
+
+.points-value {
+    color: #6b7280;
+}
+
+.points-amount {
+    color: #1f2937;
+    font-weight: 500;
+}
+
+.points-input-section {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.points-input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+    text-align: right;
+}
+
+.use-all-btn {
+    background: none;
+    border: 1px solid #d1d5db;
+    color: #6b7280;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.points-info {
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.points-info p {
+    margin: 0;
+    line-height: 1.4;
+}
+
+/* 컬리카드 혜택 */
+.kurlycard-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    background: #fef7cd;
+    border-radius: 8px;
+    border: 1px solid #f59e0b;
+}
+
+.kurlycard-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.card-status {
+    font-size: 12px;
+    color: #92400e;
+    font-weight: 500;
+}
+
+.card-discount {
+    font-size: 14px;
+    color: #1f2937;
+    font-weight: 600;
+}
+
+.card-apply-btn {
+    background: #f59e0b;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* 결제 정보 (오른쪽) - 고정 스타일 */
+.payment-summary {
+    position: fixed !important;
+    right: calc((100vw - 1200px) / 2 + 20px) !important;
+    width: 350px !important;
+    height: fit-content !important;
+    max-height: calc(100vh - 120px) !important;
+    overflow-y: auto !important;
+    z-index: 30 !important;
+    background: transparent !important;
+}
+
+.summary-card {
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    overflow: hidden;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.summary-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0;
+    padding: 24px 24px 0;
+}
+
+.summary-details {
+    padding: 20px 24px;
+}
+
+.summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.summary-row:last-of-type {
+    margin-bottom: 0;
+}
+
+.summary-label {
+    font-size: 14px;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+.summary-value {
+    font-size: 14px;
+    color: #1f2937;
+    font-weight: 600;
+}
+
+.summary-divider {
+    height: 1px;
+    background: #e5e7eb;
+    margin: 16px 0;
+}
+
+.summary-row.total {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.summary-row.total .summary-label {
+    font-weight: 700;
+    font-size: 16px;
+    color: #1f2937;
+}
+
+.summary-row.total .summary-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: #1f2937;
+}
+
+.benefits-notice {
+    padding: 12px 24px;
+    background: #f0f9ff;
+    border-top: 1px solid #e5e7eb;
+    text-align: center;
+}
+
+.benefits-notice p {
+    margin: 0;
+    font-size: 12px;
+    color: #0369a1;
+}
+
+.checkout-btn {
+    width: 100%;
+    height: 56px;
+    background: #8b5cf6;
+    color: white;
+    border: none;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    border-radius: 0;
+}
+
+.checkout-btn:hover:not(:disabled) {
+    background: #7c3aed;
+}
+
+.checkout-btn:disabled {
+    background: #d1d5db;
+    cursor: not-allowed;
+}
+
+.agreement-text {
+    padding: 16px 24px;
+    text-align: center;
+    font-size: 11px;
+    color: #9ca3af;
+    line-height: 1.4;
+}
+
+/* 스크롤바 스타일링 */
+.payment-summary::-webkit-scrollbar {
+    width: 6px;
+}
+
+.payment-summary::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.payment-summary::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.payment-summary::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 1024px) {
+    .checkout-content {
+        grid-template-columns: 1fr;
+        gap: 20px;
+        min-height: auto;
+    }
+
+    .payment-summary {
+        position: static !important;
+        order: -1;
+        right: auto !important;
+        top: auto !important;
+        width: 100% !important;
+        max-height: none !important;
+        overflow-y: visible !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .checkout-container {
+        padding: 0 16px;
+    }
+
+    .checkout-header {
+        padding: 12px 0;
+        margin-bottom: 20px;
+    }
+
+    .checkout-title {
+        font-size: 20px;
+    }
+
+    .checkout-content {
+        gap: 16px;
+    }
+
+    .form-section {
+        padding: 20px;
+    }
+
+    .section-title {
+        font-size: 16px;
+    }
+
+    .form-group {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .form-label {
+        min-width: auto;
+    }
+
+    .delivery-address,
+    .delivery-info-section {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .address-label,
+    .delivery-info-label {
+        min-width: auto;
+    }
+
+    .address-content {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .card-options {
+        margin-left: 0;
+        flex-wrap: wrap;
+    }
+
+    .points-input-section {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .kurlycard-section {
+        flex-direction: column;
+        gap: 12px;
+        text-align: center;
+    }
+
+    .address-modal {
+        margin: 10px;
+        max-width: none;
+    }
+}
+
+@media (max-width: 480px) {
+    .checkout-container {
+        padding: 0 12px;
+    }
+
+    .form-section {
+        padding: 16px;
+    }
+
+    .order-item {
+        padding: 12px;
+    }
+
+    .item-image {
+        width: 50px;
+        height: 50px;
+    }
+
+    .payment-option {
+        padding: 12px;
+    }
+
+    .sub-payment-methods {
+        margin-top: 12px;
+        padding-top: 12px;
+    }
+
+    .card-options {
+        gap: 4px;
+    }
+
+    .card-option-btn {
+        padding: 4px 8px;
+        font-size: 11px;
+    }
+
+    .summary-details {
+        padding: 16px 20px;
+    }
+
+    .summary-title {
+        padding: 20px 20px 0;
+        font-size: 16px;
+    }
+}
+
+/* 큰 화면에서만 고정 적용 */
+@media (min-width: 1025px) {
+    .checkout-content {
+        grid-template-columns: 1fr 350px;
+        gap: 40px;
+    }
+
+    .order-form {
+        margin-right: 0;
+        max-width: calc(100% - 0px);
+    }
+}
+
+/* 매우 큰 화면 대응 */
+@media (min-width: 1400px) {
+    .payment-summary {
+        right: calc((100vw - 1200px) / 2 + 20px) !important;
+    }
+}
+
+/* 작은 데스크톱 화면 대응 */
+@media (min-width: 1025px) and (max-width: 1300px) {
+    .payment-summary {
+        right: 20px !important;
+    }
+}

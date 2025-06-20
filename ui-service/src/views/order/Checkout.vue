@@ -3,7 +3,7 @@
     <!-- 헤더 -->
     <div class="checkout-header">
       <button class="back-button" @click="goBack">
-        <ChevronLeft :size="24" />
+        <ChevronLeft :size="24"/>
       </button>
       <h1 class="checkout-title">주문서</h1>
       <div class="header-spacer"></div>
@@ -18,7 +18,7 @@
           <div class="order-items">
             <div v-for="item in orderItems" :key="item.id" class="order-item">
               <div class="item-image">
-                <img :src="item.image" :alt="item.name" />
+                <img :src="item.image" :alt="item.name"/>
               </div>
               <div class="item-details">
                 <h3 class="item-name">{{ item.name }}</h3>
@@ -41,16 +41,16 @@
           <div class="form-grid">
             <div class="form-group">
               <label class="form-label">보내는 분</label>
-              <span class="form-value">{{ userInfo.name || '이종현' }}</span>
+              <span class="form-value">{{ userInfo.name }}</span>
             </div>
             <div class="form-group">
               <label class="form-label">휴대폰</label>
-              <span class="form-value">{{ userInfo.phone || '010-2019-3286' }}</span>
+              <span class="form-value">{{ userInfo.phone }}</span>
             </div>
             <div class="form-group">
               <label class="form-label">이메일</label>
               <div class="email-info">
-                <span class="form-value">{{ userInfo.email || 'fightfool@naver.com' }}</span>
+                <span class="form-value">{{ userInfo.email }}</span>
                 <div class="email-notice">
                   <p>이메일로 주문에 대한 정보를 보내드립니다.</p>
                   <p>잘못 입력된 이메일이나 메일차단 시 확인이 불가합니다.</p>
@@ -69,8 +69,16 @@
           <div class="delivery-address">
             <div class="address-label">배송지</div>
             <div class="address-content">
-              <p>{{ deliveryInfo.address || '서울특별시 송파구 정현로 135 (어마덜랩터원) 7층 16층 한국스프트에이전시협의회' }}</p>
-              <button class="change-btn">변경</button>
+              <p>
+                <template v-if="deliveryInfo.zipCode">
+                  ({{ deliveryInfo.zipCode }}) {{ deliveryInfo.address }}<br>
+                  {{ deliveryInfo.detailAddress }}
+                </template>
+                <template v-else>
+                  {{ deliveryInfo.address || '서울특별시 송파구 정현로 135 (어마덜랩터원) 7층 16층 한국스프트에이전시협의회' }}
+                </template>
+              </p>
+              <button class="change-btn" @click="openAddressModal">변경</button>
             </div>
           </div>
 
@@ -78,8 +86,9 @@
             <div class="delivery-info-label">배송 요청사항</div>
             <div class="delivery-options">
               <span>{{ deliveryInfo.request || '빠짐 · 공동현관 비밀번호 (권장)' }}</span>
-              <p>{{ deliveryInfo.recipientName || userInfo.name || '이종현' }}, {{ deliveryInfo.recipientPhone || userInfo.phone || '010-2019-3286' }}</p>
-              <button class="edit-btn">수정</button>
+              <p>{{ deliveryInfo.recipientName || userInfo.name || '-' }},
+                {{ deliveryInfo.recipientPhone || userInfo.phone || '-' }}</p>
+              <button class="edit-btn" @click="editDeliveryRequest">수정</button>
             </div>
           </div>
         </div>
@@ -108,14 +117,6 @@
                 <span class="payment-label">Kurly Pay</span>
                 <span class="new-badge">새로운</span>
                 <span class="hot-badge">HOT</span>
-              </label>
-            </div>
-
-            <div class="payment-option">
-              <label class="radio-container">
-                <input type="radio" name="payment" value="npay" v-model="selectedPayment">
-                <span class="radio-mark"></span>
-                <span class="payment-label">네이버페이</span>
               </label>
             </div>
 
@@ -181,25 +182,25 @@
           </div>
         </div>
 
-        <!-- 쿠폰 -->
-        <div class="form-section">
-          <h2 class="section-title">쿠폰</h2>
-          <div class="coupon-section">
-            <div class="coupon-input">
-              <input type="text" placeholder="쿠폰 번호를 입력 해주세요 / 쿠폰명 입력" class="coupon-input-field">
-            </div>
-            <p class="coupon-notice">쿠폰 적용 시 샛별배송 지역이 안됩니다.</p>
-            <p class="coupon-terms">쿠폰 이용 문의 (#칼리컬러) *</p>
-            <a href="#" class="coupon-link">더민컬러츠 할인정보로 해결 무료배송 ></a>
-          </div>
-        </div>
+        <!--        &lt;!&ndash; 쿠폰 &ndash;&gt;-->
+        <!--        <div class="form-section">-->
+        <!--          <h2 class="section-title">쿠폰</h2>-->
+        <!--          <div class="coupon-section">-->
+        <!--            <div class="coupon-input">-->
+        <!--              <input type="text" placeholder="쿠폰 번호를 입력 해주세요 / 쿠폰명 입력" class="coupon-input-field">-->
+        <!--            </div>-->
+        <!--            <p class="coupon-notice">쿠폰 적용 시 샛별배송 지역이 안됩니다.</p>-->
+        <!--            <p class="coupon-terms">쿠폰 이용 문의 (#칼리컬러) *</p>-->
+        <!--            <a href="#" class="coupon-link">더민컬러츠 할인정보로 해결 무료배송 ></a>-->
+        <!--          </div>-->
+        <!--        </div>-->
 
         <!-- 적립금/컬리패스 -->
         <div class="form-section">
-          <h2 class="section-title">적립금·컬리패스</h2>
+          <h2 class="section-title">적립금</h2>
           <div class="points-section">
             <div class="points-row">
-              <span class="points-label">적립금 · 컬리패스</span>
+              <span class="points-label">적립금 </span>
               <span class="points-value">사용</span>
               <span class="points-amount">0 원</span>
             </div>
@@ -302,15 +303,76 @@
         </div>
       </div>
     </div>
+
+    <!-- 주소 변경 모달 -->
+    <div v-if="showAddressModal" class="address-modal-overlay" @click="closeAddressModal">
+      <div class="address-modal" @click.stop>
+        <div class="modal-header">
+          <h3 class="modal-title">배송지 변경</h3>
+          <button class="close-btn" @click="closeAddressModal">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="m18 6-12 12"/>
+              <path d="m6 6 12 12"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="address-search-section">
+          <div class="address-info">
+            <p>우편번호를 검색하고 상세주소를 입력해주세요.</p>
+          </div>
+
+          <div class="search-input-group">
+            <input
+                type="text"
+                v-model="newAddress.zipCode"
+                placeholder="우편번호"
+                class="search-input"
+                readonly
+            >
+            <button class="search-btn" @click="searchAddress">우편번호 검색</button>
+          </div>
+
+          <input
+              type="text"
+              v-model="newAddress.address"
+              placeholder="기본주소"
+              class="search-input"
+              readonly
+              style="margin-bottom: 8px;"
+          >
+
+          <div class="detail-address-group">
+            <input
+                type="text"
+                v-model="newAddress.detailAddress"
+                placeholder="상세주소를 입력하세요"
+                class="detail-address-input"
+                @keyup.enter="saveAddress"
+            >
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button class="cancel-btn" @click="closeAddressModal">취소</button>
+          <button
+              class="save-btn"
+              @click="saveAddress"
+              :disabled="!canSaveAddress"
+          >
+            적용
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-// 체크아웃 페이지 <script setup> 부분 수정
-
-import { ref, computed, onMounted } from 'vue'
-import { ChevronLeft } from 'lucide-vue-next'
+import {ref, computed, onMounted} from 'vue'
+import {ChevronLeft} from 'lucide-vue-next'
 import axios from 'axios'
+import {user, setUserFromToken} from "@/stores/userStore"
 
 // API 기본 URL
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080'
@@ -319,6 +381,14 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080'
 const selectedPayment = ref('general')
 const selectedSubPayment = ref('credit')
 const pointsToUse = ref(0)
+
+// 주소 모달 관련
+const showAddressModal = ref(false)
+const newAddress = ref({
+  zipCode: '',
+  address: '',
+  detailAddress: ''
+})
 
 // 사용자 정보
 const userInfo = ref({
@@ -344,14 +414,14 @@ const orderItems = ref([])
 const orderAmount = ref(0)
 const productAmount = ref(0)
 const discountAmount = ref(0)
-const deliveryFee = ref(3000)
+const deliveryFee = ref(0)
 const couponDiscount = ref(0)
 const cardDiscount = ref(0)
 const pointsUsed = ref(0)
 const benefitAmount = ref(0)
 const kurlypassAmount = ref(0)
 
-// 인증 관련 (수정된 부분)
+// 인증 관련
 const isLoggedIn = ref(false)
 const authError = ref('')
 const loading = ref(false)
@@ -365,57 +435,196 @@ const canProceed = computed(() => {
   return selectedPayment.value && orderItems.value.length > 0
 })
 
-// 인증 헤더 생성 (개선된 버전)
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('auth_token') ||
-      localStorage.getItem('token') ||
-      localStorage.getItem('access_token') ||
-      sessionStorage.getItem('auth_token')
+const canSaveAddress = computed(() => {
+  return newAddress.value.zipCode &&
+      newAddress.value.address &&
+      newAddress.value.detailAddress.trim()
+})
 
-  const userId = localStorage.getItem('user_id') ||
-      localStorage.getItem('userId') ||
-      sessionStorage.getItem('user_id') ||
-      'guest_' + Date.now()
+// 주소 모달 관련 함수들
+const openAddressModal = () => {
+  showAddressModal.value = true
+  newAddress.value = {
+    zipCode: deliveryInfo.value.zipCode || '',
+    address: deliveryInfo.value.address || '',
+    detailAddress: deliveryInfo.value.detailAddress || ''
+  }
+}
+
+const closeAddressModal = () => {
+  showAddressModal.value = false
+  newAddress.value = {
+    zipCode: '',
+    address: '',
+    detailAddress: ''
+  }
+}
+
+// 카카오 API 동적 로드
+const loadKakaoScript = () => {
+  return new Promise((resolve, reject) => {
+    if (typeof daum !== 'undefined' && daum.Postcode) {
+      resolve()
+      return
+    }
+
+    const script = document.createElement('script')
+    script.src = '//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js'
+    script.onload = () => resolve()
+    script.onerror = () => reject(new Error('카카오 API 로드 실패'))
+
+    document.head.appendChild(script)
+  })
+}
+
+// 주소 검색
+const searchAddress = async () => {
+  try {
+    if (typeof daum === 'undefined' || !daum.Postcode) {
+      await loadKakaoScript()
+    }
+
+    new daum.Postcode({
+      oncomplete: function (data) {
+        newAddress.value.zipCode = data.zonecode
+        newAddress.value.address = data.address
+
+        setTimeout(() => {
+          const detailInput = document.querySelector('.detail-address-input')
+          if (detailInput) {
+            detailInput.focus()
+          }
+        }, 100)
+      }
+    }).open()
+  } catch (error) {
+    alert('우편번호 검색 서비스를 로드할 수 없습니다.')
+  }
+}
+
+const saveAddress = () => {
+  if (!canSaveAddress.value) {
+    alert('우편번호, 기본주소, 상세주소를 모두 입력해주세요.')
+    return
+  }
+
+  deliveryInfo.value = {
+    ...deliveryInfo.value,
+    zipCode: newAddress.value.zipCode,
+    address: newAddress.value.address,
+    detailAddress: newAddress.value.detailAddress
+  }
+
+  closeAddressModal()
+}
+
+const editDeliveryRequest = () => {
+  const newRequest = prompt('배송 요청사항을 입력하세요:', deliveryInfo.value.request)
+  if (newRequest !== null) {
+    deliveryInfo.value.request = newRequest.trim() || '문 앞에 놓아주세요'
+  }
+}
+
+// 안전한 Base64 디코딩 함수
+const safeBase64Decode = (str) => {
+  try {
+    let base64 = str.replace(/-/g, '+').replace(/_/g, '/')
+    while (base64.length % 4) {
+      base64 += '='
+    }
+    return atob(base64)
+  } catch (error) {
+    throw error
+  }
+}
+
+// 토큰 유효성 검사 함수
+const isTokenValid = (token) => {
+  if (!token) return false
+
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return false
+
+    const payloadStr = safeBase64Decode(parts[1])
+    const payload = JSON.parse(payloadStr)
+    const currentTime = Math.floor(Date.now() / 1000)
+
+    if (payload.exp && payload.exp < currentTime) {
+      return false
+    }
+
+    return true
+  } catch (error) {
+    return false
+  }
+}
+
+// 인증 헤더 생성
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('token')
 
   const headers = {
     'Content-Type': 'application/json',
-    'X-User-Id': userId
+    'X-User-Id': user.id || 'guest_' + Date.now()
   }
 
-  if (token) {
+  if (token && isTokenValid(token) && user.id) {
     headers.Authorization = `Bearer ${token}`
-    console.log('JWT 토큰 사용:', token.substring(0, 20) + '...')
-  } else {
-    console.log('게스트 사용자 헤더 생성:', userId)
   }
 
   return headers
 }
 
-// 로그인 상태 확인 (관대한 버전)
+// 로그인 상태 확인
 const checkLoginStatus = () => {
-  const token = localStorage.getItem('auth_token') ||
-      localStorage.getItem('token') ||
-      localStorage.getItem('access_token') ||
-      sessionStorage.getItem('auth_token')
+  const token = localStorage.getItem('token')
 
-  isLoggedIn.value = !!token
-  console.log('체크아웃 페이지 로그인 상태:', isLoggedIn.value)
+  console.log('=== 로그인 상태 확인 ===')
+  console.log('Token exists:', !!token)
 
-  // 로그인되지 않았어도 게스트로 진행 허용
-  return true
+  if (token && isTokenValid(token)) {
+    setUserFromToken(token)
+    console.log('After setUserFromToken - user.id:', user.id)
+    console.log('After setUserFromToken - user:', user)
+    isLoggedIn.value = !!user.id
+  } else {
+    isLoggedIn.value = false
+    if (token && !isTokenValid(token)) {
+      localStorage.removeItem('token')
+    }
+  }
+
+  console.log('Final isLoggedIn:', isLoggedIn.value)
+  console.log('========================')
+
+  return isLoggedIn.value
 }
 
-// 사용자 정보 로드 (옵셔널)
+// 사용자 정보 로드
 const loadUserInfo = async () => {
   if (!isLoggedIn.value) {
-    // 게스트 사용자 기본 정보 설정
     userInfo.value = {
       name: '게스트 사용자',
       phone: '',
       email: ''
     }
+
+    deliveryInfo.value = {
+      address: '서울특별시 송파구 정현로 135',
+      detailAddress: '(어마덜랩터원) 7층 16층 한국스프트에이전시협의회',
+      zipCode: '05506',
+      request: '문 앞에 놓아주세요',
+      recipientName: '게스트 사용자',
+      recipientPhone: ''
+    }
     return
+  }
+
+  userInfo.value = {
+    name: user.name || '사용자',
+    phone: user.phone || '',
+    email: user.email || ''
   }
 
   try {
@@ -426,36 +635,31 @@ const loadUserInfo = async () => {
     if (response.data.success) {
       const userData = response.data.data
       userInfo.value = {
-        name: userData.name || userData.username || '사용자',
-        phone: userData.phone || '',
-        email: userData.email || ''
+        name: userData.name || user.name || '사용자',
+        phone: userData.phone || user.phone || '',
+        email: userData.email || user.email || ''
+      }
+
+      if (userData.zipcode || userData.address) {
+        deliveryInfo.value = {
+          address: userData.address || '',
+          detailAddress: userData.myaddress || '',
+          zipCode: userData.zipcode || '',
+          request: '문 앞에 놓아주세요',
+          recipientName: userData.name || user.name,
+          recipientPhone: userData.phone || user.phone || ''
+        }
       }
     }
   } catch (error) {
-    console.error('사용자 정보 로드 실패:', error)
-    // 에러가 발생해도 게스트로 진행
-    userInfo.value = {
-      name: '게스트 사용자',
-      phone: '',
-      email: ''
-    }
+    // API 실패해도 로그인 상태 유지
   }
 }
 
-// 배송지 정보 로드 (옵셔널)
+// 배송지 정보 로드
 const loadDeliveryInfo = async () => {
-  if (!isLoggedIn.value) {
-    // 게스트 사용자 기본 배송지 설정
-    deliveryInfo.value = {
-      address: '서울특별시 강남구',
-      detailAddress: '상세주소를 입력해주세요',
-      zipCode: '12345',
-      request: '문 앞에 놓아주세요',
-      recipientName: userInfo.value.name,
-      recipientPhone: ''
-    }
-    return
-  }
+  if (!isLoggedIn.value) return
+  if (deliveryInfo.value.address) return
 
   try {
     const response = await axios.get(`${API_BASE_URL}/api/users/addresses`, {
@@ -474,53 +678,34 @@ const loadDeliveryInfo = async () => {
       }
     }
   } catch (error) {
-    console.error('배송지 정보 로드 실패:', error)
-    // 에러가 발생해도 기본값으로 진행
+    // 로그인 상태 유지
   }
 }
 
-// 주문 데이터 로드 (세션에서)
+// 주문 데이터 로드
 const loadOrderData = () => {
   try {
     const checkoutData = sessionStorage.getItem('checkout_data')
     if (checkoutData) {
       const data = JSON.parse(checkoutData)
-      console.log('세션에서 체크아웃 데이터 로드:', data)
 
       if (data.items && data.items.length > 0) {
         orderItems.value = data.items
         orderAmount.value = data.totalPrice || data.totalAmount || 0
         productAmount.value = data.productAmount || orderAmount.value
-        deliveryFee.value = data.deliveryFee || 3000
+        deliveryFee.value = data.deliveryFee || 0
       } else {
-        console.warn('체크아웃 데이터에 상품이 없습니다.')
-        // 장바구니로 리다이렉트
         alert('주문할 상품이 없습니다. 장바구니로 이동합니다.')
         window.location.href = '/cart'
       }
     } else {
-      console.warn('세션에 체크아웃 데이터가 없습니다.')
       alert('주문 정보를 찾을 수 없습니다. 장바구니로 이동합니다.')
       window.location.href = '/cart'
     }
   } catch (error) {
-    console.error('주문 데이터 로드 실패:', error)
     alert('주문 정보 로드 중 오류가 발생했습니다.')
     window.location.href = '/cart'
   }
-}
-
-// 인증 에러 처리 (관대한 버전)
-const handleAuthError = () => {
-  console.log('인증 에러 발생, 게스트로 계속 진행')
-  isLoggedIn.value = false
-
-  // 토큰 정리 (선택적)
-  localStorage.removeItem('auth_token')
-  localStorage.removeItem('token')
-  localStorage.removeItem('access_token')
-
-  // 게스트로 계속 진행하도록 허용
 }
 
 // 메서드들
@@ -532,8 +717,10 @@ const formatPrice = (price) => {
   return price?.toLocaleString() || '0'
 }
 
-// 결제 처리 (개선된 버전)
+// 결제 처리
 const processPayment = async () => {
+  console.log('=== processPayment 함수 시작 ===')
+
   if (!canProceed.value) {
     alert('결제 정보를 확인해주세요.')
     return
@@ -541,71 +728,207 @@ const processPayment = async () => {
 
   try {
     loading.value = true
-    console.log('결제 처리 시작...')
 
-    // 주문 생성 API 호출
+    // 1. 주문 생성 (기존 로직)
     const orderData = {
-      userId: localStorage.getItem('user_id') || 'guest_' + Date.now(),
+      userId: user.id && user.id !== 'null' ? user.id : undefined,
       items: orderItems.value.map(item => ({
         productId: item.productId || item.id,
         productName: item.name,
         quantity: item.quantity,
         unitPrice: item.salePrice,
         totalPrice: item.salePrice * item.quantity,
-        imageUrl: item.image
+        imageUrl: item.image || ''
       })),
-      phone: userInfo.value.phone,
-      email: userInfo.value.email,
-      recipientName: deliveryInfo.value.recipientName,
-      recipientPhone: deliveryInfo.value.recipientPhone,
-      orderZipcode: deliveryInfo.value.zipCode,
-      orderAddressDetail: deliveryInfo.value.address + ' ' + deliveryInfo.value.detailAddress,
-      deliveryMemo: deliveryInfo.value.request,
+      phone: userInfo.value.phone || '',
+      email: userInfo.value.email || '',
+      recipientName: deliveryInfo.value.recipientName || userInfo.value.name || '수령인',
+      recipientPhone: deliveryInfo.value.recipientPhone || userInfo.value.phone || '',
+      orderZipcode: deliveryInfo.value.zipCode || '',
+      orderAddressDetail: deliveryInfo.value.address ?
+          (deliveryInfo.value.address + ' ' + deliveryInfo.value.detailAddress).trim() : '',
+      deliveryMemo: deliveryInfo.value.request || '',
       paymentMethod: selectedPayment.value,
       paymentMethodName: getPaymentMethodName(selectedPayment.value),
-      usedPoint: pointsToUse.value
+      usedPoint: pointsToUse.value || 0,
+      totalAmount: finalAmount.value
     }
 
-    console.log('주문 데이터:', orderData)
+    console.log('📤 주문 생성 요청:', orderData)
 
-    const response = await fetch(`${API_BASE_URL}/api/orders/checkout`, {
+    const orderResponse = await fetch(`${API_BASE_URL}/api/orders/checkout`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(orderData)
     })
 
-    if (!response.ok) {
-      let errorMessage = '주문 처리 중 오류가 발생했습니다.'
+    if (!orderResponse.ok) {
+      const errorData = await orderResponse.json()
+      throw new Error(errorData.message || '주문 생성 실패')
+    }
 
-      try {
-        const errorData = await response.json()
-        errorMessage = errorData.message || errorMessage
-      } catch (e) {
-        errorMessage = `서버 오류 (${response.status}): ${response.statusText}`
+    const orderResult = await orderResponse.json()
+    console.log('✅ 주문 생성 성공:', orderResult)
+
+    if (orderResult.success) {
+      // 2. PG사 결제 호출
+      console.log('💳 PG 결제 시작')
+      await initiatePayment({
+        orderId: orderResult.data.orderId,
+        amount: finalAmount.value,
+        orderName: `주문 ${orderResult.data.orderId}`,
+        userEmail: userInfo.value.email,
+        userName: userInfo.value.name,
+        userPhone: userInfo.value.phone
+      })
+    }
+  } catch (error) {
+    console.log('❌ 에러 발생:', error)
+    alert(`주문 처리 중 오류가 발생했습니다:\n${error.message}`)
+  } finally {
+    loading.value = false
+  }
+}
+
+// PG 결제 함수 (아임포트 예시)
+// Checkout.vue에서 아임포트 동적 로드
+const loadIamportScript = () => {
+  return new Promise((resolve, reject) => {
+    // 이미 로드되었는지 확인
+    if (typeof window.IMP !== 'undefined') {
+      resolve(window.IMP)
+      return
+    }
+
+    // 스크립트 태그 생성
+    const script = document.createElement('script')
+    script.src = 'https://cdn.iamport.kr/v1/iamport.js'
+    script.onload = () => {
+      if (typeof window.IMP !== 'undefined') {
+        console.log('✅ 아임포트 로드 완료')
+        resolve(window.IMP)
+      } else {
+        reject(new Error('아임포트 로드 실패'))
       }
+    }
+    script.onerror = () => reject(new Error('아임포트 스크립트 로드 에러'))
 
-      throw new Error(errorMessage)
+    document.head.appendChild(script)
+  })
+}
+
+// initiatePayment 함수 수정
+const initiatePayment = async (paymentData) => {
+  try {
+    console.log('📦 아임포트 스크립트 로드 중...')
+    const IMP = await loadIamportScript()
+
+    return new Promise((resolve, reject) => {
+      console.log('✅ 아임포트 모듈 확인:', typeof IMP)
+
+      // 공식 테스트 가맹점 코드 사용
+      IMP.init('imp19424728')
+
+      console.log('🚀 결제창 호출 시작')
+
+      IMP.request_pay({
+        pg: 'kakaopay.TC0ONETIME', // 카카오페이 테스트
+        pay_method: 'card',
+        merchant_uid: paymentData.orderId,
+        name: paymentData.orderName,
+        amount: 100, // 테스트용 100원
+        buyer_email: paymentData.userEmail,
+        buyer_name: paymentData.userName,
+        buyer_tel: paymentData.userPhone,
+      }, async (response) => {
+        try {
+          console.log('💳 결제 응답:', response)
+
+          if (response.success) {
+            console.log('✅ 결제 성공!')
+            console.log('결제 고유ID:', response.imp_uid)
+            console.log('주문번호:', response.merchant_uid)
+
+            // 🎉 결제 성공 처리
+            alert(`결제가 완료되었습니다!\n결제 금액: ${response.paid_amount}원`)
+
+            // 체크아웃 데이터 정리
+            sessionStorage.removeItem('checkout_data')
+
+            // 주문 완료 페이지로 이동
+            window.location.href = `/order-complete?orderId=${response.merchant_uid}&paymentId=${response.imp_uid}`
+
+            resolve(response)
+
+          } else {
+            // ❌ 결제 실패 처리
+            console.log('❌ 결제 실패:', response)
+
+            let failureReason = '알 수 없는 오류'
+            switch(response.error_code) {
+              case 'STOP_PAYMENT':
+                failureReason = '사용자가 결제를 취소했습니다'
+                break
+              case 'CARD_DECLINED':
+                failureReason = '카드 결제가 거절되었습니다'
+                break
+              case 'INSUFFICIENT_FUNDS':
+                failureReason = '잔액이 부족합니다'
+                break
+              default:
+                failureReason = response.error_msg || '결제 처리 중 오류가 발생했습니다'
+            }
+
+            alert(`결제 실패: ${failureReason}`)
+            reject(new Error(failureReason))
+          }
+
+        } catch (error) {
+          console.error('결제 응답 처리 중 오류:', error)
+          alert(`결제 처리 중 시스템 오류가 발생했습니다: ${error.message}`)
+          reject(error)
+        }
+      })
+    })
+
+  } catch (error) {
+    console.error('아임포트 초기화 실패:', error)
+    alert('결제 시스템을 초기화할 수 없습니다. 잠시 후 다시 시도해주세요.')
+    throw error
+  }
+}
+
+// 결제 검증 함수
+const verifyPayment = async (impUid, merchantUid) => {
+  try {
+    console.log('🔍 결제 검증 시작:', {impUid, merchantUid})
+
+    const response = await fetch(`${API_BASE_URL}/api/payments/verify`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        impUid: impUid,
+        merchantUid: merchantUid
+      })
+    })
+
+    if (!response.ok) {
+      throw new Error('결제 검증 실패')
     }
 
     const result = await response.json()
-    console.log('주문 결과:', result)
+    console.log('✅ 결제 검증 완료:', result)
 
     if (result.success) {
-      alert('주문이 완료되었습니다!')
-
-      // 세션 데이터 정리
+      alert('결제가 완료되었습니다!')
       sessionStorage.removeItem('checkout_data')
-
-      // 주문 완료 페이지로 이동
-      window.location.href = `/order-complete?orderId=${result.data.orderId}`
+      window.location.href = `/order-complete?orderId=${merchantUid}`
     } else {
-      throw new Error(result.message || '주문 처리에 실패했습니다.')
+      throw new Error(result.message || '결제 검증 실패')
     }
   } catch (error) {
-    console.error('결제 처리 실패:', error)
-    alert(`결제 처리 중 오류가 발생했습니다:\n${error.message}`)
-  } finally {
-    loading.value = false
+    console.error('결제 검증 오류:', error)
+    alert(`결제 검증 중 오류가 발생했습니다: ${error.message}`)
   }
 }
 
@@ -624,845 +947,15 @@ const getPaymentMethodName = (method) => {
   return methodNames[method] || '기타'
 }
 
-// 컴포넌트 마운트 시 실행 (수정된 버전)
+// 컴포넌트 마운트
 onMounted(async () => {
-  console.log('체크아웃 페이지 로드 시작')
-
-  // 로그인 상태 확인 (게스트도 허용)
   checkLoginStatus()
-
-  // 주문 데이터 로드 (필수)
   loadOrderData()
-
-  // 사용자 정보 로드 (옵셔널)
   await loadUserInfo()
-
-  // 배송지 정보 로드 (옵셔널)
   await loadDeliveryInfo()
-
-  console.log('체크아웃 페이지 초기화 완료')
 })
 </script>
 
-<style scoped>
-.checkout-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  background: #f8f9fa;
-  min-height: 100vh;
-  padding: 0 20px;
-  position: relative;
-}
 
-.checkout-header {
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  background: white;
-  padding: 16px 0;
-  display: flex;
-  align-items: center;
-  margin-bottom: 30px;
-  border-bottom: 1px solid #e5e7eb;
-}
+<style scoped src="@/assets/css/checkout.css"></style>
 
-.back-button {
-  background: none;
-  border: none;
-  padding: 8px;
-  cursor: pointer;
-  border-radius: 50%;
-  transition: background-color 0.2s;
-  margin-right: 16px;
-}
-
-.back-button:hover {
-  background: #f3f4f6;
-}
-
-.checkout-title {
-  font-size: 24px;
-  font-weight: 700;
-  color: #1f2937;
-  margin: 0;
-}
-
-.header-spacer {
-  flex: 1;
-}
-
-.checkout-content {
-  display: grid;
-  grid-template-columns: 1fr 350px;
-  gap: 40px;
-  margin-bottom: 40px;
-  align-items: start;
-  min-height: 100vh;
-}
-
-.order-form {
-  display: flex;
-  flex-direction: column;
-  gap: 32px;
-}
-
-.form-section {
-  background: white;
-  border-radius: 12px;
-  padding: 24px;
-  border: 1px solid #e5e7eb;
-}
-
-.section-title {
-  font-size: 18px;
-  font-weight: 700;
-  color: #1f2937;
-  margin: 0 0 20px 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.modify-btn {
-  background: none;
-  border: 1px solid #d1d5db;
-  color: #6b7280;
-  padding: 6px 12px;
-  border-radius: 4px;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-/* 주문 상품 */
-.order-items {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.order-item {
-  display: flex;
-  gap: 12px;
-  padding: 16px;
-  border: 1px solid #f3f4f6;
-  border-radius: 8px;
-}
-
-.item-image {
-  width: 60px;
-  height: 60px;
-  border-radius: 8px;
-  overflow: hidden;
-  background: #f3f4f6;
-}
-
-.item-image img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.item-details {
-  flex: 1;
-}
-
-.item-name {
-  font-size: 14px;
-  font-weight: 500;
-  color: #1f2937;
-  margin: 0 0 8px 0;
-}
-
-.item-price {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 4px;
-}
-
-.discount-rate {
-  color: #ef4444;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.final-price {
-  color: #1f2937;
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.item-quantity {
-  font-size: 12px;
-  color: #6b7280;
-}
-
-.delivery-notice {
-  margin-top: 16px;
-  padding: 12px;
-  background: #f8f9fa;
-  border-radius: 6px;
-}
-
-.delivery-text {
-  font-size: 14px;
-  color: #6b7280;
-}
-
-/* 주문자 정보 */
-.form-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.form-group {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-}
-
-.form-label {
-  min-width: 80px;
-  font-size: 14px;
-  font-weight: 500;
-  color: #374151;
-}
-
-.form-value {
-  font-size: 14px;
-  color: #1f2937;
-}
-
-.email-info {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.email-notice {
-  font-size: 12px;
-  color: #6b7280;
-}
-
-.email-notice p {
-  margin: 0;
-  line-height: 1.4;
-}
-
-/* 배송 정보 */
-.delivery-address {
-  display: flex;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
-.address-label {
-  min-width: 80px;
-  font-size: 14px;
-  font-weight: 500;
-  color: #374151;
-}
-
-.address-content {
-  flex: 1;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-}
-
-.address-content p {
-  margin: 0;
-  font-size: 14px;
-  color: #1f2937;
-  line-height: 1.4;
-}
-
-.change-btn, .edit-btn {
-  background: none;
-  border: 1px solid #d1d5db;
-  color: #6b7280;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.delivery-info-section {
-  display: flex;
-  gap: 16px;
-}
-
-.delivery-info-label {
-  min-width: 80px;
-  font-size: 14px;
-  font-weight: 500;
-  color: #374151;
-}
-
-.delivery-options {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.delivery-options span {
-  font-size: 14px;
-  color: #1f2937;
-}
-
-.delivery-options p {
-  margin: 0;
-  font-size: 12px;
-  color: #6b7280;
-}
-
-/* 결제 수단 */
-.payment-methods {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.payment-option {
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 16px;
-}
-
-.radio-container {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.radio-container input[type="radio"] {
-  display: none;
-}
-
-.radio-mark {
-  width: 18px;
-  height: 18px;
-  border: 2px solid #d1d5db;
-  border-radius: 50%;
-  position: relative;
-  transition: all 0.2s;
-}
-
-.radio-container input[type="radio"]:checked + .radio-mark {
-  border-color: #8b5cf6;
-  background: white;
-}
-
-.radio-container input[type="radio"]:checked + .radio-mark::after {
-  content: '';
-  position: absolute;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #8b5cf6;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-}
-
-.payment-label {
-  flex: 1;
-  color: #1f2937;
-}
-
-.recommended-badge {
-  background: #8b5cf6;
-  color: white;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 10px;
-  font-weight: 600;
-}
-
-.new-badge {
-  background: #10b981;
-  color: white;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 10px;
-  font-weight: 600;
-}
-
-.hot-badge {
-  background: #ef4444;
-  color: white;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 10px;
-  font-weight: 600;
-  margin-left: 4px;
-}
-
-.event-badge {
-  background: #f59e0b;
-  color: white;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 10px;
-  font-weight: 600;
-}
-
-.payment-notice {
-  margin-top: 8px;
-  font-size: 12px;
-  color: #6b7280;
-}
-
-.sub-payment-methods {
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid #f3f4f6;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.sub-payment-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.card-options {
-  display: flex;
-  gap: 8px;
-  margin-left: 26px;
-}
-
-.card-option-btn {
-  padding: 6px 12px;
-  border: 1px solid #d1d5db;
-  background: white;
-  border-radius: 4px;
-  font-size: 12px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.card-option-btn.active {
-  background: #8b5cf6;
-  color: white;
-  border-color: #8b5cf6;
-}
-
-.payment-notice-section {
-  margin-top: 20px;
-  padding: 16px;
-  background: #f8f9fa;
-  border-radius: 8px;
-}
-
-.notice-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #1f2937;
-  margin: 0 0 8px 0;
-}
-
-.notice-list {
-  margin: 0;
-  padding-left: 16px;
-  font-size: 12px;
-  color: #6b7280;
-  line-height: 1.4;
-}
-
-.notice-list li {
-  margin-bottom: 4px;
-}
-
-.details-link {
-  margin-top: 8px;
-  font-size: 12px;
-  color: #8b5cf6;
-  cursor: pointer;
-}
-
-/* 쿠폰 */
-.coupon-section {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.coupon-input-field {
-  width: 100%;
-  padding: 12px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  font-size: 14px;
-}
-
-.coupon-notice, .coupon-terms {
-  font-size: 12px;
-  color: #6b7280;
-  margin: 0;
-}
-
-.coupon-link {
-  font-size: 12px;
-  color: #3b82f6;
-  text-decoration: none;
-}
-
-/* 적립금 */
-.points-section {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.points-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 14px;
-}
-
-.points-label {
-  color: #374151;
-}
-
-.points-value {
-  color: #6b7280;
-}
-
-.points-amount {
-  color: #1f2937;
-  font-weight: 500;
-}
-
-.points-input-section {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.points-input {
-  flex: 1;
-  padding: 8px 12px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  font-size: 14px;
-  text-align: right;
-}
-
-.use-all-btn {
-  background: none;
-  border: 1px solid #d1d5db;
-  color: #6b7280;
-  padding: 8px 12px;
-  border-radius: 6px;
-  font-size: 12px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.points-info {
-  font-size: 12px;
-  color: #6b7280;
-}
-
-.points-info p {
-  margin: 0;
-  line-height: 1.4;
-}
-
-/* 컬리카드 혜택 */
-.kurlycard-section {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px;
-  background: #fef7cd;
-  border-radius: 8px;
-  border: 1px solid #f59e0b;
-}
-
-.kurlycard-info {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.card-status {
-  font-size: 12px;
-  color: #92400e;
-  font-weight: 500;
-}
-
-.card-discount {
-  font-size: 14px;
-  color: #1f2937;
-  font-weight: 600;
-}
-
-.card-apply-btn {
-  background: #f59e0b;
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-/* 결제 정보 (오른쪽) - CSS Sticky 방법 */
-.payment-summary {
-  position: -webkit-sticky;
-  position: sticky;
-  top: 20px;
-  height: fit-content;
-  align-self: flex-start;
-}
-
-.summary-card {
-  background: white;
-  border-radius: 12px;
-  border: 1px solid #e5e7eb;
-  overflow: hidden;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-}
-
-.summary-title {
-  font-size: 18px;
-  font-weight: 700;
-  color: #1f2937;
-  margin: 0;
-  padding: 24px 24px 0;
-}
-
-.summary-details {
-  padding: 20px 24px;
-}
-
-.summary-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.summary-row:last-of-type {
-  margin-bottom: 0;
-}
-
-.summary-label {
-  font-size: 14px;
-  color: #6b7280;
-  font-weight: 500;
-}
-
-.summary-value {
-  font-size: 14px;
-  color: #1f2937;
-  font-weight: 600;
-}
-
-.summary-divider {
-  height: 1px;
-  background: #e5e7eb;
-  margin: 16px 0;
-}
-
-.summary-row.total {
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid #e5e7eb;
-}
-
-.summary-row.total .summary-label {
-  font-weight: 700;
-  font-size: 16px;
-  color: #1f2937;
-}
-
-.summary-row.total .summary-value {
-  font-size: 20px;
-  font-weight: 700;
-  color: #1f2937;
-}
-
-.benefits-notice {
-  padding: 12px 24px;
-  background: #f0f9ff;
-  border-top: 1px solid #e5e7eb;
-  text-align: center;
-}
-
-.benefits-notice p {
-  margin: 0;
-  font-size: 12px;
-  color: #0369a1;
-}
-
-.checkout-btn {
-  width: 100%;
-  height: 56px;
-  background: #8b5cf6;
-  color: white;
-  border: none;
-  font-size: 16px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  border-radius: 0;
-}
-
-.checkout-btn:hover:not(:disabled) {
-  background: #7c3aed;
-}
-
-.checkout-btn:disabled {
-  background: #d1d5db;
-  cursor: not-allowed;
-}
-
-.agreement-text {
-  padding: 16px 24px;
-  text-align: center;
-  font-size: 11px;
-  color: #9ca3af;
-  line-height: 1.4;
-}
-
-/* 반응형 디자인 */
-@media (max-width: 1024px) {
-  .checkout-content {
-    grid-template-columns: 1fr;
-    gap: 20px;
-  }
-
-  .payment-summary {
-    position: static;
-    order: -1;
-    top: auto;
-  }
-}
-
-@media (max-width: 768px) {
-  .checkout-container {
-    padding: 0 16px;
-  }
-
-  .checkout-header {
-    padding: 12px 0;
-    margin-bottom: 20px;
-  }
-
-  .checkout-title {
-    font-size: 20px;
-  }
-
-  .checkout-content {
-    gap: 16px;
-  }
-
-  .form-section {
-    padding: 20px;
-  }
-
-  .section-title {
-    font-size: 16px;
-  }
-
-  .form-group {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-
-  .form-label {
-    min-width: auto;
-  }
-
-  .delivery-address,
-  .delivery-info-section {
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .address-label,
-  .delivery-info-label {
-    min-width: auto;
-  }
-
-  .address-content {
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .card-options {
-    margin-left: 0;
-    flex-wrap: wrap;
-  }
-
-  .points-input-section {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .kurlycard-section {
-    flex-direction: column;
-    gap: 12px;
-    text-align: center;
-  }
-}
-
-@media (max-width: 480px) {
-  .checkout-container {
-    padding: 0 12px;
-  }
-
-  .form-section {
-    padding: 16px;
-  }
-
-  .order-item {
-    padding: 12px;
-  }
-
-  .item-image {
-    width: 50px;
-    height: 50px;
-  }
-
-  .payment-option {
-    padding: 12px;
-  }
-
-  .sub-payment-methods {
-    margin-top: 12px;
-    padding-top: 12px;
-  }
-
-  .card-options {
-    gap: 4px;
-  }
-
-  .card-option-btn {
-    padding: 4px 8px;
-    font-size: 11px;
-  }
-
-  .summary-details {
-    padding: 16px 20px;
-  }
-
-  .summary-title {
-    padding: 20px 20px 0;
-    font-size: 16px;
-  }
-}
-</style>

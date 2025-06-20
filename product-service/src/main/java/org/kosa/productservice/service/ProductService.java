@@ -3,7 +3,9 @@ package org.kosa.productservice.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.kosa.productservice.client.CategoryServiceClient;
+import org.kosa.productservice.dto.GuestCartItemDTO;
 import org.kosa.productservice.dto.Product;
+import org.kosa.productservice.dto.ProductDetailDTO;
 import org.kosa.productservice.dto.ProductDto;
 import org.kosa.productservice.mapper.ProductRepository;
 import org.springframework.data.domain.PageRequest;
@@ -314,5 +316,40 @@ public class ProductService {
             images.add("https://via.placeholder.com/600x600?text=상품+이미지");
         }
         return images;
+    }
+
+    public List<ProductDetailDTO> getProductsForGuestCart(List<GuestCartItemDTO> cartItems) {
+        // 상품 ID 목록 추출
+        List<String> productIds = cartItems.stream()
+                .map(GuestCartItemDTO::getProductId)
+                .distinct()
+                .collect(Collectors.toList());
+
+        if (productIds.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        // 해당 상품들 ACTIVE 상태로 조회
+        List<Product> products = productRepository.findByProductIdInAndProductStatus(productIds, "ACTIVE");
+
+        // Product -> ProductDetailDTO 변환 (필요에 따라 변환 코드 작성)
+        List<ProductDetailDTO> productDetails = products.stream()
+                .map(product -> convertToProductDetailDTO(product))
+                .collect(Collectors.toList());
+
+        return productDetails;
+    }
+
+    // 변환 메서드 예시
+    private ProductDetailDTO convertToProductDetailDTO(Product product) {
+        return ProductDetailDTO.builder()
+                .productId(product.getProductId())
+                .name(product.getName())
+                .price(product.getPrice())
+                .salePrice(product.getSalePrice())
+                .mainImage(product.getMainImage())
+                .description(product.getProductDescription())
+                // 필요한 필드들 추가
+                .build();
     }
 }

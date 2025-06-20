@@ -5,7 +5,6 @@
     <div class="d-flex align-items-center gap-2">
       <router-link to="/" class="navbar-brand">트라이마켓</router-link>
       <router-link to="/" class="navbar-brand">홈</router-link>
-      <router-link to="/" class="navbar-brand">이벤트</router-link>
       <router-link to="/" class="navbar-brand">예고</router-link>
       <router-link to="/category" class="navbar-brand">카테고리</router-link>
     </div>
@@ -32,14 +31,8 @@
 
         <!-- 드롭다운 메뉴 -->
         <div class="dropdown-menu" :class="{ 'show': isDropdownVisible }">
-          <router-link to="/mypage" class="dropdown-item" @click="hideDropdown">
+          <router-link to="/mypage/orders" class="dropdown-item" @click="hideDropdown">
             <i class="fas fa-user"></i> 마이페이지
-          </router-link>
-          <router-link to="/orders" class="dropdown-item" @click="hideDropdown">
-            <i class="fas fa-shopping-bag"></i> 주문내역
-          </router-link>
-          <router-link to="/coupons" class="dropdown-item" @click="hideDropdown">
-            <i class="fas fa-ticket-alt"></i> 쿠폰
           </router-link>
           <router-link to="/profile" class="dropdown-item" @click="hideDropdown">
             <i class="fas fa-cog"></i> 회원정보관리
@@ -50,6 +43,8 @@
           </button>
         </div>
       </div>
+      <!-- 🛒 장바구니 아이콘 -->
+      <router-link to="/cart" class="navbar-brand mx-2" title="장바구니">🛒</router-link>
     </div>
   </nav>
 </template>

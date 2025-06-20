@@ -20,5 +20,7 @@ public class CheckoutRequestDTO {
     private String paymentMethod;
     private String paymentMethodName;
     private Integer usedPoint;
+    private Integer totalAmount;
     private List<CheckoutItemDTO> items;
+    private String orderStatus;
 }

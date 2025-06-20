@@ -45,14 +45,18 @@ public class JwtUtil {
     /**
      * 토큰 생성
      */
-    public String generateToken(Long userId, String username, String name) {
+    public String generateToken(Long userId, String username, String name, String email, String phone) {
         Date now = new Date();
         Date expireDate = new Date(now.getTime() + expiration);
 
         return Jwts.builder()
-                .setSubject(username)
-                .claim("userId", userId)
-                .claim("name", name)
+                .setSubject(String.valueOf(userId))  // 🔥 Gateway에서 claims.getSubject()로 사용자 ID를 가져옴
+
+                .claim("username", username)         // username은 별도 claim으로
+                .claim("name", name)                 // Gateway에서 claims.get("name", String.class)로 사용
+                .claim("email", email)               // Gateway에서 claims.get("email", String.class)로 사용
+                .claim("phone", phone)               // Gateway에서 claims.get("phone", String.class)로 사용
+                .claim("role", "USER")               // 기본 역할 추가 (필요시)
                 .setIssuer("auth-service")
                 .setIssuedAt(now)
                 .setExpiration(expireDate)
@@ -61,12 +65,12 @@ public class JwtUtil {
     }
 
     /**
-     * 토큰에서 사용자명 추출
+     * 토큰에서 사용자명 추출 🔥 수정됨
      */
     public String getUsernameFromToken(String token) {
         try {
             Claims claims = parseToken(token);
-            return claims.getSubject();
+            return claims.get("username", String.class);  // 🔥 subject가 아닌 username claim에서 가져옴
         } catch (Exception e) {
             log.error("토큰에서 사용자명 추출 실패: {}", e.getMessage());
             return null;
@@ -74,12 +78,13 @@ public class JwtUtil {
     }
 
     /**
-     * 토큰에서 사용자 ID 추출
+     * 토큰에서 사용자 ID 추출 🔥 수정됨
      */
     public Long getUserIdFromToken(String token) {
         try {
             Claims claims = parseToken(token);
-            return claims.get("userId", Long.class);
+            String userIdStr = claims.getSubject();  // 🔥 subject에서 userId를 가져옴
+            return Long.valueOf(userIdStr);
         } catch (Exception e) {
             log.error("토큰에서 사용자 ID 추출 실패: {}", e.getMessage());
             return null;
@@ -100,12 +105,38 @@ public class JwtUtil {
     }
 
     /**
-     * 만료된 토큰에서 사용자명 추출 (토큰 갱신용)
+     * 🔥 새로 추가: 토큰에서 이메일 추출
+     */
+    public String getEmailFromToken(String token) {
+        try {
+            Claims claims = parseToken(token);
+            return claims.get("email", String.class);
+        } catch (Exception e) {
+            log.error("토큰에서 이메일 추출 실패: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 🔥 새로 추가: 토큰에서 휴대폰 추출
+     */
+    public String getPhoneFromToken(String token) {
+        try {
+            Claims claims = parseToken(token);
+            return claims.get("phone", String.class);
+        } catch (Exception e) {
+            log.error("토큰에서 휴대폰 추출 실패: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 만료된 토큰에서 사용자명 추출 (토큰 갱신용) 🔥 수정됨
      */
     public String getUsernameFromExpiredToken(String token) {
         try {
             Claims claims = parseExpiredToken(token);
-            return claims.getSubject();
+            return claims.get("username", String.class);  // 🔥 subject가 아닌 username claim에서 가져옴
         } catch (Exception e) {
             log.error("만료된 토큰에서 사용자명 추출 실패: {}", e.getMessage());
             return null;
@@ -113,12 +144,13 @@ public class JwtUtil {
     }
 
     /**
-     * 만료된 토큰에서 사용자 ID 추출 (토큰 갱신용)
+     * 만료된 토큰에서 사용자 ID 추출 (토큰 갱신용) 🔥 수정됨
      */
     public Long getUserIdFromExpiredToken(String token) {
         try {
             Claims claims = parseExpiredToken(token);
-            return claims.get("userId", Long.class);
+            String userIdStr = claims.getSubject();  // 🔥 subject에서 userId를 가져옴
+            return Long.valueOf(userIdStr);
         } catch (Exception e) {
             log.error("만료된 토큰에서 사용자 ID 추출 실패: {}", e.getMessage());
             return null;
@@ -134,6 +166,32 @@ public class JwtUtil {
             return claims.get("name", String.class);
         } catch (Exception e) {
             log.error("만료된 토큰에서 이름 추출 실패: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 🔥 새로 추가: 만료된 토큰에서 이메일 추출
+     */
+    public String getEmailFromExpiredToken(String token) {
+        try {
+            Claims claims = parseExpiredToken(token);
+            return claims.get("email", String.class);
+        } catch (Exception e) {
+            log.error("만료된 토큰에서 이메일 추출 실패: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 🔥 새로 추가: 만료된 토큰에서 휴대폰 추출
+     */
+    public String getPhoneFromExpiredToken(String token) {
+        try {
+            Claims claims = parseExpiredToken(token);
+            return claims.get("phone", String.class);
+        } catch (Exception e) {
+            log.error("만료된 토큰에서 휴대폰 추출 실패: {}", e.getMessage());
             return null;
         }
     }

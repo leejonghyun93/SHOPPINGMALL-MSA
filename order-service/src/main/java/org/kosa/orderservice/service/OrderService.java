@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -50,7 +51,7 @@ public class OrderService {
             // 5. 주문 엔티티 생성
             Order order = Order.builder()
                     .userId(request.getUserId())
-                    .orderStatus("ORDER_COMPLETED")  // 주문완료
+                    .orderStatus(request.getOrderStatus())  // 주문완료
                     .phone(request.getPhone())
                     .email(request.getEmail())
                     .recipientName(request.getRecipientName())
@@ -122,24 +123,66 @@ public class OrderService {
             throw new RuntimeException("주문 목록 조회 중 오류가 발생했습니다.");
         }
     }
+    // OrderService.java
+    // OrderService.java의 convertToDTO 메서드에서
+    public OrderDTO getOrderDetailByOrderId(String orderId) {
+        log.info("주문 조회 시작: orderId={}", orderId);
 
-    /**
-     * 주문 상세 조회
-     */
-    @Transactional(readOnly = true)
-    public OrderDTO getOrderDetail(String orderId, String userId) {
-        try {
-            log.info("주문 상세 조회: orderId={}, userId={}", orderId, userId);
+        // 1. 주문 기본 정보 조회
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("주문을 찾을 수 없습니다: " + orderId));
+        log.info("주문 정보 조회 성공: {}", order.getOrderId());
 
-            Order order = orderRepository.findByOrderIdAndUserId(orderId, userId)
-                    .orElseThrow(() -> new RuntimeException("주문을 찾을 수 없습니다: " + orderId));
+        // 2. 주문 상품들 조회
+        List<OrderItem> orderItems = orderItemRepository.findByOrderId(orderId);
+        log.info("주문 상품 조회 결과: {}개", orderItems.size());
 
-            return convertToOrderDTO(order);
-
-        } catch (Exception e) {
-            log.error("주문 상세 조회 실패: {}", e.getMessage(), e);
-            throw new RuntimeException("주문 상세 조회 중 오류가 발생했습니다.");
+        // 디버깅을 위한 로그 추가
+        for (OrderItem item : orderItems) {
+            log.info("주문 상품: id={}, name={}, quantity={}",
+                    item.getOrderItemId(), item.getName(), item.getQuantity());
         }
+
+        // 3. DTO 변환
+        OrderDTO orderDTO = convertToDTO(order);
+        List<OrderItemDTO> itemDTOs = orderItems.stream()
+                .map(this::convertToOrderItemDTO)
+                .collect(Collectors.toList());
+
+        // 🔧 수정: setItems 또는 setOrderItems 사용 (둘 다 가능)
+        orderDTO.setItems(itemDTOs);  // 또는 orderDTO.setOrderItems(itemDTOs);
+        log.info("최종 OrderDTO 생성 완료: 상품 {}개", itemDTOs.size());
+
+        return orderDTO;
+    }
+
+    // getOrderDetail 메서드도 동일하게 수정
+    public OrderDTO getOrderDetail(String orderId, String userId) {
+        log.info("사용자별 주문 조회: orderId={}, userId={}", orderId, userId);
+
+        // 1. 주문 조회 및 권한 검증
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("주문을 찾을 수 없습니다: " + orderId));
+
+        // 주문한 사용자가 맞는지 확인
+        if (!order.getUserId().equals(userId)) {
+            throw new RuntimeException("주문 조회 권한이 없습니다");
+        }
+
+        // 2. 주문 상품들 조회
+        List<OrderItem> orderItems = orderItemRepository.findByOrderId(orderId);
+        log.info("사용자별 주문 상품 조회 결과: {}개", orderItems.size());
+
+        // 3. DTO 변환
+        OrderDTO orderDTO = convertToDTO(order);
+        List<OrderItemDTO> itemDTOs = orderItems.stream()
+                .map(this::convertToOrderItemDTO)
+                .collect(Collectors.toList());
+
+        // 🔧 수정
+        orderDTO.setItems(itemDTOs);  // 또는 orderDTO.setOrderItems(itemDTOs);
+
+        return orderDTO;
     }
 
     /**
@@ -213,7 +256,37 @@ public class OrderService {
             throw new RuntimeException("주문 목록 조회 중 오류가 발생했습니다.");
         }
     }
-
+    /**
+     * Order 엔티티를 OrderDTO로 변환
+     */
+    private OrderDTO convertToDTO(Order order) {
+        return OrderDTO.builder()
+                .orderId(order.getOrderId())
+                .userId(order.getUserId())
+                .orderDate(order.getOrderDate())
+                .orderStatus(order.getOrderStatus())
+                .phone(order.getPhone())
+                .email(order.getEmail())
+                .recipientName(order.getRecipientName())
+                .recipientPhone(order.getRecipientPhone())
+                .orderZipcode(order.getOrderZipcode())
+                .orderAddressDetail(order.getOrderAddressDetail())
+                .deliveryMemo(order.getDeliveryMemo())
+                .totalPrice(order.getTotalPrice())
+                .deliveryFee(order.getDeliveryFee())
+                .discountAmount(order.getDiscountAmount())
+                .usedPoint(order.getUsedPoint())
+                .paymentMethod(order.getPaymentMethod())
+                .savedPoint(order.getSavedPoint())
+                .paymentMethodName(order.getPaymentMethodName())
+                .shippingDate(order.getShippingDate())
+                .estimatedDate(order.getEstimatedDate())
+                .trackingNumber(order.getTrackingNumber())
+                .deliveryCompany(order.getDeliveryCompany())
+                .createdDate(order.getCreatedDate())
+                .updatedDate(order.getUpdatedDate())
+                .build();
+    }
     /**
      * Order 엔티티를 OrderDTO로 변환
      */
@@ -250,7 +323,7 @@ public class OrderService {
                 .deliveryCompany(order.getDeliveryCompany())
                 .createdDate(order.getCreatedDate())
                 .updatedDate(order.getUpdatedDate())
-                .orderItems(orderItemDTOs)
+                .items(orderItemDTOs)
                 .build();
     }
 
@@ -262,7 +335,7 @@ public class OrderService {
                 .orderItemId(orderItem.getOrderItemId())
                 .orderId(orderItem.getOrderId())
                 .productId(orderItem.getProductId())
-                .name(orderItem.getName())
+                .name(orderItem.getName())  // DB의 NAME 컬럼 → productName으로 변환
                 .quantity(orderItem.getQuantity())
                 .status(orderItem.getStatus())
                 .totalPrice(orderItem.getTotalPrice())
@@ -271,5 +344,13 @@ public class OrderService {
                 .createdDate(orderItem.getCreatedDate())
                 .updatedDate(orderItem.getUpdatedDate())
                 .build();
+    }
+
+    public List<String> getAllOrderIds() {
+        return orderRepository.findAllOrderIds();
+    }
+
+    public boolean orderExists(String orderId) {
+        return orderRepository.existsById(orderId);
     }
 }

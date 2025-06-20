@@ -1,5 +1,6 @@
 package org.kosa.orderservice.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 
 import java.time.LocalDateTime;
@@ -34,6 +35,13 @@ public class OrderDTO {
     private String deliveryCompany;
     private LocalDateTime createdDate;
     private LocalDateTime updatedDate;
+    @JsonProperty("items")
+    private List<OrderItemDTO> items;
+    public void setOrderItems(List<OrderItemDTO> orderItems) {
+        this.items = orderItems;
+    }
 
-    private List<OrderItemDTO> orderItems;
+    public List<OrderItemDTO> getOrderItems() {
+        return this.items;
+    }
 }

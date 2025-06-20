@@ -124,4 +124,8 @@ public interface ProductRepository extends JpaRepository<Product, String> {
     @Query(value = "SELECT DISTINCT CATEGORY_ID FROM tb_product WHERE PRODUCT_STATUS = 'ACTIVE' ORDER BY CATEGORY_ID",
             nativeQuery = true)
     List<String> findAllActiveCategoryIds();
+
+    @Query("SELECT p FROM Product p WHERE p.productId IN :productIds AND p.productStatus = :productStatus")
+    List<Product> findByProductIdInAndProductStatus(@Param("productIds") List<String> productIds, @Param("productStatus") String productStatus);
+
 }

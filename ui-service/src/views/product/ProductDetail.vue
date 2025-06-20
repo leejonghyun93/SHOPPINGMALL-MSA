@@ -310,7 +310,23 @@ const isAuthenticated = () => {
 
 // 🔥 제거: setupAxiosInterceptors 함수 삭제 (apiClient에서 처리)
 
-const getDiscountRate = () => product.value?.discountRate || product.value?.discount || 0
+const getDiscountRate = () => {
+  if (!product.value) return 0;
+
+  if (product.value.salePrice > 0 && product.value.price > 0) {
+    const discountAmount = product.value.price - product.value.salePrice;
+    const discountRate = Math.floor((discountAmount / product.value.price) * 100);
+
+    // 할인율 제한: 0% ~ 99%
+    if (discountRate <= 0 || discountRate >= 100) {
+      return 0;
+    }
+
+    return discountRate;
+  }
+
+  return 0;
+};
 const getAverageRating = () => product.value?.averageRating || product.value?.productRating || 4.5
 const getReviewCount = () => product.value?.reviewCount || product.value?.productReviewCount || 0
 
@@ -387,6 +403,7 @@ const toggleNotification = () => {
 }
 
 // 🔥 수정: handleAddToCart 함수 완전 개선
+// 🔥 수정: handleAddToCart 함수 완전 개선
 const handleAddToCart = async () => {
   console.log('🛒 장바구니 담기 시작');
 
@@ -399,10 +416,10 @@ const handleAddToCart = async () => {
   const cartItem = {
     productId: product.value.productId,
     quantity: quantity.value,
-    productOptionId: null
+    productOptionId: 'defaultOptionId' // ✅ 기본값 추가
   };
 
-  // 🔍 토큰 상태 상세 확인
+  // 🔍 토큰 상태 확인
   const token = localStorage.getItem('token');
   console.log('🔐 토큰 확인:', {
     exists: !!token,
@@ -410,81 +427,82 @@ const handleAddToCart = async () => {
     preview: token ? token.substring(0, 50) + '...' : 'No token'
   });
 
-  if (token) {
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      console.log('🔍 JWT 페이로드:', {
-        sub: payload.sub,
-        name: payload.name,
-        iss: payload.iss,
-        exp: new Date(payload.exp * 1000),
-        valid: payload.exp > Date.now() / 1000
-      });
-    } catch (e) {
-      console.error('❌ JWT 디코딩 실패:', e);
-    }
-  }
+  // ✅ 로그인 상태 확인 개선
+  const isLoggedIn = !!token && isAuthenticated();
+  console.log('🔐 로그인 상태:', isLoggedIn);
 
   // 비인증 사용자 처리
-  if (!isAuthenticated()) {
+  if (!isLoggedIn) {
     console.log('🔓 비인증 사용자 - 로컬 스토리지 사용');
-    // ... 기존 로컬 스토리지 로직
-    return;
-  }
 
-  // 🔍 Manual 요청 테스트 (디버깅용)
-  try {
-    console.log('📡 수동 요청 테스트 시작');
+    const localCart = JSON.parse(localStorage.getItem('guestCart') || '[]')
 
-    const headers = {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json'
-    };
+    const existingIndex = localCart.findIndex(item => item.productId === cartItem.productId)
 
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+    if (existingIndex >= 0) {
+      // 이미 담긴 상품이면 수량 증가
+      localCart[existingIndex].quantity += cartItem.quantity
+    } else {
+      // 새로운 상품이면 추가
+      localCart.push(cartItem)
     }
 
-    console.log('📤 요청 헤더:', headers);
-    console.log('📦 요청 데이터:', cartItem);
+    localStorage.setItem('guestCart', JSON.stringify(localCart))
 
-    const response = await fetch('/api/cart', {
-      method: 'POST',
-      headers: headers,
-      body: JSON.stringify(cartItem)
+    const goToCart = confirm('장바구니에 추가되었습니다! 장바구니로 이동하시겠습니까?')
+    if (goToCart) {
+      router.push('/cart')
+    }
+
+    return
+  }
+
+  // ✅ 로그인한 사용자 - 서버 API 호출
+  try {
+    console.log('📡 서버 API 호출 시작');
+
+    // ✅ apiClient 사용 (Authorization 헤더 자동 처리)
+    const response = await apiClient.post('/api/cart', cartItem, {
+      withAuth: true // ✅ 명시적으로 인증 헤더 포함
     });
 
-    console.log('📨 응답 상태:', response.status);
-    console.log('📨 응답 헤더:', Object.fromEntries(response.headers.entries()));
+    console.log('✅ 서버 응답:', response.data);
 
-    if (response.ok) {
-      const data = await response.json();
-      console.log('✅ 응답 데이터:', data);
-
+    if (response.data.success) {
       const goToCart = confirm('장바구니에 추가되었습니다! 장바구니로 이동하시겠습니까?');
       if (goToCart) {
         router.push('/cart');
       }
     } else {
-      const errorText = await response.text();
-      console.error('❌ 에러 응답:', {
-        status: response.status,
-        statusText: response.statusText,
-        body: errorText
-      });
-
-      if (response.status === 401) {
-        alert('인증이 필요합니다. 다시 로그인해주세요.');
-        localStorage.removeItem('token');
-        router.push('/login');
-      } else {
-        alert(`요청 실패: ${response.status} ${response.statusText}`);
-      }
+      alert(response.data.message || '장바구니 추가에 실패했습니다.');
     }
 
   } catch (error) {
-    console.error('❌ 네트워크 오류:', error);
-    alert('네트워크 오류가 발생했습니다.');
+    console.error('❌ 서버 API 호출 실패:', error);
+
+    // ✅ 에러 상세 정보 출력
+    if (error.response) {
+      console.error('❌ 응답 에러:', {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        data: error.response.data
+      });
+
+      if (error.response.status === 401) {
+        alert('인증이 만료되었습니다. 다시 로그인해주세요.');
+        localStorage.removeItem('token');
+        router.push('/login');
+        return;
+      }
+
+      alert(`요청 실패: ${error.response.status} ${error.response.statusText}`);
+    } else if (error.request) {
+      console.error('❌ 네트워크 에러:', error.request);
+      alert('네트워크 오류가 발생했습니다.');
+    } else {
+      console.error('❌ 기타 에러:', error.message);
+      alert('장바구니 추가 중 오류가 발생했습니다.');
+    }
   }
 };
 
@@ -499,15 +517,23 @@ const getCurrentImage = () => {
 }
 
 const getFinalPrice = () => {
-  if (!product.value) return 0
-  if (product.value.salePrice > 0) return product.value.salePrice
-  if (product.value.discountPrice > 0) return product.value.discountPrice
-  const discountRate = getDiscountRate()
-  if (discountRate > 0 && product.value.price) {
-    return Math.floor(product.value.price * (100 - discountRate) / 100)
+  if (!product.value) return 0;
+
+  // salePrice가 유효하면 사용
+  if (product.value.salePrice > 0 && product.value.salePrice < product.value.price) {
+    return product.value.salePrice;
   }
-  return product.value.price || 0
-}
+
+  // 그렇지 않으면 원가격
+  return product.value.price || 0;
+};
+const hasDiscount = () => {
+  const discountRate = getDiscountRate();
+  const finalPrice = getFinalPrice();
+  const originalPrice = product.value?.price || 0;
+
+  return discountRate > 0 && finalPrice < originalPrice;
+};
 
 const formatPrice = (price) => price?.toLocaleString() || '0'
 const formatDate = (date) => new Date(date).toLocaleDateString('ko-KR')

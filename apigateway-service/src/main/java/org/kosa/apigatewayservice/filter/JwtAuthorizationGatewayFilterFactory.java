@@ -75,6 +75,8 @@ public class JwtAuthorizationGatewayFilterFactory extends AbstractGatewayFilterF
                 ServerHttpRequest modifiedRequest = exchange.getRequest().mutate()
                         .header("X-User-Id", claims.getSubject())
                         .header("X-User-Name", claims.get("name", String.class))
+                        .header("X-User-Email", claims.get("email", String.class))
+                        .header("X-User-Phone", claims.get("phone", String.class))
                         .header("X-User-Role", "USER")
                         .build();
 
@@ -91,7 +93,7 @@ public class JwtAuthorizationGatewayFilterFactory extends AbstractGatewayFilterF
     }
 
     /**
-     * 🔥 공개 경로 판단 (메서드별로 세분화)
+     * 🔥 공개 경로 판단 (메서드별로 세분화) - ✅ 주문 조회 GET 추가
      */
     private boolean isPublicPath(String path, HttpMethod method) {
         // 🔥 인증/회원가입 관련 경로
@@ -99,53 +101,21 @@ public class JwtAuthorizationGatewayFilterFactory extends AbstractGatewayFilterF
             return true;
         }
 
-        // 🔥 사용자 서비스 공개 경로
-        if (path.equals("/api/users/register") && method == HttpMethod.POST) {
-            return true;
-        }
-        if (path.equals("/api/users/checkUserId") || path.startsWith("/api/users/checkUserId")) {
-            return true;
-        }
-        if (path.equals("/api/users/health") || path.equals("/api/users/list")) {
-            return true;
-        }
-        if (path.equals("/api/users/verify-password") && method == HttpMethod.POST) {
-            return true;
-        }
-        if (path.equals("/api/users/profile") && (method == HttpMethod.GET || method == HttpMethod.PUT)) {
+        // ✅ 주문 서비스 공개 경로 확장
+        if (path.equals("/api/orders/checkout") && (method == HttpMethod.GET || method == HttpMethod.POST)) {
             return true;
         }
 
-        // 🔥 카테고리 서비스 (GET 요청만 공개)
-        if (path.startsWith("/api/categories") && method == HttpMethod.GET) {
+        // 🔧 주문 상세 조회도 공개 (주문 완료 페이지에서 사용)
+        if (path.startsWith("/api/orders/") && method == HttpMethod.GET) {
+            log.info("Order detail GET request allowed: {}", path);
             return true;
         }
 
-        // 🔥 상품 서비스 (GET 요청만 공개)
-        if (path.startsWith("/api/products") && method == HttpMethod.GET) {
+        if (path.startsWith("/api/checkout/") && (method == HttpMethod.GET || method == HttpMethod.POST)) {
             return true;
         }
 
-        // 🛒 Cart Service 공개 경로 추가 (임시 - 실제로는 인증 필요)
-        if (path.startsWith("/api/cart")) {
-            log.info("Cart API accessed without authentication: {} [{}]", path, method);
-            return true;  // 현재는 테스트를 위해 모든 Cart API를 공개
-        }
-
-        // 🔥 이미지 서비스 (GET 요청만 공개)
-        if (path.startsWith("/api/images") && method == HttpMethod.GET) {
-            return true;
-        }
-
-        // 🔥 정적 리소스 (이미지, CSS, JS 등)
-        if (path.startsWith("/images/") || path.startsWith("/static/") || path.startsWith("/assets/")) {
-            return true;
-        }
-
-        // 🔥 Actuator Health Check
-        if (path.startsWith("/actuator/health")) {
-            return true;
-        }
 
         return false;
     }
