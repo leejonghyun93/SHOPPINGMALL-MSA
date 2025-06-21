@@ -1,17 +1,17 @@
 package org.kosa.productservice.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.kosa.productservice.dto.ApiResponse;
 import org.kosa.productservice.dto.GuestCartItemDTO;
 import org.kosa.productservice.dto.ProductDetailDTO;
 import org.kosa.productservice.dto.ProductDto;
+import org.kosa.productservice.service.EnhancedProductService;
 import org.kosa.productservice.service.ProductService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/products")
@@ -20,11 +20,12 @@ import java.util.stream.Collectors;
 public class ProductApiController {
 
     private final ProductService productService;
+    private final EnhancedProductService enhancedProductService;
 
     // ================== 메인 API 엔드포인트들 ==================
 
     /**
-     * 상품 상세 조회 (ID로 조회)
+     * 상품 상세 조회 (기본 - 하위 호환성 유지)
      */
     @GetMapping("/{productId}")
     public ResponseEntity<ProductDto> getProductDetail(@PathVariable String productId) {
@@ -49,15 +50,47 @@ public class ProductApiController {
     }
 
     /**
+     * 상품 상세 조회 (이미지 포함)
+     */
+    @GetMapping("/{productId}/with-images")
+    public ResponseEntity<ApiResponse<ProductDto>> getProductDetailWithImages(@PathVariable String productId) {
+        try {
+            log.info("상품 상세 조회 (이미지 포함) 요청 - productId: {}", productId);
+
+            ProductDto product = enhancedProductService.getProductDetail(productId);
+            if (product == null) {
+                log.warn("상품을 찾을 수 없음 - productId: {}", productId);
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("상품을 찾을 수 없습니다."));
+            }
+
+            log.info("상품 상세 조회 (이미지 포함) 성공 - productId: {}", productId);
+            return ResponseEntity.ok(ApiResponse.success(product));
+        } catch (Exception e) {
+            log.error("상품 상세 조회 (이미지 포함) 실패 - productId: {}, error: {}", productId, e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("상품 조회 실패: " + e.getMessage()));
+        }
+    }
+
+    /**
      * 전체 상품 조회
      */
     @GetMapping
     public ResponseEntity<List<ProductDto>> getAllProducts(
-            @RequestParam(defaultValue = "20") int limit) {
+            @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(defaultValue = "false") boolean includeImages) {
 
         try {
-            log.info("전체 상품 조회 요청 - limit: {}", limit);
-            List<ProductDto> products = productService.getAllProducts(limit);
+            log.info("전체 상품 조회 요청 - limit: {}, includeImages: {}", limit, includeImages);
+
+            List<ProductDto> products;
+            if (includeImages) {
+                products = enhancedProductService.getProductList(limit);
+            } else {
+                products = productService.getAllProducts(limit);
+            }
+
             log.info("전체 상품 조회 결과: {}개", products.size());
             return ResponseEntity.ok(products);
         } catch (Exception e) {
@@ -67,21 +100,51 @@ public class ProductApiController {
     }
 
     /**
+     * 전체 상품 조회 (이미지 포함 - API Response 형태)
+     */
+    @GetMapping("/with-images")
+    public ResponseEntity<ApiResponse<List<ProductDto>>> getAllProductsWithImages(
+            @RequestParam(defaultValue = "20") int limit) {
+
+        try {
+            log.info("전체 상품 조회 (이미지 포함) 요청 - limit: {}", limit);
+
+            List<ProductDto> products = enhancedProductService.getProductList(limit);
+
+            log.info("전체 상품 조회 (이미지 포함) 결과: {}개", products.size());
+            return ResponseEntity.ok(ApiResponse.success(products));
+        } catch (Exception e) {
+            log.error("전체 상품 조회 (이미지 포함) 실패 - error: {}", e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("상품 목록 조회 실패: " + e.getMessage()));
+        }
+    }
+
+    /**
      * Vue 프론트엔드용 - 카테고리별 상품 조회
      */
     @GetMapping("/filter")
     public ResponseEntity<List<ProductDto>> getProductsByFilter(
             @RequestParam(defaultValue = "ALL") String categoryId,
-            @RequestParam(defaultValue = "10") Integer limit) {
+            @RequestParam(defaultValue = "10") Integer limit,
+            @RequestParam(defaultValue = "false") boolean includeImages) {
 
         try {
-            log.info("카테고리별 상품 조회 - categoryId: {}, limit: {}", categoryId, limit);
+            log.info("카테고리별 상품 조회 - categoryId: {}, limit: {}, includeImages: {}", categoryId, limit, includeImages);
 
             List<ProductDto> products;
-            if ("ALL".equals(categoryId)) {
-                products = productService.getAllProducts(limit);
+            if (includeImages) {
+                if ("ALL".equals(categoryId)) {
+                    products = enhancedProductService.getProductList(limit);
+                } else {
+                    products = enhancedProductService.getProductsByCategory(categoryId, limit);
+                }
             } else {
-                products = productService.getProductsByCategory(categoryId, limit);
+                if ("ALL".equals(categoryId)) {
+                    products = productService.getAllProducts(limit);
+                } else {
+                    products = productService.getProductsByCategory(categoryId, limit);
+                }
             }
 
             log.info("카테고리별 상품 조회 결과: {}개", products.size());
@@ -98,11 +161,19 @@ public class ProductApiController {
     @GetMapping("/category/{categoryId}")
     public ResponseEntity<List<ProductDto>> getProductsByCategory(
             @PathVariable String categoryId,
-            @RequestParam(defaultValue = "20") int limit) {
+            @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(defaultValue = "false") boolean includeImages) {
 
         try {
-            log.info("카테고리별 상품 조회 - categoryId: {}, limit: {}", categoryId, limit);
-            List<ProductDto> products = productService.getProductsByCategory(categoryId, limit);
+            log.info("카테고리별 상품 조회 - categoryId: {}, limit: {}, includeImages: {}", categoryId, limit, includeImages);
+
+            List<ProductDto> products;
+            if (includeImages) {
+                products = enhancedProductService.getProductsByCategory(categoryId, limit);
+            } else {
+                products = productService.getProductsByCategory(categoryId, limit);
+            }
+
             log.info("카테고리별 상품 조회 결과: {}개", products.size());
             return ResponseEntity.ok(products);
         } catch (Exception e) {
@@ -112,21 +183,93 @@ public class ProductApiController {
     }
 
     /**
+     * 카테고리별 상품 조회 (이미지 포함 - API Response 형태)
+     */
+    @GetMapping("/category/{categoryId}/with-images")
+    public ResponseEntity<ApiResponse<List<ProductDto>>> getProductsByCategoryWithImages(
+            @PathVariable String categoryId,
+            @RequestParam(defaultValue = "20") int limit) {
+
+        try {
+            log.info("카테고리별 상품 조회 (이미지 포함) - categoryId: {}, limit: {}", categoryId, limit);
+
+            List<ProductDto> products = enhancedProductService.getProductsByCategory(categoryId, limit);
+
+            log.info("카테고리별 상품 조회 (이미지 포함) 결과: {}개", products.size());
+            return ResponseEntity.ok(ApiResponse.success(products));
+        } catch (Exception e) {
+            log.error("카테고리별 상품 조회 (이미지 포함) 실패 - categoryId: {}, error: {}", categoryId, e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("카테고리별 상품 조회 실패: " + e.getMessage()));
+        }
+    }
+
+    /**
      * 연관 상품 조회 (같은 카테고리의 다른 상품들)
      */
     @GetMapping("/{productId}/related")
     public ResponseEntity<List<ProductDto>> getRelatedProducts(
             @PathVariable String productId,
-            @RequestParam(defaultValue = "4") int limit) {
+            @RequestParam(defaultValue = "4") int limit,
+            @RequestParam(defaultValue = "false") boolean includeImages) {
         try {
-            log.info("연관 상품 조회 요청 - productId: {}, limit: {}", productId, limit);
+            log.info("연관 상품 조회 요청 - productId: {}, limit: {}, includeImages: {}", productId, limit, includeImages);
 
-            List<ProductDto> relatedProducts = productService.getRelatedProducts(productId, limit);
+            List<ProductDto> relatedProducts;
+            if (includeImages) {
+                relatedProducts = enhancedProductService.getRelatedProducts(productId, limit);
+            } else {
+                relatedProducts = productService.getRelatedProducts(productId, limit);
+            }
+
             log.info("연관 상품 조회 결과: {}개", relatedProducts.size());
             return ResponseEntity.ok(relatedProducts);
         } catch (Exception e) {
             log.error("연관 상품 조회 중 오류 - productId: {}", productId, e);
             return ResponseEntity.ok(List.of());
+        }
+    }
+
+    /**
+     * 연관 상품 조회 (이미지 포함 - API Response 형태)
+     */
+    @GetMapping("/{productId}/related/with-images")
+    public ResponseEntity<ApiResponse<List<ProductDto>>> getRelatedProductsWithImages(
+            @PathVariable String productId,
+            @RequestParam(defaultValue = "4") int limit) {
+        try {
+            log.info("연관 상품 조회 (이미지 포함) 요청 - productId: {}, limit: {}", productId, limit);
+
+            List<ProductDto> relatedProducts = enhancedProductService.getRelatedProducts(productId, limit);
+
+            log.info("연관 상품 조회 (이미지 포함) 결과: {}개", relatedProducts.size());
+            return ResponseEntity.ok(ApiResponse.success(relatedProducts));
+        } catch (Exception e) {
+            log.error("연관 상품 조회 (이미지 포함) 실패 - productId: {}, error: {}", productId, e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("연관 상품 조회 실패: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * 추천 상품 조회 (이미지 포함)
+     */
+    @GetMapping("/recommended")
+    public ResponseEntity<ApiResponse<List<ProductDto>>> getRecommendedProducts(
+            @RequestParam(required = false) String userId,
+            @RequestParam(defaultValue = "10") int limit) {
+        try {
+            log.info("추천 상품 조회 요청 - userId: {}, limit: {}", userId, limit);
+
+            // 현재는 최신 상품으로 대체 (추천 로직은 별도 구현 필요)
+            List<ProductDto> products = enhancedProductService.getProductList(limit);
+
+            log.info("추천 상품 조회 결과: {}개", products.size());
+            return ResponseEntity.ok(ApiResponse.success(products));
+        } catch (Exception e) {
+            log.error("추천 상품 조회 실패 - userId: {}, error: {}", userId, e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("추천 상품 조회 실패: " + e.getMessage()));
         }
     }
 
@@ -198,19 +341,15 @@ public class ProductApiController {
             return ResponseEntity.ok(result);
         }
     }
-    // ================== 신규 추가: 게스트 장바구니 상세 조회 ==================
 
-    // ProductApiController에 임시 추가
-    @PostMapping("/test-simple")
-    public ResponseEntity<String> testSimple(@RequestBody String rawData) {
-        log.info("🔍 받은 데이터: {}", rawData);
-        return ResponseEntity.ok("OK");
-    }
+    // ================== 게스트 장바구니 관련 API ==================
 
-    // 그리고 기존 guest-cart-details를 잠시 이렇게 수정
+    /**
+     * 게스트 장바구니 상세 조회
+     */
     @PostMapping("/guest-cart-details")
     public ResponseEntity<List<ProductDetailDTO>> getGuestCartDetails(@RequestBody List<GuestCartItemDTO> cartItems) {
-        log.info("🔍 게스트 장바구니 상세 조회 요청: {}", cartItems);
+        log.info("🔍 게스트 장바구니 상세 조회 요청: {}개 상품", cartItems.size());
 
         try {
             List<ProductDetailDTO> result = productService.getProductsForGuestCart(cartItems);
@@ -220,5 +359,14 @@ public class ProductApiController {
             log.error("🔥 게스트 장바구니 처리 실패: ", e);
             return ResponseEntity.internalServerError().build();
         }
+    }
+
+    /**
+     * 테스트용 API
+     */
+    @PostMapping("/test-simple")
+    public ResponseEntity<String> testSimple(@RequestBody String rawData) {
+        log.info("🔍 받은 데이터: {}", rawData);
+        return ResponseEntity.ok("OK");
     }
 }

@@ -1,24 +1,5 @@
 <template>
   <div class="main-container">
-    <!-- 🔥 디버깅 정보 패널 (개발 시에만 표시) -->
-    <div v-if="showDebug" class="debug-panel">
-      <h4>🔍 디버깅 정보</h4>
-      <div class="debug-info">
-        <p><strong>로딩 상태:</strong> {{ loading }}</p>
-        <p><strong>선택된 메인 카테고리:</strong> {{ selectedCategory }}</p>
-        <p><strong>선택된 서브 카테고리:</strong> {{ selectedSubCategory }}</p>
-        <p><strong>상품 배열 길이:</strong> {{ products.length }}</p>
-        <p><strong>상품 배열 타입:</strong> {{ typeof products }}</p>
-        <p><strong>첫 번째 상품:</strong> {{ products[0] ? JSON.stringify(products[0]).substring(0, 100) + '...' : 'null' }}</p>
-        <div class="debug-buttons">
-          <button @click="debugProductData" class="debug-btn">디버깅 실행</button>
-          <button @click="fetchProducts" class="debug-btn">강제 새로고침</button>
-          <button @click="testWithHardcodedData" class="debug-btn">테스트 데이터</button>
-          <button @click="showDebug = false" class="debug-btn-close">닫기</button>
-        </div>
-      </div>
-    </div>
-
     <!-- 메인 카테고리 섹션 (동그란 아이콘들) -->
     <div class="category-container">
       <div class="category-list">
@@ -69,7 +50,7 @@
         <h2 class="best-title">
           인기 BEST
           <span class="info-icon">ⓘ</span>
-          <!-- 🔥 디버깅 토글 버튼 -->
+          <!-- 디버깅 토글 버튼 -->
           <button @click="showDebug = !showDebug" class="debug-toggle-btn" title="디버깅 패널 토글">
             🔧
           </button>
@@ -87,14 +68,14 @@
         </div>
       </div>
 
-      <!-- 🔥 로딩 상태 - 더 상세한 정보 -->
+      <!-- 로딩 상태 -->
       <div v-if="loading" class="loading-container">
         <div class="loading-spinner"></div>
         <p>상품을 불러오는 중...</p>
         <p class="loading-details">카테고리: {{ selectedCategory }} / 서브카테고리: {{ selectedSubCategory || '없음' }}</p>
       </div>
 
-      <!-- 🔥 상품이 없을 때 - 더 상세한 정보와 액션 -->
+      <!-- 상품이 없을 때 -->
       <div v-else-if="!products || products.length === 0" class="no-products">
         <div class="no-products-icon">📦</div>
         <h3>선택한 카테고리에 상품이 없습니다</h3>
@@ -109,9 +90,9 @@
         </div>
       </div>
 
-      <!-- 🔥 상품이 있을 때 -->
+      <!-- 상품이 있을 때 -->
       <div v-else>
-        <!-- 🔥 인기 BEST 가로 슬라이더 -->
+        <!-- 인기 BEST 가로 슬라이더 -->
         <div class="products-slider-container">
           <div class="products-info">
             <span class="products-count">인기 상품 TOP {{ Math.min(products.length, 10) }}</span>
@@ -142,13 +123,13 @@
               <!-- 순위 배지 -->
               <div class="rank-badge">{{ index + 1 }}</div>
 
-              <!-- 🔥 라이브 배지 (라이브 상품인 경우) -->
+              <!-- 라이브 배지 (라이브 상품인 경우) -->
               <div v-if="product.isLive" class="live-badge">
                 <span class="live-dot"></span>
                 LIVE
               </div>
 
-              <!-- 🔥 시청자 수 (라이브 상품인 경우) -->
+              <!-- 시청자 수 (라이브 상품인 경우) -->
               <div v-if="product.viewers" class="viewers-count">
                 👥 {{ product.viewers }}
               </div>
@@ -162,7 +143,7 @@
                     @load="handleImageLoad"
                     loading="lazy"
                 />
-                <!-- 🔥 이미지 로딩 실패 시 오버레이 -->
+                <!-- 이미지 로딩 실패 시 오버레이 -->
                 <div v-if="product.imageError" class="image-error-overlay">
                   <span>이미지 로드 실패</span>
                 </div>
@@ -189,7 +170,7 @@
       </div>
     </div>
 
-    <!-- 🔥 전체 상품 그리드 섹션 -->
+    <!-- 전체 상품 그리드 섹션 -->
     <div v-if="products && products.length > 0" class="products-grid-section">
       <div class="grid-header">
         <h2 class="grid-title">전체 상품</h2>
@@ -210,7 +191,7 @@
         </div>
       </div>
 
-      <!-- 🔥 상품 4열 그리드 -->
+      <!-- 상품 4열 그리드 -->
       <div class="products-grid">
         <div
             v-for="(product, index) in paginatedProducts"
@@ -218,13 +199,13 @@
             class="product-card grid"
             @click="goToProductDetail(product)"
         >
-          <!-- 🔥 라이브 배지 (라이브 상품인 경우) -->
+          <!-- 라이브 배지 (라이브 상품인 경우) -->
           <div v-if="product.isLive" class="live-badge">
             <span class="live-dot"></span>
             LIVE
           </div>
 
-          <!-- 🔥 시청자 수 (라이브 상품인 경우) -->
+          <!-- 시청자 수 (라이브 상품인 경우) -->
           <div v-if="product.viewers" class="viewers-count">
             👥 {{ product.viewers }}
           </div>
@@ -238,7 +219,7 @@
                 @load="handleImageLoad"
                 loading="lazy"
             />
-            <!-- 🔥 이미지 로딩 실패 시 오버레이 -->
+            <!-- 이미지 로딩 실패 시 오버레이 -->
             <div v-if="product.imageError" class="image-error-overlay">
               <span>이미지 로드 실패</span>
             </div>
@@ -262,7 +243,7 @@
         </div>
       </div>
 
-      <!-- 🔥 더보기 버튼 -->
+      <!-- 더보기 버튼 -->
       <div v-if="sortedProducts.length > currentPage * itemsPerPage" class="load-more-container">
         <button @click="loadMore" class="load-more-btn">
           더보기 ({{ sortedProducts.length - currentPage * itemsPerPage }}개 상품 더 있음)
@@ -273,17 +254,17 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, computed } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import {ref, watch, onMounted, computed} from 'vue'
+import {useRouter, useRoute} from 'vue-router'
 import apiClient from '@/api/axiosInstance.js'
 
-// 🔥 반응형 상태 변수들
+// 반응형 상태 변수들
 const selectedCategory = ref('ALL')
 const selectedSubCategory = ref('')
 const selectedFilter = ref('sale')
-const selectedSort = ref('default') // 🔥 정렬 옵션 추가
-const currentPage = ref(1) // 🔥 페이지네이션 추가
-const itemsPerPage = ref(12) // 🔥 페이지당 상품 수
+const selectedSort = ref('default')
+const currentPage = ref(1)
+const itemsPerPage = ref(12)
 const slider = ref(null)
 const isDragging = ref(false)
 const startX = ref(0)
@@ -292,21 +273,21 @@ const router = useRouter()
 const route = useRoute()
 const subCategories = ref([])
 const loading = ref(false)
-const showDebug = ref(false) // 🔥 디버깅 패널 표시 여부
+const showDebug = ref(false)
 
-// 🔥 초기 데이터
+// 초기 데이터
 const categories = ref([
-  { categoryId: 'ALL', name: '전체', icon: null, categoryDisplayOrder: 0 }
+  {categoryId: 'ALL', name: '전체', icon: null, categoryDisplayOrder: 0}
 ])
 
 const filterTabs = ref([
-  { id: 'live', name: '라이브' },
-  { id: 'sale', name: '상품' }
+  {id: 'live', name: '라이브'},
+  {id: 'sale', name: '상품'}
 ])
 
 const products = ref([])
 
-// 🔥 상수 및 유틸리티
+// 상수 및 유틸리티
 const defaultImage = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg=='
 
 const getIconForCategory = (categoryId) => {
@@ -318,13 +299,13 @@ const getIconForCategory = (categoryId) => {
   return iconMap[categoryId] || '📦'
 }
 
-// 🔥 계산된 속성
+// 계산된 속성
 const currentCategoryName = computed(() => {
   const category = categories.value.find(cat => cat.categoryId === selectedCategory.value)
   return category ? category.name : selectedCategory.value
 })
 
-// 🔥 정렬된 상품 목록
+// 정렬된 상품 목록
 const sortedProducts = computed(() => {
   if (!products.value || products.value.length === 0) return []
 
@@ -340,130 +321,243 @@ const sortedProducts = computed(() => {
     case 'name':
       return sorted.sort((a, b) => a.title.localeCompare(b.title))
     default:
-      return sorted // 기본순 (서버에서 받은 순서 그대로)
+      return sorted
   }
 })
 
-// 🔥 페이지네이션된 상품 목록
+// 페이지네이션된 상품 목록
 const paginatedProducts = computed(() => {
   const startIndex = 0
   const endIndex = currentPage.value * itemsPerPage.value
   return sortedProducts.value.slice(startIndex, endIndex)
 })
 
-// 🔥 메인 함수들
-
 /**
- * 상품 데이터 조회
+ * fetchProducts 함수 - fetch 방식
  */
 const fetchProducts = async () => {
   try {
     loading.value = true
-    console.log('🚀 상품 조회 시작')
 
-    let requestCategoryId = selectedSubCategory.value && selectedSubCategory.value !== ''
-        ? selectedSubCategory.value
-        : selectedCategory.value
 
-    const params = { categoryId: requestCategoryId, limit: 20 }
-    console.log('🎯 요청 파라미터:', params)
+    let requestCategoryId
+    if (selectedSubCategory.value && selectedSubCategory.value !== '') {
+      requestCategoryId = selectedSubCategory.value
+    } else if (selectedCategory.value === 'ALL') {
+      requestCategoryId = 'ALL'
+    } else {
+      requestCategoryId = selectedCategory.value
+    }
+
+
+    const params = {categoryId: requestCategoryId, limit: 20}
+
+    // axiosInstance 사용하여 요청
 
     const response = await apiClient.get('/api/products/filter', {
       params: params,
       withAuth: false
     })
 
-    console.log('📥 원본 API 응답:', response)
-    console.log('📊 응답 상태:', response.status)
-    console.log('📊 응답 헤더:', response.headers)
-    console.log('📊 응답 데이터:', response.data)
-    console.log('📊 응답 데이터 타입:', typeof response.data)
-    console.log('📊 응답 데이터가 배열인가?', Array.isArray(response.data))
-    console.log('📊 응답 데이터 길이:', response.data?.length)
+    const productData = response.data
 
-    if (!Array.isArray(response.data)) {
-      console.error('❌ 응답 데이터가 배열이 아닙니다:', response.data)
+    // 응답이 배열이 아니면 처리
+    if (!Array.isArray(productData)) {
+
       products.value = []
       return
     }
 
-    if (response.data.length === 0) {
-      console.warn('⚠️ 응답 데이터는 배열이지만 빈 배열입니다')
+    if (productData.length === 0) {
+
       products.value = []
       return
     }
 
-    console.log('📋 첫 번째 상품 데이터 구조:', response.data[0])
-    console.log('📋 첫 번째 상품의 모든 필드:', Object.keys(response.data[0]))
+    // 상품 데이터 변환
+    products.value = productData.map((product, index) => {
 
-    products.value = response.data.map((product, index) => {
-      console.log(`🔄 상품 ${index + 1} 변환:`, product)
 
       const convertedProduct = {
         id: product.productId || `product_${index}`,
         title: product.name || product.title || '상품명 없음',
-        price: product.price || product.salePrice || 0,
+        price: product.price || product.salePrice || product.finalPrice || 0,
         originalPrice: product.originalPrice || product.price || 0,
-        discount: product.discount || null,
-        image: getImageUrl(product),
+        discount: product.discount || product.discountRate || null,
+        image: getImageUrl(product), // 이미지 URL 생성
         isLive: product.isLive || false,
         viewers: product.viewers || null,
         categoryId: product.categoryId || 'unknown',
-        imageError: false
+        imageError: false,
+        // 디버깅용 원본 이미지 정보 보존
+        _originalImageData: {
+          mainImage: product.mainImage,
+          image: product.image,
+          images: product.images,
+          mainImageUrl: product.mainImageUrl
+        }
       }
 
-      console.log(`✅ 변환된 상품 ${index + 1}:`, convertedProduct)
+
       return convertedProduct
     })
 
-    console.log('🎯 최종 products 배열:', products.value)
-    console.log('🎯 최종 상품 개수:', products.value.length)
 
   } catch (error) {
-    console.error('🚨 상품 조회 실패:', error)
-    console.error('🚨 에러 상세:', error.response?.data)
-    console.error('🚨 에러 메시지:', error.message)
-    console.error('🚨 에러 상태:', error.response?.status)
     products.value = []
   } finally {
     loading.value = false
-    console.log('🏁 상품 조회 완료. 최종 상태 - products.length:', products.value.length)
   }
 }
 
 /**
- * 🔥 이미지 URL 처리 함수
+ * 수정된 getImageUrl 함수
+ * 백엔드에서 이미 완전한 API 경로를 제공하므로 기본 URL만 붙임
  */
 const getImageUrl = (product) => {
-  // 1. mainImage 우선
-  if (product.mainImage && product.mainImage.trim() !== '') {
-    if (product.mainImage.startsWith('http')) {
-      return product.mainImage
-    }
-    return `http://localhost:8080${product.mainImage}`
+
+  // 디버깅을 위한 원본 데이터 로깅
+  const availableImageData = {
+    mainImageUrl: product.mainImageUrl,
+    mainImage: product.mainImage,
+    image: product.image,
+    images: product.images
+  };
+
+
+  // 우선순위에 따라 이미지 경로 선택
+  let selectedImagePath = null;
+  let source = '';
+
+  if (product.mainImageUrl && product.mainImageUrl.trim() !== '') {
+    selectedImagePath = product.mainImageUrl.trim();
+    source = 'mainImageUrl';
+  } else if (product.mainImage && product.mainImage.trim() !== '') {
+    selectedImagePath = product.mainImage.trim();
+    source = 'mainImage';
+  } else if (product.image && product.image.trim() !== '') {
+    selectedImagePath = product.image.trim();
+    source = 'image';
+  } else if (product.images && Array.isArray(product.images) && product.images.length > 0) {
+    selectedImagePath = product.images[0].trim();
+    source = 'images[0]';
   }
 
-  // 2. image 필드 확인
-  if (product.image && product.image.trim() !== '') {
-    if (product.image.startsWith('http')) {
-      return product.image
+  if (selectedImagePath) {
+    let finalUrl;
+
+    // 🔥 절대 URL로 변환
+    if (selectedImagePath.startsWith('http://') || selectedImagePath.startsWith('https://')) {
+      // 이미 완전한 URL인 경우
+      finalUrl = selectedImagePath;
+    } else if (selectedImagePath.startsWith('/api/')) {
+      // API 경로인 경우 (/api/images/products/IMG002.jpg)
+      finalUrl = `http://localhost:8080${selectedImagePath}`;
+    } else if (selectedImagePath.startsWith('/')) {
+      // 루트 상대 경로인 경우 (/images/IMG002.jpg)
+      finalUrl = `http://localhost:8080${selectedImagePath}`;
+    } else {
+      // 파일명만 있는 경우 (IMG002.jpg)
+      finalUrl = `http://localhost:8080/api/images/products/${selectedImagePath}`;
     }
-    return `http://localhost:8080${product.image}`
+
+    return finalUrl;
   }
 
-  // 3. 기본 SVG 이미지 (안전한 base64 인코딩)
+  return defaultImage;
+};
+
+
+/**
+ * 더욱 간단한 버전 (추천)
+ */
+const getImageUrlSimple = (product) => {
+  // 우선순위: mainImage > image > images[0] > mainImageUrl
+  const imagePath = product.mainImage ||
+      product.image ||
+      (product.images && product.images[0]) ||
+      product.mainImageUrl
+
+  if (imagePath && imagePath.trim() !== '') {
+    // 이미 완전한 경로인 경우 (http로 시작)
+    if (imagePath.startsWith('http')) {
+      return imagePath
+    }
+
+    // API 경로인 경우 기본 URL만 붙임
+    if (imagePath.startsWith('/api/')) {
+      return `http://localhost:8080${imagePath}`
+    }
+
+    // 상대 경로인 경우 전체 경로 구성
+    return `http://localhost:8080/api/images/products/${imagePath}`
+  }
+
   return defaultImage
 }
 
+/**
+ * 환경변수를 사용한 버전 (프로덕션 환경 고려)
+ */
+const getImageUrlWithEnv = (product) => {
+  const BASE_URL = process.env.VUE_APP_API_BASE_URL || 'http://localhost:8080'
+
+  const imagePath = product.mainImage ||
+      product.image ||
+      (product.images && product.images[0]) ||
+      product.mainImageUrl
+
+  if (imagePath && imagePath.trim() !== '') {
+    if (imagePath.startsWith('http')) {
+      return imagePath
+    }
+
+    if (imagePath.startsWith('/api/')) {
+      return `${BASE_URL}${imagePath}`
+    }
+
+    return `${BASE_URL}/api/images/products/${imagePath}`
+  }
+
+  return defaultImage
+}
+
+/**
+ * 디버깅용 함수 - 이미지 URL 생성 과정 로깅
+ */
+const getImageUrlWithDebug = (product) => {
+  const imagePath = product.mainImage ||
+      product.image ||
+      (product.images && product.images[0]) ||
+      product.mainImageUrl
+
+  if (imagePath && imagePath.trim() !== '') {
+    let finalUrl
+
+    if (imagePath.startsWith('http')) {
+      finalUrl = imagePath
+
+    } else if (imagePath.startsWith('/api/')) {
+      finalUrl = `http://localhost:8080${imagePath}`
+
+    } else {
+      finalUrl = `http://localhost:8080/api/images/products/${imagePath}`
+    }
+
+    return finalUrl
+  }
+
+  return defaultImage
+}
 /**
  * 메인 카테고리 조회
  */
 const fetchMainCategories = async () => {
   try {
-    const res = await apiClient.get('/api/categories/main', { withAuth: false })
+    const res = await apiClient.get('/api/categories/main', {withAuth: false})
 
     if (res.data && res.data.length > 0) {
-      const allCategory = { categoryId: 'ALL', name: '전체', icon: null, categoryDisplayOrder: 0 }
+      const allCategory = {categoryId: 'ALL', name: '전체', icon: null, categoryDisplayOrder: 0}
 
       const serverCategories = res.data
           .filter(cat => cat.categoryUseYn === 'Y' && cat.categoryLevel === 1)
@@ -476,11 +570,9 @@ const fetchMainCategories = async () => {
           }))
 
       categories.value = [allCategory, ...serverCategories]
-      console.log('✅ 메인 카테고리 로드 완료:', categories.value.length)
     }
   } catch (error) {
-    console.error('❌ 메인 카테고리 조회 실패:', error)
-    categories.value = [{ categoryId: 'ALL', name: '전체', icon: null, categoryDisplayOrder: 0 }]
+    categories.value = [{categoryId: 'ALL', name: '전체', icon: null, categoryDisplayOrder: 0}]
   }
 }
 
@@ -494,9 +586,7 @@ const fetchSubCategories = async (parentCategoryId) => {
       return
     }
 
-    const res = await apiClient.get(`/api/categories/${parentCategoryId}/sub`, {
-      withAuth: false
-    })
+    const res = await apiClient.get(`/api/categories/${parentCategoryId}/sub`, {withAuth: false})
 
     subCategories.value = res.data?.length > 0
         ? res.data
@@ -508,11 +598,7 @@ const fetchSubCategories = async (parentCategoryId) => {
               categoryDisplayOrder: cat.categoryDisplayOrder
             }))
         : []
-
-    console.log('✅ 하위 카테고리 로드 완료:', subCategories.value.length)
-
   } catch (error) {
-    console.error('❌ 하위 카테고리 조회 실패:', error)
     subCategories.value = []
   }
 }
@@ -521,8 +607,7 @@ const fetchSubCategories = async (parentCategoryId) => {
  * 정렬 변경 처리
  */
 const handleSortChange = () => {
-  console.log('🔄 정렬 변경:', selectedSort.value)
-  currentPage.value = 1 // 정렬 변경 시 첫 페이지로 리셋
+  currentPage.value = 1
 }
 
 /**
@@ -530,23 +615,16 @@ const handleSortChange = () => {
  */
 const loadMore = () => {
   currentPage.value += 1
-  console.log('📄 페이지 증가:', currentPage.value)
 }
 
 /**
  * 메인 카테고리 선택
  */
 const selectCategory = async (categoryId) => {
-  if (selectedCategory.value === categoryId) {
-    console.log('⚠️ 이미 선택된 메인카테고리 - 스킵')
-    return
-  }
+  if (selectedCategory.value === categoryId) return
 
-  console.log('🎯 메인 카테고리 선택:', categoryId)
   selectedCategory.value = categoryId
   selectedSubCategory.value = ''
-
-  // 🔥 페이지네이션 리셋
   currentPage.value = 1
   selectedSort.value = 'default'
 
@@ -565,14 +643,10 @@ const selectCategory = async (categoryId) => {
  */
 const selectSubCategory = async (subCategoryId) => {
   if (selectedSubCategory.value === subCategoryId) {
-    console.log('⚠️ 이미 선택된 서브카테고리 - 스킵')
     return
   }
 
-  console.log('🎯 서브 카테고리 선택:', subCategoryId)
   selectedSubCategory.value = subCategoryId
-
-  // 🔥 페이지네이션 리셋
   currentPage.value = 1
 
   await fetchProducts()
@@ -583,7 +657,7 @@ const selectSubCategory = async (subCategoryId) => {
  */
 const selectFilter = async (filterId) => {
   selectedFilter.value = filterId
-  currentPage.value = 1 // 🔥 페이지네이션 리셋
+  currentPage.value = 1
   await fetchProducts()
 }
 
@@ -591,11 +665,10 @@ const selectFilter = async (filterId) => {
  * 상품 상세 페이지로 이동
  */
 const goToProductDetail = (product) => {
-  console.log('🔗 상품 상세 페이지로 이동:', product.id)
   router.push(`/product/${product.id}`)
 }
 
-// 🔥 유틸리티 함수들
+// 유틸리티 함수들
 
 /**
  * 가격 포맷팅
@@ -605,40 +678,87 @@ const formatPrice = (price) => {
 }
 
 /**
- * 이미지 에러 처리 - 무한 루프 방지
+ * 이미지 에러 처리
  */
 const handleImageError = (event) => {
-  const img = event.target
+  const img = event.target;
 
-  // 🔥 이미 기본 이미지로 교체된 경우 더 이상 처리하지 않음
-  if (img.src === defaultImage || img.dataset.errorHandled === 'true') {
-    console.warn('🖼️ 이미지 에러 처리 완료 (중복 방지)')
-    return
+  // 이미 처리된 경우 무시
+  if (img.dataset.errorHandled === 'true' || img.src === defaultImage) {
+    return;
   }
 
-  console.warn('🖼️ 이미지 로드 실패:', img.src)
 
-  // 🔥 에러 처리 완료 마킹
-  img.dataset.errorHandled = 'true'
+  // 에러 처리 완료 표시
+  img.dataset.errorHandled = 'true';
 
-  // 🔥 안전한 기본 이미지로 교체
-  img.src = defaultImage
+  // 이벤트 핸들러 제거 (무한 루프 방지)
+  img.onerror = null;
 
-  // 상품 상태 업데이트
-  const productIndex = products.value.findIndex(p => p.image === img.getAttribute('data-original-src'))
-  if (productIndex !== -1) {
-    products.value[productIndex].imageError = true
+  // 기본 이미지로 변경
+  img.src = defaultImage;
+
+};
+
+// 🔥 상품 데이터 디버깅 함수 개선
+const debugProductImages = () => {
+
+  if (products.value && products.value.length > 0) {
+    products.value.slice(0, 3).forEach((product, index) => {
+
+
+      const generatedUrl = getImageUrl(product);
+
+
+      // 실제 이미지 접근 테스트
+      testImageAccess(generatedUrl, `상품${index + 1}`);
+    });
+  } else {
+
   }
-}
+};
 
+// 🔥 이미지 URL 테스트 함수
+const testImageUrls = async () => {
+  const testFileName = 'IMG002.jpg'; // 실제 파일명으로 변경
+  const testUrls = [
+    `http://localhost:8080/api/images/products/${testFileName}`,
+    `http://localhost:8088/api/images/products/${testFileName}`,
+    `http://localhost:8080/images/${testFileName}`,
+    `http://localhost:8088/images/${testFileName}`,
+    `http://localhost:8080/files/images/${testFileName}`
+  ];
+
+  for (const url of testUrls) {
+    try {
+      const response = await fetch(url, {
+        method: 'HEAD',
+        mode: 'no-cors' // CORS 문제 회피
+      });
+
+    } catch (error) {
+
+    }
+  }
+
+  // 실제 이미지 태그로 테스트
+  testUrls.forEach((url, index) => {
+    const testImg = new Image();
+
+    testImg.src = url;
+  });
+};
 /**
  * 이미지 로드 성공 처리
  */
 const handleImageLoad = (event) => {
-  console.log('✅ 이미지 로드 성공:', event.target.src)
-}
+  const img = event.target;
 
-// 🔥 드래그 스크롤 기능
+  // 에러 처리 플래그 제거
+  img.removeAttribute('data-error-handled');
+};
+
+// 드래그 스크롤 기능
 
 const startDrag = (e) => {
   e.preventDefault()
@@ -687,114 +807,49 @@ const endTouch = () => {
   isDragging.value = false
 }
 
-// 🔥 디버깅 함수들
+// 디버깅 함수들
 
 /**
  * 상품 데이터 디버깅
  */
 const debugProductData = async () => {
   try {
-    console.log('🔍 === 상품 데이터 디버깅 시작 ===')
-    console.log('📊 현재 products 값:', products.value)
-    console.log('📊 현재 products 길이:', products.value.length)
-    console.log('📊 현재 products 타입:', typeof products.value)
-    console.log('📊 현재 loading 상태:', loading.value)
-    console.log('📊 현재 selectedCategory:', selectedCategory.value)
-    console.log('📊 현재 selectedSubCategory:', selectedSubCategory.value)
-
-    console.log('🧪 === 직접 API 테스트 시작 ===')
     const testResponse = await apiClient.get('/api/products/filter', {
-      params: { categoryId: 'ALL', limit: 5 },
+      params: {categoryId: 'ALL', limit: 5},
       withAuth: false
     })
-    console.log('🧪 테스트 API 응답 전체:', testResponse)
-    console.log('🧪 테스트 API 응답 데이터:', testResponse.data)
-    console.log('🧪 테스트 API 응답 상태:', testResponse.status)
 
     const categories = ['ALL', '1', '2', '3', '4']
     for (const catId of categories) {
       try {
         const catResponse = await apiClient.get('/api/products/filter', {
-          params: { categoryId: catId, limit: 3 },
+          params: {categoryId: catId, limit: 3},
           withAuth: false
         })
-        console.log(`🧪 카테고리 ${catId} 응답:`, catResponse.data?.length || 0, '개')
+
       } catch (catError) {
-        console.error(`🚨 카테고리 ${catId} 오류:`, catError.message)
+
       }
     }
 
     alert('디버깅 정보가 콘솔에 출력되었습니다. 개발자 도구를 확인하세요.')
 
   } catch (error) {
-    console.error('🚨 디버깅 실패:', error)
+
     alert('디버깅 실행 중 오류가 발생했습니다: ' + error.message)
   }
 }
 
-/**
- * 테스트용 하드코딩 데이터
- */
-const testWithHardcodedData = () => {
-  console.log('🧪 하드코딩 데이터로 테스트 시작')
-
-  products.value = [
-    {
-      id: 'test1',
-      title: '테스트 상품 1',
-      price: 10000,
-      originalPrice: 12000,
-      discount: 17,
-      image: 'https://via.placeholder.com/300x200?text=Test+1',
-      isLive: false,
-      viewers: null,
-      categoryId: '1',
-      imageError: false
-    },
-    {
-      id: 'test2',
-      title: '테스트 상품 2',
-      price: 20000,
-      originalPrice: 25000,
-      discount: 20,
-      image: 'https://via.placeholder.com/300x200?text=Test+2',
-      isLive: true,
-      viewers: '125명',
-      categoryId: '1',
-      imageError: false
-    },
-    {
-      id: 'test3',
-      title: '테스트 상품 3',
-      price: 15000,
-      originalPrice: null,
-      discount: null,
-      image: 'https://via.placeholder.com/300x200?text=Test+3',
-      isLive: false,
-      viewers: null,
-      categoryId: '1',
-      imageError: false
-    }
-  ]
-
-  console.log('🧪 하드코딩 데이터 설정 완료:', products.value)
-  loading.value = false
-  alert('테스트 데이터가 로드되었습니다.')
-}
-
-// 🔥 라이프사이클 훅
+// 라이프사이클 훅
 
 /**
  * URL 파라미터 변화 감지
  */
 watch(() => route.params, async (newParams, oldParams) => {
-  console.log('🔍 Route params changed:', newParams, oldParams)
-
   let needsProductRefresh = false
   let needsSubCategoryRefresh = false
 
   if (newParams.categoryId && newParams.categoryId !== selectedCategory.value) {
-    console.log('🔄 메인 카테고리 변경:', selectedCategory.value, '->', newParams.categoryId)
     selectedCategory.value = newParams.categoryId
     selectedSubCategory.value = ''
     needsSubCategoryRefresh = true
@@ -806,98 +861,40 @@ watch(() => route.params, async (newParams, oldParams) => {
   }
 
   if (needsProductRefresh) {
-    console.log('🔄 상품 새로고침 실행')
     await fetchProducts()
   }
-}, { immediate: false })
+}, {immediate: false})
 
 /**
  * 컴포넌트 마운트 시 초기화
  */
 onMounted(async () => {
-  console.log('🚀 컴포넌트 마운트 시작')
-  console.log('🔧 환경변수 확인:', import.meta.env)
-
   try {
     await fetchMainCategories()
 
     if (route.params.categoryId) {
-      console.log('🔍 URL에서 카테고리 복원:', route.params.categoryId)
       selectedCategory.value = route.params.categoryId
       await fetchSubCategories(route.params.categoryId)
 
       if (route.params.subCategoryId) {
-        console.log('🔍 URL에서 서브카테고리 복원:', route.params.subCategoryId)
         selectedSubCategory.value = route.params.subCategoryId
       }
     }
 
-    console.log('🔄 초기 상품 로드 시작')
     await fetchProducts()
-    console.log('✅ 컴포넌트 초기화 완료')
 
   } catch (error) {
-    console.error('❌ 컴포넌트 초기화 실패:', error)
+
   }
 })
 </script>
 
 <style scoped>
-/* 🔥 기본 컨테이너 스타일 */
+/* 기본 컨테이너 스타일 */
 .main-container {
   width: 100%;
   background: #f8f9fa;
   min-height: 100vh;
-}
-
-/* 🔥 디버깅 패널 스타일 */
-.debug-panel {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  background: rgba(0, 0, 0, 0.9);
-  color: white;
-  padding: 15px;
-  border-radius: 8px;
-  font-size: 12px;
-  max-width: 400px;
-  z-index: 1000;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-}
-
-.debug-info p {
-  margin: 5px 0;
-}
-
-.debug-buttons {
-  margin-top: 10px;
-  display: flex;
-  gap: 5px;
-  flex-wrap: wrap;
-}
-
-.debug-btn {
-  padding: 4px 8px;
-  background: #007bff;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 11px;
-}
-
-.debug-btn:hover {
-  background: #0056b3;
-}
-
-.debug-btn-close {
-  padding: 4px 8px;
-  background: #dc3545;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 11px;
 }
 
 .debug-toggle-btn {
@@ -915,7 +912,7 @@ onMounted(async () => {
   background: rgba(0, 0, 0, 0.1);
 }
 
-/* 🔥 로딩 및 빈 상태 스타일 */
+/* 로딩 및 빈 상태 스타일 */
 .loading-container {
   text-align: center;
   padding: 60px 20px;
@@ -933,8 +930,12 @@ onMounted(async () => {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .loading-details {
@@ -1009,7 +1010,7 @@ onMounted(async () => {
   background: #0056b3;
 }
 
-/* 🔥 카테고리 스타일 */
+/* 카테고리 스타일 */
 .category-container {
   width: 100%;
   padding: 20px;
@@ -1083,7 +1084,7 @@ onMounted(async () => {
   font-weight: 600;
 }
 
-/* 🔥 하위 카테고리 스타일 */
+/* 하위 카테고리 스타일 */
 .sub-category-container {
   width: 100%;
   padding: 15px 20px;
@@ -1121,7 +1122,7 @@ onMounted(async () => {
   font-weight: 500;
 }
 
-/* 🔥 인기 BEST 섹션 스타일 */
+/* 인기 BEST 섹션 스타일 */
 .best-section {
   padding: 30px 20px;
   background: white;
@@ -1176,7 +1177,7 @@ onMounted(async () => {
   border-color: #f44336;
 }
 
-/* 🔥 상품 슬라이더 컨테이너 */
+/* 상품 슬라이더 컨테이너 */
 .products-slider-container {
   position: relative;
   width: 100%;
@@ -1220,7 +1221,7 @@ onMounted(async () => {
   scrollbar-width: none;
 }
 
-/* 🔥 상품 카드 스타일 */
+/* 상품 카드 스타일 */
 .product-card {
   background: white;
   border-radius: 10px;
@@ -1397,7 +1398,7 @@ onMounted(async () => {
   border-radius: 10px;
 }
 
-/* 🔥 전체 상품 그리드 섹션 */
+/* 전체 상품 그리드 섹션 */
 .products-grid-section {
   background: white;
   margin: 20px;
@@ -1460,7 +1461,7 @@ onMounted(async () => {
   font-weight: 500;
 }
 
-/* 🔥 상품 그리드 스타일 */
+/* 상품 그리드 스타일 */
 .products-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -1489,7 +1490,7 @@ onMounted(async () => {
   flex-shrink: 0;
 }
 
-/* 🔥 더보기 버튼 */
+/* 더보기 버튼 */
 .load-more-container {
   text-align: center;
   padding: 20px 0;
@@ -1512,7 +1513,7 @@ onMounted(async () => {
   transform: translateY(-2px);
 }
 
-/* 🔥 반응형 그리드 */
+/* 반응형 그리드 */
 @media (max-width: 1200px) {
   .products-grid {
     grid-template-columns: repeat(3, 1fr);
@@ -1544,33 +1545,6 @@ onMounted(async () => {
 
   .sort-select {
     min-width: 100px;
-  }
-}
-
-@media (max-width: 480px) {
-  .products-grid {
-    grid-template-columns: 1fr;
-    gap: 15px;
-  }
-
-  .grid-controls {
-    flex-direction: column;
-    gap: 10px;
-    align-items: flex-start;
-  }
-
-  .load-more-btn {
-    width: 100%;
-    padding: 15px;
-  }
-}
-@media (max-width: 768px) {
-  .debug-panel {
-    position: relative;
-    top: 0;
-    right: 0;
-    margin: 10px;
-    max-width: none;
   }
 
   .category-list {
@@ -1632,6 +1606,22 @@ onMounted(async () => {
 }
 
 @media (max-width: 480px) {
+  .products-grid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+
+  .grid-controls {
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+  }
+
+  .load-more-btn {
+    width: 100%;
+    padding: 15px;
+  }
+
   .product-card {
     min-width: 220px;
   }

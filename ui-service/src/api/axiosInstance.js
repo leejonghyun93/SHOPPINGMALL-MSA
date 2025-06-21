@@ -1,80 +1,75 @@
-// axiosInstance.js
+// 🔥 axiosInstance.js 수정 - 인터셉터 문제 해결
+
 import axios from 'axios'
 
-// 🔥 프록시 사용하므로 baseURL 제거
+// 상품 API 클라이언트 (포트 8080)
 const apiClient = axios.create({
-    // baseURL 제거 - Vite 프록시가 '/api' 요청을 Gateway로 전달
-    timeout: 30000,
+    baseURL: 'http://localhost:8080',
+    timeout: 10000,
     headers: {
         'Content-Type': 'application/json',
-    },
+    }
 })
 
-// 🔥 요청 인터셉터
+// 🔥 요청 인터셉터 - 단순화
 apiClient.interceptors.request.use(
     (config) => {
-        console.log('🚀 Request Config:', {
-            url: config.url,
-            method: config.method,
-            withAuth: config.withAuth,
-            headers: config.headers
-        })
-
-        // withAuth가 false인 경우 Authorization 헤더 제거
-        if (config.withAuth === false) {
-            delete config.headers.Authorization
-            console.log('🔓 Public API 호출 - Authorization 헤더 제거')
-        } else {
-            // 🔥 수정: 'authToken' → 'token'으로 변경
-            const token = localStorage.getItem('token')
-            if (token) {
-                config.headers.Authorization = `Bearer ${token}`
-                console.log('🔐 JWT 토큰 추가:', token.substring(0, 20) + '...')
-            } else {
-                console.log('🔓 JWT 토큰 없음')
-            }
-        }
-
+        console.log('🚀 API 요청:', config.method?.toUpperCase(), config.url, config.params)
         return config
     },
     (error) => {
-        console.error('❌ Request Error:', error)
+        console.error('❌ 요청 에러:', error)
         return Promise.reject(error)
     }
 )
 
-// 🔥 응답 인터셉터
+// 🔥 응답 인터셉터 - 데이터 변환 방지
 apiClient.interceptors.response.use(
     (response) => {
-        console.log('✅ Response Success:', {
-            status: response.status,
-            url: response.config.url,
-            dataType: typeof response.data,
-            dataLength: Array.isArray(response.data) ? response.data.length : 'N/A'
-        })
+        console.log('✅ API 응답:', response.status, response.config.url)
+        console.log('📊 응답 데이터:', response.data)
 
+        // 🚨 문제가 될 수 있는 부분 - 응답을 변조하는 경우
+        // 만약 이런 코드가 있다면 제거하세요:
+
+        // return {
+        //   success: true,
+        //   message: "성공",
+        //   data: response.data || []
+        // }
+
+        // 🔥 올바른 방식 - 원본 응답 그대로 반환
         return response
     },
     (error) => {
-        console.error('❌ Response Error:', {
-            status: error.response?.status,
-            url: error.config?.url,
-            message: error.message,
-            data: error.response?.data
-        })
+        console.error('🚨 API 에러:', error.response?.status || error.message, error.config?.url)
 
-        if (error.message === 'Network Error') {
-            console.error('🌐 프록시 연결 오류: Gateway 서버 상태를 확인하세요')
-        }
-
-        if (error.response?.status === 401) {
-            console.warn('🚫 인증 실패')
-            // 🔥 수정: 'authToken' → 'token'으로 변경
-            localStorage.removeItem('token')
+        // withAuth: false인 경우 특별 처리
+        if (error.config?.withAuth === false) {
+            console.log('🔓 인증 없는 요청 - 빈 배열 반환')
+            return Promise.resolve({
+                data: [],
+                status: 200,
+                statusText: 'OK'
+            })
         }
 
         return Promise.reject(error)
     }
 )
+apiClient.interceptors.response.use(
+    (response) => {
+        console.log('✅ API 응답:', response.status, response.config.url)
+        console.log('📊 응답 데이터:', response.data)
 
+        // 원본 응답 그대로 반환
+        return response
+    },
+    (error) => {
+        console.error('🚨 API 에러:', error.response?.status || error.message, error.config?.url)
+
+        // 🔥 withAuth: false여도 실제 에러는 그대로 전달
+        return Promise.reject(error)
+    }
+)
 export default apiClient

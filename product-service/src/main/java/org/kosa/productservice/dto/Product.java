@@ -70,6 +70,6 @@ public class Product {
     private Integer viewCount;
 
     // 상품 이미지들
-    @OneToMany(mappedBy = "productId", fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "product", fetch = FetchType.LAZY)
     private List<ProductImage> productImages = new ArrayList<>();
 }

@@ -1,4 +1,4 @@
-package org.kosa.productservice.dto;
+package org.kosa.imageservice.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -18,12 +18,8 @@ public class ProductImage {
     @Column(name = "IMAGE_ID", length = 50)
     private String imageId;
 
-    @Column(name = "PRODUCT_ID", nullable = false, length = 50)
+    @Column(name = "PRODUCT_ID", length = 50, nullable = false)
     private String productId;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "PRODUCT_ID", insertable = false, updatable = false)
-    private Product product;
 
     @Column(name = "IMAGE_URL", length = 500)
     private String imageUrl;
@@ -40,10 +36,10 @@ public class ProductImage {
     @Column(name = "STORAGE_TYPE", length = 20)
     private String storageType;
 
-    @Column(name = "IMAGE_SEQ", nullable = false)
-    private Integer imageSeq;
+    @Column(name = "IMAGE_SEQ")
+    private int imageSeq;
 
-    @Column(name = "IS_MAIN_IMAGE", columnDefinition = "char(1)")
+    @Column(name = "IS_MAIN_IMAGE", columnDefinition = "CHAR(1)")
     private String isMainImage;
 
     @Column(name = "IMAGE_ALT", length = 200)
@@ -55,5 +51,14 @@ public class ProductImage {
     @Column(name = "UPDATED_DATE")
     private LocalDateTime updatedDate;
 
+    @PrePersist
+    public void onCreate() {
+        this.createdDate = LocalDateTime.now();
+        this.updatedDate = LocalDateTime.now();
+    }
 
+    @PreUpdate
+    public void onUpdate() {
+        this.updatedDate = LocalDateTime.now();
+    }
 }

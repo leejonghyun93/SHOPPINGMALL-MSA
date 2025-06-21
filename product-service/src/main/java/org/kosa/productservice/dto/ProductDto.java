@@ -1,5 +1,6 @@
 package org.kosa.productservice.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -9,6 +10,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
+@JsonIgnoreProperties(ignoreUnknown = true)  // 🔥 이거 추가!
 @Data
 @Builder
 @NoArgsConstructor
@@ -59,6 +61,8 @@ public class ProductDto {
     private Integer reviewCount; // 리뷰 개수 (productReviewCount와 동일)
     private Long stockQuantity; // 재고 수량
     private String categoryName; // 카테고리명
+    private String mainImageUrl;
+
 
     // 편의 메서드들
     public Integer getFinalPrice() {

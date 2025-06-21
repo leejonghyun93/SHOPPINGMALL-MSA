@@ -1,4 +1,4 @@
-# application.yml - 최종 수정된 버전
+# application.yml - 이미지 서비스 추가된 최종 버전
 server:
   port: 8080
 
@@ -45,6 +45,44 @@ spring:
             postLogger: true
 
       routes:
+        # 🖼️ IMAGE SERVICE 라우팅 (가장 먼저 배치)
+        - id: image-static-files
+          uri: lb://IMAGE-SERVICE
+          predicates:
+            - Path=/images/**
+            - Method=GET
+          filters:
+            - name: LoggingFilter
+              args:
+                baseMessage: "Image Static Files"
+                preLogger: true
+                postLogger: true
+
+        - id: image-service-api-public
+          uri: lb://IMAGE-SERVICE
+          predicates:
+            - Path=/api/images/**
+            - Method=GET,POST
+          filters:
+            - name: LoggingFilter
+              args:
+                baseMessage: "Image Service API Public"
+                preLogger: true
+                postLogger: true
+
+        - id: image-service-protected
+          uri: lb://IMAGE-SERVICE
+          predicates:
+            - Path=/api/images/**
+            - Method=PUT,DELETE,PATCH
+          filters:
+            - name: JwtAuthorization
+            - name: LoggingFilter
+              args:
+                baseMessage: "Image Service Protected"
+                preLogger: true
+                postLogger: true
+
         # AUTH SERVICE 라우팅
         - id: auth-service-public
           uri: lb://AUTH-SERVICE

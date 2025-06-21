@@ -1,9 +1,10 @@
 server:
-  port: 8093
+  port: 8088
 
 spring:
   application:
-    name: PRODUCT-SERVICE
+    name: IMAGE-SERVICE
+
 
   datasource:
     url: jdbc:mariadb://localhost:3306/shopmall
@@ -43,4 +44,5 @@ rabbitmq:
   password: guest
 
 image:
-  base-url: http://localhost:8080/api/images/products/
+  upload:
+    path: C:/Users/fhohf/IdeaProjects/shoppingmall-msa/image-service/uploads/products/
