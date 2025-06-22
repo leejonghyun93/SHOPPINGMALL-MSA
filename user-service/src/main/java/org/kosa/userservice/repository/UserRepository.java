@@ -26,26 +26,26 @@ public interface UserRepository extends JpaRepository<Member, String> {
     @Query("SELECT m FROM Member m WHERE m.userId = :userId AND m.blacklisted = 'N'")
     Optional<Member> findNonBlacklistedByUserId(@Param("userId") String userId);
 
-    // 🔴 등급별 회원 수 조회
+    //  등급별 회원 수 조회
     @Query("SELECT COUNT(m) FROM Member m WHERE m.memberGrade.gradeId = :gradeId")
     long countByMemberGradeGradeId(@Param("gradeId") String gradeId);
 
-    // 🔴 특정 등급의 회원 조회
+    //  특정 등급의 회원 조회
     @Query("SELECT m FROM Member m WHERE m.memberGrade.gradeId = :gradeId")
     List<Member> findByMemberGradeGradeId(@Param("gradeId") String gradeId);
 
-    // 🔴 특정 상태의 회원 수 조회
+    //  특정 상태의 회원 수 조회
     long countByStatus(String status);
 
-    // 🔴 마케팅 동의한 회원 조회
+    //  마케팅 동의한 회원 조회
     @Query("SELECT m FROM Member m WHERE m.marketingAgree = 'Y' AND m.secessionYn = 'N'")
     List<Member> findMarketingAgreedMembers();
 
-    // 🔴 활성 회원 수 조회
+    //  활성 회원 수 조회
     @Query("SELECT COUNT(m) FROM Member m WHERE m.status = 'ACTIVE' AND m.secessionYn = 'N'")
     long countActiveMembers();
 
-    // 🔴 등급별 활성 회원 조회
+    //  등급별 활성 회원 조회
     @Query("SELECT m FROM Member m WHERE m.memberGrade.gradeId = :gradeId AND m.status = 'ACTIVE' AND m.secessionYn = 'N'")
     List<Member> findActiveByMemberGradeGradeId(@Param("gradeId") String gradeId);
 }

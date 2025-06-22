@@ -1,6 +1,6 @@
 <template>
   <div class="orders-container">
-    <!-- 상단 헤더 영역 (제목과 필터) -->
+    <!-- 상단 헤더 영역 (제목과 필터) - 고정 -->
     <div class="orders-header">
       <h1 class="orders-title">주문 내역</h1>
       <div class="orders-controls">
@@ -49,7 +49,7 @@
       </div>
     </div>
 
-    <!-- 주문 목록 영역 (검은 테두리로 둘러싸임) -->
+    <!-- 주문 목록 영역 - 스크롤 가능 -->
     <div class="orders-wrapper">
       <!-- 로딩 상태 -->
       <div v-if="loading" class="loading-container">
@@ -77,56 +77,61 @@
         </button>
       </div>
 
-      <!-- 주문 목록 -->
-      <div v-else class="orders-list">
-        <div
-            v-for="order in paginatedOrders"
-            :key="order.orderId"
-            class="order-card"
-        >
-          <!-- 주문 헤더 - 날짜, 주문번호, 상태를 세로로 배치 -->
-          <div class="order-header">
-            <div class="order-info">
-              <div class="order-date">{{ formatDate(order.orderDate) }}</div>
-              <div class="order-number">주문번호 {{ order.orderId }} 📋</div>
-              <div class="order-status">
-                {{ order.orderStatus || '배송완료' }} {{ formatDateTime(order.orderDate) }} 📦
-              </div>
-            </div>
-            <button @click="viewOrderDetail(order.orderId)" class="detail-button">
-              ›
-            </button>
-          </div>
-
-          <!-- 주문 상품들 -->
-          <div class="order-content">
+      <!-- 주문 목록과 페이징을 분리 -->
+      <div v-else class="orders-content">
+        <!-- 스크롤 가능한 주문 목록 영역 -->
+        <div class="orders-list-container">
+          <div class="orders-list">
             <div
-                v-for="(item, index) in order.items"
-                :key="item.productId"
-                class="product-item"
+                v-for="order in paginatedOrders"
+                :key="order.orderId"
+                class="order-card"
             >
-              <img
-                  :src="item.imageUrl || '/api/placeholder/60/60'"
-                  :alt="item.productName"
-                  class="product-image"
-              />
-              <div class="product-details">
-                <div class="product-name">{{ item.productName }}</div>
-                <div class="product-price">{{ formatPrice(item.totalPrice) }}원 {{ item.quantity }}개</div>
+              <!-- 주문 헤더 - 날짜, 주문번호, 상태를 세로로 배치 -->
+              <div class="order-header">
+                <div class="order-info">
+                  <div class="order-date">{{ formatDate(order.orderDate) }}</div>
+                  <div class="order-number">주문번호 {{ order.orderId }} 📋</div>
+                  <div class="order-status">
+                    {{ order.orderStatus || '배송완료' }} {{ formatDateTime(order.orderDate) }} 📦
+                  </div>
+                </div>
+                <button @click="viewOrderDetail(order.orderId)" class="detail-button">
+                  ›
+                </button>
               </div>
-              <div class="cart-icon">🛒</div>
-            </div>
 
-            <!-- 후기작성 버튼 -->
-            <div class="order-actions">
-              <button class="review-button">
-                후기작성
-              </button>
+              <!-- 주문 상품들 -->
+              <div class="order-content">
+                <div
+                    v-for="(item, index) in order.items"
+                    :key="item.productId"
+                    class="product-item"
+                >
+                  <img
+                      :src="item.imageUrl || '/api/placeholder/60/60'"
+                      :alt="item.productName"
+                      class="product-image"
+                  />
+                  <div class="product-details">
+                    <div class="product-name">{{ item.productName }}</div>
+                    <div class="product-price">{{ formatPrice(item.totalPrice) }}원 {{ item.quantity }}개</div>
+                  </div>
+                  <div class="cart-icon">🛒</div>
+                </div>
+
+                <!-- 후기작성 버튼 -->
+                <div class="order-actions">
+                  <button class="review-button">
+                    후기작성
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- 페이지네이션 -->
+        <!-- 페이지네이션 (고정) -->
         <div v-if="totalPages > 1" class="pagination-container">
           <div class="pagination">
             <!-- 이전 페이지 버튼 -->
@@ -187,7 +192,7 @@ const error = ref('')
 const selectedPeriod = ref('')
 const searchQuery = ref('')
 const currentPage = ref(1)
-const ordersPerPage = 10
+const ordersPerPage = 5
 
 // API 기본 URL
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080'
@@ -214,7 +219,6 @@ const loadOrders = async () => {
 
     const userId = localStorage.getItem('userId') || 'guest'
 
-    // 🔧 수정: 올바른 엔드포인트로 변경
     const url = `${API_BASE_URL}/api/orders/list?userId=${userId}`
 
     console.log('주문 목록 요청:', url)
@@ -245,7 +249,6 @@ const loadOrders = async () => {
       throw new Error(result.message || '주문 목록을 불러오는데 실패했습니다.')
     }
   } catch (err) {
-    console.error('주문 목록 로드 실패:', err)
     error.value = err.message || '주문 목록을 불러오는 중 오류가 발생했습니다.'
   } finally {
     loading.value = false
@@ -302,11 +305,14 @@ const displayPages = computed(() => {
   return pages
 })
 
-// 페이지 이동
+// 페이지 이동 - 스크롤을 주문 목록 컨테이너 맨 위로
 const goToPage = (page) => {
   currentPage.value = page
-  // 페이지 변경 시 스크롤을 맨 위로 이동
-  window.scrollTo({ top: 0, behavior: 'smooth' })
+  // 주문 목록 컨테이너의 스크롤을 맨 위로 이동
+  const ordersContainer = document.querySelector('.orders-list-container')
+  if (ordersContainer) {
+    ordersContainer.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 }
 
 // 검색 처리

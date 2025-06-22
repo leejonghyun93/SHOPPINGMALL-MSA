@@ -6,6 +6,7 @@
       <div v-if="loading">로딩 중...</div>
       <div v-else>
         <table class="member-table">
+          <tbody>
           <tr>
             <th>아이디</th>
             <td>{{ member.userid }}</td>
@@ -58,6 +59,7 @@
             <th>로그인 실패 횟수</th>
             <td>{{ member.loginFailCount }}</td>
           </tr>
+          </tbody>
         </table>
 
         <div v-if="isLogin && isOwner" class="actions">
@@ -77,7 +79,7 @@
 import axios from 'axios';
 import {jwtDecode} from 'jwt-decode';
 import '@/assets/css/userDetail.css';
-
+import '@fortawesome/fontawesome-free/css/all.css'
 export default {
   data() {
     return {

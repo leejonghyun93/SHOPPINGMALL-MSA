@@ -27,12 +27,31 @@ public class AuthService {
             UserDto user;
             try {
                 user = userClient.getUserByUserId(loginRequest.getUserid());
+                log.info("🔍 UserClient에서 받은 응답:");
+                log.info("   - userId: {}", user.getUserId());
+                log.info("   - status: {}", user.getStatus());
+                log.info("   - secessionYn: {}", user.getSecessionYn());
+                log.info("   - name: {}", user.getName());
             } catch (Exception feignException) {
                 throw new IllegalArgumentException("사용자 서비스 연결 실패: " + feignException.getMessage());
             }
 
             if (user == null) {
                 throw new IllegalArgumentException("사용자를 찾을 수 없습니다");
+            }
+
+            // 🔥 탈퇴한 회원 체크 추가
+            log.info("🔍 탈퇴 회원 체크 - status: '{}', secessionYn: '{}'", user.getStatus(), user.getSecessionYn());
+
+            if ("Y".equals(user.getSecessionYn()) || "WITHDRAWN".equals(user.getStatus())) {
+                log.warn("⚠️ 탈퇴한 회원 로그인 시도 차단!");
+                throw new IllegalArgumentException("탈퇴한 회원입니다. 로그인할 수 없습니다.");
+            }
+
+            // 🔥 비활성화된 회원 체크 추가
+            if (!"ACTIVE".equals(user.getStatus())) {
+                log.warn("⚠️ 비활성화된 회원 로그인 시도 차단!");
+                throw new IllegalArgumentException("비활성화된 계정입니다. 관리자에게 문의하세요.");
             }
 
             if (user.getPassword() == null || user.getPassword().isEmpty()) {

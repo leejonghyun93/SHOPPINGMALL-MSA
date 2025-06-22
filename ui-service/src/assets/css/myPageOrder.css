@@ -1,11 +1,13 @@
 /* 컨테이너 스타일 */
 .orders-container {
-    /*background: #f5f5f5;*/
-    /*padding: 20px;*/
     min-height: 100vh;
+    max-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding: 0 10px;
 }
 
-/* 상단 헤더 영역 (제목과 필터) */
+/* 상단 헤더 영역 (고정) */
 .orders-header {
     background: white;
     border-radius: 12px;
@@ -13,6 +15,7 @@
     margin-bottom: 20px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
     border: 1px solid #e5e7eb;
+    flex-shrink: 0; /* 헤더 크기 고정 */
 }
 
 .orders-title {
@@ -159,14 +162,48 @@
     color: #495057;
 }
 
-/* 하단 주문 목록 래퍼 */
+/* 하단 주문 목록 래퍼 - 스크롤 가능 영역 */
 .orders-wrapper {
+    flex: 1; /* 남은 공간을 모두 차지 */
+    display: flex;
+    flex-direction: column;
+    min-height: 0; /* flex item이 shrink 될 수 있도록 */
+}
+
+/* 주문 내용 컨테이너 */
+.orders-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+/* 스크롤 가능한 주문 목록 컨테이너 */
+.orders-list-container {
+    flex: 1; /* 페이징을 제외한 남은 공간을 모두 차지 */
+    overflow-y: auto; /* 세로 스크롤 활성화 */
     background: transparent;
-    border: none;
     border-radius: 0;
-    box-shadow: none;
-    overflow: visible;
-    padding: 0;
+    padding-right: 8px; /* 스크롤바 공간 확보 */
+}
+
+/* 스크롤바 스타일링 */
+.orders-list-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.orders-list-container::-webkit-scrollbar-track {
+    background: #f1f3f4;
+    border-radius: 4px;
+}
+
+.orders-list-container::-webkit-scrollbar-thumb {
+    background: #dadce0;
+    border-radius: 4px;
+}
+
+.orders-list-container::-webkit-scrollbar-thumb:hover {
+    background: #bdc1c6;
 }
 
 /* 주문 목록 스타일 */
@@ -174,7 +211,7 @@
     display: flex;
     flex-direction: column;
     gap: 20px;
-    background: transparent;
+    padding-right: 8px; /* 스크롤바 공간 확보 */
 }
 
 .order-card {
@@ -185,7 +222,7 @@
     border: 1px solid #e5e7eb;
     transition: all 0.2s;
     padding: 24px;
-    margin: 0;
+    flex-shrink: 0; /* 카드 크기 고정 */
 }
 
 .order-card:hover {
@@ -341,7 +378,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 400px;
+    flex: 1;
     background: transparent;
     border-radius: 0;
     border: none;
@@ -376,6 +413,11 @@
     background: transparent;
     border-radius: 0;
     border: none;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
 }
 
 .error-message {
@@ -409,6 +451,11 @@
     background: transparent;
     border-radius: 0;
     border: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
 }
 
 .empty-icon {
@@ -449,7 +496,7 @@
     box-shadow: 0 8px 24px rgba(0, 102, 204, 0.4);
 }
 
-/* 페이지네이션 */
+/* 페이지네이션 (고정) */
 .pagination-container {
     display: flex;
     flex-direction: column;
@@ -461,6 +508,7 @@
     border-radius: 16px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     border: 1px solid #e5e7eb;
+    flex-shrink: 0; /* 페이지네이션 크기 고정 */
 }
 
 .pagination {

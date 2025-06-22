@@ -1,5 +1,8 @@
 <template>
   <div class="mypage-container">
+    <!-- Font Awesome 6.7.2 CDN 추가 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+
     <div class="container-fluid">
       <div class="row">
         <!-- 왼쪽 사이드바 -->
@@ -8,64 +11,123 @@
           <div class="user-info-section">
             <div class="welcome-text">반가워요! <span class="username">{{ userName }}</span></div>
 
-            <div class="user-stats">
-              <div class="stat-item">
-                <div class="stat-label">적립금</div>
-                <div class="stat-value">{{ (points || 0).toLocaleString() }}원</div>
+            <div class="benefit-cards">
+              <div class="benefit-card">
+                <div class="benefit-label">적립금</div>
+                <div class="benefit-value">{{ (points || 0).toLocaleString() }}<span class="unit">원</span></div>
               </div>
-              <div class="stat-item">
-                <div class="stat-label">상품권</div>
-                <div class="stat-value">{{ giftCards || 0 }}개</div>
+              <div class="benefit-card">
+                <div class="benefit-label">할인쿠폰</div>
+                <div class="benefit-value">{{ giftCards || 0 }}<span class="unit">원</span></div>
+              </div>
+              <div class="benefit-card">
+                <div class="benefit-label">상품권</div>
+                <div class="benefit-value">{{ coupons || 0 }}<span class="unit">원</span></div>
               </div>
             </div>
+
+            <button class="benefit-button">
+              쇼핑할 때 쓸 수 있는 혜택이 많이
+              <i class="fas fa-chevron-right"></i>
+            </button>
           </div>
 
           <!-- 메뉴 섹션 -->
           <div class="menu-section">
-            <div class="menu-category" @click="navigateToTab('orders')" :class="{ active: activeTab === 'orders' }">
-              <div class="menu-header">
-                <i class="fas fa-box text-primary"></i>
-                <span>주문 내역</span>
-                <span class="menu-count">{{ orderCount }}</span>
+            <div class="menu-title">자주 찾는 메뉴</div>
+
+            <!-- 메뉴 아이템들 -->
+            <div class="menu-items">
+              <div class="menu-item" @click="navigateToTab('orders')" :class="{ active: activeTab === 'orders' }">
+                <div class="menu-icon orders-icon">
+                  <svg class="svg-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M20 7H4V5C4 4.44772 4.44772 4 5 4H19C19.5523 4 20 4.44772 20 5V7Z" fill="#1976d2"/>
+                    <path d="M3 7H21V19C21 19.5523 20.5523 20 20 20H4C3.44772 20 3 19.5523 3 19V7Z" stroke="#1976d2" stroke-width="2" fill="none"/>
+                    <path d="M9 11H15" stroke="#1976d2" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                </div>
+                <div class="menu-info">
+                  <div class="menu-name">주문 내역</div>
+                  <div class="menu-count">{{ orderCount || 0 }}</div>
+                </div>
+              </div>
+
+              <div class="menu-item" @click="navigateToTab('coupons')" :class="{ active: activeTab === 'coupons' }">
+                <div class="menu-icon coupons-icon">
+                  <svg class="svg-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M21 8V16C21 17.1046 20.1046 18 19 18H5C3.89543 18 3 17.1046 3 16V8C3 6.89543 3.89543 6 5 6H19C20.1046 6 21 6.89543 21 8Z" stroke="#7b1fa2" stroke-width="2" fill="none"/>
+                    <circle cx="8" cy="12" r="1" fill="#7b1fa2"/>
+                    <circle cx="16" cy="12" r="1" fill="#7b1fa2"/>
+                    <path d="M12 8V16" stroke="#7b1fa2" stroke-width="1" stroke-dasharray="2 2"/>
+                  </svg>
+                </div>
+                <div class="menu-info">
+                  <div class="menu-name">쿠폰</div>
+                  <div class="menu-count">{{ coupons || 0 }}</div>
+                </div>
+              </div>
+
+              <div class="menu-item" @click="navigateToTab('wishlist')" :class="{ active: activeTab === 'wishlist' }">
+                <div class="menu-icon wishlist-icon">
+                  <svg class="svg-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 21.35L10.55 20.03C5.4 15.36 2 12.28 2 8.5C2 5.42 4.42 3 7.5 3C9.24 3 10.91 3.81 12 5.09C13.09 3.81 14.76 3 16.5 3C19.58 3 22 5.42 22 8.5C22 12.28 18.6 15.36 13.45 20.04L12 21.35Z" fill="#d32f2f"/>
+                  </svg>
+                </div>
+                <div class="menu-info">
+                  <div class="menu-name">찜한 상품</div>
+                  <div class="menu-count">0</div>
+                </div>
+              </div>
+
+              <div class="menu-item" @click="navigateToTab('frequent')" :class="{ active: activeTab === 'frequent' }">
+                <div class="menu-icon frequent-icon">
+                  <svg class="svg-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M7 4V2C7 1.44772 7.44772 1 8 1H16C16.5523 1 17 1.44772 17 2V4H20C20.5523 4 21 4.44772 21 5C21 5.55228 20.5523 6 20 6H19V19C19 20.1046 18.1046 21 17 21H7C5.89543 21 5 20.1046 5 19V6H4C3.44772 6 3 5.55228 3 5C3 4.44772 3.44772 4 4 4H7Z" fill="#388e3c"/>
+                    <path d="M9 3H15V4H9V3Z" fill="white"/>
+                  </svg>
+                </div>
+                <div class="menu-info">
+                  <div class="menu-name">자주 구매</div>
+                </div>
               </div>
             </div>
 
-            <div class="menu-category" @click="navigateToTab('coupons')" :class="{ active: activeTab === 'coupons' }">
-              <div class="menu-header">
-                <i class="fas fa-ticket-alt text-success"></i>
-                <span>쿠폰</span>
-                <span class="menu-count">{{ coupons }}</span>
+            <!-- 배너 섹션 -->
+            <div class="banner-section">
+              <div class="banner-content">
+                <div class="banner-text">
+                  <div class="banner-main">베네핏 회원 혜택받고 즐거워지고</div>
+                  <div class="banner-sub">2주년 기념 혜택 + 최대 30% 쿠폰 +</div>
+                </div>
+                <div class="banner-badge">0원</div>
+                <div class="banner-discount">-30%</div>
               </div>
             </div>
 
-            <div class="menu-category" @click="navigateToTab('wishlist')" :class="{ active: activeTab === 'wishlist' }">
-              <div class="menu-header">
-                <i class="fas fa-heart text-danger"></i>
-                <span>찜한 상품</span>
-                <span class="menu-count">0</span>
+            <!-- 하단 링크 섹션 -->
+            <div class="bottom-links">
+              <div class="link-section">
+                <div class="section-title">소셜</div>
+                <div class="link-item" @click="navigateToTab('returns')" :class="{ active: activeTab === 'returns' }">
+                  취소 · 반품 내역
+                </div>
+                <div class="link-item" @click="navigateToTab('reviews')" :class="{ active: activeTab === 'reviews' }">
+                  상품 후기
+                </div>
+                <div class="link-item" @click="navigateToTab('inquiries')" :class="{ active: activeTab === 'inquiries' }">
+                  상품 문의
+                </div>
               </div>
-            </div>
 
-
-
-            <!-- 소셜 섹션 -->
-            <div class="social-section">
-              <h6>소셜</h6>
-              <ul class="social-menu">
-                <li><a href="#" @click="navigateToTab('returns')" :class="{ active: activeTab === 'returns' }">취소 · 반품 내역</a></li>
-                <li><a href="#" @click="navigateToTab('reviews')" :class="{ active: activeTab === 'reviews' }">상품 후기</a></li>
-                <li><a href="#" @click="navigateToTab('inquiries')" :class="{ active: activeTab === 'inquiries' }">상품 문의</a></li>
-              </ul>
-            </div>
-
-            <!-- 내 정보관리 섹션 -->
-            <div class="profile-section">
-              <h6>내 정보관리</h6>
-              <ul class="profile-menu">
-
-                <li><a href="#" @click="navigateToProfile()">회원 정보 관리</a></li>
-                <li><a href="#" @click="navigateToTab('vip')" :class="{ active: activeTab === 'vip' }">VIP 예상 등급</a></li>
-              </ul>
+              <div class="link-section">
+                <div class="section-title">내 정보관리</div>
+                <div class="link-item" @click="navigateToProfile()">
+                  회원 정보 관리
+                </div>
+                <div class="link-item" @click="navigateToTab('vip')" :class="{ active: activeTab === 'vip' }">
+                  VIP 예상 등급
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -120,20 +182,15 @@ async function fetchUserExtraInfo() {
     const token = localStorage.getItem('token')
     if (!token) return
 
-    // API 호출해서 적립금, 쿠폰 수 등 가져오기
-    // const response = await fetch('/api/users/stats', { headers: { Authorization: `Bearer ${token}` } })
-    // const data = await response.json()
-    // points.value = data.points
-    // coupons.value = data.coupons
-    // giftCards.value = data.giftCards
   } catch (error) {
     console.error('사용자 추가 정보 로드 실패:', error)
   }
 }
+
 function navigateToProfile() {
-  // 이 컴포넌트를 라우터로 이동
   router.push('/mypage/profile');
 }
+
 onMounted(() => {
   // userStore에서 사용자 정보 설정
   const token = localStorage.getItem('token')
@@ -150,154 +207,301 @@ onMounted(() => {
   }
 })
 </script>
+
 <style scoped>
+/* 기본 컨테이너 */
 .mypage-container {
-  background-color: #afafaf;
+  background-color: #f8f9fa;
   padding: 20px 0;
+  min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Malgun Gothic', sans-serif;
+}
+
+.container-fluid {
+  height: 100%;
+}
+
+.row {
+  min-height: calc(100vh - 40px);
 }
 
 /* 사이드바 */
 .sidebar {
-  background-color: transparent;
   padding: 0;
   padding-right: 15px;
-  height: fit-content;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-/* 사용자 정보 섹션 - 독립적인 카드 */
+/* 사용자 정보 섹션 */
 .user-info-section {
   background-color: white;
-  padding: 20px;
-  border: 1px solid #b3b3b3;
-  margin-bottom: 15px;
-  border-radius: 10px;
-}
-
-/* 메뉴 섹션 - 독립적인 카드 */
-.menu-section {
-  background-color: white;
-  border: 1px solid #b3b3b3;
-  border-radius: 10px;
-  padding: 0;
-  height: 100%;
-  overflow: hidden;
+  padding: 24px 20px;
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .welcome-text {
   font-size: 18px;
-  margin-bottom: 15px;
+  margin-bottom: 20px;
   color: #333;
+  font-weight: 600;
+  line-height: 1.4;
 }
 
 .username {
-  color: #007bff;
-  font-weight: bold;
+  color: #5d5fef;
+  font-weight: 700;
 }
 
-.user-stats {
+/* 혜택 카드들 */
+.benefit-cards {
   display: flex;
-  justify-content: space-between;
-  margin-bottom: 15px;
+  gap: 12px;
+  margin-bottom: 20px;
 }
 
-.stat-item {
-  text-align: center;
-}
-
-.stat-label {
-  font-size: 12px;
-  color: #666;
-  margin-bottom: 5px;
-}
-
-.stat-value {
-  font-size: 16px;
-  font-weight: bold;
-  color: #333;
-}
-
-.menu-category {
-  border-bottom: 1px solid #f0f0f0;
-  cursor: pointer;
-}
-
-.menu-category:last-child {
-  border-bottom: none;
-}
-
-.menu-category.active {
-  background-color: #e3f2fd;
-}
-
-.menu-header {
-  display: flex;
-  align-items: center;
-  padding: 15px 20px;
-  transition: background-color 0.2s;
-}
-
-.menu-header:hover {
-  background-color: #f8f9fa;
-}
-
-.menu-header i {
-  margin-right: 10px;
-  width: 20px;
-}
-
-.menu-header span:nth-child(2) {
+.benefit-card {
   flex: 1;
+  background-color: #f8f9fc;
+  padding: 16px 12px;
+  border-radius: 12px;
+  text-align: center;
+  border: 1px solid #e9ecef;
+}
+
+.benefit-label {
+  font-size: 11px;
+  color: #6c757d;
+  margin-bottom: 8px;
   font-weight: 500;
 }
 
+.benefit-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #212529;
+  line-height: 1;
+}
+
+.benefit-value .unit {
+  font-size: 12px;
+  font-weight: 500;
+  color: #6c757d;
+  margin-left: 2px;
+}
+
+/* 혜택 버튼 */
+.benefit-button {
+  width: 100%;
+  background: linear-gradient(135deg, #e3f2fd, #f3e5f5);
+  border: none;
+  border-radius: 12px;
+  padding: 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #5d5fef;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.benefit-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(93, 95, 239, 0.15);
+}
+
+/* 메뉴 섹션 */
+.menu-section {
+  background-color: white;
+  border-radius: 16px;
+  padding: 24px 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  flex: 1;
+}
+
+.menu-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #212529;
+  margin-bottom: 20px;
+}
+
+/* 메뉴 아이템들 */
+.menu-items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 24px;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  padding: 16px 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.menu-item:hover {
+  background-color: #f8f9fa;
+}
+
+.menu-item.active {
+  background-color: #e3f2fd;
+}
+
+/* 메뉴 아이콘 스타일 */
+.menu-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 12px;
+}
+
+.svg-icon {
+  width: 20px;
+  height: 20px;
+}
+
+/* 각 메뉴별 아이콘 배경색 */
+.orders-icon {
+  background-color: #e3f2fd;
+}
+
+.coupons-icon {
+  background-color: #f3e5f5;
+}
+
+.wishlist-icon {
+  background-color: #ffebee;
+}
+
+.frequent-icon {
+  background-color: #e8f5e8;
+}
+
+.menu-info {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.menu-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #212529;
+}
+
 .menu-count {
-  background-color: #dc3545;
+  font-size: 16px;
+  font-weight: 700;
+  color: #212529;
+}
+
+/* 배너 섹션 */
+.banner-section {
+  margin-bottom: 24px;
+}
+
+.banner-content {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 16px;
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.banner-text {
+  color: white;
+  margin-bottom: 12px;
+}
+
+.banner-main {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  line-height: 1.3;
+}
+
+.banner-sub {
+  font-size: 11px;
+  opacity: 0.9;
+  line-height: 1.3;
+}
+
+.banner-badge {
+  position: absolute;
+  top: 16px;
+  right: 60px;
+  background-color: white;
+  color: #667eea;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.banner-discount {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background-color: #ff4757;
   color: white;
   font-size: 12px;
-  padding: 2px 6px;
-  border-radius: 10px;
-  margin-left: auto;
+  font-weight: 700;
+  padding: 4px 6px;
+  border-radius: 4px;
 }
 
-/* 하위 메뉴들 */
-.social-section, .profile-section, .personal-info-section {
-  padding: 20px;
-  border-bottom: 1px solid #f0f0f0;
+/* 하단 링크 섹션 */
+.bottom-links {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
-.social-section:last-child, .profile-section:last-child, .personal-info-section:last-child {
+.link-section {
+  border-bottom: 1px solid #f1f3f4;
+  padding-bottom: 16px;
+}
+
+.link-section:last-child {
   border-bottom: none;
+  padding-bottom: 0;
 }
 
-.social-section h6, .profile-section h6 {
-  color: #666;
+.section-title {
   font-size: 12px;
-  margin-bottom: 10px;
+  font-weight: 600;
+  color: #6c757d;
+  margin-bottom: 12px;
   text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.social-menu, .profile-menu {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.social-menu li, .profile-menu li {
-  margin-bottom: 8px;
-}
-
-.social-menu a, .profile-menu a {
-  color: #333;
-  text-decoration: none;
-  font-size: 14px;
-  transition: color 0.2s;
+.link-item {
+  padding: 8px 0;
+  font-size: 13px;
+  color: #495057;
   cursor: pointer;
+  transition: color 0.2s;
+  line-height: 1.4;
 }
 
-.social-menu a:hover, .profile-menu a:hover,
-.social-menu a.active, .profile-menu a.active {
-  color: #007bff;
-  font-weight: bold;
+.link-item:hover,
+.link-item.active {
+  color: #5d5fef;
+  font-weight: 500;
 }
 
 /* 메인 컨텐츠 */
@@ -305,355 +509,22 @@ onMounted(() => {
   background-color: transparent;
   padding: 0;
   overflow: visible;
-}
-
-.tab-content {
-  min-height: 400px;
-}
-
-/* 헤더 영역 - 독립적인 카드 */
-.content-header {
-  background-color: white;
-  border: 1px solid #b3b3b3;
-  border-radius: 10px;
-  padding: 20px;
-  margin-bottom: 15px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.content-header h4 {
-  margin: 0;
-  color: #333;
-  border-bottom: 2px solid #000;
-  padding-bottom: 5px;
-  display: inline-block;
-}
-
-.filter-section {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-}
-
-.filter-select {
-  width: 100px;
-  height: 35px;
-}
-
-.search-box {
-  position: relative;
-  width: 250px;
-}
-
-.search-box input {
-  height: 35px;
-  padding-right: 35px;
-}
-
-.search-icon {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #666;
-}
-
-/* 주문 카드 */
-.order-card {
-  border: 1px solid #eee;
-  margin-top: -70%;
-  border-radius: 8px;
-  overflow: hidden;
-  background-color: white;
-}
-
-.order-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 15px 20px;
-  background-color: #f8f9fa;
-  border-bottom: 1px solid #eee;
-}
-
-.order-date {
-  font-weight: bold;
-  color: #333;
-}
-
-.order-number {
-  color: #666;
-  font-size: 12px;
-  margin-left: 15px;
-  flex: 1;
-}
-
-.delivery-info {
-  padding: 10px 20px;
-  background-color: #fff5f5;
-}
-
-.delivery-status {
-  color: #dc3545;
-  font-weight: bold;
-  margin-right: 10px;
-}
-
-.delivery-date {
-  color: #666;
-  font-size: 14px;
-}
-
-.product-info {
-  display: flex;
-  align-items: center;
-  padding: 20px;
-}
-
-.product-image {
-  margin-right: 15px;
-}
-
-.product-image img {
-  width: 80px;
-  height: 80px;
-  border-radius: 8px;
-  object-fit: cover;
-}
-
-.product-details {
-  flex: 1;
-}
-
-.product-category {
-  color: #666;
-  font-size: 12px;
-  margin-bottom: 5px;
-}
-
-.product-name {
-  font-weight: 500;
-  margin-bottom: 8px;
-  color: #333;
-}
-
-.product-price {
-  display: flex;
-  gap: 10px;
-}
-
-.price {
-  font-weight: bold;
-  color: #333;
-}
-
-.quantity {
-  color: #666;
-}
-
-.product-actions {
-  margin-left: 15px;
-}
-
-.product-actions i {
-  cursor: pointer;
-  color: #666;
-  font-size: 18px;
-}
-
-.order-actions {
-  display: flex;
-  gap: 10px;
-  padding: 15px 20px;
-  border-top: 1px solid #eee;
-  background-color: #f8f9fa;
-}
-
-.order-actions .btn {
-  padding: 8px 16px;
-  font-size: 14px;
-}
-
-.personal-info-form {
-  background-color: white;
-  border: 1px solid #eee;
-  border-radius: 10px;
-  padding: 20px;
-}
-
-.form-section {
-  max-width: 500px;
-}
-
-.form-section h5 {
-  color: #333;
-  margin-bottom: 10px;
-  font-weight: 600;
-}
-
-.form-section p {
-  margin-bottom: 20px;
-  font-size: 14px;
-}
-
-.placeholder-content {
-  padding: 40px 20px;
-  background-color: white;
-  border: 1px solid #eee;
-  border-radius: 10px;
-}
-
-.profile-management {
-  padding: 20px;
-  background-color: white;
-  border-radius: 10px;
-  border: 1px solid #eee;
-}
-
-.info-section {
-  margin-bottom: 30px;
-}
-
-.info-section h5 {
-  color: #333;
-  margin-bottom: 15px;
-  font-weight: 600;
-}
-
-.info-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 15px 0;
-  border-bottom: 1px solid #f0f0f0;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.info-item:hover {
-  background-color: #f8f9fa;
-}
-
-.info-item:last-child {
-  border-bottom: none;
-}
-
-.info-item span {
-  font-size: 16px;
-  color: #333;
-  font-weight: 500;
-}
-
-.arrow-icon {
-  color: #666;
-  font-size: 16px;
-  margin-left: auto;
-}
-
-/* 🔥 새로 추가된 스타일들 */
-
-/* 비밀번호 섹션 스타일 */
-.password-section {
-  background-color: #f8f9fa;
-  padding: 20px;
-  border-radius: 8px;
-  margin: 20px 0;
-
-}
-
-.password-section-title {
-  color: #495057;
-  margin-bottom: 15px;
-  font-weight: 600;
-  font-size: 14px;
-}
-
-/* 성별 토글 스타일 (회원가입과 동일) */
-.gender-toggle {
-  display: flex;
-  gap: 15px;
-  padding: 10px 0;
-}
-
-.gender-toggle label {
-  display: flex;
-  align-items: center;
-  padding: 8px 16px;
-  border: 2px solid #e9ecef;
-  border-radius: 25px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-weight: 500;
-  background-color: white;
-}
-
-.gender-toggle label:hover {
-  border-color: #007bff;
-  background-color: #f8f9fa;
-}
-
-.gender-toggle label.active {
-  border-color: #007bff;
-  background-color: #007bff;
-  color: white;
-}
-
-.gender-toggle input[type="radio"] {
-  margin-right: 8px;
-}
-
-.gender-toggle label.active input[type="radio"] {
-  accent-color: white;
-}
-
-/* 폼 텍스트 스타일 */
-.form-text {
-  font-size: 12px;
-  color: #6c757d;
-  margin-top: 5px;
+  height: 100%;
 }
 
 /* 반응형 */
 @media (max-width: 768px) {
+  .sidebar {
+    margin-bottom: 20px;
+  }
+
+  .benefit-cards {
+    flex-direction: column;
+    gap: 8px;
+  }
+
   .main-content {
     margin-left: 0;
-    margin-top: 15px;
-  }
-
-  .content-header {
-    flex-direction: column;
-    gap: 15px;
-    align-items: flex-start;
-  }
-
-  .filter-section {
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  .search-box {
-    width: 200px;
-  }
-
-  .product-info {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 15px;
-  }
-
-  .product-details {
-    width: 100%;
-  }
-
-  .gender-toggle {
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .gender-toggle label {
-    justify-content: center;
   }
 }
 </style>

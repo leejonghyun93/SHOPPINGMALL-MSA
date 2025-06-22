@@ -36,51 +36,48 @@ public class SimpleJwtFilter extends AbstractGatewayFilterFactory<SimpleJwtFilte
                 try {
                     String token = authHeader.substring(7);
 
-                    // 🔧 Auth Service와 동일한 키 생성 방식
-                    String actualSecretKey = secretKey;
-                    if (secretKey.length() < 32) {
-                        actualSecretKey = "mySecretKeyForJWTTokenThatShouldBeLongEnoughForSecurity";
-                    }
-
-                    SecretKey key = Keys.hmacShaKeyFor(actualSecretKey.getBytes(StandardCharsets.UTF_8));
+                    SecretKey key = Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
                     Claims claims = Jwts.parserBuilder()
                             .setSigningKey(key)
                             .build()
                             .parseClaimsJws(token)
                             .getBody();
 
-                    // 🔧 Auth Service JWT 구조에 맞게 정보 추출
-                    String username = claims.getSubject();              // username (asdasds)
-                    Long userId = claims.get("userId", Long.class);     // 실제 사용자 ID
-                    String name = claims.get("name", String.class);     // 실제 이름
-                    String issuer = claims.getIssuer();                 // auth-service
+                    String userIdStr = claims.getSubject();
+                    String username = claims.get("username", String.class);
+                    String name = claims.get("name", String.class);
+                    String email = claims.get("email", String.class);
+                    String phone = claims.get("phone", String.class);
 
-                    log.info("✅ JWT 파싱 성공 - Username: {}, UserID: {}, Name: {}", username, userId, name);
+                    log.info("✅ JWT 파싱 성공 - UserID: {}, Username: {}", userIdStr, username);
 
-                    // 🔧 다운스트림 서비스로 모든 사용자 정보 전달
+                    // 헤더에 사용자 정보 추가
                     ServerHttpRequest mutatedRequest = request.mutate()
-                            .header("X-User-Id", String.valueOf(userId))        // Long → String 변환
+                            .header("X-User-Id", userIdStr)
                             .header("X-Username", username != null ? username : "")
                             .header("X-User-Name", name != null ? name : "")
-                            .header("Authorization", authHeader) // 원본 토큰도 유지
+                            .header("X-User-Email", email != null ? email : "")
+                            .header("X-User-Phone", phone != null ? phone : "")
+                            .header("Authorization", authHeader)
                             .build();
 
                     return chain.filter(exchange.mutate().request(mutatedRequest).build());
 
                 } catch (Exception e) {
-                    log.warn("⚠️ JWT 파싱 실패, 원본 요청 전달: {}", e.getMessage());
-                    // JWT 파싱 실패해도 요청은 계속 진행 (Cart Service에서 게스트로 처리)
+                    log.warn("⚠️ JWT 파싱 실패하지만 요청 전달: {}", e.getMessage());
+                    // 🔥 인증 실패해도 요청 전달 (USER-SERVICE에서 검증)
+                    return chain.filter(exchange);
                 }
             } else {
-                log.info("🔓 Authorization 헤더 없음 - 게스트 요청으로 처리");
+                log.info("🔓 Authorization 헤더 없음");
             }
 
-            // JWT가 없거나 파싱 실패 시 원본 요청 그대로 전달
             return chain.filter(exchange);
         };
     }
 
+    // 🔥 이 부분을 추가하세요!
     public static class Config {
-        // 설정 클래스
+        // 설정 클래스 (현재는 비어있음)
     }
 }

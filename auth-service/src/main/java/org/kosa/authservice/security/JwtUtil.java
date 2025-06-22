@@ -49,14 +49,16 @@ public class JwtUtil {
         Date now = new Date();
         Date expireDate = new Date(now.getTime() + expiration);
 
-        return Jwts.builder()
-                .setSubject(String.valueOf(userId))  // 🔥 Gateway에서 claims.getSubject()로 사용자 ID를 가져옴
+        // 🔥 userId가 null이면 username을 subject로 사용
+        String subject = (userId != null) ? String.valueOf(userId) : username;
 
-                .claim("username", username)         // username은 별도 claim으로
-                .claim("name", name)                 // Gateway에서 claims.get("name", String.class)로 사용
-                .claim("email", email)               // Gateway에서 claims.get("email", String.class)로 사용
-                .claim("phone", phone)               // Gateway에서 claims.get("phone", String.class)로 사용
-                .claim("role", "USER")               // 기본 역할 추가 (필요시)
+        return Jwts.builder()
+                .setSubject(subject)  // 🔥 이 부분만 수정
+                .claim("username", username)
+                .claim("name", name)
+                .claim("email", email)
+                .claim("phone", phone)
+                .claim("role", "USER")
                 .setIssuer("auth-service")
                 .setIssuedAt(now)
                 .setExpiration(expireDate)

@@ -17,7 +17,7 @@ spring:
     name: APIGATEWAY-SERVICE
   cloud:
     gateway:
-      # 🔥 CORS 설정을 하나로 통합 (중복 제거)
+      #  CORS 설정을 하나로 통합 (중복 제거)
       globalcors:
         cors-configurations:
           '[/**]':
@@ -45,7 +45,7 @@ spring:
             postLogger: true
 
       routes:
-        # 🖼️ IMAGE SERVICE 라우팅 (가장 먼저 배치)
+        # 🖼 IMAGE SERVICE 라우팅 (가장 먼저 배치)
         - id: image-static-files
           uri: lb://IMAGE-SERVICE
           predicates:
@@ -96,7 +96,7 @@ spring:
                 preLogger: true
                 postLogger: true
 
-        # 🛒 CART SERVICE 라우팅 - 비회원도 접근 가능하도록 공개
+        #  CART SERVICE 라우팅 - 비회원도 접근 가능하도록 공개
         - id: cart-service-public
           uri: lb://CART-SERVICE
           predicates:
@@ -109,14 +109,14 @@ spring:
                 preLogger: true
                 postLogger: true
 
-        # 🛒 ORDER SERVICE 공개 라우팅 - ✅ POST 요청도 허용하도록 수정
+        #  ORDER SERVICE 공개 라우팅 -  POST 요청도 허용하도록 수정
         - id: order-checkout-public
           uri: lb://ORDER-SERVICE
           predicates:
             - Path=/api/orders/checkout
             - Method=GET,POST
           filters:
-            - name: SimpleJwtFilter  # ✅ JWT 토큰이 있으면 파싱하되 필수는 아님
+            - name: SimpleJwtFilter  #  JWT 토큰이 있으면 파싱하되 필수는 아님
             - name: LoggingFilter
               args:
                 baseMessage: "Order Checkout Public"
@@ -173,14 +173,13 @@ spring:
             - Path=/api/users/list
             - Method=GET
 
-        # 🔥 JWT 인증이 필요한 사용자 경로들 (SimpleJwtFilter 추가)
+        # JWT 인증이 필요한 사용자 경로들 (SimpleJwtFilter 추가)
         - id: user-verify-password-auth
           uri: lb://USER-SERVICE
           predicates:
             - Path=/api/users/verify-password
             - Method=POST
           filters:
-            - name: SimpleJwtFilter  # 🔥 JWT 필터 추가!
             - name: LoggingFilter
               args:
                 baseMessage: "User Verify Password"
@@ -193,10 +192,23 @@ spring:
             - Path=/api/users/profile
             - Method=GET
           filters:
-            - name: SimpleJwtFilter  # 🔥 JWT 필터 추가!
+            - name: SimpleJwtFilter  #  JWT 필터 추가!
             - name: LoggingFilter
               args:
                 baseMessage: "User Profile GET"
+                preLogger: true
+                postLogger: true
+
+        - id: user-withdraw-auth
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/api/users/withdraw
+            - Method=POST
+          filters:
+            - name: SimpleJwtFilter  #  JWT 필터 추가 (인증 필요)
+            - name: LoggingFilter
+              args:
+                baseMessage: "User Withdraw"
                 preLogger: true
                 postLogger: true
 
@@ -206,7 +218,7 @@ spring:
             - Path=/api/users/profile
             - Method=PUT
           filters:
-            - name: SimpleJwtFilter  # 🔥 JWT 필터 추가!
+            - name: SimpleJwtFilter  #  JWT 필터 추가!
             - name: LoggingFilter
               args:
                 baseMessage: "User Profile PUT"
@@ -287,7 +299,7 @@ spring:
                 preLogger: true
                 postLogger: true
 
-        # ✅ 추가: guest-cart-details 전용 라우트 (가장 구체적이므로 맨 앞에)
+        #  추가: guest-cart-details 전용 라우트 (가장 구체적이므로 맨 앞에)
         - id: product-guest-cart-details-public
           uri: lb://PRODUCT-SERVICE
           predicates:
@@ -300,7 +312,7 @@ spring:
                 preLogger: true
                 postLogger: true
 
-        # 🔥 상품 서비스 공개 라우팅 (중복 제거 및 ORDER 조정)
+        #  상품 서비스 공개 라우팅 (중복 제거 및 ORDER 조정)
         # 더 구체적인 패턴부터 먼저 배치
         - id: product-debug-public
           uri: lb://PRODUCT-SERVICE
@@ -362,7 +374,7 @@ spring:
                 preLogger: true
                 postLogger: true
 
-        # 🔥 일반적인 상품 조회 (GET만 허용)
+        #  일반적인 상품 조회 (GET만 허용)
         - id: product-service-public-get
           uri: lb://PRODUCT-SERVICE
           predicates:
@@ -375,7 +387,7 @@ spring:
                 preLogger: true
                 postLogger: true
 
-        # 🛒 ORDER SERVICE 라우팅
+        #  ORDER SERVICE 라우팅
         - id: order-service-public-get
           uri: lb://ORDER-SERVICE
           predicates:
@@ -390,10 +402,10 @@ spring:
                 postLogger: true
 
         # ============================================
-        # 🔥 보호된 경로들은 공개 경로들 이후에 정의
+        #  보호된 경로들은 공개 경로들 이후에 정의
         # ============================================
 
-        # 🛒 Order Service 사용자별 주문 조회 (인증 필요)
+        #  Order Service 사용자별 주문 조회 (인증 필요)
         - id: order-service-user-protected
           uri: lb://ORDER-SERVICE
           predicates:
@@ -420,7 +432,7 @@ spring:
                 preLogger: true
                 postLogger: true
 
-        # 🔥 상품 서비스 보호된 라우팅 (POST, PUT, DELETE 등)
+        #  상품 서비스 보호된 라우팅 (POST, PUT, DELETE 등)
         - id: product-service-protected
           uri: lb://PRODUCT-SERVICE
           predicates:
@@ -434,13 +446,13 @@ spring:
                 preLogger: true
                 postLogger: true
 
-        # 🔥 USER SERVICE 보호된 라우팅을 가장 마지막에 배치
+        #  USER SERVICE 보호된 라우팅을 가장 마지막에 배치
         # 이미 위에서 구체적인 경로들을 정의했으므로, 여기서는 나머지 경로들만 처리됨
         - id: user-service-protected
           uri: lb://USER-SERVICE
           predicates:
             - Path=/api/users/**
-            - Method=DELETE,PATCH  # 🔥 POST와 PUT 제거 (이미 위에서 처리됨)
+            - Method=DELETE,PATCH  #  POST와 PUT 제거 (이미 위에서 처리됨)
           filters:
             - name: JwtAuthorization
             - name: LoggingFilter

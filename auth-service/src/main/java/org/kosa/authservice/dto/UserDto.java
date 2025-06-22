@@ -66,6 +66,9 @@ public class UserDto {
     @JsonProperty("profileImg")
     private String profileImg;
 
+    @JsonProperty("secessionYn")
+    private String secessionYn;
+
     public String getUsername() {
         return this.userId;
     }

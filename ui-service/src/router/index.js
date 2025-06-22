@@ -1,14 +1,37 @@
-// router/index.js 수정
+// router/index.js
 
-import {createRouter, createWebHistory} from 'vue-router'
+import { createRouter, createWebHistory } from 'vue-router'
+
+// 컴포넌트 imports
 import Home from '../views/Home.vue'
 import Login from '../views/user/Login.vue'
 import Register from '../views/user/Register.vue'
+import FindId from '../views/user/FindId.vue'
+import FindPassword from '../views/user/FindPassword.vue'
 import Category from '../views/main/Category.vue'
-import FindId from "../views/user/FindId.vue"
-import FindPassword from "../views/user/FindPassword.vue"
-import BoardList from "../views/board/BoardList.vue"
-import ProfileEdit from '@/views/user/UserEdit.vue'
+import BoardList from '../views/board/BoardList.vue'
+
+// User 관련 컴포넌트
+import MyPage from '@/views/user/MyPage.vue'
+import MyPageOrders from '@/views/user/MyPageOrders.vue'
+import MyPageProfile from '@/views/user/MyPageProfile.vue'
+import UserDetail from '@/views/user/UserDetail.vue'
+import UserEdit from '@/views/user/UserEdit.vue'
+
+// Product 관련 컴포넌트
+import ProductDetail from '@/views/product/ProductDetail.vue'
+import Cart from '@/views/product/Cart.vue'
+
+// Board 관련 컴포넌트
+import BoardWrite from '@/views/board/BoardWrite.vue'
+import BoardDetail from '@/views/board/BoardDetail.vue'
+import BoardEdit from '@/views/board/BoardEdit.vue'
+
+// Order 관련 컴포넌트
+import Checkout from '@/views/order/Checkout.vue'
+import OrderComplete from '@/views/order/OrderComplete.vue'
+
+// 인증 가드
 const requireAuth = (to, from, next) => {
     const token = localStorage.getItem('token')
     if (token) {
@@ -35,72 +58,37 @@ const routes = [
         component: Register
     },
     {
+        path: '/find-id',
+        name: 'FindId',
+        component: FindId
+    },
+    {
+        path: '/find-password',
+        name: 'FindPassword',
+        component: FindPassword
+    },
+    {
         path: '/mypage',
-        name: 'mypage',
-        component: () => import('@/views/user/MyPage.vue'),
+        name: 'MyPage',
+        component: MyPage,
         beforeEnter: requireAuth,
         children: [
             {
                 path: 'orders',
-                name: 'mypage-orders',
-                component: () => import('@/views/user/MyPageOrders.vue')
+                name: 'MyPageOrders',
+                component: MyPageOrders
             },
-            // {
-            //     path: 'returns',
-            //     name: 'mypage-returns',
-            //     component: () => import('@/views/MyPageReturns.vue')
-            // },
-            // {
-            //     path: 'coupons',
-            //     name: 'mypage-coupons',
-            //     component: () => import('@/views/MyPageCoupons.vue')
-            // },
-            // {
-            //     path: 'wishlist',
-            //     name: 'mypage-wishlist',
-            //     component: () => import('@/views/MyPageWishlist.vue')
-            // },
             {
                 path: 'profile',
-                name: 'mypage-profile',
-                component: () => import('@/views/user/MyPageProfile.vue')
+                name: 'MyPageProfile',
+                component: MyPageProfile
             },
             {
-                path: '/mypage/profile',
-                name: 'profile-edit',
-                component: ProfileEdit,
-                meta: { requiresAuth: true }  // 인증 필요
+                path: 'edit',
+                name: 'ProfileEdit',
+                component: UserEdit,
+                meta: { requiresAuth: true }
             },
-            // {
-            //     path: 'shipping',
-            //     name: 'mypage-shipping',
-            //     component: () => import('@/views/MyPageShipping.vue')
-            // },
-            // {
-            //     path: 'colorstyle',
-            //     name: 'mypage-colorstyle',
-            //     component: () => import('@/views/MyPageColorStyle.vue')
-            // },
-            // {
-            //     path: 'reviews',
-            //     name: 'mypage-reviews',
-            //     component: () => import('@/views/MyPageReviews.vue')
-            // },
-            // {
-            //     path: 'inquiries',
-            //     name: 'mypage-inquiries',
-            //     component: () => import('@/views/MyPageInquiries.vue')
-            // },
-            // {
-            //     path: 'frequent',
-            //     name: 'mypage-frequent',
-            //     component: () => import('@/views/MyPageFrequent.vue')
-            // },
-            // {
-            //     path: 'vip',
-            //     name: 'mypage-vip',
-            //     component: () => import('@/views/MyPageVip.vue')
-            // },
             {
                 path: '',
                 redirect: 'orders'
@@ -109,39 +97,29 @@ const routes = [
     },
     {
         path: '/category',
-        name: 'Category', // ⚠️ 수정: 소문자 'category'에서 'Category'로 통일
+        name: 'Category',
         component: Category
     },
     {
         path: '/category/:categoryId',
-        name: 'CategoryDetail', // ⚠️ 수정: name이 중복되어서 변경
+        name: 'CategoryDetail',
         component: Category
     },
     {
         path: '/product/:id',
         name: 'ProductDetail',
-        component: () => import('@/views/product/ProductDetail.vue')
+        component: ProductDetail
     },
     {
         path: '/users/:userid',
         name: 'UserDetail',
-        component: () => import('@/views/user/UserDetail.vue')
+        component: UserDetail
     },
     {
         path: '/users/edit/:userid',
         name: 'UserEdit',
-        component: () => import('@/views/user/UserEdit.vue'),
+        component: UserEdit,
         props: true
-    },
-    {
-        path: "/find-id",
-        name: "FindId",
-        component: FindId,
-    },
-    {
-        path: "/find-password",
-        name: "FindPassword",
-        component: FindPassword,
     },
     {
         path: '/boardList',
@@ -151,33 +129,32 @@ const routes = [
     {
         path: '/board/write',
         name: 'BoardWrite',
-        component: () => import('@/views/board/BoardWrite.vue')
+        component: BoardWrite
     },
     {
         path: '/board/:bno',
         name: 'BoardDetail',
-        component: () => import('@/views/board/BoardDetail.vue')
+        component: BoardDetail
     },
     {
         path: '/board/edit/:bno',
         name: 'BoardEdit',
-        component: () => import('@/views/board/BoardEdit.vue')
+        component: BoardEdit
     },
-    // 장바구니 관련 라우트
     {
         path: '/cart',
         name: 'Cart',
-        component: () => import('@/views/product/Cart.vue')
+        component: Cart
     },
     {
         path: '/checkout',
         name: 'Checkout',
-        component: () => import('@/views/order/Checkout.vue')
+        component: Checkout
     },
     {
         path: '/order-complete',
         name: 'OrderComplete',
-        component: () => import('@/views/order/OrderComplete.vue')
+        component: OrderComplete
     }
 ]
 

@@ -7,42 +7,41 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "TB_WITHDRAWN_MEMBER")
-@Getter
-@Setter
+@Table(name = "tb_withdrawn_member")
+@Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 public class WithdrawnMember {
 
     @Id
-    @Column(name = "WITHDRAWN_ID", nullable = false, length = 30)
-    private String withdrawnId; // PK - WITHDRAWN_ID
+    @Column(name = "WITHDRAWN_ID", length = 30)
+    private String withdrawnId;
 
-    @Column(name = "USER_ID", nullable = false, length = 30)
-    private String userId; // 회원아이디
+    @Column(name = "USER_ID", length = 30, nullable = false)
+    private String userId;
 
-    @Column(name = "WITHDRAWN_NAME", nullable = false, length = 30)
-    private String withdrawnName; // 이름
+    @Column(name = "WITHDRAWN_NAME", length = 30, nullable = false)
+    private String withdrawnName;
 
-    @Column(name = "WITHDRAWN_EMAIL", nullable = false, length = 50)
-    private String withdrawnEmail; // 이메일
+    @Column(name = "WITHDRAWN_EMAIL", length = 50, nullable = false)
+    private String withdrawnEmail;
 
-    @Column(name = "WITHDRAWN_PHONE")
-    private String withdrawnPhone; 
+    @Column(name = "WITHDRAWN_PHONE", length = 20)
+    private String withdrawnPhone;
 
-    @Column(name = "GRADE_ID", nullable = false, length = 20)
-    private String gradeId; // 등급ID
+    @Column(name = "GRADE_ID", length = 20, nullable = false)
+    private String gradeId;
 
-    @Column(name = "WITHDRAWN_REASON", nullable = false, length = 255)
-    private String withdrawnReason; // 탈퇴사유
+    @Column(name = "WITHDRAWN_REASON", nullable = false)
+    private String withdrawnReason;
 
     @Column(name = "WITHDRAWN_ORIGINAL_CREATED_DATE", nullable = false)
-    private LocalDate withdrawnOriginalCreatedDate; // 원래 가입일
+    private LocalDate withdrawnOriginalCreatedDate;
 
     @Column(name = "WITHDRAWN_WITHDRAWN_DATE", nullable = false)
-    private LocalDate withdrawnWithdrawnDate; // 탈퇴처리일
+    private LocalDate withdrawnWithdrawnDate;
 
     @Column(name = "WITHDRAWN_SECESSION_DATE", nullable = false)
-    private LocalDate withdrawnSecessionDate; // 탈퇴일
+    private LocalDate withdrawnSecessionDate;
 }
