@@ -27,7 +27,7 @@ public class OrderService {
     private final OrderItemRepository orderItemRepository;
 
     /**
-     * 체크아웃 - 주문 생성
+     * 체크아웃 - 주문 생성 (🔥 기본값 설정 강화)
      */
     public OrderResponseDTO createOrder(CheckoutRequestDTO request) {
         try {
@@ -48,26 +48,42 @@ public class OrderService {
             // 4. 적립 포인트 계산 (결제 금액의 1%)
             Integer savedPoint = (int) (finalTotalPrice * 0.01);
 
-            // 5. 주문 엔티티 생성
+            // 🔥 5. 주문 엔티티 생성 - 기본값 설정 강화
             Order order = Order.builder()
                     .userId(request.getUserId())
-                    .orderStatus(request.getOrderStatus())  // 주문완료
-                    .phone(request.getPhone())
-                    .email(request.getEmail())
-                    .recipientName(request.getRecipientName())
-                    .recipientPhone(request.getRecipientPhone())
-                    .orderZipcode(request.getOrderZipcode())
-                    .orderAddressDetail(request.getOrderAddressDetail())
-                    .deliveryMemo(request.getDeliveryMemo())
+                    // 🔥 ORDER_STATUS 기본값 설정
+                    .orderStatus(request.getOrderStatus() != null && !request.getOrderStatus().trim().isEmpty()
+                            ? request.getOrderStatus() : "PENDING")
+                    // 🔥 연락처 정보 기본값 설정
+                    .phone(request.getPhone() != null ? request.getPhone() : "")
+                    .email(request.getEmail() != null ? request.getEmail() : "")
+                    // 🔥 배송 정보 기본값 설정 (필수 필드들)
+                    .recipientName(request.getRecipientName() != null && !request.getRecipientName().trim().isEmpty()
+                            ? request.getRecipientName() : "수령인")
+                    .recipientPhone(request.getRecipientPhone() != null && !request.getRecipientPhone().trim().isEmpty()
+                            ? request.getRecipientPhone() : "010-0000-0000")
+                    .orderZipcode(request.getOrderZipcode() != null ? request.getOrderZipcode() : "")
+                    .orderAddressDetail(request.getOrderAddressDetail() != null && !request.getOrderAddressDetail().trim().isEmpty()
+                            ? request.getOrderAddressDetail() : "주소 정보 없음")
+                    .deliveryMemo(request.getDeliveryMemo() != null ? request.getDeliveryMemo() : "")
+                    // 🔥 가격 정보
                     .totalPrice(finalTotalPrice)
                     .deliveryFee(deliveryFee)
                     .discountAmount(0)
                     .usedPoint(request.getUsedPoint() != null ? request.getUsedPoint() : 0)
-                    .paymentMethod(request.getPaymentMethod())
-                    .paymentMethodName(request.getPaymentMethodName())
+                    // 🔥 결제 정보 기본값 설정
+                    .paymentMethod(request.getPaymentMethod() != null && !request.getPaymentMethod().trim().isEmpty()
+                            ? request.getPaymentMethod() : "CARD")
+                    .paymentMethodName(request.getPaymentMethodName() != null && !request.getPaymentMethodName().trim().isEmpty()
+                            ? request.getPaymentMethodName() : "신용카드")
                     .savedPoint(savedPoint)
-                    .estimatedDate(LocalDateTime.now().plusDays(1))  // 익일 배송
+                    // 🔥 배송 예상일 설정
+                    .estimatedDate(LocalDateTime.now().plusDays(1).withHour(7).withMinute(0).withSecond(0))  // 익일 오전 7시
                     .build();
+
+            log.info("주문 엔티티 생성 완료: orderId={}, status={}, totalPrice={}, recipientName={}, paymentMethod={}",
+                    order.getOrderId(), order.getOrderStatus(), order.getTotalPrice(),
+                    order.getRecipientName(), order.getPaymentMethod());
 
             // 6. 주문 저장
             Order savedOrder = orderRepository.save(order);
@@ -78,17 +94,19 @@ public class OrderService {
                 OrderItem orderItem = OrderItem.builder()
                         .orderId(savedOrder.getOrderId())
                         .productId(item.getProductId())
-                        .name(item.getProductName())
+                        // 🔥 상품명 기본값 설정
+                        .name(item.getProductName() != null && !item.getProductName().trim().isEmpty()
+                                ? item.getProductName() : "상품명 없음")
                         .quantity(item.getQuantity())
                         .status("PREPARING")  // 준비중
                         .totalPrice(item.getTotalPrice())
                         .deliveryFee(0)  // 개별 아이템 배송비는 0
-                        .imageUrl(item.getImageUrl())
+                        .imageUrl(item.getImageUrl() != null ? item.getImageUrl() : "")
                         .build();
 
                 orderItemRepository.save(orderItem);
-                log.info("주문 아이템 저장: productId={}, quantity={}",
-                        item.getProductId(), item.getQuantity());
+                log.info("주문 아이템 저장: productId={}, name={}, quantity={}",
+                        item.getProductId(), orderItem.getName(), item.getQuantity());
             }
 
             return OrderResponseDTO.builder()
@@ -123,8 +141,31 @@ public class OrderService {
             throw new RuntimeException("주문 목록 조회 중 오류가 발생했습니다.");
         }
     }
-    // OrderService.java
-    // OrderService.java의 convertToDTO 메서드에서
+
+    /**
+     * 🔥 사용자별 활성 주문 조회 (탈퇴 처리용)
+     */
+    @Transactional(readOnly = true)
+    public List<OrderDTO> getActiveUserOrders(String userId) {
+        try {
+            log.info("사용자 활성 주문 조회: userId={}", userId);
+
+            // 활성 상태의 주문들만 조회
+            List<Order> orders = orderRepository.findActiveOrdersByUserId(userId);
+
+            return orders.stream()
+                    .map(this::convertToOrderDTO)
+                    .collect(Collectors.toList());
+
+        } catch (Exception e) {
+            log.error("활성 주문 조회 실패: {}", e.getMessage(), e);
+            throw new RuntimeException("활성 주문 조회 중 오류가 발생했습니다.");
+        }
+    }
+
+    /**
+     * 주문 조회 시작: orderId
+     */
     public OrderDTO getOrderDetailByOrderId(String orderId) {
         log.info("주문 조회 시작: orderId={}", orderId);
 
@@ -149,14 +190,15 @@ public class OrderService {
                 .map(this::convertToOrderItemDTO)
                 .collect(Collectors.toList());
 
-        // 🔧 수정: setItems 또는 setOrderItems 사용 (둘 다 가능)
-        orderDTO.setItems(itemDTOs);  // 또는 orderDTO.setOrderItems(itemDTOs);
+        orderDTO.setItems(itemDTOs);
         log.info("최종 OrderDTO 생성 완료: 상품 {}개", itemDTOs.size());
 
         return orderDTO;
     }
 
-    // getOrderDetail 메서드도 동일하게 수정
+    /**
+     * 사용자별 주문 상세 조회
+     */
     public OrderDTO getOrderDetail(String orderId, String userId) {
         log.info("사용자별 주문 조회: orderId={}, userId={}", orderId, userId);
 
@@ -179,14 +221,13 @@ public class OrderService {
                 .map(this::convertToOrderItemDTO)
                 .collect(Collectors.toList());
 
-        // 🔧 수정
-        orderDTO.setItems(itemDTOs);  // 또는 orderDTO.setOrderItems(itemDTOs);
+        orderDTO.setItems(itemDTOs);
 
         return orderDTO;
     }
 
     /**
-     * 주문 상태 변경
+     * 주문 상태 변경 (🔥 탈퇴 처리 포함)
      */
     public void updateOrderStatus(String orderId, String newStatus) {
         try {
@@ -204,12 +245,57 @@ public class OrderService {
                 order.setDeliveryCompany("한진택배");
             }
 
+            // 🔥 탈퇴로 인한 취소인 경우 특별 처리
+            if ("CANCELLED_BY_WITHDRAWAL".equals(newStatus)) {
+                order.setUpdatedDate(LocalDateTime.now());
+                log.info("탈퇴로 인한 주문 취소 처리: orderId={}", orderId);
+            }
+
             orderRepository.save(order);
             log.info("주문 상태 변경 완료: orderId={}", orderId);
 
         } catch (Exception e) {
             log.error("주문 상태 변경 실패: {}", e.getMessage(), e);
             throw new RuntimeException("주문 상태 변경 중 오류가 발생했습니다.");
+        }
+    }
+
+    /**
+     * 🔥 사용자 탈퇴 시 주문 데이터 처리
+     */
+    @Transactional
+    public void processUserWithdrawalOrders(String userId) {
+        try {
+            log.info("사용자 탈퇴 주문 처리 시작: userId={}", userId);
+
+            // 1. 해당 사용자의 활성 주문 조회
+            List<OrderDTO> activeOrders = getActiveUserOrders(userId);
+            log.info("처리 대상 활성 주문 수: {}", activeOrders.size());
+
+            // 2. 각 주문별 처리
+            for (OrderDTO order : activeOrders) {
+                String orderId = order.getOrderId();
+                String currentStatus = order.getOrderStatus();
+
+                log.info("주문 처리: orderId={}, currentStatus={}", orderId, currentStatus);
+
+                // 배송 전 주문은 자동 취소
+                if ("PENDING".equals(currentStatus) || "PREPARING".equals(currentStatus) ||
+                        "ORDERED".equals(currentStatus) || "PAYMENT_COMPLETED".equals(currentStatus)) {
+                    updateOrderStatus(orderId, "CANCELLED_BY_WITHDRAWAL");
+                    log.info("주문 자동 취소: orderId={} (탈퇴로 인한 취소)", orderId);
+                }
+                // 배송 중/완료된 주문은 그대로 유지
+                else if ("SHIPPED".equals(currentStatus) || "DELIVERED".equals(currentStatus)) {
+                    log.info("배송 중/완료 주문 유지: orderId={}, status={}", orderId, currentStatus);
+                }
+            }
+
+            log.info("사용자 탈퇴 주문 처리 완료: userId={}, 처리된 주문 수={}", userId, activeOrders.size());
+
+        } catch (Exception e) {
+            log.error("사용자 탈퇴 주문 처리 실패: userId={}, error={}", userId, e.getMessage(), e);
+            throw new RuntimeException("사용자 탈퇴 주문 처리 중 오류가 발생했습니다: " + e.getMessage());
         }
     }
 
@@ -256,6 +342,7 @@ public class OrderService {
             throw new RuntimeException("주문 목록 조회 중 오류가 발생했습니다.");
         }
     }
+
     /**
      * Order 엔티티를 OrderDTO로 변환
      */
@@ -287,8 +374,9 @@ public class OrderService {
                 .updatedDate(order.getUpdatedDate())
                 .build();
     }
+
     /**
-     * Order 엔티티를 OrderDTO로 변환
+     * Order 엔티티를 OrderDTO로 변환 (주문 아이템 포함)
      */
     private OrderDTO convertToOrderDTO(Order order) {
         // 주문 아이템 조회

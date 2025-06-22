@@ -30,7 +30,7 @@ public interface OrderRepository extends JpaRepository<Order, String> {
     List<Order> findByUserIdAndOrderStatus(String userId, String orderStatus);
 
     // 활성 주문 조회 (취소 가능한 상태들)
-    @Query("SELECT o FROM Order o WHERE o.userId = :userId AND o.orderStatus IN ('ORDERED', 'PAYMENT_COMPLETED', 'PREPARING', 'SHIPPED')")
+    @Query("SELECT o FROM Order o WHERE o.userId = :userId AND o.orderStatus IN ('PENDING', 'ORDERED', 'PAYMENT_COMPLETED', 'PREPARING', 'SHIPPED')")
     List<Order> findActiveOrdersByUserId(@Param("userId") String userId);
 
     // 기존 메서드들...

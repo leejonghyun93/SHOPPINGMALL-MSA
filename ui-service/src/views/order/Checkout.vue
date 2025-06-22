@@ -30,9 +30,9 @@
               </div>
             </div>
           </div>
-          <div class="delivery-notice">
-            <span class="delivery-text">[롯데칠성] 칼피스 (250mL X 6개) 상품을 주문합니다.</span>
-          </div>
+<!--          <div class="delivery-notice">-->
+<!--            <span class="delivery-text"></span>-->
+<!--          </div>-->
         </div>
 
         <!-- 주문자 정보 -->
