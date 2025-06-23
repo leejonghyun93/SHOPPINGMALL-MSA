@@ -19,6 +19,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -339,5 +341,70 @@ public class PaymentService {
     private String generatePaymentId() {
         return "PAY_" + System.currentTimeMillis() + "_" +
                 UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+    }
+
+    @Transactional
+    public PaymentPrepareResponse prepareTestPayment(PaymentPrepareRequest request) {
+        // 테스트 모드 체크
+        if (isTestMode(request)) {
+            return prepareTestPaymentInternal(request);
+        }
+
+        // 기존 로직 그대로 사용
+        return preparePayment(request);
+    }
+
+    /**
+     * 🆓 NEW: PG사별 테스트 결제 (기존 코드에 추가)
+     */
+    public Map<String, Object> generateTestPaymentConfig(String pgProvider, PaymentPrepareRequest request) {
+        Map<String, Object> config = new HashMap<>();
+
+        // 기본 설정 (기존 로직 활용)
+        config.put("merchant_uid", generatePaymentId());
+        config.put("amount", request.getAmount());
+        config.put("name", request.getProductName());
+        config.put("buyer_name", request.getBuyerName());
+        config.put("buyer_email", request.getBuyerEmail());
+
+        // PG사별 추가 설정만 새로 추가
+        switch (pgProvider) {
+            case "html5_inicis":
+                config.put("pg", "html5_inicis");
+                config.put("pay_method", "card");
+                break;
+            case "kcp":
+                config.put("pg", "kcp");
+                config.put("pay_method", "card");
+                break;
+            case "toss":
+                config.put("pg", "toss");
+                config.put("pay_method", "card");
+                break;
+            default:
+                // 기존 카카오페이 설정 유지
+                config.put("pg", "kakaopay");
+                config.put("pay_method", "kakaopay");
+        }
+
+        return config;
+    }
+
+    private boolean isTestMode(PaymentPrepareRequest request) {
+        // 테스트 모드 판별 로직
+        return request.getOrderId() != null && request.getOrderId().startsWith("TEST_");
+    }
+
+    private PaymentPrepareResponse prepareTestPaymentInternal(PaymentPrepareRequest request) {
+        // 테스트용 간단 구현
+        return PaymentPrepareResponse.builder()
+                .paymentId("TEST_" + System.currentTimeMillis())
+                .merchantUid("TEST_" + System.currentTimeMillis())
+                .amount(request.getAmount())
+                .buyerName(request.getBuyerName())
+                .buyerEmail(request.getBuyerEmail())
+                .buyerTel(request.getBuyerTel())
+                .name("🆓 테스트: " + request.getProductName())
+                .build();
     }
 }

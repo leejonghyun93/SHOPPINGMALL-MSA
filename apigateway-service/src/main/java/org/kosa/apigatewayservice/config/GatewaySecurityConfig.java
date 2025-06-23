@@ -54,6 +54,16 @@ public class GatewaySecurityConfig {
                                 .pathMatchers("/api/orders/**").permitAll()
                                 .pathMatchers("/api/checkout/**").permitAll()
 
+                                // 🔥 💳 Payment Service 추가 (가장 중요!)
+                                .pathMatchers("/api/payments/**").permitAll()
+                                .pathMatchers(HttpMethod.POST, "/api/payments/verify").permitAll()
+                                .pathMatchers(HttpMethod.POST, "/api/payments/prepare").permitAll()
+                                .pathMatchers(HttpMethod.POST, "/api/payments/*/cancel").permitAll()
+                                .pathMatchers(HttpMethod.GET, "/api/payments/*").permitAll()
+                                .pathMatchers(HttpMethod.POST, "/api/payments/webhook").permitAll()
+                                .pathMatchers(HttpMethod.POST, "/api/payments/orders/checkout").permitAll()
+                                .pathMatchers(HttpMethod.GET, "/api/payments/orders/*").permitAll()
+
                                 //  정적 리소스
                                 .pathMatchers(HttpMethod.GET, "/api/images/**").permitAll()
                                 .pathMatchers(HttpMethod.GET, "/images/**").permitAll()

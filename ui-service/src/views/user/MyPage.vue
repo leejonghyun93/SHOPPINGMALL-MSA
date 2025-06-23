@@ -156,8 +156,22 @@ const userName = computed(() => {
 })
 
 // 현재 활성 탭 (라우트 기반)
-const activeTab = computed(() => route.name)
+const activeTab = computed(() => {
+  // 라우터 이름을 탭 이름으로 변환
+  const tabNameMap = {
+    'MyPageOrders': 'orders',
+    'MyPageProfile': 'profile',
+    'MyPageCoupons': 'coupons',
+    'MyPageWishlist': 'wishlist',
+    'MyPageFrequent': 'frequent',
+    'MyPageReturns': 'returns',
+    'MyPageReviews': 'reviews',
+    'MyPageInquiries': 'inquiries',
+    'MyPageVip': 'vip'
+  }
 
+  return tabNameMap[route.name] || 'orders'
+})
 // 사이드바에 표시할 정보
 const points = ref(0)
 const coupons = ref(0)
@@ -166,7 +180,25 @@ const orderCount = ref(0)
 
 // 탭 네비게이션
 const navigateToTab = (tabName) => {
-  router.push({ name: `mypage-${tabName}` })
+  // 라우터 이름 매핑
+  const routeNameMap = {
+    'orders': 'MyPageOrders',
+    'profile': 'MyPageProfile',
+    'coupons': 'MyPageCoupons',
+    'wishlist': 'MyPageWishlist',
+    'frequent': 'MyPageFrequent',
+    'returns': 'MyPageReturns',
+    'reviews': 'MyPageReviews',
+    'inquiries': 'MyPageInquiries',
+    'vip': 'MyPageVip'
+  }
+
+  const routeName = routeNameMap[tabName]
+  if (routeName) {
+    router.push({ name: routeName })
+  } else {
+    console.warn(`Unknown tab: ${tabName}`)
+  }
 }
 
 // 자식 컴포넌트에서 카운트 업데이트
@@ -188,9 +220,10 @@ async function fetchUserExtraInfo() {
 }
 
 function navigateToProfile() {
-  router.push('/mypage/profile');
+  router.push({ name: 'MyPageProfile' }); // 원래 이름으로 복원
 }
 
+// 🔥 onMounted에서 기본 리다이렉트 수정
 onMounted(() => {
   // userStore에서 사용자 정보 설정
   const token = localStorage.getItem('token')
@@ -203,7 +236,7 @@ onMounted(() => {
 
   // 기본 라우트가 없으면 주문 내역으로 리다이렉트
   if (route.name === 'mypage') {
-    router.replace({ name: 'mypage-orders' })
+    router.replace({ name: 'MyPageOrders' }) // 🔥 원래 이름으로 복원
   }
 })
 </script>

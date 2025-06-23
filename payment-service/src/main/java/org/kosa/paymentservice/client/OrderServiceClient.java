@@ -43,4 +43,39 @@ public interface OrderServiceClient {
             @PathVariable("orderId") String orderId,
             @RequestParam("reason") String cancelReason
     );
+
+    // 새로 추가할 메서드들
+
+    /**
+     * 주문 생성 (체크아웃)
+     *
+     * @param orderData 주문 데이터
+     * @return 생성된 주문 정보
+     */
+    @PostMapping("/api/orders/checkout")
+    ResponseEntity<Map<String, Object>> createOrder(@RequestBody Map<String, Object> orderData);
+
+    /**
+     * 주문 ID로 주문 조회
+     *
+     * @param orderId 주문 ID
+     * @param userId 사용자 ID (선택사항)
+     * @return 주문 정보
+     */
+    @GetMapping("/api/orders/{orderId}")
+    ResponseEntity<Map<String, Object>> getOrderById(
+            @PathVariable("orderId") String orderId,
+            @RequestParam(value = "userId", required = false) String userId
+    );
+
+    /**
+     * 주문 목록 조회
+     *
+     * @param userId 사용자 ID
+     * @return 주문 목록
+     */
+    @GetMapping("/api/orders")
+    ResponseEntity<Map<String, Object>> getOrdersByUserId(
+            @RequestParam("userId") String userId
+    );
 }

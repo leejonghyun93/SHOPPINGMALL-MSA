@@ -4,6 +4,7 @@ package org.kosa.orderservice.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.kosa.orderservice.dto.*;
+import org.kosa.orderservice.mapper.OrderCancelRepository;
 import org.kosa.orderservice.mapper.OrderItemRepository;
 import org.kosa.orderservice.mapper.OrderRepository;
 import org.springframework.data.domain.Page;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -25,7 +27,8 @@ public class OrderService {
 
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
-
+    private final OrderCancelRepository orderCancelRepository; //
+    private final PaymentCancelService paymentCancelService;
     /**
      * 체크아웃 - 주문 생성 (🔥 기본값 설정 강화)
      */
@@ -298,33 +301,97 @@ public class OrderService {
             throw new RuntimeException("사용자 탈퇴 주문 처리 중 오류가 발생했습니다: " + e.getMessage());
         }
     }
-
+    private static final List<String> CANCELLABLE_STATUSES = Arrays.asList(
+            "PENDING", "ORDER_COMPLETED", "PREPARING", "PAYMENT_COMPLETED"
+    );
     /**
      * 주문 취소
      */
-    public void cancelOrder(String orderId, String userId) {
+    @Transactional
+    public OrderCancelResponseDTO cancelOrder(OrderCancelRequestDTO request) {
         try {
-            log.info("주문 취소: orderId={}, userId={}", orderId, userId);
+            log.info("🔥 주문 취소 시작: orderId={}, userId={}", request.getOrderId(), request.getUserId());
 
-            Order order = orderRepository.findByOrderIdAndUserId(orderId, userId)
-                    .orElseThrow(() -> new RuntimeException("주문을 찾을 수 없습니다: " + orderId));
+            // 1. 주문 존재 여부 및 소유권 확인
+            Order order = orderRepository.findByOrderIdAndUserId(request.getOrderId(), request.getUserId())
+                    .orElseThrow(() -> new IllegalArgumentException("주문을 찾을 수 없습니다."));
 
-            // 취소 가능한 상태 체크
-            if (!"ORDER_COMPLETED".equals(order.getOrderStatus()) &&
-                    !"PREPARING".equals(order.getOrderStatus())) {
-                throw new RuntimeException("취소할 수 없는 주문 상태입니다.");
+            // 2. 이미 취소된 주문인지 확인
+            Optional<OrderCancel> existingCancel = orderCancelRepository.findByOrderId(request.getOrderId());
+            if (existingCancel.isPresent()) {
+                throw new IllegalStateException("이미 취소된 주문입니다.");
             }
 
+            // 3. 취소 가능한 상태인지 확인
+            if (!CANCELLABLE_STATUSES.contains(order.getOrderStatus())) {
+                throw new IllegalStateException("현재 주문 상태에서는 취소할 수 없습니다. 상태: " + order.getOrderStatus());
+            }
+
+            // 4. 결제 취소 처리 (PG사)
+            PaymentCancelService.PaymentCancelResult cancelResult = null;
+            if (request.getPaymentId() != null && !request.getPaymentId().isEmpty()) {
+                String cancelReason = request.getReason() != null ? request.getReason() : "사용자 요청";
+                cancelResult = paymentCancelService.cancelPayment(
+                        request.getPaymentId(),
+                        request.getRefundAmount(),
+                        cancelReason
+                );
+
+                if (!cancelResult.isSuccess()) {
+                    log.error("❌ PG 결제 취소 실패: {}", cancelResult.getMessage());
+                    throw new RuntimeException("결제 취소 처리 실패: " + cancelResult.getMessage());
+                }
+            }
+
+            // 5. 주문 취소 정보 저장
+            OrderCancel orderCancel = OrderCancel.builder()
+                    .orderId(request.getOrderId())
+                    .userId(request.getUserId())
+                    .reason(request.getReason())
+                    .detail(request.getDetail())
+                    .refundAmount(request.getRefundAmount())
+                    .paymentId(request.getPaymentId())
+                    .refundStatus(cancelResult != null && cancelResult.isSuccess() ? "COMPLETED" : "PENDING")
+                    .paymentCancelId(cancelResult != null ? cancelResult.getCancelId() : null)
+                    .cancelDate(LocalDateTime.now())
+                    .createdAt(LocalDateTime.now())
+                    .build();
+
+            orderCancelRepository.save(orderCancel);
+
+            // 6. 주문 상태 업데이트
             order.setOrderStatus("CANCELLED");
+            order.setUpdatedDate(LocalDateTime.now());
             orderRepository.save(order);
 
-            log.info("주문 취소 완료: orderId={}", orderId);
+            // 7. 주문 아이템 상태도 업데이트
+            List<OrderItem> orderItems = orderItemRepository.findByOrderId(request.getOrderId());
+            for (OrderItem item : orderItems) {
+                item.setStatus("CANCELLED");
+                item.setUpdatedDate(LocalDateTime.now());
+                orderItemRepository.save(item);
+            }
+
+            log.info("✅ 주문 취소 완료: orderId={}, refundAmount={}",
+                    request.getOrderId(), request.getRefundAmount());
+
+            return OrderCancelResponseDTO.builder()
+                    .orderId(request.getOrderId())
+                    .userId(request.getUserId())
+                    .cancelReason(orderCancel.getReason())
+                    .refundAmount(orderCancel.getRefundAmount())
+                    .refundStatus(orderCancel.getRefundStatus())
+                    .cancelDate(orderCancel.getCancelDate())
+                    .paymentCancelId(orderCancel.getPaymentCancelId())
+                    .message("주문이 성공적으로 취소되었습니다.")
+                    .build();
 
         } catch (Exception e) {
-            log.error("주문 취소 실패: {}", e.getMessage(), e);
-            throw new RuntimeException("주문 취소 중 오류가 발생했습니다.");
+            log.error("❌ 주문 취소 처리 중 오류", e);
+            throw new RuntimeException("주문 취소 처리 실패: " + e.getMessage());
         }
     }
+
 
     /**
      * 주문 목록 페이징 조회
@@ -414,7 +481,226 @@ public class OrderService {
                 .items(orderItemDTOs)
                 .build();
     }
+    @Transactional(readOnly = true)
+    public OrderCancelResponseDTO getCancelInfo(String orderId, String userId) {
+        try {
+            Order order = orderRepository.findByOrderIdAndUserId(orderId, userId)
+                    .orElseThrow(() -> new IllegalArgumentException("주문을 찾을 수 없습니다."));
 
+            OrderCancel orderCancel = orderCancelRepository.findByOrderId(orderId)
+                    .orElseThrow(() -> new IllegalArgumentException("주문 취소 정보를 찾을 수 없습니다."));
+
+            return OrderCancelResponseDTO.builder()
+                    .orderId(orderId)
+                    .userId(userId)
+                    .cancelReason(orderCancel.getReason())
+                    .refundAmount(orderCancel.getRefundAmount())
+                    .refundStatus(orderCancel.getRefundStatus())
+                    .cancelDate(orderCancel.getCancelDate())
+                    .paymentCancelId(orderCancel.getPaymentCancelId())
+                    .build();
+
+        } catch (Exception e) {
+            log.error("주문 취소 정보 조회 실패", e);
+            throw new RuntimeException("주문 취소 정보 조회 중 오류가 발생했습니다.");
+        }
+    }
+
+    /**
+     * 🔥 취소 가능 여부 확인
+     */
+    @Transactional(readOnly = true)
+    public boolean canCancelOrder(String orderId, String userId) {
+        try {
+            Order order = orderRepository.findByOrderIdAndUserId(orderId, userId)
+                    .orElse(null);
+
+            if (order == null) {
+                return false;
+            }
+
+            // 이미 취소된 주문인지 확인
+            if (orderCancelRepository.findByOrderId(orderId).isPresent()) {
+                return false;
+            }
+
+            // 취소 가능한 상태인지 확인
+            return CANCELLABLE_STATUSES.contains(order.getOrderStatus());
+
+        } catch (Exception e) {
+            log.error("취소 가능 여부 확인 중 오류", e);
+            return false;
+        }
+    }
+
+    /**
+     * 🔥 사용자의 취소된 주문 목록 조회
+     */
+    @Transactional(readOnly = true)
+    public List<OrderCancelResponseDTO> getUserCancelledOrders(String userId) {
+        try {
+            List<OrderCancel> cancelledOrders = orderCancelRepository.findByUserId(userId);
+
+            return cancelledOrders.stream()
+                    .map(orderCancel -> {
+                        Order order = orderRepository.findById(orderCancel.getOrderId())
+                                .orElse(null);
+
+                        if (order != null) {
+                            return OrderCancelResponseDTO.builder()
+                                    .orderId(orderCancel.getOrderId())
+                                    .userId(orderCancel.getUserId())
+                                    .cancelReason(orderCancel.getReason())
+                                    .refundAmount(orderCancel.getRefundAmount())
+                                    .refundStatus(orderCancel.getRefundStatus())
+                                    .cancelDate(orderCancel.getCancelDate())
+                                    .paymentCancelId(orderCancel.getPaymentCancelId())
+                                    .build();
+                        }
+                        return null;
+                    })
+                    .filter(response -> response != null)
+                    .collect(Collectors.toList());
+
+        } catch (Exception e) {
+            log.error("취소 주문 목록 조회 실패", e);
+            throw new RuntimeException("취소 주문 목록 조회 중 오류가 발생했습니다.");
+        }
+    }
+
+    /**
+     * 기존 주문 취소 메소드 개선
+     */
+    public void cancelOrder(String orderId, String userId) {
+        try {
+            log.info("간단 주문 취소: orderId={}, userId={}", orderId, userId);
+
+            Order order = orderRepository.findByOrderIdAndUserId(orderId, userId)
+                    .orElseThrow(() -> new RuntimeException("주문을 찾을 수 없습니다: " + orderId));
+
+            // 취소 가능한 상태 체크 (개선된 조건)
+            if (!CANCELLABLE_STATUSES.contains(order.getOrderStatus())) {
+                throw new RuntimeException("취소할 수 없는 주문 상태입니다: " + order.getOrderStatus());
+            }
+
+            // 간단한 취소 처리 (결제 취소 없이)
+            order.setOrderStatus("CANCELLED");
+            order.setUpdatedDate(LocalDateTime.now());
+            orderRepository.save(order);
+
+            // 주문 아이템 상태도 업데이트
+            List<OrderItem> orderItems = orderItemRepository.findByOrderId(orderId);
+            for (OrderItem item : orderItems) {
+                item.setStatus("CANCELLED");
+                item.setUpdatedDate(LocalDateTime.now());
+                orderItemRepository.save(item);
+            }
+
+            log.info("간단 주문 취소 완료: orderId={}", orderId);
+
+        } catch (Exception e) {
+            log.error("간단 주문 취소 실패: {}", e.getMessage(), e);
+            throw new RuntimeException("주문 취소 중 오류가 발생했습니다.");
+        }
+    }
+
+    // ... 나머지 기존 메소드들 유지 ...
+
+    /**
+     * 체크아웃 - 주문 생성 (🔥 기본값 설정 강화)
+     */
+    public OrderResponseDTO createOrder(CheckoutRequestDTO request) {
+        try {
+            log.info("주문 생성 시작: userId={}", request.getUserId());
+
+            // 1. 주문 총액 계산
+            Integer totalItemPrice = request.getItems().stream()
+                    .mapToInt(CheckoutItemDTO::getTotalPrice)
+                    .sum();
+
+            // 2. 배송비 계산 (4만원 이상 무료배송)
+            Integer deliveryFee = totalItemPrice >= 40000 ? 0 : 3000;
+
+            // 3. 최종 결제 금액 계산
+            Integer finalTotalPrice = totalItemPrice + deliveryFee -
+                    (request.getUsedPoint() != null ? request.getUsedPoint() : 0);
+
+            // 4. 적립 포인트 계산 (결제 금액의 1%)
+            Integer savedPoint = (int) (finalTotalPrice * 0.01);
+
+            // 🔥 5. 주문 엔티티 생성 - 기본값 설정 강화
+            Order order = Order.builder()
+                    .userId(request.getUserId())
+                    // 🔥 ORDER_STATUS 기본값 설정
+                    .orderStatus(request.getOrderStatus() != null && !request.getOrderStatus().trim().isEmpty()
+                            ? request.getOrderStatus() : "PENDING")
+                    // 🔥 연락처 정보 기본값 설정
+                    .phone(request.getPhone() != null ? request.getPhone() : "")
+                    .email(request.getEmail() != null ? request.getEmail() : "")
+                    // 🔥 배송 정보 기본값 설정 (필수 필드들)
+                    .recipientName(request.getRecipientName() != null && !request.getRecipientName().trim().isEmpty()
+                            ? request.getRecipientName() : "수령인")
+                    .recipientPhone(request.getRecipientPhone() != null && !request.getRecipientPhone().trim().isEmpty()
+                            ? request.getRecipientPhone() : "010-0000-0000")
+                    .orderZipcode(request.getOrderZipcode() != null ? request.getOrderZipcode() : "")
+                    .orderAddressDetail(request.getOrderAddressDetail() != null && !request.getOrderAddressDetail().trim().isEmpty()
+                            ? request.getOrderAddressDetail() : "주소 정보 없음")
+                    .deliveryMemo(request.getDeliveryMemo() != null ? request.getDeliveryMemo() : "")
+                    // 🔥 가격 정보
+                    .totalPrice(finalTotalPrice)
+                    .deliveryFee(deliveryFee)
+                    .discountAmount(0)
+                    .usedPoint(request.getUsedPoint() != null ? request.getUsedPoint() : 0)
+                    // 🔥 결제 정보 기본값 설정
+                    .paymentMethod(request.getPaymentMethod() != null && !request.getPaymentMethod().trim().isEmpty()
+                            ? request.getPaymentMethod() : "CARD")
+                    .paymentMethodName(request.getPaymentMethodName() != null && !request.getPaymentMethodName().trim().isEmpty()
+                            ? request.getPaymentMethodName() : "신용카드")
+                    .savedPoint(savedPoint)
+                    // 🔥 배송 예상일 설정
+                    .estimatedDate(LocalDateTime.now().plusDays(1).withHour(7).withMinute(0).withSecond(0))  // 익일 오전 7시
+                    .build();
+
+            log.info("주문 엔티티 생성 완료: orderId={}, status={}, totalPrice={}, recipientName={}, paymentMethod={}",
+                    order.getOrderId(), order.getOrderStatus(), order.getTotalPrice(),
+                    order.getRecipientName(), order.getPaymentMethod());
+
+            // 6. 주문 저장
+            Order savedOrder = orderRepository.save(order);
+            log.info("주문 저장 완료: orderId={}", savedOrder.getOrderId());
+
+            // 7. 주문 아이템 생성 및 저장
+            for (CheckoutItemDTO item : request.getItems()) {
+                OrderItem orderItem = OrderItem.builder()
+                        .orderId(savedOrder.getOrderId())
+                        .productId(item.getProductId())
+                        // 🔥 상품명 기본값 설정
+                        .name(item.getProductName() != null && !item.getProductName().trim().isEmpty()
+                                ? item.getProductName() : "상품명 없음")
+                        .quantity(item.getQuantity())
+                        .status("PREPARING")  // 준비중
+                        .totalPrice(item.getTotalPrice())
+                        .deliveryFee(0)  // 개별 아이템 배송비는 0
+                        .imageUrl(item.getImageUrl() != null ? item.getImageUrl() : "")
+                        .build();
+
+                orderItemRepository.save(orderItem);
+                log.info("주문 아이템 저장: productId={}, name={}, quantity={}",
+                        item.getProductId(), orderItem.getName(), item.getQuantity());
+            }
+
+            return OrderResponseDTO.builder()
+                    .orderId(savedOrder.getOrderId())
+                    .orderStatus(savedOrder.getOrderStatus())
+                    .totalAmount(savedOrder.getTotalPrice())
+                    .message("주문이 성공적으로 완료되었습니다.")
+                    .build();
+
+        } catch (Exception e) {
+            log.error("주문 생성 실패: {}", e.getMessage(), e);
+            throw new RuntimeException("주문 처리 중 오류가 발생했습니다: " + e.getMessage());
+        }
+    }
     /**
      * OrderItem 엔티티를 OrderItemDTO로 변환
      */

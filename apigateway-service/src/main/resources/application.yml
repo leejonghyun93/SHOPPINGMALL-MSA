@@ -1,4 +1,4 @@
-# application.yml - 이미지 서비스 추가된 최종 버전
+# application.yml - Payment Service 추가된 최종 버전
 server:
   port: 8080
 
@@ -45,7 +45,98 @@ spring:
             postLogger: true
 
       routes:
-        # 🖼 IMAGE SERVICE 라우팅 (가장 먼저 배치)
+        # 🔥 💳 PAYMENT SERVICE 라우팅 (가장 먼저 배치!)
+        - id: payment-orders-checkout-public
+          uri: lb://PAYMENT-SERVICE
+          predicates:
+            - Path=/api/payments/orders/checkout
+            - Method=POST
+          filters:
+            - name: SimpleJwtFilter  # JWT가 있으면 파싱하되 필수 아님
+            - name: LoggingFilter
+              args:
+                baseMessage: "Payment Orders Checkout"
+                preLogger: true
+                postLogger: true
+
+        - id: payment-orders-get-public
+          uri: lb://PAYMENT-SERVICE
+          predicates:
+            - Path=/api/payments/orders/**
+            - Method=GET
+          filters:
+            - name: SimpleJwtFilter
+            - name: LoggingFilter
+              args:
+                baseMessage: "Payment Orders GET"
+                preLogger: true
+                postLogger: true
+
+        - id: payment-verify-public
+          uri: lb://PAYMENT-SERVICE
+          predicates:
+            - Path=/api/payments/verify
+            - Method=POST
+          filters:
+            - name: SimpleJwtFilter
+            - name: LoggingFilter
+              args:
+                baseMessage: "Payment Verify"
+                preLogger: true
+                postLogger: true
+
+        - id: payment-prepare-public
+          uri: lb://PAYMENT-SERVICE
+          predicates:
+            - Path=/api/payments/prepare
+            - Method=POST
+          filters:
+            - name: SimpleJwtFilter
+            - name: LoggingFilter
+              args:
+                baseMessage: "Payment Prepare"
+                preLogger: true
+                postLogger: true
+
+        - id: payment-cancel-public
+          uri: lb://PAYMENT-SERVICE
+          predicates:
+            - Path=/api/payments/*/cancel
+            - Method=POST
+          filters:
+            - name: SimpleJwtFilter
+            - name: LoggingFilter
+              args:
+                baseMessage: "Payment Cancel"
+                preLogger: true
+                postLogger: true
+
+        - id: payment-webhook-public
+          uri: lb://PAYMENT-SERVICE
+          predicates:
+            - Path=/api/payments/webhook
+            - Method=POST
+          filters:
+            - name: LoggingFilter
+              args:
+                baseMessage: "Payment Webhook"
+                preLogger: true
+                postLogger: true
+
+        - id: payment-status-public
+          uri: lb://PAYMENT-SERVICE
+          predicates:
+            - Path=/api/payments/**
+            - Method=GET
+          filters:
+            - name: SimpleJwtFilter
+            - name: LoggingFilter
+              args:
+                baseMessage: "Payment Status"
+                preLogger: true
+                postLogger: true
+
+        # 🖼 IMAGE SERVICE 라우팅
         - id: image-static-files
           uri: lb://IMAGE-SERVICE
           predicates:

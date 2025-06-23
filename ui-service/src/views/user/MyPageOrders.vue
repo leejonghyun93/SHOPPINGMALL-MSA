@@ -87,17 +87,20 @@
                 :key="order.orderId"
                 class="order-card"
             >
-              <!-- 주문 헤더 - 날짜, 주문번호, 상태를 세로로 배치 -->
+              <!-- 주문 헤더 - 날짜, 주문번호, 상태 -->
               <div class="order-header">
                 <div class="order-info">
                   <div class="order-date">{{ formatDate(order.orderDate) }}</div>
                   <div class="order-number">주문번호 {{ order.orderId }} 📋</div>
                   <div class="order-status">
-                    {{ order.orderStatus || '배송완료' }} {{ formatDateTime(order.orderDate) }} 📦
+                    <span class="status-badge" :class="getStatusClass(order.orderStatus)">
+                      {{ order.orderStatus || '배송완료' }}
+                    </span>
+                    <span class="order-time">{{ formatDateTime(order.orderDate) }} 📦</span>
                   </div>
                 </div>
-                <button @click="viewOrderDetail(order.orderId)" class="detail-button">
-                  ›
+                <button @click="viewOrderDetail(order.orderId)" class="detail-button" title="주문 상세보기">
+                  <Eye class="detail-icon" />
                 </button>
               </div>
 
@@ -107,6 +110,7 @@
                     v-for="(item, index) in order.items"
                     :key="item.productId"
                     class="product-item"
+                    @click="viewOrderDetail(order.orderId)"
                 >
                   <img
                       :src="item.imageUrl || '/api/placeholder/60/60'"
@@ -115,14 +119,51 @@
                   />
                   <div class="product-details">
                     <div class="product-name">{{ item.productName }}</div>
-                    <div class="product-price">{{ formatPrice(item.totalPrice) }}원 {{ item.quantity }}개</div>
+                    <div class="product-info">
+                      <span class="product-price">{{ formatPrice(item.totalPrice) }}원</span>
+                      <span class="product-quantity">{{ item.quantity }}개</span>
+                    </div>
                   </div>
-                  <div class="cart-icon">🛒</div>
+                  <div class="product-actions">
+                    <span class="cart-icon">🛒</span>
+                  </div>
                 </div>
 
-                <!-- 후기작성 버튼 -->
+                <!-- 주문 총액 표시 -->
+                <div class="order-total">
+                  <span class="total-label">주문 총액</span>
+                  <span class="total-amount">{{ formatPrice(order.totalPrice) }}원</span>
+                </div>
+
+                <!-- 액션 버튼들 -->
                 <div class="order-actions">
-                  <button class="review-button">
+                  <button
+                      @click="viewOrderDetail(order.orderId)"
+                      class="action-button detail-btn"
+                  >
+                    <FileText class="btn-icon" />
+                    주문상세
+                  </button>
+                  <button
+                      @click="reorder(order.items)"
+                      class="action-button reorder-btn"
+                  >
+                    <RefreshCw class="btn-icon" />
+                    재주문
+                  </button>
+                  <button
+                      v-if="canCancel(order.orderStatus)"
+                      @click="cancelOrder(order.orderId)"
+                      class="action-button cancel-btn"
+                  >
+                    <X class="btn-icon" />
+                    주문취소
+                  </button>
+                  <button
+                      @click="writeReview(order)"
+                      class="action-button review-btn"
+                  >
+                    <Star class="btn-icon" />
                     후기작성
                   </button>
                 </div>
@@ -181,7 +222,17 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Package, Search, Calendar, Truck } from 'lucide-vue-next'
+import {
+  Package,
+  Search,
+  Calendar,
+  Truck,
+  Eye,
+  FileText,
+  RefreshCw,
+  X,
+  Star
+} from 'lucide-vue-next'
 
 const router = useRouter()
 
@@ -343,6 +394,39 @@ const clearAllFilters = () => {
   currentPage.value = 1
 }
 
+// 🔥 주문 상세보기 - OrderComplete 페이지로 이동
+const viewOrderDetail = (orderId) => {
+  console.log('주문 상세보기:', orderId)
+  router.push(`/order-complete?orderId=${orderId}`)
+}
+
+// 🔥 주문 상태에 따른 CSS 클래스
+const getStatusClass = (status) => {
+  const statusMap = {
+    '주문접수': 'status-pending',
+    '결제완료': 'status-paid',
+    '배송준비': 'status-preparing',
+    '배송중': 'status-shipping',
+    '배송완료': 'status-delivered',
+    '주문취소': 'status-cancelled',
+    '반품': 'status-returned'
+  }
+  return statusMap[status] || 'status-default'
+}
+
+// 🔥 주문 취소 가능 여부 확인
+const canCancel = (status) => {
+  const cancellableStatuses = ['주문접수', '결제완료', '배송준비']
+  return cancellableStatuses.includes(status)
+}
+
+// 🔥 후기 작성
+const writeReview = (order) => {
+  console.log('후기 작성:', order.orderId)
+  // 후기 작성 페이지로 이동 (향후 구현)
+  alert('후기 작성 기능은 준비 중입니다.')
+}
+
 // 날짜 포맷팅 (2025.06.08 형태)
 const formatDate = (dateString) => {
   if (!dateString) return '-'
@@ -384,37 +468,77 @@ const formatPrice = (price) => {
   return price.toLocaleString()
 }
 
-// 주문 상세 보기
-const viewOrderDetail = (orderId) => {
-  router.push(`/order-complete?orderId=${orderId}`)
-}
-
 // 주문 취소
 const cancelOrder = async (orderId) => {
-  if (!confirm('정말로 주문을 취소하시겠습니까?')) return
-
   try {
+    // 1. 취소 가능 여부 먼저 확인
     const userId = localStorage.getItem('userId')
-
-    const response = await fetch(`${API_BASE_URL}/api/orders/${orderId}/cancel?userId=${userId}`, {
-      method: 'PUT',
+    const checkResponse = await fetch(`${API_BASE_URL}/api/orders/${orderId}/cancelable?userId=${userId}`, {
+      method: 'GET',
       headers: getAuthHeaders()
     })
 
-    if (response.ok) {
-      alert('주문이 취소되었습니다.')
-      loadOrders()
-    } else {
-      const errorData = await response.json()
-      throw new Error(errorData.message || '주문 취소에 실패했습니다.')
+    if (checkResponse.ok) {
+      const checkResult = await checkResponse.json()
+      if (!checkResult.success || !checkResult.data) {
+        alert('현재 주문 상태에서는 취소할 수 없습니다.')
+        return
+      }
     }
+
+    // 2. 사용자 확인
+    const confirmed = confirm(`주문을 취소하시겠습니까?\n\n주문번호: ${orderId}\n취소된 주문은 되돌릴 수 없으며, 결제금액이 환불됩니다.`)
+    if (!confirmed) return
+
+    // 3. 취소 사유 입력 (간단한 프롬프트)
+    const reason = prompt('취소 사유를 입력해주세요 (선택사항):') || '사용자 요청'
+
+    // 4. 주문 정보 조회 (총 금액 확인용)
+    const order = orders.value.find(o => o.orderId === orderId)
+    if (!order) {
+      alert('주문 정보를 찾을 수 없습니다.')
+      return
+    }
+
+    // 5. 취소 요청 데이터 구성
+    const cancelData = {
+      orderId: orderId,
+      userId: userId,
+      reason: reason,
+      detail: '',
+      refundAmount: order.totalPrice,
+      paymentId: order.paymentId || null
+    }
+
+    console.log('🔥 주문 취소 요청:', cancelData)
+
+    // 6. 취소 API 호출
+    const response = await fetch(`${API_BASE_URL}/api/orders/${orderId}/cancel`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(cancelData)
+    })
+
+    const result = await response.json()
+
+    if (response.ok && result.success) {
+      alert('주문이 성공적으로 취소되었습니다.\n환불은 영업일 기준 3-5일 소요됩니다.')
+
+      // 주문 목록 새로고침
+      await loadOrders()
+    } else {
+      throw new Error(result.message || '주문 취소에 실패했습니다.')
+    }
+
   } catch (err) {
-    alert(err.message)
+    console.error('주문 취소 실패:', err)
+    alert(`주문 취소 실패: ${err.message}`)
   }
 }
 
 // 재주문
 const reorder = (items) => {
+  console.log('재주문:', items)
   const productIds = items.map(item => item.productId)
   router.push({
     path: '/cart',
@@ -433,4 +557,579 @@ onMounted(() => {
 })
 </script>
 
-<style scoped src="@/assets/css/myPageOrder.css"></style>
+<style scoped>
+/* 기본 컨테이너 */
+.orders-container {
+  padding: 20px;
+  background-color: #f8f9fa;
+  min-height: 100vh;
+}
+
+/* 상단 헤더 */
+.orders-header {
+  background-color: white;
+  padding: 24px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  margin-bottom: 20px;
+}
+
+.orders-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 20px;
+}
+
+.orders-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.control-group {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.period-select {
+  padding: 10px 16px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 14px;
+  background-color: white;
+  cursor: pointer;
+}
+
+.search-container {
+  position: relative;
+  flex: 1;
+  max-width: 400px;
+}
+
+.search-input {
+  width: 100%;
+  padding: 10px 16px 10px 40px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  color: #666;
+}
+
+/* 필터 상태 */
+.filter-status {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.filter-tags {
+  display: flex;
+  gap: 8px;
+}
+
+.filter-tag {
+  background-color: #5f0080;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 16px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.filter-clear {
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 0;
+  margin-left: 4px;
+}
+
+.clear-all-button {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* 주문 목록 래퍼 */
+.orders-wrapper {
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+/* 로딩, 에러, 빈 상태 */
+.loading-container, .error-container, .empty-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  padding: 40px;
+}
+
+.loading-content, .error-container, .empty-container {
+  text-align: center;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #5f0080;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 16px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-text {
+  color: #666;
+  font-size: 16px;
+}
+
+.error-message {
+  color: #dc3545;
+  font-size: 16px;
+  margin-bottom: 16px;
+}
+
+.retry-button {
+  background-color: #5f0080;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.empty-icon {
+  width: 60px;
+  height: 60px;
+  color: #ccc;
+  margin-bottom: 16px;
+}
+
+.empty-title {
+  font-size: 20px;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.empty-description {
+  color: #666;
+  margin-bottom: 24px;
+}
+
+.shopping-button {
+  background-color: #5f0080;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/* 주문 목록 */
+.orders-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.orders-list-container {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 600px;
+}
+
+.orders-list {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* 주문 카드 */
+.order-card {
+  border: 1px solid #e9ecef;
+  border-radius: 12px;
+  padding: 20px;
+  background-color: white;
+  transition: box-shadow 0.2s;
+}
+
+.order-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* 주문 헤더 */
+.order-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f1f3f4;
+}
+
+.order-info {
+  flex: 1;
+}
+
+.order-date {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 6px;
+}
+
+.order-number {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 8px;
+  font-family: monospace;
+}
+
+.order-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-pending { background-color: #fff3cd; color: #856404; }
+.status-paid { background-color: #d1ecf1; color: #0c5460; }
+.status-preparing { background-color: #cce5ff; color: #004085; }
+.status-shipping { background-color: #d4edda; color: #155724; }
+.status-delivered { background-color: #d1ecf1; color: #0c5460; }
+.status-cancelled { background-color: #f8d7da; color: #721c24; }
+.status-returned { background-color: #ffeaa7; color: #6c5500; }
+.status-default { background-color: #e9ecef; color: #495057; }
+
+.order-time {
+  font-size: 12px;
+  color: #999;
+}
+
+.detail-button {
+  background: none;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.detail-button:hover {
+  background-color: #5f0080;
+  border-color: #5f0080;
+  color: white;
+}
+
+.detail-icon {
+  width: 18px;
+  height: 18px;
+}
+
+/* 주문 내용 */
+.order-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.product-item {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid #f1f3f4;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.product-item:hover {
+  background-color: #f8f9fa;
+}
+
+.product-image {
+  width: 60px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 6px;
+  margin-right: 12px;
+  border: 1px solid #e9ecef;
+}
+
+.product-details {
+  flex: 1;
+}
+
+.product-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.product-info {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.product-price {
+  font-size: 14px;
+  font-weight: 600;
+  color: #5f0080;
+}
+
+.product-quantity {
+  font-size: 13px;
+  color: #666;
+}
+
+.product-actions {
+  display: flex;
+  align-items: center;
+}
+
+.cart-icon {
+  font-size: 20px;
+}
+
+/* 주문 총액 */
+.order-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  margin-top: 8px;
+}
+
+.total-label {
+  font-size: 14px;
+  color: #666;
+}
+
+.total-amount {
+  font-size: 16px;
+  font-weight: 700;
+  color: #333;
+}
+
+/* 액션 버튼들 */
+.order-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #f1f3f4;
+}
+
+.action-button {
+  flex: 1;
+  padding: 10px 16px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  background-color: white;
+  color: #666;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.btn-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.detail-btn:hover {
+  background-color: #5f0080;
+  border-color: #5f0080;
+  color: white;
+}
+
+.reorder-btn:hover {
+  background-color: #28a745;
+  border-color: #28a745;
+  color: white;
+}
+
+.cancel-btn:hover {
+  background-color: #dc3545;
+  border-color: #dc3545;
+  color: white;
+}
+
+.review-btn:hover {
+  background-color: #ffc107;
+  border-color: #ffc107;
+  color: #212529;
+}
+
+/* 페이지네이션 */
+.pagination-container {
+  padding: 24px;
+  border-top: 1px solid #e9ecef;
+  background-color: #f8f9fa;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.page-button {
+  padding: 8px 12px;
+  border: 1px solid #e0e0e0;
+  background-color: white;
+  color: #666;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 14px;
+}
+
+.page-button:hover {
+  background-color: #f8f9fa;
+  border-color: #5f0080;
+}
+
+.page-button.active {
+  background-color: #5f0080;
+  border-color: #5f0080;
+  color: white;
+}
+
+.nav-button {
+  font-weight: 500;
+}
+
+.page-info {
+  text-align: center;
+}
+
+.page-text {
+  font-size: 14px;
+  color: #666;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+  .orders-container {
+    padding: 12px;
+  }
+
+  .orders-header {
+    padding: 16px;
+  }
+
+  .orders-title {
+    font-size: 24px;
+  }
+
+  .control-group {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-container {
+    max-width: none;
+  }
+
+  .filter-status {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .order-card {
+    padding: 16px;
+  }
+
+  .order-header {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .detail-button {
+    align-self: flex-end;
+  }
+
+  .product-item {
+    padding: 8px;
+  }
+
+  .product-image {
+    width: 50px;
+    height: 50px;
+  }
+
+  .order-actions {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .action-button {
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+
+  .pagination {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .page-button {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+}
+
+</style>

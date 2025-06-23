@@ -1,6 +1,7 @@
 // OrderController.java
 package org.kosa.orderservice.controller;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.kosa.orderservice.dto.*;
@@ -154,31 +155,65 @@ public class OrderController {
         return (headerUserId != null && !headerUserId.trim().isEmpty()) ||
                 (paramUserId != null && !paramUserId.trim().isEmpty());
     }
+    @GetMapping("/{orderId}/cancel")
+    public ResponseEntity<ApiResponse<OrderCancelResponseDTO>> getCancelInfo(
+            @PathVariable String orderId,
+            @RequestParam String userId) {
 
+        try {
+            OrderCancelResponseDTO response = orderService.getCancelInfo(orderId, userId);
+            return ResponseEntity.ok(ApiResponse.success(response));
+
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error(e.getMessage()));
+
+        } catch (Exception e) {
+            log.error("주문 취소 정보 조회 실패", e);
+            return ResponseEntity.internalServerError()
+                    .body(ApiResponse.error("주문 취소 정보 조회 중 오류가 발생했습니다."));
+        }
+    }
     /**
      * 주문 취소
      */
-    @PutMapping("/{orderId}/cancel")
-    public ResponseEntity<ApiResponse<Void>> cancelOrder(
+    @PostMapping("/{orderId}/cancel")
+    public ResponseEntity<ApiResponse<OrderCancelResponseDTO>> cancelOrder(
             @PathVariable String orderId,
-            Authentication authentication,
-            @RequestHeader(value = "X-User-Id", required = false) String headerUserId,
-            @RequestParam(value = "userId", required = false) String paramUserId) {
+            @Valid @RequestBody OrderCancelRequestDTO request) {
+
         try {
-            String userId = getUserId(authentication, headerUserId, paramUserId);
-            log.info("주문 취소: orderId={}, userId={}", orderId, userId);
+            log.info(" 주문 취소 요청: orderId={}, userId={}", orderId, request.getUserId());
 
-            orderService.cancelOrder(orderId, userId);
+            // 요청 데이터 검증
+            if (!orderId.equals(request.getOrderId())) {
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("주문번호가 일치하지 않습니다."));
+            }
 
-            return ResponseEntity.ok(ApiResponse.success("주문이 취소되었습니다.", null));
+            // 주문 취소 처리
+            OrderCancelResponseDTO response = orderService.cancelOrder(request);
+
+            log.info("주문 취소 성공: orderId={}", orderId);
+
+            return ResponseEntity.ok(ApiResponse.success("주문이 성공적으로 취소되었습니다.", response));
+
+        } catch (IllegalArgumentException e) {
+            log.warn("️ 주문 취소 요청 오류: {}", e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error(e.getMessage()));
+
+        } catch (IllegalStateException e) {
+            log.warn("⚠ 주문 취소 상태 오류: {}", e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error(e.getMessage()));
 
         } catch (Exception e) {
-            log.error("주문 취소 실패: {}", e.getMessage(), e);
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("주문 취소 중 오류가 발생했습니다: " + e.getMessage()));
+            log.error(" 주문 취소 처리 실패", e);
+            return ResponseEntity.internalServerError()
+                    .body(ApiResponse.error("주문 취소 처리 중 오류가 발생했습니다."));
         }
     }
-
     /**
      * 주문 상태 변경 (관리자용)
      */
@@ -200,7 +235,60 @@ public class OrderController {
                     .body(ApiResponse.error("주문 상태 변경 중 오류가 발생했습니다: " + e.getMessage()));
         }
     }
+    @GetMapping("/{orderId}/cancelable")
+    public ResponseEntity<ApiResponse<Boolean>> checkCancelable(
+            @PathVariable String orderId,
+            @RequestParam String userId) {
 
+        try {
+            boolean canCancel = orderService.canCancelOrder(orderId, userId);
+            return ResponseEntity.ok(ApiResponse.success(canCancel));
+
+        } catch (Exception e) {
+            log.error("취소 가능 여부 확인 실패", e);
+            return ResponseEntity.internalServerError()
+                    .body(ApiResponse.error("취소 가능 여부 확인 중 오류가 발생했습니다."));
+        }
+    }
+
+    /**
+     * 🔥 사용자 취소 주문 목록 조회
+     * GET /api/orders/cancelled
+     */
+    @GetMapping("/cancelled")
+    public ResponseEntity<ApiResponse<List<OrderCancelResponseDTO>>> getCancelledOrders(
+            @RequestParam String userId) {
+
+        try {
+            List<OrderCancelResponseDTO> cancelledOrders = orderService.getUserCancelledOrders(userId);
+            return ResponseEntity.ok(ApiResponse.success(cancelledOrders));
+
+        } catch (Exception e) {
+            log.error("취소 주문 목록 조회 실패", e);
+            return ResponseEntity.internalServerError()
+                    .body(ApiResponse.error("취소 주문 목록 조회 중 오류가 발생했습니다."));
+        }
+    }
+
+    /**
+     * 🔥 간단 주문 취소 (기존 메소드 활용)
+     * PUT /api/orders/{orderId}/simple-cancel
+     */
+    @PutMapping("/{orderId}/simple-cancel")
+    public ResponseEntity<ApiResponse<String>> simpleCancelOrder(
+            @PathVariable String orderId,
+            @RequestParam String userId) {
+
+        try {
+            orderService.cancelOrder(orderId, userId);
+            return ResponseEntity.ok(ApiResponse.success("주문이 취소되었습니다."));
+
+        } catch (Exception e) {
+            log.error("간단 주문 취소 실패", e);
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error(e.getMessage()));
+        }
+    }
     /**
      * 헬스체크
      */

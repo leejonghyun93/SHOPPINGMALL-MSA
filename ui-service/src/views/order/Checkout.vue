@@ -30,9 +30,6 @@
               </div>
             </div>
           </div>
-<!--          <div class="delivery-notice">-->
-<!--            <span class="delivery-text"></span>-->
-<!--          </div>-->
         </div>
 
         <!-- 주문자 정보 -->
@@ -100,28 +97,6 @@
           <div class="payment-methods">
             <div class="payment-option">
               <label class="radio-container">
-                <input type="radio" name="payment" value="card" v-model="selectedPayment">
-                <span class="radio-mark"></span>
-                <span class="payment-label">컬리페이 충전결제</span>
-                <span class="recommended-badge">추천</span>
-              </label>
-              <div class="payment-notice">
-                충전결제 사용량은 컬리페이 7배치 적립받고
-              </div>
-            </div>
-
-            <div class="payment-option">
-              <label class="radio-container">
-                <input type="radio" name="payment" value="kurly" v-model="selectedPayment">
-                <span class="radio-mark"></span>
-                <span class="payment-label">Kurly Pay</span>
-                <span class="new-badge">새로운</span>
-                <span class="hot-badge">HOT</span>
-              </label>
-            </div>
-
-            <div class="payment-option">
-              <label class="radio-container">
                 <input type="radio" name="payment" value="general" v-model="selectedPayment" checked>
                 <span class="radio-mark"></span>
                 <span class="payment-label">다른 결제수단</span>
@@ -136,10 +111,46 @@
                   <span class="radio-mark"></span>
                   <span class="payment-label">신용/체크카드</span>
                 </label>
-                <div class="card-options">
-                  <button class="card-option-btn active">신용카드</button>
-                  <button class="card-option-btn">간편결제</button>
-                  <button class="card-option-btn">휴대폰</button>
+
+                <!-- 🔥 개선된 카드 옵션 버튼들 -->
+                <div v-if="selectedSubPayment === 'credit'" class="card-options">
+                  <button
+                      class="card-option-btn"
+                      :class="{ active: cardPaymentType === 'card' }"
+                      @click="setCardPaymentType('card')"
+                      type="button"
+                  >
+                    신용카드
+                  </button>
+                  <button
+                      class="card-option-btn"
+                      :class="{ active: cardPaymentType === 'simple' }"
+                      @click="setCardPaymentType('simple')"
+                      type="button"
+                  >
+                    간편결제
+                  </button>
+                  <button
+                      class="card-option-btn"
+                      :class="{ active: cardPaymentType === 'phone' }"
+                      @click="setCardPaymentType('phone')"
+                      type="button"
+                  >
+                    휴대폰
+                  </button>
+                </div>
+
+                <!-- 🔥 선택된 결제 방식에 따른 안내 문구 -->
+                <div v-if="selectedSubPayment === 'credit'" class="payment-guide">
+                  <div v-if="cardPaymentType === 'card'" class="guide-text">
+                    💳 신용카드 또는 체크카드로 결제합니다
+                  </div>
+                  <div v-else-if="cardPaymentType === 'simple'" class="guide-text">
+                    ⚡ 삼성페이, 애플페이 등 간편결제로 결제합니다
+                  </div>
+                  <div v-else-if="cardPaymentType === 'phone'" class="guide-text">
+                    📱 휴대폰 소액결제로 결제합니다 (통신사 요금에 합산)
+                  </div>
                 </div>
               </div>
 
@@ -177,25 +188,13 @@
               <li>무이자카드: 광주 씨, 씨티 씨, 롯데 씨, 삼성 씨를 확인 안됨</li>
               <li>삼성카드: 온라인 50만 원 이상 결제 시, 2024 컵 3월 정책 안됨</li>
               <li>하나카드: 온라인 결제 시, 1.2만원 참여 학습 온라인 시개 안됨</li>
+              <li v-if="cardPaymentType === 'phone'" class="phone-notice">📱 휴대폰 결제는 월 30만원 한도가 있습니다</li>
             </ul>
             <p class="details-link">자세히보기</p>
           </div>
         </div>
 
-        <!--        &lt;!&ndash; 쿠폰 &ndash;&gt;-->
-        <!--        <div class="form-section">-->
-        <!--          <h2 class="section-title">쿠폰</h2>-->
-        <!--          <div class="coupon-section">-->
-        <!--            <div class="coupon-input">-->
-        <!--              <input type="text" placeholder="쿠폰 번호를 입력 해주세요 / 쿠폰명 입력" class="coupon-input-field">-->
-        <!--            </div>-->
-        <!--            <p class="coupon-notice">쿠폰 적용 시 샛별배송 지역이 안됩니다.</p>-->
-        <!--            <p class="coupon-terms">쿠폰 이용 문의 (#칼리컬러) *</p>-->
-        <!--            <a href="#" class="coupon-link">더민컬러츠 할인정보로 해결 무료배송 ></a>-->
-        <!--          </div>-->
-        <!--        </div>-->
-
-        <!-- 적립금/컬리패스 -->
+        <!-- 적립금 -->
         <div class="form-section">
           <h2 class="section-title">적립금</h2>
           <div class="points-section">
@@ -208,10 +207,6 @@
               <span class="points-label">혜택금</span>
               <span class="points-amount">0 원</span>
             </div>
-            <div class="points-row">
-              <span class="points-label">컬리패스</span>
-              <span class="points-amount">0 원</span>
-            </div>
 
             <div class="points-input-section">
               <input type="number" placeholder="0" class="points-input" v-model="pointsToUse">
@@ -220,20 +215,7 @@
 
             <div class="points-info">
               <p>적립금만 입력해주십시오 또는 사용이 안되시면.</p>
-              <p>컬리패스는 컬리패스 가격 시 사용할 수 있습니다.</p>
             </div>
-          </div>
-        </div>
-
-        <!-- 컬리카드 혜택 -->
-        <div class="form-section">
-          <h2 class="section-title">컬리카드 혜택</h2>
-          <div class="kurlycard-section">
-            <div class="kurlycard-info">
-              <span class="card-status">즉시 할인</span>
-              <span class="card-discount">컬리카드 첫 결제 -10,000원</span>
-            </div>
-            <button class="card-apply-btn">혜택 받기</button>
           </div>
         </div>
       </div>
@@ -269,16 +251,8 @@
               <span class="summary-value">{{ formatPrice(cardDiscount) }}원</span>
             </div>
             <div class="summary-row">
-              <span class="summary-label">적립금 컬리패스</span>
-              <span class="summary-value">{{ formatPrice(pointsUsed) }}원</span>
-            </div>
-            <div class="summary-row">
               <span class="summary-label">혜택금</span>
               <span class="summary-value">{{ formatPrice(benefitAmount) }}원</span>
-            </div>
-            <div class="summary-row">
-              <span class="summary-label">컬리패스</span>
-              <span class="summary-value">{{ formatPrice(kurlypassAmount) }}원</span>
             </div>
 
             <div class="summary-divider"></div>
@@ -290,11 +264,12 @@
           </div>
 
           <div class="benefits-notice">
-            <p>🎁 최종 결제 시 여시기 2,000원 더 받기 ></p>
+            <p> 최종 결제 시 여시기 2,000원 더 받기 ></p>
           </div>
 
-          <button class="checkout-btn" @click="processPayment" :disabled="!canProceed">
-            {{ formatPrice(finalAmount) }}원 결제하기
+          <button class="checkout-btn" @click="processPayment" :disabled="!canProceed || loading">
+            <span v-if="loading">결제 처리 중...</span>
+            <span v-else>{{ formatPrice(finalAmount) }}원 결제하기</span>
           </button>
 
           <div class="agreement-text">
@@ -374,8 +349,19 @@ import {ChevronLeft} from 'lucide-vue-next'
 import axios from 'axios'
 import {user, setUserFromToken} from "@/stores/userStore"
 
+// 공통 유틸 import
+import {
+  getFailureReason,
+  getSuccessMessage,
+  getPgDisplayName,
+  getMessageType
+} from '@/utils/paymentMessages.js'
+
 // API 기본 URL
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080'
+
+// 🔥 결제 타입 상태 추가
+const cardPaymentType = ref('card') // 'card', 'simple', 'phone'
 
 // 상태 관리
 const selectedPayment = ref('general')
@@ -441,6 +427,56 @@ const canSaveAddress = computed(() => {
       newAddress.value.detailAddress.trim()
 })
 
+// 🔥 중복 메시지 방지
+let lastMessage = null
+let lastMessageTime = 0
+
+const showFriendlyMessage = (message, type = 'info') => {
+  const now = Date.now()
+
+  // 같은 메시지가 1초 이내에 호출되면 무시
+  if (lastMessage === message && (now - lastMessageTime) < 1000) {
+    console.log('🔄 중복 메시지 방지:', message)
+    return
+  }
+
+  lastMessage = message
+  lastMessageTime = now
+
+  const icons = {
+    success: '🎉',
+    info: '💡',
+    warning: '⚠️',
+    error: '❌'
+  }
+
+  const icon = icons[type] || '💡'
+  alert(`${icon} ${message}`)
+
+  console.log(`💬 ${type.toUpperCase()}: ${message}`)
+}
+
+// 🔥 카드 결제 타입 설정 함수
+const setCardPaymentType = (type) => {
+  cardPaymentType.value = type
+
+  // 신용/체크카드가 선택되지 않았다면 자동 선택
+  if (selectedSubPayment.value !== 'credit') {
+    selectedSubPayment.value = 'credit'
+  }
+
+  console.log(`카드 결제 타입 변경: ${type}`)
+
+  // 사용자에게 선택 확인 메시지
+  const typeNames = {
+    'card': '신용카드',
+    'simple': '간편결제',
+    'phone': '휴대폰 결제'
+  }
+
+  showFriendlyMessage(`${typeNames[type]}가 선택되었습니다! 💳`, 'info')
+}
+
 // 주소 모달 관련 함수들
 const openAddressModal = () => {
   showAddressModal.value = true
@@ -498,13 +534,13 @@ const searchAddress = async () => {
       }
     }).open()
   } catch (error) {
-    alert('우편번호 검색 서비스를 로드할 수 없습니다.')
+    showFriendlyMessage('우편번호 검색 서비스를 로드할 수 없습니다.', 'error')
   }
 }
 
 const saveAddress = () => {
   if (!canSaveAddress.value) {
-    alert('우편번호, 기본주소, 상세주소를 모두 입력해주세요.')
+    showFriendlyMessage('우편번호, 기본주소, 상세주소를 모두 입력해주세요.', 'warning')
     return
   }
 
@@ -516,12 +552,14 @@ const saveAddress = () => {
   }
 
   closeAddressModal()
+  showFriendlyMessage('배송지가 변경되었습니다! ', 'success')
 }
 
 const editDeliveryRequest = () => {
   const newRequest = prompt('배송 요청사항을 입력하세요:', deliveryInfo.value.request)
   if (newRequest !== null) {
     deliveryInfo.value.request = newRequest.trim() || '문 앞에 놓아주세요'
+    showFriendlyMessage('배송 요청사항이 변경되었습니다! 📝', 'info')
   }
 }
 
@@ -695,15 +733,15 @@ const loadOrderData = () => {
         productAmount.value = data.productAmount || orderAmount.value
         deliveryFee.value = data.deliveryFee || 0
       } else {
-        alert('주문할 상품이 없습니다. 장바구니로 이동합니다.')
+        showFriendlyMessage('주문할 상품이 없습니다. 장바구니로 이동합니다.', 'warning')
         window.location.href = '/cart'
       }
     } else {
-      alert('주문 정보를 찾을 수 없습니다. 장바구니로 이동합니다.')
+      showFriendlyMessage('주문 정보를 찾을 수 없습니다. 장바구니로 이동합니다.', 'warning')
       window.location.href = '/cart'
     }
   } catch (error) {
-    alert('주문 정보 로드 중 오류가 발생했습니다.')
+    showFriendlyMessage('주문 정보 로드 중 오류가 발생했습니다.', 'error')
     window.location.href = '/cart'
   }
 }
@@ -717,19 +755,229 @@ const formatPrice = (price) => {
   return price?.toLocaleString() || '0'
 }
 
-// 결제 처리
+// 아임포트 동적 로드
+const loadIamportScript = () => {
+  return new Promise((resolve, reject) => {
+    // 이미 로드되었는지 확인
+    if (typeof window.IMP !== 'undefined') {
+      resolve(window.IMP)
+      return
+    }
+
+    // 스크립트 태그 생성
+    const script = document.createElement('script')
+    script.src = 'https://cdn.iamport.kr/v1/iamport.js'
+    script.onload = () => {
+      if (typeof window.IMP !== 'undefined') {
+        console.log('아임포트 로드 완료')
+        resolve(window.IMP)
+      } else {
+        reject(new Error('아임포트 로드 실패'))
+      }
+    }
+    script.onerror = () => reject(new Error('아임포트 스크립트 로드 에러'))
+
+    document.head.appendChild(script)
+  })
+}
+
+// 🔥 결제 유효성 검사 개선
+const validatePaymentMethod = () => {
+  if (!selectedPayment.value) {
+    showFriendlyMessage('결제 수단을 선택해주세요.', 'warning')
+    return false
+  }
+
+  if (selectedPayment.value === 'general' && !selectedSubPayment.value) {
+    showFriendlyMessage('세부 결제 방식을 선택해주세요.', 'warning')
+    return false
+  }
+
+  // 휴대폰 결제 시 추가 검증
+  if (selectedSubPayment.value === 'credit' && cardPaymentType.value === 'phone') {
+    if (!userInfo.value.phone) {
+      showFriendlyMessage('휴대폰 결제를 위해 휴대폰 번호가 필요합니다.', 'warning')
+      return false
+    }
+  }
+
+  return true
+}
+
+// 🔥 개선된 PG 결제 함수 - 카드 타입별 처리
+const initiatePayment = async (paymentData) => {
+  try {
+    console.log('아임포트 스크립트 로드 중...')
+    const IMP = await loadIamportScript()
+
+    return new Promise((resolve, reject) => {
+      IMP.init('imp19424728')
+
+      // PG사 선택 로직 개선
+      let pgProvider = 'kakaopay.TC0ONETIME'
+      let payMethod = 'card'
+
+      if (selectedPayment.value === 'general') {
+        switch(selectedSubPayment.value) {
+          case 'credit':
+            // 🔥 카드 타입별 처리
+            if (cardPaymentType.value === 'phone') {
+              pgProvider = 'html5_inicis'
+              payMethod = 'phone' // 휴대폰 결제
+            } else if (cardPaymentType.value === 'simple') {
+              pgProvider = 'html5_inicis'
+              payMethod = 'samsung' // 삼성페이 등 간편결제
+            } else {
+              pgProvider = 'html5_inicis'
+              payMethod = 'card' // 일반 신용카드
+            }
+            break
+          case 'kakao':
+            pgProvider = 'kakaopay.TC0ONETIME'
+            payMethod = 'card'
+            break
+          case 'toss':
+            pgProvider = 'tosspay.tosstest'
+            payMethod = 'card'
+            break
+          case 'payco':
+            pgProvider = 'payco.PARTNERTEST'
+            payMethod = 'card'
+            break
+          default:
+            pgProvider = 'html5_inicis'
+            payMethod = 'card'
+        }
+      } else if (selectedPayment.value === 'kurly') {
+        pgProvider = 'kcp.T0000'
+        payMethod = 'card'
+      }
+
+      const actualAmount = paymentData.amount || finalAmount.value
+
+      console.log(`선택된 PG: ${pgProvider}`)
+      console.log(`결제 방식: ${payMethod}`)
+      console.log(`카드 타입: ${cardPaymentType.value}`)
+      console.log(`결제 금액: ${actualAmount.toLocaleString()}원`)
+
+      // 🔥 결제 요청 데이터 구성
+      const paymentRequest = {
+        pg: pgProvider,
+        pay_method: payMethod,
+        merchant_uid: paymentData.orderId,
+        name: paymentData.orderName,
+        amount: actualAmount,
+        buyer_email: paymentData.userEmail,
+        buyer_name: paymentData.userName,
+        buyer_tel: paymentData.userPhone,
+        custom_data: {
+          finalAmount: actualAmount,
+          originalAmount: orderAmount.value,
+          deliveryFee: deliveryFee.value,
+          cardType: cardPaymentType.value
+        }
+      }
+
+      // 🔥 휴대폰 결제 시 추가 설정
+      if (payMethod === 'phone') {
+        paymentRequest.digital = false // 실물 상품
+        paymentRequest.buyer_postcode = deliveryInfo.value.zipCode || ''
+        paymentRequest.buyer_addr = deliveryInfo.value.address || ''
+      }
+
+      IMP.request_pay(paymentRequest, async (response) => {
+        try {
+          console.log(`${pgProvider} 결제 응답:`, response)
+
+          if (response.success) {
+            console.log('✅ 결제 성공!')
+
+            // 공통 유틸 사용 - 성공 메시지
+            const successMsg = getSuccessMessage(pgProvider, response.paid_amount)
+            showFriendlyMessage(successMsg, 'success')
+
+            sessionStorage.removeItem('checkout_data')
+            window.location.href = `/order-complete?orderId=${response.merchant_uid}&paymentId=${response.imp_uid}&amount=${response.paid_amount}`
+            resolve(response)
+
+          } else {
+            console.log('❌ 결제 실패:', response)
+
+            // 🔥 공통 유틸 사용 - 실패 메시지 (한 번만 호출)
+            const friendlyReason = getFailureReason(response.error_code, response.error_msg)
+            const messageType = getMessageType(response.error_code, response.error_msg)
+
+            showFriendlyMessage(friendlyReason, messageType)
+
+            // reject로 에러 전달하되, 메시지는 이미 표시했으므로 별도 처리 안함
+            const error = new Error(friendlyReason)
+            error.alreadyHandled = true
+            reject(error)
+          }
+
+        } catch (error) {
+          console.error('결제 응답 처리 중 오류:', error)
+
+          if (!error.alreadyHandled) {
+            const errorMsg = getFailureReason('SYSTEM_ERROR', '결제 처리 중 오류가 발생했습니다')
+            showFriendlyMessage(errorMsg, 'error')
+          }
+          reject(error)
+        }
+      })
+    })
+
+  } catch (error) {
+    console.error('아임포트 초기화 실패:', error)
+    const errorMsg = getFailureReason('SYSTEM_ERROR', '결제 시스템 초기화 실패')
+    showFriendlyMessage(errorMsg, 'error')
+    throw error
+  }
+}
+
+// 🔥 개선된 결제 수단명 변환
+const getPaymentMethodName = (method) => {
+  if (method === 'general' && selectedSubPayment.value === 'credit') {
+    const typeNames = {
+      'card': '신용카드',
+      'simple': '간편결제',
+      'phone': '휴대폰결제'
+    }
+    return typeNames[cardPaymentType.value] || '신용카드'
+  }
+
+  const methodNames = {
+    'kurly': 'Kurly Pay',
+    'npay': '네이버페이',
+    'general': '일반결제',
+    'credit': '신용카드',
+    'kakao': '카카오페이',
+    'toss': '토스',
+    'payco': '페이코'
+  }
+  return methodNames[method] || '기타'
+}
+
+// 🔥 개선된 결제 처리 메인 함수
 const processPayment = async () => {
   console.log('=== processPayment 함수 시작 ===')
+  console.log(`최종 결제 금액: ${finalAmount.value.toLocaleString()}원`)
+  console.log(`선택된 결제방식: ${selectedPayment.value} > ${selectedSubPayment.value} > ${cardPaymentType.value}`)
+
+  // 결제 방식 유효성 검사
+  if (!validatePaymentMethod()) {
+    return
+  }
 
   if (!canProceed.value) {
-    alert('결제 정보를 확인해주세요.')
+    showFriendlyMessage('결제 정보를 확인해주세요.', 'warning')
     return
   }
 
   try {
     loading.value = true
 
-    // 1. 주문 생성 (기존 로직)
+    // 주문 생성 데이터 준비
     const orderData = {
       userId: user.id && user.id !== 'null' ? user.id : undefined,
       items: orderItems.value.map(item => ({
@@ -750,13 +998,16 @@ const processPayment = async () => {
       deliveryMemo: deliveryInfo.value.request || '',
       paymentMethod: selectedPayment.value,
       paymentMethodName: getPaymentMethodName(selectedPayment.value),
-      usedPoint: pointsToUse.value || 0,
-      totalAmount: finalAmount.value
+      usedPoint: pointsUsed.value || 0,
+      totalAmount: finalAmount.value,
+      // 🔥 추가 결제 정보
+      cardType: cardPaymentType.value
     }
 
-    console.log('📤 주문 생성 요청:', orderData)
+    console.log('주문 생성 요청:', orderData)
 
-    const orderResponse = await fetch(`${API_BASE_URL}/api/orders/checkout`, {
+    // Payment Service의 주문 API 호출
+    const orderResponse = await fetch(`${API_BASE_URL}/api/payments/orders/checkout`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(orderData)
@@ -768,11 +1019,11 @@ const processPayment = async () => {
     }
 
     const orderResult = await orderResponse.json()
-    console.log('✅ 주문 생성 성공:', orderResult)
+    console.log('주문 생성 성공:', orderResult)
 
     if (orderResult.success) {
-      // 2. PG사 결제 호출
-      console.log('💳 PG 결제 시작')
+      // PG사 결제 호출
+      console.log('PG 결제 시작')
       await initiatePayment({
         orderId: orderResult.data.orderId,
         amount: finalAmount.value,
@@ -784,117 +1035,13 @@ const processPayment = async () => {
     }
   } catch (error) {
     console.log('❌ 에러 발생:', error)
-    alert(`주문 처리 중 오류가 발생했습니다:\n${error.message}`)
+
+    if (!error.alreadyHandled) {
+      const friendlyError = getFailureReason(null, error.message)
+      showFriendlyMessage(friendlyError, 'error')
+    }
   } finally {
     loading.value = false
-  }
-}
-
-// PG 결제 함수 (아임포트 예시)
-// Checkout.vue에서 아임포트 동적 로드
-const loadIamportScript = () => {
-  return new Promise((resolve, reject) => {
-    // 이미 로드되었는지 확인
-    if (typeof window.IMP !== 'undefined') {
-      resolve(window.IMP)
-      return
-    }
-
-    // 스크립트 태그 생성
-    const script = document.createElement('script')
-    script.src = 'https://cdn.iamport.kr/v1/iamport.js'
-    script.onload = () => {
-      if (typeof window.IMP !== 'undefined') {
-        console.log('✅ 아임포트 로드 완료')
-        resolve(window.IMP)
-      } else {
-        reject(new Error('아임포트 로드 실패'))
-      }
-    }
-    script.onerror = () => reject(new Error('아임포트 스크립트 로드 에러'))
-
-    document.head.appendChild(script)
-  })
-}
-
-// initiatePayment 함수 수정
-const initiatePayment = async (paymentData) => {
-  try {
-    console.log('📦 아임포트 스크립트 로드 중...')
-    const IMP = await loadIamportScript()
-
-    return new Promise((resolve, reject) => {
-      console.log('✅ 아임포트 모듈 확인:', typeof IMP)
-
-      // 공식 테스트 가맹점 코드 사용
-      IMP.init('imp19424728')
-
-      console.log('🚀 결제창 호출 시작')
-
-      IMP.request_pay({
-        pg: 'kakaopay.TC0ONETIME', // 카카오페이 테스트
-        pay_method: 'card',
-        merchant_uid: paymentData.orderId,
-        name: paymentData.orderName,
-        amount: 100, // 테스트용 100원
-        buyer_email: paymentData.userEmail,
-        buyer_name: paymentData.userName,
-        buyer_tel: paymentData.userPhone,
-      }, async (response) => {
-        try {
-          console.log('💳 결제 응답:', response)
-
-          if (response.success) {
-            console.log('✅ 결제 성공!')
-            console.log('결제 고유ID:', response.imp_uid)
-            console.log('주문번호:', response.merchant_uid)
-
-            // 🎉 결제 성공 처리
-            alert(`결제가 완료되었습니다!\n결제 금액: ${response.paid_amount}원`)
-
-            // 체크아웃 데이터 정리
-            sessionStorage.removeItem('checkout_data')
-
-            // 주문 완료 페이지로 이동
-            window.location.href = `/order-complete?orderId=${response.merchant_uid}&paymentId=${response.imp_uid}`
-
-            resolve(response)
-
-          } else {
-            // ❌ 결제 실패 처리
-            console.log('❌ 결제 실패:', response)
-
-            let failureReason = '알 수 없는 오류'
-            switch(response.error_code) {
-              case 'STOP_PAYMENT':
-                failureReason = '사용자가 결제를 취소했습니다'
-                break
-              case 'CARD_DECLINED':
-                failureReason = '카드 결제가 거절되었습니다'
-                break
-              case 'INSUFFICIENT_FUNDS':
-                failureReason = '잔액이 부족합니다'
-                break
-              default:
-                failureReason = response.error_msg || '결제 처리 중 오류가 발생했습니다'
-            }
-
-            alert(`결제 실패: ${failureReason}`)
-            reject(new Error(failureReason))
-          }
-
-        } catch (error) {
-          console.error('결제 응답 처리 중 오류:', error)
-          alert(`결제 처리 중 시스템 오류가 발생했습니다: ${error.message}`)
-          reject(error)
-        }
-      })
-    })
-
-  } catch (error) {
-    console.error('아임포트 초기화 실패:', error)
-    alert('결제 시스템을 초기화할 수 없습니다. 잠시 후 다시 시도해주세요.')
-    throw error
   }
 }
 
@@ -920,7 +1067,7 @@ const verifyPayment = async (impUid, merchantUid) => {
     console.log('✅ 결제 검증 완료:', result)
 
     if (result.success) {
-      alert('결제가 완료되었습니다!')
+      showFriendlyMessage('결제가 완료되었습니다! 🎉', 'success')
       sessionStorage.removeItem('checkout_data')
       window.location.href = `/order-complete?orderId=${merchantUid}`
     } else {
@@ -928,34 +1075,25 @@ const verifyPayment = async (impUid, merchantUid) => {
     }
   } catch (error) {
     console.error('결제 검증 오류:', error)
-    alert(`결제 검증 중 오류가 발생했습니다: ${error.message}`)
+    const errorMsg = getFailureReason('SYSTEM_ERROR', `결제 검증 중 오류가 발생했습니다: ${error.message}`)
+    showFriendlyMessage(errorMsg, 'error')
   }
-}
-
-// 결제 수단명 변환
-const getPaymentMethodName = (method) => {
-  const methodNames = {
-    'card': '컬리페이',
-    'kurly': 'Kurly Pay',
-    'npay': '네이버페이',
-    'general': '일반결제',
-    'credit': '신용카드',
-    'kakao': '카카오페이',
-    'toss': '토스',
-    'payco': '페이코'
-  }
-  return methodNames[method] || '기타'
 }
 
 // 컴포넌트 마운트
 onMounted(async () => {
-  checkLoginStatus()
-  loadOrderData()
-  await loadUserInfo()
-  await loadDeliveryInfo()
+  try {
+    checkLoginStatus()
+    loadOrderData()
+    await loadUserInfo()
+    await loadDeliveryInfo()
+
+    console.log('✅ 체크아웃 페이지 초기화 완료')
+  } catch (error) {
+    console.error('초기화 중 오류:', error)
+    showFriendlyMessage('페이지 로드 중 문제가 발생했습니다.', 'error')
+  }
 })
 </script>
 
-
 <style scoped src="@/assets/css/checkout.css"></style>
-
