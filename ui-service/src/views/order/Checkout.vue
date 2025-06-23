@@ -804,7 +804,6 @@ const validatePaymentMethod = () => {
   return true
 }
 
-// 🔥 개선된 PG 결제 함수 - 카드 타입별 처리
 const initiatePayment = async (paymentData) => {
   try {
     console.log('아임포트 스크립트 로드 중...')
@@ -813,23 +812,22 @@ const initiatePayment = async (paymentData) => {
     return new Promise((resolve, reject) => {
       IMP.init('imp19424728')
 
-      // PG사 선택 로직 개선
+      // PG사 선택 로직 (기존과 동일)
       let pgProvider = 'kakaopay.TC0ONETIME'
       let payMethod = 'card'
 
       if (selectedPayment.value === 'general') {
         switch(selectedSubPayment.value) {
           case 'credit':
-            // 🔥 카드 타입별 처리
             if (cardPaymentType.value === 'phone') {
               pgProvider = 'html5_inicis'
-              payMethod = 'phone' // 휴대폰 결제
+              payMethod = 'phone'
             } else if (cardPaymentType.value === 'simple') {
               pgProvider = 'html5_inicis'
-              payMethod = 'samsung' // 삼성페이 등 간편결제
+              payMethod = 'samsung'
             } else {
               pgProvider = 'html5_inicis'
-              payMethod = 'card' // 일반 신용카드
+              payMethod = 'card'
             }
             break
           case 'kakao':
@@ -848,19 +846,14 @@ const initiatePayment = async (paymentData) => {
             pgProvider = 'html5_inicis'
             payMethod = 'card'
         }
-      } else if (selectedPayment.value === 'kurly') {
-        pgProvider = 'kcp.T0000'
-        payMethod = 'card'
       }
 
       const actualAmount = paymentData.amount || finalAmount.value
 
       console.log(`선택된 PG: ${pgProvider}`)
       console.log(`결제 방식: ${payMethod}`)
-      console.log(`카드 타입: ${cardPaymentType.value}`)
       console.log(`결제 금액: ${actualAmount.toLocaleString()}원`)
 
-      // 🔥 결제 요청 데이터 구성
       const paymentRequest = {
         pg: pgProvider,
         pay_method: payMethod,
@@ -878,9 +871,8 @@ const initiatePayment = async (paymentData) => {
         }
       }
 
-      // 🔥 휴대폰 결제 시 추가 설정
       if (payMethod === 'phone') {
-        paymentRequest.digital = false // 실물 상품
+        paymentRequest.digital = false
         paymentRequest.buyer_postcode = deliveryInfo.value.zipCode || ''
         paymentRequest.buyer_addr = deliveryInfo.value.address || ''
       }
@@ -890,26 +882,80 @@ const initiatePayment = async (paymentData) => {
           console.log(`${pgProvider} 결제 응답:`, response)
 
           if (response.success) {
-            console.log('✅ 결제 성공!')
+            console.log('✅ 결제 성공! 이제 실제 주문 생성 시작')
 
-            // 공통 유틸 사용 - 성공 메시지
-            const successMsg = getSuccessMessage(pgProvider, response.paid_amount)
-            showFriendlyMessage(successMsg, 'success')
+            // 🔥 결제 성공 후에만 실제 주문 생성
+            const pendingOrderData = sessionStorage.getItem('pending_order_data')
+            if (!pendingOrderData) {
+              throw new Error('임시 주문 데이터를 찾을 수 없습니다')
+            }
 
-            sessionStorage.removeItem('checkout_data')
-            window.location.href = `/order-complete?orderId=${response.merchant_uid}&paymentId=${response.imp_uid}&amount=${response.paid_amount}`
-            resolve(response)
+            const orderData = JSON.parse(pendingOrderData)
+
+            // 🔥 이제 실제 주문 생성 API 호출
+            console.log('📝 실제 주문 생성 중...')
+            const orderResponse = await fetch(`${API_BASE_URL}/api/payments/orders/checkout`, {
+              method: 'POST',
+              headers: getAuthHeaders(),
+              body: JSON.stringify({
+                ...orderData,
+                paymentId: response.imp_uid,  // 결제 ID 추가
+                paidAmount: response.paid_amount,
+                pgProvider: pgProvider
+              })
+            })
+
+            if (!orderResponse.ok) {
+              // 🚨 주문 생성 실패 시 결제 취소 필요
+              console.error('❌ 주문 생성 실패 - 결제 취소 필요')
+
+              try {
+                await fetch(`${API_BASE_URL}/api/payments/${response.imp_uid}/cancel`, {
+                  method: 'POST',
+                  headers: getAuthHeaders(),
+                  body: JSON.stringify({
+                    reason: '주문 생성 실패로 인한 자동 취소',
+                    refund_amount: response.paid_amount
+                  })
+                })
+                console.log('🔄 결제 자동 취소 완료')
+              } catch (cancelError) {
+                console.error('❌ 결제 자동 취소 실패:', cancelError)
+              }
+
+              throw new Error('주문 생성 실패')
+            }
+
+            const orderResult = await orderResponse.json()
+            console.log('✅ 실제 주문 생성 성공:', orderResult)
+
+            if (orderResult.success) {
+              // 임시 데이터 정리
+              sessionStorage.removeItem('pending_order_data')
+              sessionStorage.removeItem('checkout_data')
+
+              const successMsg = getSuccessMessage(pgProvider, response.paid_amount)
+              showFriendlyMessage(successMsg, 'success')
+
+              // 주문 완료 페이지로 이동
+              window.location.href = `/order-complete?orderId=${orderResult.data.orderId}&paymentId=${response.imp_uid}&amount=${response.paid_amount}`
+              resolve(response)
+            } else {
+              throw new Error(orderResult.message || '주문 생성 실패')
+            }
 
           } else {
-            console.log('❌ 결제 실패:', response)
+            console.log('❌ 결제 실패 또는 취소:', response)
 
-            // 🔥 공통 유틸 사용 - 실패 메시지 (한 번만 호출)
+            // 🔥 결제 실패/취소 시 임시 데이터 정리
+            sessionStorage.removeItem('pending_order_data')
+
+            // 사용자 친화적 메시지
             const friendlyReason = getFailureReason(response.error_code, response.error_msg)
             const messageType = getMessageType(response.error_code, response.error_msg)
 
             showFriendlyMessage(friendlyReason, messageType)
 
-            // reject로 에러 전달하되, 메시지는 이미 표시했으므로 별도 처리 안함
             const error = new Error(friendlyReason)
             error.alreadyHandled = true
             reject(error)
@@ -917,6 +963,9 @@ const initiatePayment = async (paymentData) => {
 
         } catch (error) {
           console.error('결제 응답 처리 중 오류:', error)
+
+          // 임시 데이터 정리
+          sessionStorage.removeItem('pending_order_data')
 
           if (!error.alreadyHandled) {
             const errorMsg = getFailureReason('SYSTEM_ERROR', '결제 처리 중 오류가 발생했습니다')
@@ -929,6 +978,7 @@ const initiatePayment = async (paymentData) => {
 
   } catch (error) {
     console.error('아임포트 초기화 실패:', error)
+    sessionStorage.removeItem('pending_order_data')
     const errorMsg = getFailureReason('SYSTEM_ERROR', '결제 시스템 초기화 실패')
     showFriendlyMessage(errorMsg, 'error')
     throw error
@@ -977,7 +1027,12 @@ const processPayment = async () => {
   try {
     loading.value = true
 
-    // 주문 생성 데이터 준비
+    // 🔥 임시 주문 ID 생성 (실제 DB에 저장하지 않음)
+    const tempOrderId = `ORDER${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+
+    console.log('🔄 임시 주문 ID 생성:', tempOrderId)
+
+    // 🔥 주문 데이터를 세션에 임시 저장 (DB에 저장하지 않음)
     const orderData = {
       userId: user.id && user.id !== 'null' ? user.id : undefined,
       items: orderItems.value.map(item => ({
@@ -1000,39 +1055,27 @@ const processPayment = async () => {
       paymentMethodName: getPaymentMethodName(selectedPayment.value),
       usedPoint: pointsUsed.value || 0,
       totalAmount: finalAmount.value,
-      // 🔥 추가 결제 정보
-      cardType: cardPaymentType.value
+      cardType: cardPaymentType.value,
+      tempOrderId: tempOrderId
     }
 
-    console.log('주문 생성 요청:', orderData)
+    // 🔥 주문 데이터를 세션에 임시 저장
+    sessionStorage.setItem('pending_order_data', JSON.stringify(orderData))
 
-    // Payment Service의 주문 API 호출
-    const orderResponse = await fetch(`${API_BASE_URL}/api/payments/orders/checkout`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(orderData)
+    console.log('📝 주문 데이터 임시 저장 완료')
+
+    // 🔥 바로 PG 결제 호출 (주문 생성 없이)
+    console.log('💳 PG 결제 시작')
+    await initiatePayment({
+      orderId: tempOrderId,
+      amount: finalAmount.value,
+      orderName: `주문 ${tempOrderId}`,
+      userEmail: userInfo.value.email,
+      userName: userInfo.value.name,
+      userPhone: userInfo.value.phone,
+      orderData: orderData  // 주문 데이터 전달
     })
 
-    if (!orderResponse.ok) {
-      const errorData = await orderResponse.json()
-      throw new Error(errorData.message || '주문 생성 실패')
-    }
-
-    const orderResult = await orderResponse.json()
-    console.log('주문 생성 성공:', orderResult)
-
-    if (orderResult.success) {
-      // PG사 결제 호출
-      console.log('PG 결제 시작')
-      await initiatePayment({
-        orderId: orderResult.data.orderId,
-        amount: finalAmount.value,
-        orderName: `주문 ${orderResult.data.orderId}`,
-        userEmail: userInfo.value.email,
-        userName: userInfo.value.name,
-        userPhone: userInfo.value.phone
-      })
-    }
   } catch (error) {
     console.log('❌ 에러 발생:', error)
 

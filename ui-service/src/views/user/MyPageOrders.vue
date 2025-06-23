@@ -93,8 +93,9 @@
                   <div class="order-date">{{ formatDate(order.orderDate) }}</div>
                   <div class="order-number">주문번호 {{ order.orderId }} 📋</div>
                   <div class="order-status">
+                    <!-- 🔥 상태 유틸리티 적용 -->
                     <span class="status-badge" :class="getStatusClass(order.orderStatus)">
-                      {{ order.orderStatus || '배송완료' }}
+                      {{ getStatusIcon(order.orderStatus) }} {{ getStatusDisplayName(order.orderStatus) }}
                     </span>
                     <span class="order-time">{{ formatDateTime(order.orderDate) }} 📦</span>
                   </div>
@@ -151,8 +152,9 @@
                     <RefreshCw class="btn-icon" />
                     재주문
                   </button>
+                  <!-- 🔥 상태 유틸리티로 취소 버튼 조건 확인 -->
                   <button
-                      v-if="canCancel(order.orderStatus)"
+                      v-if="canCancelOrder(order.orderStatus)"
                       @click="cancelOrder(order.orderId)"
                       class="action-button cancel-btn"
                   >
@@ -234,6 +236,14 @@ import {
   Star
 } from 'lucide-vue-next'
 
+// 🔥 상태 유틸리티 import
+import {
+  getStatusDisplayName,
+  getStatusClass,
+  canCancelOrder,
+  getStatusIcon
+} from '@/utils/orderStatusUtils'
+
 const router = useRouter()
 
 // 상태 관리
@@ -251,15 +261,134 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080'
 // 인증 헤더 생성
 const getAuthHeaders = () => {
   const token = localStorage.getItem('token')
+  const userId = localStorage.getItem('userId')
+
+  console.log('🔍 인증 정보 확인:', {
+    tokenExists: !!token,
+    tokenLength: token ? token.length : 0,
+    userId: userId,
+    tokenStart: token ? token.substring(0, 20) + '...' : 'none'
+  })
+
   const headers = {
     'Content-Type': 'application/json'
   }
 
-  if (token) {
-    headers.Authorization = `Bearer ${token}`
+  // 🔥 토큰이 있고 유효할 때만 Authorization 헤더 추가
+  if (token && token.trim() && token !== 'null' && token !== 'undefined') {
+    // Bearer 접두사가 없다면 추가
+    const authToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`
+    headers.Authorization = authToken
+    console.log('✅ Authorization 헤더 추가됨:', authToken.substring(0, 30) + '...')
+  } else {
+    console.log('⚠️ 토큰이 없거나 유효하지 않음')
   }
 
+  // userId 헤더도 추가 (백엔드에서 요구할 수 있음)
+  if (userId && userId !== 'null' && userId !== 'undefined') {
+    headers['X-User-Id'] = userId
+    console.log('✅ X-User-Id 헤더 추가됨:', userId)
+  }
+
+  console.log('📤 최종 헤더:', {
+    'Content-Type': headers['Content-Type'],
+    'Authorization': headers.Authorization ? headers.Authorization.substring(0, 30) + '...' : '없음',
+    'X-User-Id': headers['X-User-Id'] || '없음'
+  })
+
   return headers
+}
+
+// 🔥 토큰 자동 갱신 함수
+const refreshTokenIfNeeded = async () => {
+  const token = localStorage.getItem('token')
+  const userId = localStorage.getItem('userId')
+
+  console.log('🔄 토큰 갱신 시작:', {
+    tokenExists: !!token,
+    tokenLength: token ? token.length : 0,
+    userId: userId,
+    tokenStart: token ? token.substring(0, 30) + '...' : 'none'
+  })
+
+  if (!token || token === 'null' || token === 'undefined') {
+    console.error('❌ 갱신할 토큰이 없음')
+    return false
+  }
+
+  try {
+    // Bearer 접두사 확인 및 정리
+    const cleanToken = token.startsWith('Bearer ') ? token.substring(7) : token
+
+    console.log('📤 토큰 갱신 요청:', {
+      url: `${API_BASE_URL}/auth/refresh`,
+      tokenLength: cleanToken.length,
+      tokenPreview: cleanToken.substring(0, 50) + '...'
+    })
+
+    const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${cleanToken}`
+      }
+    })
+
+    console.log('📡 토큰 갱신 응답:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      headers: Object.fromEntries(response.headers.entries())
+    })
+
+    // 응답 본문 읽기
+    const responseText = await response.text()
+    console.log('📄 토큰 갱신 응답 본문:', responseText)
+
+    if (response.ok) {
+      let result
+      try {
+        result = JSON.parse(responseText)
+      } catch (parseError) {
+        console.error('❌ 토큰 갱신 응답 JSON 파싱 실패:', parseError)
+        return false
+      }
+
+      if (result.success && result.token) {
+        // 새 토큰 저장
+        localStorage.setItem('token', result.token)
+
+        // 사용자 정보도 업데이트
+        if (result.userId) localStorage.setItem('userId', result.userId)
+        if (result.username) localStorage.setItem('username', result.username)
+
+        console.log('✅ 토큰 자동 갱신 성공:', {
+          newTokenLength: result.token.length,
+          userId: result.userId,
+          username: result.username
+        })
+        return true
+      } else {
+        console.error('❌ 토큰 갱신 실패 - 응답 형식 오류:', result)
+        return false
+      }
+    } else {
+      console.error('❌ 토큰 갱신 HTTP 오류:', {
+        status: response.status,
+        statusText: response.statusText,
+        body: responseText
+      })
+      return false
+    }
+
+  } catch (error) {
+    console.error('❌ 토큰 갱신 네트워크 오류:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    })
+    return false
+  }
 }
 
 // 주문 목록 로드
@@ -296,6 +425,19 @@ const loadOrders = async () => {
         // OrderDTO의 items 구조에 맞게 매핑
         items: order.orderItems || order.items || []
       }))
+
+      // 🔥 디버깅: 로드된 주문들의 상태 확인
+      console.log('=== 주문 상태 디버깅 ===')
+      orders.value.forEach(order => {
+        console.log(`주문 ${order.orderId}:`)
+        console.log(`  - 원본 상태: "${order.orderStatus}"`)
+        console.log(`  - 표시명: "${getStatusDisplayName(order.orderStatus)}"`)
+        console.log(`  - CSS 클래스: "${getStatusClass(order.orderStatus)}"`)
+        console.log(`  - 취소 가능: ${canCancelOrder(order.orderStatus)}`)
+        console.log(`  - 아이콘: ${getStatusIcon(order.orderStatus)}`)
+      })
+      console.log('========================')
+
     } else {
       throw new Error(result.message || '주문 목록을 불러오는데 실패했습니다.')
     }
@@ -400,26 +542,6 @@ const viewOrderDetail = (orderId) => {
   router.push(`/order-complete?orderId=${orderId}`)
 }
 
-// 🔥 주문 상태에 따른 CSS 클래스
-const getStatusClass = (status) => {
-  const statusMap = {
-    '주문접수': 'status-pending',
-    '결제완료': 'status-paid',
-    '배송준비': 'status-preparing',
-    '배송중': 'status-shipping',
-    '배송완료': 'status-delivered',
-    '주문취소': 'status-cancelled',
-    '반품': 'status-returned'
-  }
-  return statusMap[status] || 'status-default'
-}
-
-// 🔥 주문 취소 가능 여부 확인
-const canCancel = (status) => {
-  const cancellableStatuses = ['주문접수', '결제완료', '배송준비']
-  return cancellableStatuses.includes(status)
-}
-
 // 🔥 후기 작성
 const writeReview = (order) => {
   console.log('후기 작성:', order.orderId)
@@ -468,39 +590,42 @@ const formatPrice = (price) => {
   return price.toLocaleString()
 }
 
-// 주문 취소
+// 🔥 주문 취소 (토큰 자동 갱신 포함)
 const cancelOrder = async (orderId) => {
   try {
-    // 1. 취소 가능 여부 먼저 확인
-    const userId = localStorage.getItem('userId')
-    const checkResponse = await fetch(`${API_BASE_URL}/api/orders/${orderId}/cancelable?userId=${userId}`, {
-      method: 'GET',
-      headers: getAuthHeaders()
-    })
+    console.log('🚀 주문 취소 시작:', orderId)
 
-    if (checkResponse.ok) {
-      const checkResult = await checkResponse.json()
-      if (!checkResult.success || !checkResult.data) {
-        alert('현재 주문 상태에서는 취소할 수 없습니다.')
-        return
-      }
+    // 1. 기본 인증 확인
+    const token = localStorage.getItem('token')
+    const userId = localStorage.getItem('userId')
+
+    if (!token || token === 'null' || token === 'undefined') {
+      alert('로그인이 필요합니다. 다시 로그인해주세요.')
+      router.push('/login')
+      return
+    }
+
+    if (!userId || userId === 'null' || userId === 'undefined') {
+      alert('사용자 정보를 찾을 수 없습니다. 다시 로그인해주세요.')
+      router.push('/login')
+      return
     }
 
     // 2. 사용자 확인
     const confirmed = confirm(`주문을 취소하시겠습니까?\n\n주문번호: ${orderId}\n취소된 주문은 되돌릴 수 없으며, 결제금액이 환불됩니다.`)
     if (!confirmed) return
 
-    // 3. 취소 사유 입력 (간단한 프롬프트)
+    // 3. 취소 사유 입력
     const reason = prompt('취소 사유를 입력해주세요 (선택사항):') || '사용자 요청'
 
-    // 4. 주문 정보 조회 (총 금액 확인용)
+    // 4. 주문 정보 조회
     const order = orders.value.find(o => o.orderId === orderId)
     if (!order) {
       alert('주문 정보를 찾을 수 없습니다.')
       return
     }
 
-    // 5. 취소 요청 데이터 구성
+    // 5. 취소 요청 데이터
     const cancelData = {
       orderId: orderId,
       userId: userId,
@@ -510,28 +635,89 @@ const cancelOrder = async (orderId) => {
       paymentId: order.paymentId || null
     }
 
-    console.log('🔥 주문 취소 요청:', cancelData)
+    console.log('🔥 주문 취소 요청 데이터:', cancelData)
 
-    // 6. 취소 API 호출
-    const response = await fetch(`${API_BASE_URL}/api/orders/${orderId}/cancel`, {
+    // 6. 첫 번째 API 호출
+    let response = await fetch(`${API_BASE_URL}/api/orders/${orderId}/cancel`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(cancelData)
     })
 
-    const result = await response.json()
+    console.log('📡 첫 번째 응답:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok
+    })
 
+    // 7. 401 오류시 토큰 갱신 후 재시도
+    if (response.status === 401) {
+      console.log('🔄 토큰 만료 감지, 갱신 시도...')
+
+      const refreshed = await refreshTokenIfNeeded()
+      if (refreshed) {
+        console.log('✅ 토큰 갱신 완료, 주문 취소 재시도...')
+
+        // 토큰 갱신 성공, 다시 요청
+        response = await fetch(`${API_BASE_URL}/api/orders/${orderId}/cancel`, {
+          method: 'POST',
+          headers: getAuthHeaders(), // 새로운 토큰으로 헤더 재생성
+          body: JSON.stringify(cancelData)
+        })
+
+        console.log('📡 재시도 응답:', {
+          status: response.status,
+          statusText: response.statusText,
+          ok: response.ok
+        })
+      } else {
+        // 토큰 갱신 실패
+        console.error('❌ 토큰 갱신 실패')
+        alert('로그인이 만료되었습니다. 다시 로그인해주세요.')
+        localStorage.removeItem('token')
+        localStorage.removeItem('userId')
+        router.push('/login')
+        return
+      }
+    }
+
+    // 8. 다른 오류 처리
+    if (response.status === 403) {
+      console.error('❌ 403 Forbidden - 권한 없음')
+      alert('이 작업을 수행할 권한이 없습니다.')
+      return
+    }
+
+    // 9. 응답 본문 처리
+    const responseText = await response.text()
+    console.log('📄 최종 응답 본문:', responseText)
+
+    let result
+    if (responseText) {
+      try {
+        result = JSON.parse(responseText)
+      } catch (parseError) {
+        console.error('❌ JSON 파싱 실패:', parseError)
+        throw new Error(`서버 응답 파싱 실패: ${responseText}`)
+      }
+    } else {
+      throw new Error(`서버에서 빈 응답: ${response.status}`)
+    }
+
+    // 10. 성공 처리
     if (response.ok && result.success) {
       alert('주문이 성공적으로 취소되었습니다.\n환불은 영업일 기준 3-5일 소요됩니다.')
-
-      // 주문 목록 새로고침
-      await loadOrders()
+      await loadOrders() // 주문 목록 새로고침
     } else {
-      throw new Error(result.message || '주문 취소에 실패했습니다.')
+      throw new Error(result?.message || `취소 실패: ${response.status}`)
     }
 
   } catch (err) {
-    console.error('주문 취소 실패:', err)
+    console.error('🚨 주문 취소 최종 실패:', {
+      name: err.name,
+      message: err.message,
+      stack: err.stack
+    })
     alert(`주문 취소 실패: ${err.message}`)
   }
 }
@@ -1131,5 +1317,4 @@ onMounted(() => {
     font-size: 12px;
   }
 }
-
 </style>

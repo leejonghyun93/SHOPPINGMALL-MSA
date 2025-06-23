@@ -1,4 +1,4 @@
-# application.yml - Payment Service 추가된 최종 버전
+# application.yml - 주문 취소 라우팅 문제만 해결한 버전 (원래 설정 유지)
 server:
   port: 8080
 
@@ -17,7 +17,7 @@ spring:
     name: APIGATEWAY-SERVICE
   cloud:
     gateway:
-      #  CORS 설정을 하나로 통합 (중복 제거)
+      #  🔥 CORS 설정을 하나로 통합 (중복 제거)
       globalcors:
         cors-configurations:
           '[/**]':
@@ -37,7 +37,12 @@ spring:
             maxAge: 3600
         add-to-simple-url-handler-mapping: true
 
+      # 🔥 CORS 헤더 중복 제거 필터 추가 (필수!)
       default-filters:
+        - name: DedupeResponseHeader
+          args:
+            name: Access-Control-Allow-Origin Access-Control-Allow-Credentials
+            strategy: RETAIN_UNIQUE
         - name: LoggingFilter
           args:
             baseMessage: "API Gateway"
@@ -45,7 +50,21 @@ spring:
             postLogger: true
 
       routes:
-        # 🔥 💳 PAYMENT SERVICE 라우팅 (가장 먼저 배치!)
+        # 🔥 주문 취소를 맨 앞으로 이동 (가장 구체적이므로)
+        - id: order-cancel-protected
+          uri: lb://ORDER-SERVICE
+          predicates:
+            - Path=/api/orders/*/cancel
+            - Method=POST
+          filters:
+            - name: JwtAuthorization
+            - name: LoggingFilter
+              args:
+                baseMessage: "Order Cancel Protected"
+                preLogger: true
+                postLogger: true
+
+        # 🔥 💳 PAYMENT SERVICE 라우팅
         - id: payment-orders-checkout-public
           uri: lb://PAYMENT-SERVICE
           predicates:
@@ -500,7 +519,7 @@ spring:
         - id: order-service-user-protected
           uri: lb://ORDER-SERVICE
           predicates:
-            - Path=/api/orders/list, /api/orders/list/**, /api/orders/*/cancel
+            - Path=/api/orders/list, /api/orders/list/**
             - Method=GET,PUT
           filters:
             - name: JwtAuthorization

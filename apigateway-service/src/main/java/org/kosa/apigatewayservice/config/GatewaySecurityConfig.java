@@ -1,4 +1,3 @@
-// GatewaySecurityConfig.java - 수정 버전
 package org.kosa.apigatewayservice.config;
 
 import org.springframework.context.annotation.Bean;
@@ -25,58 +24,46 @@ public class GatewaySecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeExchange(exchanges ->
                         exchanges
-                                // 🔥 가장 구체적인 경로부터 먼저 (순서 중요!)
-                                .pathMatchers(HttpMethod.POST, "/api/users/verify-password").permitAll()
+                                // 🔥 완전 공개 경로 (인증 불필요)
+                                .pathMatchers("/auth/**").permitAll()
+                                .pathMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                                // 🔥 사용자 서비스 공개/반공개 경로
                                 .pathMatchers(HttpMethod.POST, "/api/users/register").permitAll()
-                                .pathMatchers(HttpMethod.POST, "/api/users/nicknames").permitAll()
+                                .pathMatchers(HttpMethod.POST, "/api/users/verify-password").permitAll()
+                                .pathMatchers(HttpMethod.GET, "/api/users/profile").permitAll()  // 🔥 추가 (SimpleJwtFilter로 토큰 파싱)
+                                .pathMatchers(HttpMethod.PUT, "/api/users/profile").permitAll()  // 🔥 추가 (SimpleJwtFilter로 토큰 파싱)
+                                .pathMatchers(HttpMethod.POST, "/api/users/withdraw").permitAll()  // 🔥 추가 (SimpleJwtFilter로 토큰 파싱)
                                 .pathMatchers(HttpMethod.GET, "/api/users/checkUserId/**").permitAll()
                                 .pathMatchers(HttpMethod.GET, "/api/users/health").permitAll()
                                 .pathMatchers(HttpMethod.GET, "/api/users/list").permitAll()
-                                .pathMatchers(HttpMethod.GET, "/api/users/search").permitAll()
-                                .pathMatchers(HttpMethod.GET, "/api/users/profile").permitAll()
-                                .pathMatchers(HttpMethod.PUT, "/api/users/profile").permitAll()
-                                .pathMatchers(HttpMethod.GET, "/api/users/*").permitAll()
-                                .pathMatchers(HttpMethod.PUT, "/api/users/edit/*").permitAll()
-                                .pathMatchers(HttpMethod.PUT, "/api/users/*/password").permitAll()
-                                .pathMatchers(HttpMethod.PUT, "/api/users/*/password-raw").permitAll()
-                                .pathMatchers(HttpMethod.DELETE, "/api/users/delete/*").permitAll()
 
-                                //  완전 공개 경로
-                                .pathMatchers("/auth/**").permitAll()
-
-                                //  조회성 API는 인증 불필요
+                                // 🔥 조회성 API (공개)
                                 .pathMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
                                 .pathMatchers(HttpMethod.GET, "/api/products/**").permitAll()
                                 .pathMatchers(HttpMethod.POST, "/api/products/guest-cart-details").permitAll()
 
-                                // 🛒 Cart & Order Service
-                                .pathMatchers("/api/cart/**").permitAll()
-                                .pathMatchers("/api/orders/**").permitAll()
+                                // 🔥 게스트 장바구니 + 로그인 사용자 장바구니 모두 허용
+                                .pathMatchers("/api/cart/**").permitAll()  // 🔥 모든 장바구니 API 허용 (SimpleJwtFilter에서 토큰 파싱)
+
+                                // 🔥 주문 관련 공개 경로 (모든 주문 API 허용)
+                                .pathMatchers("/api/orders/**").permitAll()  // 🔥 모든 주문 API 허용 (SimpleJwtFilter에서 토큰 파싱)
                                 .pathMatchers("/api/checkout/**").permitAll()
 
-                                // 🔥 💳 Payment Service 추가 (가장 중요!)
-                                .pathMatchers("/api/payments/**").permitAll()
-                                .pathMatchers(HttpMethod.POST, "/api/payments/verify").permitAll()
-                                .pathMatchers(HttpMethod.POST, "/api/payments/prepare").permitAll()
-                                .pathMatchers(HttpMethod.POST, "/api/payments/*/cancel").permitAll()
-                                .pathMatchers(HttpMethod.GET, "/api/payments/*").permitAll()
+                                // 🔥 결제 관련 공개 경로
+                                .pathMatchers(HttpMethod.GET, "/api/payments/**").permitAll()
                                 .pathMatchers(HttpMethod.POST, "/api/payments/webhook").permitAll()
                                 .pathMatchers(HttpMethod.POST, "/api/payments/orders/checkout").permitAll()
-                                .pathMatchers(HttpMethod.GET, "/api/payments/orders/*").permitAll()
+                                .pathMatchers(HttpMethod.POST, "/api/payments/guest/**").permitAll()
 
-                                //  정적 리소스
+                                // 🔥 정적 리소스
                                 .pathMatchers(HttpMethod.GET, "/api/images/**").permitAll()
                                 .pathMatchers(HttpMethod.GET, "/images/**").permitAll()
-                                .pathMatchers(HttpMethod.GET, "/static/**").permitAll()
-                                .pathMatchers(HttpMethod.GET, "/assets/**").permitAll()
                                 .pathMatchers("/actuator/health/**").permitAll()
 
-                                //  CORS preflight 요청
-                                .pathMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-
-                                .pathMatchers(HttpMethod.POST, "/api/users/withdraw").permitAll()
-
-                                // 나머지는 인증 필요
+                                // 🔥 인증이 필요한 경로들은 JWT 필터에서 처리
+                                // SimpleJwtFilter가 토큰을 파싱하고 X-User-Id 헤더를 추가
+                                // JwtAuthorizationFilter가 실제 인증을 강제
                                 .anyExchange().authenticated()
                 )
                 .build();
@@ -88,8 +75,7 @@ public class GatewaySecurityConfig {
 
         configuration.setAllowedOriginPatterns(List.of(
                 "http://localhost:5173",
-                "http://localhost:3000",
-                "http://localhost:*"
+                "http://localhost:3000"
         ));
 
         configuration.setAllowedMethods(Arrays.asList(
@@ -100,14 +86,15 @@ public class GatewaySecurityConfig {
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 
-        // ✅ 필요한 헤더들 노출
         configuration.setExposedHeaders(List.of(
                 "Authorization",
                 "Content-Type",
                 "X-User-Id",
                 "X-User-Name",
                 "X-User-Role",
-                "X-Username"
+                "X-Username",
+                "X-User-Email",
+                "X-User-Phone"
         ));
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

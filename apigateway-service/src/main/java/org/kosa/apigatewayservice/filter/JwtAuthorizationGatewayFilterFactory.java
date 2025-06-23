@@ -37,17 +37,11 @@ public class JwtAuthorizationGatewayFilterFactory extends AbstractGatewayFilterF
             String path = exchange.getRequest().getURI().getPath();
             HttpMethod method = exchange.getRequest().getMethod();
 
-            log.info("JWT Filter - Path: {}, Method: {}", path, method);
+            log.info("🔐 JWT Authorization Filter - Path: {}, Method: {}", path, method);
 
             // CORS Preflight 요청은 통과
             if (method == HttpMethod.OPTIONS) {
-                log.info("CORS Preflight request - allowing: {}", path);
-                return chain.filter(exchange);
-            }
-
-            // 🔥 공개 경로는 JWT 검증 스킵 (더 구체적으로 정의)
-            if (isPublicPath(path, method)) {
-                log.info("Public path accessed: {} [{}]", path, method);
+                log.info("✅ CORS Preflight request - allowing: {}", path);
                 return chain.filter(exchange);
             }
 
@@ -55,7 +49,7 @@ public class JwtAuthorizationGatewayFilterFactory extends AbstractGatewayFilterF
             String authHeader = exchange.getRequest().getHeaders().getFirst("Authorization");
 
             if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                log.warn("Missing or invalid Authorization header for path: {} [{}]", path, method);
+                log.warn("❌ Missing or invalid Authorization header for path: {} [{}]", path, method);
                 exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
                 return exchange.getResponse().setComplete();
             }
@@ -71,52 +65,44 @@ public class JwtAuthorizationGatewayFilterFactory extends AbstractGatewayFilterF
                         .parseClaimsJws(token)
                         .getBody();
 
-                // 사용자 정보를 헤더에 추가
+                // 🔥 사용자 정보 추출 (문자열 subject 완벽 지원)
+                String subject = claims.getSubject();
+                String username = claims.get("username", String.class);
+                String name = claims.get("name", String.class);
+                String email = claims.get("email", String.class);
+                String phone = claims.get("phone", String.class);
+
+                // 🔥 userId 처리: subject를 그대로 사용 (숫자든 문자열이든)
+                String userId = subject != null ? subject : username;
+                String finalUsername = username != null ? username : subject;
+
+                if (userId == null) {
+                    log.error("❌ JWT에서 사용자 식별자를 찾을 수 없음");
+                    exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+                    return exchange.getResponse().setComplete();
+                }
+
+                log.info("✅ JWT validated - Subject: '{}', Username: '{}', Final UserId: '{}'", subject, username, userId);
+
+                // 🔥 사용자 정보를 헤더에 추가
                 ServerHttpRequest modifiedRequest = exchange.getRequest().mutate()
-                        .header("X-User-Id", claims.getSubject())
-                        .header("X-User-Name", claims.get("name", String.class))
-                        .header("X-User-Email", claims.get("email", String.class))
-                        .header("X-User-Phone", claims.get("phone", String.class))
+                        .header("X-User-Id", userId)
+                        .header("X-Username", finalUsername != null ? finalUsername : userId)
+                        .header("X-User-Name", name != null ? name : "")
+                        .header("X-User-Email", email != null ? email : "")
+                        .header("X-User-Phone", phone != null ? phone : "")
                         .header("X-User-Role", "USER")
                         .build();
 
-                log.info("JWT validated successfully for user: {}", claims.getSubject());
+                log.info("🎯 JWT Authorization 성공 - X-User-Id: '{}', X-Username: '{}'", userId, finalUsername);
 
                 return chain.filter(exchange.mutate().request(modifiedRequest).build());
 
             } catch (JwtException | IllegalArgumentException e) {
-                log.error("JWT validation failed for path: {}, error: {}", path, e.getMessage());
+                log.error("❌ JWT validation failed for path: {}, error: {}", path, e.getMessage());
                 exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
                 return exchange.getResponse().setComplete();
             }
         };
-    }
-
-    /**
-     * 🔥 공개 경로 판단 (메서드별로 세분화) - ✅ 주문 조회 GET 추가
-     */
-    private boolean isPublicPath(String path, HttpMethod method) {
-        // 🔥 인증/회원가입 관련 경로
-        if (path.startsWith("/auth/") || path.startsWith("/api/auth/")) {
-            return true;
-        }
-
-        // ✅ 주문 서비스 공개 경로 확장
-        if (path.equals("/api/orders/checkout") && (method == HttpMethod.GET || method == HttpMethod.POST)) {
-            return true;
-        }
-
-        // 🔧 주문 상세 조회도 공개 (주문 완료 페이지에서 사용)
-        if (path.startsWith("/api/orders/") && method == HttpMethod.GET) {
-            log.info("Order detail GET request allowed: {}", path);
-            return true;
-        }
-
-        if (path.startsWith("/api/checkout/") && (method == HttpMethod.GET || method == HttpMethod.POST)) {
-            return true;
-        }
-
-
-        return false;
     }
 }

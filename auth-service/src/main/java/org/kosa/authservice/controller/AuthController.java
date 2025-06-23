@@ -14,7 +14,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 @Slf4j
 public class AuthController {
 
@@ -81,25 +80,58 @@ public class AuthController {
     }
 
     /**
-     * 토큰 갱신
+     * 🔥 토큰 갱신 - 상세한 디버깅 추가
      */
     @PostMapping("/refresh")
     public ResponseEntity<AuthResponse> refreshToken(@RequestHeader("Authorization") String token) {
-        log.info("토큰 갱신 요청");
+        log.info("🔄 토큰 갱신 요청 시작");
 
         try {
-            if (token.startsWith("Bearer ")) {
-                token = token.substring(7);
+            // 🔥 요청 정보 상세 로깅
+            log.info("📤 받은 Authorization 헤더: {}", token != null ? token.substring(0, Math.min(30, token.length())) + "..." : "null");
+
+            if (token == null || token.trim().isEmpty()) {
+                log.error("❌ Authorization 헤더가 비어있음");
+                return ResponseEntity.badRequest()
+                        .body(AuthResponse.builder()
+                                .success(false)
+                                .message("Authorization 헤더가 필요합니다")
+                                .build());
             }
 
-            AuthResponse response = authService.refreshToken(token);
+            // Bearer 접두사 처리
+            String cleanToken;
+            if (token.startsWith("Bearer ")) {
+                cleanToken = token.substring(7);
+                log.info("✅ Bearer 접두사 제거됨");
+            } else {
+                cleanToken = token;
+                log.info("⚠️ Bearer 접두사 없음, 원본 토큰 사용");
+            }
+
+            log.info("🔍 처리할 토큰 길이: {}", cleanToken.length());
+            log.info("🔍 토큰 시작 부분: {}", cleanToken.substring(0, Math.min(50, cleanToken.length())) + "...");
+
+            // AuthService의 refreshToken 호출
+            AuthResponse response = authService.refreshToken(cleanToken);
+
+            log.info("✅ 토큰 갱신 성공 - 새 토큰 길이: {}", response.getToken() != null ? response.getToken().length() : 0);
+
             return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            log.error("토큰 갱신 실패: {}", e.getMessage());
+
+        } catch (IllegalArgumentException e) {
+            log.error("❌ 토큰 갱신 실패 (잘못된 인자): {}", e.getMessage());
             return ResponseEntity.badRequest()
                     .body(AuthResponse.builder()
                             .success(false)
-                            .message("토큰 갱신에 실패했습니다")
+                            .message("토큰 갱신에 실패했습니다: " + e.getMessage())
+                            .build());
+        } catch (Exception e) {
+            log.error("❌ 토큰 갱신 실패 (예상치 못한 오류): {}", e.getMessage(), e);
+            return ResponseEntity.status(500)
+                    .body(AuthResponse.builder()
+                            .success(false)
+                            .message("서버 내부 오류가 발생했습니다")
                             .build());
         }
     }

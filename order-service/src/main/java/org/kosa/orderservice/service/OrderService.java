@@ -1,8 +1,8 @@
-// OrderService.java
 package org.kosa.orderservice.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.kosa.orderservice.client.PaymentCancelClient;
 import org.kosa.orderservice.dto.*;
 import org.kosa.orderservice.mapper.OrderCancelRepository;
 import org.kosa.orderservice.mapper.OrderItemRepository;
@@ -27,89 +27,69 @@ public class OrderService {
 
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
-    private final OrderCancelRepository orderCancelRepository; //
-    private final PaymentCancelService paymentCancelService;
+    private final OrderCancelRepository orderCancelRepository;
+    private final PaymentCancelClient paymentCancelClient;
+
+    private static final List<String> CANCELLABLE_STATUSES = Arrays.asList(
+            "PENDING", "ORDER_COMPLETED", "PREPARING", "PAYMENT_COMPLETED"
+    );
+
+    private static final String CANCELLED_STATUS = "CANCELLED";
+    private static final String CANCELLED_BY_WITHDRAWAL_STATUS = "CANCELLED_BY_WITHDRAWAL";
+
     /**
-     * 체크아웃 - 주문 생성 (🔥 기본값 설정 강화)
+     * 체크아웃 - 주문 생성
      */
     public OrderResponseDTO createOrder(CheckoutRequestDTO request) {
         try {
             log.info("주문 생성 시작: userId={}", request.getUserId());
 
-            // 1. 주문 총액 계산
             Integer totalItemPrice = request.getItems().stream()
                     .mapToInt(CheckoutItemDTO::getTotalPrice)
                     .sum();
 
-            // 2. 배송비 계산 (4만원 이상 무료배송)
             Integer deliveryFee = totalItemPrice >= 40000 ? 0 : 3000;
 
-            // 3. 최종 결제 금액 계산
             Integer finalTotalPrice = totalItemPrice + deliveryFee -
                     (request.getUsedPoint() != null ? request.getUsedPoint() : 0);
 
-            // 4. 적립 포인트 계산 (결제 금액의 1%)
             Integer savedPoint = (int) (finalTotalPrice * 0.01);
 
-            // 🔥 5. 주문 엔티티 생성 - 기본값 설정 강화
             Order order = Order.builder()
                     .userId(request.getUserId())
-                    // 🔥 ORDER_STATUS 기본값 설정
-                    .orderStatus(request.getOrderStatus() != null && !request.getOrderStatus().trim().isEmpty()
-                            ? request.getOrderStatus() : "PENDING")
-                    // 🔥 연락처 정보 기본값 설정
-                    .phone(request.getPhone() != null ? request.getPhone() : "")
-                    .email(request.getEmail() != null ? request.getEmail() : "")
-                    // 🔥 배송 정보 기본값 설정 (필수 필드들)
-                    .recipientName(request.getRecipientName() != null && !request.getRecipientName().trim().isEmpty()
-                            ? request.getRecipientName() : "수령인")
-                    .recipientPhone(request.getRecipientPhone() != null && !request.getRecipientPhone().trim().isEmpty()
-                            ? request.getRecipientPhone() : "010-0000-0000")
-                    .orderZipcode(request.getOrderZipcode() != null ? request.getOrderZipcode() : "")
-                    .orderAddressDetail(request.getOrderAddressDetail() != null && !request.getOrderAddressDetail().trim().isEmpty()
-                            ? request.getOrderAddressDetail() : "주소 정보 없음")
-                    .deliveryMemo(request.getDeliveryMemo() != null ? request.getDeliveryMemo() : "")
-                    // 🔥 가격 정보
+                    .orderStatus(getDefaultValue(request.getOrderStatus(), "PENDING"))
+                    .phone(getDefaultValue(request.getPhone(), ""))
+                    .email(getDefaultValue(request.getEmail(), ""))
+                    .recipientName(getDefaultValue(request.getRecipientName(), "수령인"))
+                    .recipientPhone(getDefaultValue(request.getRecipientPhone(), "010-0000-0000"))
+                    .orderZipcode(getDefaultValue(request.getOrderZipcode(), ""))
+                    .orderAddressDetail(getDefaultValue(request.getOrderAddressDetail(), "주소 정보 없음"))
+                    .deliveryMemo(getDefaultValue(request.getDeliveryMemo(), ""))
                     .totalPrice(finalTotalPrice)
                     .deliveryFee(deliveryFee)
                     .discountAmount(0)
                     .usedPoint(request.getUsedPoint() != null ? request.getUsedPoint() : 0)
-                    // 🔥 결제 정보 기본값 설정
-                    .paymentMethod(request.getPaymentMethod() != null && !request.getPaymentMethod().trim().isEmpty()
-                            ? request.getPaymentMethod() : "CARD")
-                    .paymentMethodName(request.getPaymentMethodName() != null && !request.getPaymentMethodName().trim().isEmpty()
-                            ? request.getPaymentMethodName() : "신용카드")
+                    .paymentMethod(getDefaultValue(request.getPaymentMethod(), "CARD"))
+                    .paymentMethodName(getDefaultValue(request.getPaymentMethodName(), "신용카드"))
                     .savedPoint(savedPoint)
-                    // 🔥 배송 예상일 설정
-                    .estimatedDate(LocalDateTime.now().plusDays(1).withHour(7).withMinute(0).withSecond(0))  // 익일 오전 7시
+                    .estimatedDate(LocalDateTime.now().plusDays(1).withHour(7).withMinute(0).withSecond(0))
                     .build();
 
-            log.info("주문 엔티티 생성 완료: orderId={}, status={}, totalPrice={}, recipientName={}, paymentMethod={}",
-                    order.getOrderId(), order.getOrderStatus(), order.getTotalPrice(),
-                    order.getRecipientName(), order.getPaymentMethod());
-
-            // 6. 주문 저장
             Order savedOrder = orderRepository.save(order);
-            log.info("주문 저장 완료: orderId={}", savedOrder.getOrderId());
 
-            // 7. 주문 아이템 생성 및 저장
             for (CheckoutItemDTO item : request.getItems()) {
                 OrderItem orderItem = OrderItem.builder()
                         .orderId(savedOrder.getOrderId())
                         .productId(item.getProductId())
-                        // 🔥 상품명 기본값 설정
-                        .name(item.getProductName() != null && !item.getProductName().trim().isEmpty()
-                                ? item.getProductName() : "상품명 없음")
+                        .name(getDefaultValue(item.getProductName(), "상품명 없음"))
                         .quantity(item.getQuantity())
-                        .status("PREPARING")  // 준비중
+                        .status("PREPARING")
                         .totalPrice(item.getTotalPrice())
-                        .deliveryFee(0)  // 개별 아이템 배송비는 0
-                        .imageUrl(item.getImageUrl() != null ? item.getImageUrl() : "")
+                        .deliveryFee(0)
+                        .imageUrl(getDefaultValue(item.getImageUrl(), ""))
                         .build();
 
                 orderItemRepository.save(orderItem);
-                log.info("주문 아이템 저장: productId={}, name={}, quantity={}",
-                        item.getProductId(), orderItem.getName(), item.getQuantity());
             }
 
             return OrderResponseDTO.builder()
@@ -126,224 +106,52 @@ public class OrderService {
     }
 
     /**
-     * 사용자별 주문 목록 조회
-     */
-    @Transactional(readOnly = true)
-    public List<OrderDTO> getUserOrders(String userId) {
-        try {
-            log.info("사용자 주문 목록 조회: userId={}", userId);
-
-            List<Order> orders = orderRepository.findByUserIdOrderByOrderDateDesc(userId);
-
-            return orders.stream()
-                    .map(this::convertToOrderDTO)
-                    .collect(Collectors.toList());
-
-        } catch (Exception e) {
-            log.error("주문 목록 조회 실패: {}", e.getMessage(), e);
-            throw new RuntimeException("주문 목록 조회 중 오류가 발생했습니다.");
-        }
-    }
-
-    /**
-     * 🔥 사용자별 활성 주문 조회 (탈퇴 처리용)
-     */
-    @Transactional(readOnly = true)
-    public List<OrderDTO> getActiveUserOrders(String userId) {
-        try {
-            log.info("사용자 활성 주문 조회: userId={}", userId);
-
-            // 활성 상태의 주문들만 조회
-            List<Order> orders = orderRepository.findActiveOrdersByUserId(userId);
-
-            return orders.stream()
-                    .map(this::convertToOrderDTO)
-                    .collect(Collectors.toList());
-
-        } catch (Exception e) {
-            log.error("활성 주문 조회 실패: {}", e.getMessage(), e);
-            throw new RuntimeException("활성 주문 조회 중 오류가 발생했습니다.");
-        }
-    }
-
-    /**
-     * 주문 조회 시작: orderId
-     */
-    public OrderDTO getOrderDetailByOrderId(String orderId) {
-        log.info("주문 조회 시작: orderId={}", orderId);
-
-        // 1. 주문 기본 정보 조회
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("주문을 찾을 수 없습니다: " + orderId));
-        log.info("주문 정보 조회 성공: {}", order.getOrderId());
-
-        // 2. 주문 상품들 조회
-        List<OrderItem> orderItems = orderItemRepository.findByOrderId(orderId);
-        log.info("주문 상품 조회 결과: {}개", orderItems.size());
-
-        // 디버깅을 위한 로그 추가
-        for (OrderItem item : orderItems) {
-            log.info("주문 상품: id={}, name={}, quantity={}",
-                    item.getOrderItemId(), item.getName(), item.getQuantity());
-        }
-
-        // 3. DTO 변환
-        OrderDTO orderDTO = convertToDTO(order);
-        List<OrderItemDTO> itemDTOs = orderItems.stream()
-                .map(this::convertToOrderItemDTO)
-                .collect(Collectors.toList());
-
-        orderDTO.setItems(itemDTOs);
-        log.info("최종 OrderDTO 생성 완료: 상품 {}개", itemDTOs.size());
-
-        return orderDTO;
-    }
-
-    /**
-     * 사용자별 주문 상세 조회
-     */
-    public OrderDTO getOrderDetail(String orderId, String userId) {
-        log.info("사용자별 주문 조회: orderId={}, userId={}", orderId, userId);
-
-        // 1. 주문 조회 및 권한 검증
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("주문을 찾을 수 없습니다: " + orderId));
-
-        // 주문한 사용자가 맞는지 확인
-        if (!order.getUserId().equals(userId)) {
-            throw new RuntimeException("주문 조회 권한이 없습니다");
-        }
-
-        // 2. 주문 상품들 조회
-        List<OrderItem> orderItems = orderItemRepository.findByOrderId(orderId);
-        log.info("사용자별 주문 상품 조회 결과: {}개", orderItems.size());
-
-        // 3. DTO 변환
-        OrderDTO orderDTO = convertToDTO(order);
-        List<OrderItemDTO> itemDTOs = orderItems.stream()
-                .map(this::convertToOrderItemDTO)
-                .collect(Collectors.toList());
-
-        orderDTO.setItems(itemDTOs);
-
-        return orderDTO;
-    }
-
-    /**
-     * 주문 상태 변경 (🔥 탈퇴 처리 포함)
-     */
-    public void updateOrderStatus(String orderId, String newStatus) {
-        try {
-            log.info("주문 상태 변경: orderId={}, newStatus={}", orderId, newStatus);
-
-            Order order = orderRepository.findById(orderId)
-                    .orElseThrow(() -> new RuntimeException("주문을 찾을 수 없습니다: " + orderId));
-
-            order.setOrderStatus(newStatus);
-
-            // 배송 시작 시 배송일 설정
-            if ("SHIPPING".equals(newStatus)) {
-                order.setShippingDate(LocalDateTime.now());
-                order.setTrackingNumber("TRK" + System.currentTimeMillis());
-                order.setDeliveryCompany("한진택배");
-            }
-
-            // 🔥 탈퇴로 인한 취소인 경우 특별 처리
-            if ("CANCELLED_BY_WITHDRAWAL".equals(newStatus)) {
-                order.setUpdatedDate(LocalDateTime.now());
-                log.info("탈퇴로 인한 주문 취소 처리: orderId={}", orderId);
-            }
-
-            orderRepository.save(order);
-            log.info("주문 상태 변경 완료: orderId={}", orderId);
-
-        } catch (Exception e) {
-            log.error("주문 상태 변경 실패: {}", e.getMessage(), e);
-            throw new RuntimeException("주문 상태 변경 중 오류가 발생했습니다.");
-        }
-    }
-
-    /**
-     * 🔥 사용자 탈퇴 시 주문 데이터 처리
-     */
-    @Transactional
-    public void processUserWithdrawalOrders(String userId) {
-        try {
-            log.info("사용자 탈퇴 주문 처리 시작: userId={}", userId);
-
-            // 1. 해당 사용자의 활성 주문 조회
-            List<OrderDTO> activeOrders = getActiveUserOrders(userId);
-            log.info("처리 대상 활성 주문 수: {}", activeOrders.size());
-
-            // 2. 각 주문별 처리
-            for (OrderDTO order : activeOrders) {
-                String orderId = order.getOrderId();
-                String currentStatus = order.getOrderStatus();
-
-                log.info("주문 처리: orderId={}, currentStatus={}", orderId, currentStatus);
-
-                // 배송 전 주문은 자동 취소
-                if ("PENDING".equals(currentStatus) || "PREPARING".equals(currentStatus) ||
-                        "ORDERED".equals(currentStatus) || "PAYMENT_COMPLETED".equals(currentStatus)) {
-                    updateOrderStatus(orderId, "CANCELLED_BY_WITHDRAWAL");
-                    log.info("주문 자동 취소: orderId={} (탈퇴로 인한 취소)", orderId);
-                }
-                // 배송 중/완료된 주문은 그대로 유지
-                else if ("SHIPPED".equals(currentStatus) || "DELIVERED".equals(currentStatus)) {
-                    log.info("배송 중/완료 주문 유지: orderId={}, status={}", orderId, currentStatus);
-                }
-            }
-
-            log.info("사용자 탈퇴 주문 처리 완료: userId={}, 처리된 주문 수={}", userId, activeOrders.size());
-
-        } catch (Exception e) {
-            log.error("사용자 탈퇴 주문 처리 실패: userId={}, error={}", userId, e.getMessage(), e);
-            throw new RuntimeException("사용자 탈퇴 주문 처리 중 오류가 발생했습니다: " + e.getMessage());
-        }
-    }
-    private static final List<String> CANCELLABLE_STATUSES = Arrays.asList(
-            "PENDING", "ORDER_COMPLETED", "PREPARING", "PAYMENT_COMPLETED"
-    );
-    /**
-     * 주문 취소
+     * 주문 취소 처리 (결제 취소 포함)
      */
     @Transactional
     public OrderCancelResponseDTO cancelOrder(OrderCancelRequestDTO request) {
         try {
-            log.info("🔥 주문 취소 시작: orderId={}, userId={}", request.getOrderId(), request.getUserId());
+            log.info("주문 취소 시작: orderId={}, userId={}", request.getOrderId(), request.getUserId());
 
-            // 1. 주문 존재 여부 및 소유권 확인
             Order order = orderRepository.findByOrderIdAndUserId(request.getOrderId(), request.getUserId())
                     .orElseThrow(() -> new IllegalArgumentException("주문을 찾을 수 없습니다."));
 
-            // 2. 이미 취소된 주문인지 확인
             Optional<OrderCancel> existingCancel = orderCancelRepository.findByOrderId(request.getOrderId());
             if (existingCancel.isPresent()) {
                 throw new IllegalStateException("이미 취소된 주문입니다.");
             }
 
-            // 3. 취소 가능한 상태인지 확인
             if (!CANCELLABLE_STATUSES.contains(order.getOrderStatus())) {
                 throw new IllegalStateException("현재 주문 상태에서는 취소할 수 없습니다. 상태: " + order.getOrderStatus());
             }
 
-            // 4. 결제 취소 처리 (PG사)
-            PaymentCancelService.PaymentCancelResult cancelResult = null;
-            if (request.getPaymentId() != null && !request.getPaymentId().isEmpty()) {
-                String cancelReason = request.getReason() != null ? request.getReason() : "사용자 요청";
-                cancelResult = paymentCancelService.cancelPayment(
-                        request.getPaymentId(),
-                        request.getRefundAmount(),
-                        cancelReason
-                );
+            String refundStatus = "PENDING";
+            String paymentCancelId = null;
 
-                if (!cancelResult.isSuccess()) {
-                    log.error("❌ PG 결제 취소 실패: {}", cancelResult.getMessage());
-                    throw new RuntimeException("결제 취소 처리 실패: " + cancelResult.getMessage());
+            if (request.getPaymentId() != null && !request.getPaymentId().isEmpty()) {
+                try {
+                    String cancelReason = getDefaultValue(request.getReason(), "사용자 요청");
+                    PaymentCancelResult cancelResult = cancelPayment(
+                            request.getPaymentId(),
+                            request.getRefundAmount(),
+                            cancelReason
+                    );
+
+                    if (cancelResult.isSuccess()) {
+                        refundStatus = "COMPLETED";
+                        paymentCancelId = cancelResult.getCancelId();
+                        log.info("결제 취소 성공: paymentId={}, cancelId={}",
+                                request.getPaymentId(), paymentCancelId);
+                    } else {
+                        log.error("PG 결제 취소 실패: {}", cancelResult.getMessage());
+                        throw new RuntimeException("결제 취소 처리 실패: " + cancelResult.getMessage());
+                    }
+                } catch (Exception e) {
+                    log.error("결제 취소 서비스 오류", e);
+                    refundStatus = "FAILED";
                 }
             }
 
-            // 5. 주문 취소 정보 저장
             OrderCancel orderCancel = OrderCancel.builder()
                     .orderId(request.getOrderId())
                     .userId(request.getUserId())
@@ -351,28 +159,16 @@ public class OrderService {
                     .detail(request.getDetail())
                     .refundAmount(request.getRefundAmount())
                     .paymentId(request.getPaymentId())
-                    .refundStatus(cancelResult != null && cancelResult.isSuccess() ? "COMPLETED" : "PENDING")
-                    .paymentCancelId(cancelResult != null ? cancelResult.getCancelId() : null)
+                    .refundStatus(refundStatus)
+                    .paymentCancelId(paymentCancelId)
                     .cancelDate(LocalDateTime.now())
                     .createdAt(LocalDateTime.now())
                     .build();
 
             orderCancelRepository.save(orderCancel);
+            updateOrderAndItemsStatus(order, CANCELLED_STATUS);
 
-            // 6. 주문 상태 업데이트
-            order.setOrderStatus("CANCELLED");
-            order.setUpdatedDate(LocalDateTime.now());
-            orderRepository.save(order);
-
-            // 7. 주문 아이템 상태도 업데이트
-            List<OrderItem> orderItems = orderItemRepository.findByOrderId(request.getOrderId());
-            for (OrderItem item : orderItems) {
-                item.setStatus("CANCELLED");
-                item.setUpdatedDate(LocalDateTime.now());
-                orderItemRepository.save(item);
-            }
-
-            log.info("✅ 주문 취소 완료: orderId={}, refundAmount={}",
+            log.info("주문 취소 완료: orderId={}, refundAmount={}",
                     request.getOrderId(), request.getRefundAmount());
 
             return OrderCancelResponseDTO.builder()
@@ -387,68 +183,306 @@ public class OrderService {
                     .build();
 
         } catch (Exception e) {
-            log.error("❌ 주문 취소 처리 중 오류", e);
+            log.error("주문 취소 처리 중 오류", e);
             throw new RuntimeException("주문 취소 처리 실패: " + e.getMessage());
         }
     }
 
+    /**
+     * 간단 주문 취소 (결제 취소 없이)
+     */
+    public void cancelOrder(String orderId, String userId) {
+        try {
+            log.info("간단 주문 취소: orderId={}, userId={}", orderId, userId);
+
+            Order order = orderRepository.findByOrderIdAndUserId(orderId, userId)
+                    .orElseThrow(() -> new RuntimeException("주문을 찾을 수 없습니다: " + orderId));
+
+            if (!CANCELLABLE_STATUSES.contains(order.getOrderStatus())) {
+                throw new RuntimeException("취소할 수 없는 주문 상태입니다: " + order.getOrderStatus());
+            }
+
+            updateOrderAndItemsStatus(order, CANCELLED_STATUS);
+            log.info("간단 주문 취소 완료: orderId={}", orderId);
+
+        } catch (Exception e) {
+            log.error("간단 주문 취소 실패: {}", e.getMessage(), e);
+            throw new RuntimeException("주문 취소 중 오류가 발생했습니다.");
+        }
+    }
 
     /**
-     * 주문 목록 페이징 조회
+     * 결제 취소 처리 (Payment Service 호출)
      */
+    private PaymentCancelResult cancelPayment(String paymentId, Integer refundAmount, String cancelReason) {
+        try {
+            log.info("결제 취소 요청: paymentId={}", paymentId);
+
+            PaymentCancelRequestDTO request = PaymentCancelRequestDTO.builder()
+                    .paymentId(paymentId)
+                    .refundAmount(refundAmount)
+                    .cancelReason(cancelReason)
+                    .build();
+
+            PaymentCancelResponseDTO response = paymentCancelClient.cancelPayment(request);
+
+            if (response.isSuccess()) {
+                log.info("결제 취소 성공: cancelId={}", response.getCancelId());
+                return PaymentCancelResult.builder()
+                        .success(true)
+                        .cancelId(response.getCancelId())
+                        .message(response.getMessage())
+                        .build();
+            } else {
+                log.error("결제 취소 실패: {}", response.getMessage());
+                return PaymentCancelResult.builder()
+                        .success(false)
+                        .cancelId(null)
+                        .message(response.getMessage())
+                        .errorCode(response.getErrorCode())
+                        .build();
+            }
+
+        } catch (Exception e) {
+            log.error("Payment Service 호출 오류", e);
+            return PaymentCancelResult.builder()
+                    .success(false)
+                    .cancelId(null)
+                    .message("Payment Service 연동 오류: " + e.getMessage())
+                    .errorCode("SERVICE_ERROR")
+                    .build();
+        }
+    }
+
+    /**
+     * 주문 및 아이템 상태 일괄 업데이트
+     */
+    private void updateOrderAndItemsStatus(Order order, String newStatus) {
+        order.setOrderStatus(newStatus);
+        order.setUpdatedDate(LocalDateTime.now());
+        orderRepository.save(order);
+
+        List<OrderItem> orderItems = orderItemRepository.findByOrderId(order.getOrderId());
+        for (OrderItem item : orderItems) {
+            item.setStatus(newStatus);
+            item.setUpdatedDate(LocalDateTime.now());
+            orderItemRepository.save(item);
+        }
+    }
+
+    /**
+     * 주문 상태 변경
+     */
+    public void updateOrderStatus(String orderId, String newStatus) {
+        try {
+            log.info("주문 상태 변경: orderId={}, newStatus={}", orderId, newStatus);
+
+            Order order = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new RuntimeException("주문을 찾을 수 없습니다: " + orderId));
+
+            if ("SHIPPING".equals(newStatus)) {
+                order.setShippingDate(LocalDateTime.now());
+                order.setTrackingNumber("TRK" + System.currentTimeMillis());
+                order.setDeliveryCompany("한진택배");
+            }
+
+            updateOrderAndItemsStatus(order, newStatus);
+            log.info("주문 상태 변경 완료: orderId={}", orderId);
+
+        } catch (Exception e) {
+            log.error("주문 상태 변경 실패: {}", e.getMessage(), e);
+            throw new RuntimeException("주문 상태 변경 중 오류가 발생했습니다.");
+        }
+    }
+
+    /**
+     * 사용자 탈퇴 시 주문 데이터 처리
+     */
+    @Transactional
+    public void processUserWithdrawalOrders(String userId) {
+        try {
+            log.info("사용자 탈퇴 주문 처리 시작: userId={}", userId);
+
+            List<OrderDTO> activeOrders = getActiveUserOrders(userId);
+            log.info("처리 대상 활성 주문 수: {}", activeOrders.size());
+
+            for (OrderDTO orderDTO : activeOrders) {
+                String orderId = orderDTO.getOrderId();
+                String currentStatus = orderDTO.getOrderStatus();
+
+                log.info("주문 처리: orderId={}, currentStatus={}", orderId, currentStatus);
+
+                if (Arrays.asList("PENDING", "PREPARING", "ORDERED", "PAYMENT_COMPLETED").contains(currentStatus)) {
+                    Order order = orderRepository.findById(orderId).orElse(null);
+                    if (order != null) {
+                        updateOrderAndItemsStatus(order, CANCELLED_BY_WITHDRAWAL_STATUS);
+                        log.info("주문 자동 취소: orderId={} (탈퇴로 인한 취소)", orderId);
+                    }
+                } else if (Arrays.asList("SHIPPED", "DELIVERED").contains(currentStatus)) {
+                    log.info("배송 중/완료 주문 유지: orderId={}, status={}", orderId, currentStatus);
+                }
+            }
+
+            log.info("사용자 탈퇴 주문 처리 완료: userId={}", userId);
+
+        } catch (Exception e) {
+            log.error("사용자 탈퇴 주문 처리 실패: userId={}", userId, e);
+            throw new RuntimeException("사용자 탈퇴 주문 처리 중 오류가 발생했습니다: " + e.getMessage());
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public List<OrderDTO> getUserOrders(String userId) {
+        try {
+            List<Order> orders = orderRepository.findByUserIdOrderByOrderDateDesc(userId);
+            return orders.stream()
+                    .map(this::convertToOrderDTO)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            log.error("주문 목록 조회 실패: {}", e.getMessage(), e);
+            throw new RuntimeException("주문 목록 조회 중 오류가 발생했습니다.");
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public List<OrderDTO> getActiveUserOrders(String userId) {
+        try {
+            List<Order> orders = orderRepository.findActiveOrdersByUserId(userId);
+            return orders.stream()
+                    .map(this::convertToOrderDTO)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            log.error("활성 주문 조회 실패: {}", e.getMessage(), e);
+            throw new RuntimeException("활성 주문 조회 중 오류가 발생했습니다.");
+        }
+    }
+
+    public OrderDTO getOrderDetailByOrderId(String orderId) {
+        log.info("주문 조회 시작: orderId={}", orderId);
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("주문을 찾을 수 없습니다: " + orderId));
+
+        List<OrderItem> orderItems = orderItemRepository.findByOrderId(orderId);
+        log.info("주문 상품 조회 결과: {}개", orderItems.size());
+
+        return convertToOrderDTOWithItems(order, orderItems);
+    }
+
+    public OrderDTO getOrderDetail(String orderId, String userId) {
+        log.info("사용자별 주문 조회: orderId={}, userId={}", orderId, userId);
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("주문을 찾을 수 없습니다: " + orderId));
+
+        if (!order.getUserId().equals(userId)) {
+            throw new RuntimeException("주문 조회 권한이 없습니다");
+        }
+
+        List<OrderItem> orderItems = orderItemRepository.findByOrderId(orderId);
+        return convertToOrderDTOWithItems(order, orderItems);
+    }
+
     @Transactional(readOnly = true)
     public Page<OrderDTO> getUserOrdersPaged(String userId, int page, int size) {
         try {
             Pageable pageable = PageRequest.of(page, size);
             Page<Order> orderPage = orderRepository.findByUserIdOrderByOrderDateDesc(userId, pageable);
-
             return orderPage.map(this::convertToOrderDTO);
-
         } catch (Exception e) {
             log.error("주문 목록 페이징 조회 실패: {}", e.getMessage(), e);
             throw new RuntimeException("주문 목록 조회 중 오류가 발생했습니다.");
         }
     }
 
-    /**
-     * Order 엔티티를 OrderDTO로 변환
-     */
-    private OrderDTO convertToDTO(Order order) {
-        return OrderDTO.builder()
-                .orderId(order.getOrderId())
-                .userId(order.getUserId())
-                .orderDate(order.getOrderDate())
-                .orderStatus(order.getOrderStatus())
-                .phone(order.getPhone())
-                .email(order.getEmail())
-                .recipientName(order.getRecipientName())
-                .recipientPhone(order.getRecipientPhone())
-                .orderZipcode(order.getOrderZipcode())
-                .orderAddressDetail(order.getOrderAddressDetail())
-                .deliveryMemo(order.getDeliveryMemo())
-                .totalPrice(order.getTotalPrice())
-                .deliveryFee(order.getDeliveryFee())
-                .discountAmount(order.getDiscountAmount())
-                .usedPoint(order.getUsedPoint())
-                .paymentMethod(order.getPaymentMethod())
-                .savedPoint(order.getSavedPoint())
-                .paymentMethodName(order.getPaymentMethodName())
-                .shippingDate(order.getShippingDate())
-                .estimatedDate(order.getEstimatedDate())
-                .trackingNumber(order.getTrackingNumber())
-                .deliveryCompany(order.getDeliveryCompany())
-                .createdDate(order.getCreatedDate())
-                .updatedDate(order.getUpdatedDate())
-                .build();
+    @Transactional(readOnly = true)
+    public OrderCancelResponseDTO getCancelInfo(String orderId, String userId) {
+        try {
+            Order order = orderRepository.findByOrderIdAndUserId(orderId, userId)
+                    .orElseThrow(() -> new IllegalArgumentException("주문을 찾을 수 없습니다."));
+
+            OrderCancel orderCancel = orderCancelRepository.findByOrderId(orderId)
+                    .orElseThrow(() -> new IllegalArgumentException("주문 취소 정보를 찾을 수 없습니다."));
+
+            return OrderCancelResponseDTO.builder()
+                    .orderId(orderId)
+                    .userId(userId)
+                    .cancelReason(orderCancel.getReason())
+                    .refundAmount(orderCancel.getRefundAmount())
+                    .refundStatus(orderCancel.getRefundStatus())
+                    .cancelDate(orderCancel.getCancelDate())
+                    .paymentCancelId(orderCancel.getPaymentCancelId())
+                    .build();
+
+        } catch (Exception e) {
+            log.error("주문 취소 정보 조회 실패", e);
+            throw new RuntimeException("주문 취소 정보 조회 중 오류가 발생했습니다.");
+        }
     }
 
-    /**
-     * Order 엔티티를 OrderDTO로 변환 (주문 아이템 포함)
-     */
-    private OrderDTO convertToOrderDTO(Order order) {
-        // 주문 아이템 조회
-        List<OrderItem> orderItems = orderItemRepository.findByOrderIdOrderByCreatedDateAsc(order.getOrderId());
+    @Transactional(readOnly = true)
+    public boolean canCancelOrder(String orderId, String userId) {
+        try {
+            Order order = orderRepository.findByOrderIdAndUserId(orderId, userId).orElse(null);
+            if (order == null) return false;
 
+            if (orderCancelRepository.findByOrderId(orderId).isPresent()) return false;
+
+            return CANCELLABLE_STATUSES.contains(order.getOrderStatus());
+        } catch (Exception e) {
+            log.error("취소 가능 여부 확인 중 오류", e);
+            return false;
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public List<OrderCancelResponseDTO> getUserCancelledOrders(String userId) {
+        try {
+            List<OrderCancel> cancelledOrders = orderCancelRepository.findByUserId(userId);
+
+            return cancelledOrders.stream()
+                    .map(orderCancel -> {
+                        Order order = orderRepository.findById(orderCancel.getOrderId()).orElse(null);
+                        if (order != null) {
+                            return OrderCancelResponseDTO.builder()
+                                    .orderId(orderCancel.getOrderId())
+                                    .userId(orderCancel.getUserId())
+                                    .cancelReason(orderCancel.getReason())
+                                    .refundAmount(orderCancel.getRefundAmount())
+                                    .refundStatus(orderCancel.getRefundStatus())
+                                    .cancelDate(orderCancel.getCancelDate())
+                                    .paymentCancelId(orderCancel.getPaymentCancelId())
+                                    .build();
+                        }
+                        return null;
+                    })
+                    .filter(response -> response != null)
+                    .collect(Collectors.toList());
+
+        } catch (Exception e) {
+            log.error("취소 주문 목록 조회 실패", e);
+            throw new RuntimeException("취소 주문 목록 조회 중 오류가 발생했습니다.");
+        }
+    }
+
+    public List<String> getAllOrderIds() {
+        return orderRepository.findAllOrderIds();
+    }
+
+    public boolean orderExists(String orderId) {
+        return orderRepository.existsById(orderId);
+    }
+
+    private String getDefaultValue(String value, String defaultValue) {
+        return (value != null && !value.trim().isEmpty()) ? value : defaultValue;
+    }
+
+    private OrderDTO convertToOrderDTO(Order order) {
+        List<OrderItem> orderItems = orderItemRepository.findByOrderIdOrderByCreatedDateAsc(order.getOrderId());
+        return convertToOrderDTOWithItems(order, orderItems);
+    }
+
+    private OrderDTO convertToOrderDTOWithItems(Order order, List<OrderItem> orderItems) {
         List<OrderItemDTO> orderItemDTOs = orderItems.stream()
                 .map(this::convertToOrderItemDTO)
                 .collect(Collectors.toList());
@@ -481,235 +515,13 @@ public class OrderService {
                 .items(orderItemDTOs)
                 .build();
     }
-    @Transactional(readOnly = true)
-    public OrderCancelResponseDTO getCancelInfo(String orderId, String userId) {
-        try {
-            Order order = orderRepository.findByOrderIdAndUserId(orderId, userId)
-                    .orElseThrow(() -> new IllegalArgumentException("주문을 찾을 수 없습니다."));
 
-            OrderCancel orderCancel = orderCancelRepository.findByOrderId(orderId)
-                    .orElseThrow(() -> new IllegalArgumentException("주문 취소 정보를 찾을 수 없습니다."));
-
-            return OrderCancelResponseDTO.builder()
-                    .orderId(orderId)
-                    .userId(userId)
-                    .cancelReason(orderCancel.getReason())
-                    .refundAmount(orderCancel.getRefundAmount())
-                    .refundStatus(orderCancel.getRefundStatus())
-                    .cancelDate(orderCancel.getCancelDate())
-                    .paymentCancelId(orderCancel.getPaymentCancelId())
-                    .build();
-
-        } catch (Exception e) {
-            log.error("주문 취소 정보 조회 실패", e);
-            throw new RuntimeException("주문 취소 정보 조회 중 오류가 발생했습니다.");
-        }
-    }
-
-    /**
-     * 🔥 취소 가능 여부 확인
-     */
-    @Transactional(readOnly = true)
-    public boolean canCancelOrder(String orderId, String userId) {
-        try {
-            Order order = orderRepository.findByOrderIdAndUserId(orderId, userId)
-                    .orElse(null);
-
-            if (order == null) {
-                return false;
-            }
-
-            // 이미 취소된 주문인지 확인
-            if (orderCancelRepository.findByOrderId(orderId).isPresent()) {
-                return false;
-            }
-
-            // 취소 가능한 상태인지 확인
-            return CANCELLABLE_STATUSES.contains(order.getOrderStatus());
-
-        } catch (Exception e) {
-            log.error("취소 가능 여부 확인 중 오류", e);
-            return false;
-        }
-    }
-
-    /**
-     * 🔥 사용자의 취소된 주문 목록 조회
-     */
-    @Transactional(readOnly = true)
-    public List<OrderCancelResponseDTO> getUserCancelledOrders(String userId) {
-        try {
-            List<OrderCancel> cancelledOrders = orderCancelRepository.findByUserId(userId);
-
-            return cancelledOrders.stream()
-                    .map(orderCancel -> {
-                        Order order = orderRepository.findById(orderCancel.getOrderId())
-                                .orElse(null);
-
-                        if (order != null) {
-                            return OrderCancelResponseDTO.builder()
-                                    .orderId(orderCancel.getOrderId())
-                                    .userId(orderCancel.getUserId())
-                                    .cancelReason(orderCancel.getReason())
-                                    .refundAmount(orderCancel.getRefundAmount())
-                                    .refundStatus(orderCancel.getRefundStatus())
-                                    .cancelDate(orderCancel.getCancelDate())
-                                    .paymentCancelId(orderCancel.getPaymentCancelId())
-                                    .build();
-                        }
-                        return null;
-                    })
-                    .filter(response -> response != null)
-                    .collect(Collectors.toList());
-
-        } catch (Exception e) {
-            log.error("취소 주문 목록 조회 실패", e);
-            throw new RuntimeException("취소 주문 목록 조회 중 오류가 발생했습니다.");
-        }
-    }
-
-    /**
-     * 기존 주문 취소 메소드 개선
-     */
-    public void cancelOrder(String orderId, String userId) {
-        try {
-            log.info("간단 주문 취소: orderId={}, userId={}", orderId, userId);
-
-            Order order = orderRepository.findByOrderIdAndUserId(orderId, userId)
-                    .orElseThrow(() -> new RuntimeException("주문을 찾을 수 없습니다: " + orderId));
-
-            // 취소 가능한 상태 체크 (개선된 조건)
-            if (!CANCELLABLE_STATUSES.contains(order.getOrderStatus())) {
-                throw new RuntimeException("취소할 수 없는 주문 상태입니다: " + order.getOrderStatus());
-            }
-
-            // 간단한 취소 처리 (결제 취소 없이)
-            order.setOrderStatus("CANCELLED");
-            order.setUpdatedDate(LocalDateTime.now());
-            orderRepository.save(order);
-
-            // 주문 아이템 상태도 업데이트
-            List<OrderItem> orderItems = orderItemRepository.findByOrderId(orderId);
-            for (OrderItem item : orderItems) {
-                item.setStatus("CANCELLED");
-                item.setUpdatedDate(LocalDateTime.now());
-                orderItemRepository.save(item);
-            }
-
-            log.info("간단 주문 취소 완료: orderId={}", orderId);
-
-        } catch (Exception e) {
-            log.error("간단 주문 취소 실패: {}", e.getMessage(), e);
-            throw new RuntimeException("주문 취소 중 오류가 발생했습니다.");
-        }
-    }
-
-    // ... 나머지 기존 메소드들 유지 ...
-
-    /**
-     * 체크아웃 - 주문 생성 (🔥 기본값 설정 강화)
-     */
-    public OrderResponseDTO createOrder(CheckoutRequestDTO request) {
-        try {
-            log.info("주문 생성 시작: userId={}", request.getUserId());
-
-            // 1. 주문 총액 계산
-            Integer totalItemPrice = request.getItems().stream()
-                    .mapToInt(CheckoutItemDTO::getTotalPrice)
-                    .sum();
-
-            // 2. 배송비 계산 (4만원 이상 무료배송)
-            Integer deliveryFee = totalItemPrice >= 40000 ? 0 : 3000;
-
-            // 3. 최종 결제 금액 계산
-            Integer finalTotalPrice = totalItemPrice + deliveryFee -
-                    (request.getUsedPoint() != null ? request.getUsedPoint() : 0);
-
-            // 4. 적립 포인트 계산 (결제 금액의 1%)
-            Integer savedPoint = (int) (finalTotalPrice * 0.01);
-
-            // 🔥 5. 주문 엔티티 생성 - 기본값 설정 강화
-            Order order = Order.builder()
-                    .userId(request.getUserId())
-                    // 🔥 ORDER_STATUS 기본값 설정
-                    .orderStatus(request.getOrderStatus() != null && !request.getOrderStatus().trim().isEmpty()
-                            ? request.getOrderStatus() : "PENDING")
-                    // 🔥 연락처 정보 기본값 설정
-                    .phone(request.getPhone() != null ? request.getPhone() : "")
-                    .email(request.getEmail() != null ? request.getEmail() : "")
-                    // 🔥 배송 정보 기본값 설정 (필수 필드들)
-                    .recipientName(request.getRecipientName() != null && !request.getRecipientName().trim().isEmpty()
-                            ? request.getRecipientName() : "수령인")
-                    .recipientPhone(request.getRecipientPhone() != null && !request.getRecipientPhone().trim().isEmpty()
-                            ? request.getRecipientPhone() : "010-0000-0000")
-                    .orderZipcode(request.getOrderZipcode() != null ? request.getOrderZipcode() : "")
-                    .orderAddressDetail(request.getOrderAddressDetail() != null && !request.getOrderAddressDetail().trim().isEmpty()
-                            ? request.getOrderAddressDetail() : "주소 정보 없음")
-                    .deliveryMemo(request.getDeliveryMemo() != null ? request.getDeliveryMemo() : "")
-                    // 🔥 가격 정보
-                    .totalPrice(finalTotalPrice)
-                    .deliveryFee(deliveryFee)
-                    .discountAmount(0)
-                    .usedPoint(request.getUsedPoint() != null ? request.getUsedPoint() : 0)
-                    // 🔥 결제 정보 기본값 설정
-                    .paymentMethod(request.getPaymentMethod() != null && !request.getPaymentMethod().trim().isEmpty()
-                            ? request.getPaymentMethod() : "CARD")
-                    .paymentMethodName(request.getPaymentMethodName() != null && !request.getPaymentMethodName().trim().isEmpty()
-                            ? request.getPaymentMethodName() : "신용카드")
-                    .savedPoint(savedPoint)
-                    // 🔥 배송 예상일 설정
-                    .estimatedDate(LocalDateTime.now().plusDays(1).withHour(7).withMinute(0).withSecond(0))  // 익일 오전 7시
-                    .build();
-
-            log.info("주문 엔티티 생성 완료: orderId={}, status={}, totalPrice={}, recipientName={}, paymentMethod={}",
-                    order.getOrderId(), order.getOrderStatus(), order.getTotalPrice(),
-                    order.getRecipientName(), order.getPaymentMethod());
-
-            // 6. 주문 저장
-            Order savedOrder = orderRepository.save(order);
-            log.info("주문 저장 완료: orderId={}", savedOrder.getOrderId());
-
-            // 7. 주문 아이템 생성 및 저장
-            for (CheckoutItemDTO item : request.getItems()) {
-                OrderItem orderItem = OrderItem.builder()
-                        .orderId(savedOrder.getOrderId())
-                        .productId(item.getProductId())
-                        // 🔥 상품명 기본값 설정
-                        .name(item.getProductName() != null && !item.getProductName().trim().isEmpty()
-                                ? item.getProductName() : "상품명 없음")
-                        .quantity(item.getQuantity())
-                        .status("PREPARING")  // 준비중
-                        .totalPrice(item.getTotalPrice())
-                        .deliveryFee(0)  // 개별 아이템 배송비는 0
-                        .imageUrl(item.getImageUrl() != null ? item.getImageUrl() : "")
-                        .build();
-
-                orderItemRepository.save(orderItem);
-                log.info("주문 아이템 저장: productId={}, name={}, quantity={}",
-                        item.getProductId(), orderItem.getName(), item.getQuantity());
-            }
-
-            return OrderResponseDTO.builder()
-                    .orderId(savedOrder.getOrderId())
-                    .orderStatus(savedOrder.getOrderStatus())
-                    .totalAmount(savedOrder.getTotalPrice())
-                    .message("주문이 성공적으로 완료되었습니다.")
-                    .build();
-
-        } catch (Exception e) {
-            log.error("주문 생성 실패: {}", e.getMessage(), e);
-            throw new RuntimeException("주문 처리 중 오류가 발생했습니다: " + e.getMessage());
-        }
-    }
-    /**
-     * OrderItem 엔티티를 OrderItemDTO로 변환
-     */
     private OrderItemDTO convertToOrderItemDTO(OrderItem orderItem) {
         return OrderItemDTO.builder()
                 .orderItemId(orderItem.getOrderItemId())
                 .orderId(orderItem.getOrderId())
                 .productId(orderItem.getProductId())
-                .name(orderItem.getName())  // DB의 NAME 컬럼 → productName으로 변환
+                .name(orderItem.getName())
                 .quantity(orderItem.getQuantity())
                 .status(orderItem.getStatus())
                 .totalPrice(orderItem.getTotalPrice())
@@ -718,13 +530,5 @@ public class OrderService {
                 .createdDate(orderItem.getCreatedDate())
                 .updatedDate(orderItem.getUpdatedDate())
                 .build();
-    }
-
-    public List<String> getAllOrderIds() {
-        return orderRepository.findAllOrderIds();
-    }
-
-    public boolean orderExists(String orderId) {
-        return orderRepository.existsById(orderId);
     }
 }

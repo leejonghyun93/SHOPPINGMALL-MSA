@@ -57,8 +57,9 @@
             <div class="info-row">
               <span class="label">주문상태</span>
               <span class="value">
+                <!-- 🔥 상태 유틸리티 적용 -->
                 <span class="status-badge" :class="getStatusClass(orderData.orderStatus)">
-                  {{ orderData.orderStatus || '배송완료' }}
+                  {{ getStatusIcon(orderData.orderStatus) }} {{ getStatusDisplayName(orderData.orderStatus) }}
                 </span>
               </span>
             </div>
@@ -313,7 +314,7 @@
             취소
           </button>
           <button
-              @click="cancelOrder"
+              @click="cancelOrderAction"
               class="btn btn-danger"
               :disabled="cancelLoading"
           >
@@ -347,6 +348,14 @@ import {
 } from 'lucide-vue-next'
 import { useRoute, useRouter } from 'vue-router'
 
+// 🔥 상태 유틸리티 import
+import {
+  getStatusDisplayName,
+  getStatusClass,
+  canCancelOrder,
+  getStatusIcon
+} from '@/utils/orderStatusUtils'
+
 // API 기본 URL
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080'
 
@@ -367,15 +376,65 @@ const cancelDetail = ref('')
 // 인증 헤더 생성
 const getAuthHeaders = () => {
   const token = localStorage.getItem('token')
+  const userId = localStorage.getItem('userId')
+
+  console.log('🔍 인증 정보 확인:', {
+    tokenExists: !!token,
+    tokenLength: token ? token.length : 0,
+    userId: userId,
+    tokenStart: token ? token.substring(0, 20) + '...' : 'none'
+  })
+
   const headers = {
     'Content-Type': 'application/json'
   }
 
-  if (token) {
-    headers.Authorization = `Bearer ${token}`
+  // 토큰이 있고 유효할 때만 Authorization 헤더 추가
+  if (token && token.trim() && token !== 'null' && token !== 'undefined') {
+    // Bearer 접두사가 없다면 추가
+    const authToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`
+    headers.Authorization = authToken
+    console.log('✅ Authorization 헤더 추가됨')
+  } else {
+    console.log('⚠️ 토큰이 없거나 유효하지 않음')
   }
 
+  // userId 헤더도 추가 (백엔드에서 요구할 수 있음)
+  if (userId && userId !== 'null' && userId !== 'undefined') {
+    headers['X-User-Id'] = userId
+  }
+
+  console.log('📤 최종 헤더:', headers)
   return headers
+}
+
+// 🔥 토큰 자동 갱신 함수
+const refreshTokenIfNeeded = async () => {
+  const token = localStorage.getItem('token')
+  if (!token) return false
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    })
+
+    if (response.ok) {
+      const result = await response.json()
+      if (result.success && result.token) {
+        localStorage.setItem('token', result.token)
+        console.log('✅ 토큰 자동 갱신 성공')
+        return true
+      }
+    }
+    return false
+  } catch (error) {
+    console.error('토큰 갱신 실패:', error)
+    return false
+  }
 }
 
 // 주문 정보 로드
@@ -411,6 +470,17 @@ const loadOrderData = async (orderId) => {
 
     if (result.success) {
       orderData.value = result.data
+
+      // 🔥 디버깅: 상태 정보 확인
+      console.log('=== 주문 상세 상태 디버깅 ===')
+      console.log(`주문 ${orderData.value.orderId}:`)
+      console.log(`  - 원본 상태: "${orderData.value.orderStatus}"`)
+      console.log(`  - 표시명: "${getStatusDisplayName(orderData.value.orderStatus)}"`)
+      console.log(`  - CSS 클래스: "${getStatusClass(orderData.value.orderStatus)}"`)
+      console.log(`  - 취소 가능: ${canCancelOrder(orderData.value.orderStatus)}`)
+      console.log(`  - 아이콘: ${getStatusIcon(orderData.value.orderStatus)}`)
+      console.log('===============================')
+
     } else {
       throw new Error(result.message || '주문 정보를 불러오는데 실패했습니다.')
     }
@@ -422,14 +492,8 @@ const loadOrderData = async (orderId) => {
   }
 }
 
-// 🔥 주문 취소 가능 여부 확인
-const canCancelOrder = (status) => {
-  const cancellableStatuses = ['주문접수', '결제완료', '배송준비']
-  return cancellableStatuses.includes(status)
-}
-
-// 🔥 주문 취소 실행
-const cancelOrder = async () => {
+// 🔥 주문 취소 실행 (토큰 자동 갱신 포함)
+const cancelOrderAction = async () => {
   if (!orderData.value) return
 
   try {
@@ -446,13 +510,38 @@ const cancelOrder = async () => {
       paymentId: orderData.value.paymentId
     }
 
-    console.log('🔥 주문 취소 요청:', cancelData)
+    console.log('🔥 주문 취소 요청 데이터:', cancelData)
 
-    const response = await fetch(`${API_BASE_URL}/api/orders/${orderData.value.orderId}/cancel`, {
+    // 첫 번째 시도
+    let response = await fetch(`${API_BASE_URL}/api/orders/${orderData.value.orderId}/cancel`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(cancelData)
     })
+
+    // 401 오류시 토큰 갱신 후 재시도
+    if (response.status === 401) {
+      console.log('🔄 토큰 만료, 갱신 후 재시도...')
+
+      const refreshed = await refreshTokenIfNeeded()
+      if (refreshed) {
+        // 토큰 갱신 성공, 다시 요청
+        response = await fetch(`${API_BASE_URL}/api/orders/${orderData.value.orderId}/cancel`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify(cancelData)
+        })
+      } else {
+        // 토큰 갱신 실패
+        alert('로그인이 만료되었습니다. 다시 로그인해주세요.')
+        localStorage.removeItem('token')
+        localStorage.removeItem('userId')
+        router.push('/login')
+        return
+      }
+    }
+
+    console.log('📡 응답 상태:', response.status, response.statusText)
 
     if (!response.ok) {
       const errorData = await response.json()
@@ -463,7 +552,6 @@ const cancelOrder = async () => {
     console.log('✅ 주문 취소 성공:', result)
 
     if (result.success) {
-      // 성공 알림
       alert('주문이 성공적으로 취소되었습니다.\n환불은 영업일 기준 3-5일 소요됩니다.')
 
       // 주문 데이터 갱신
@@ -478,25 +566,11 @@ const cancelOrder = async () => {
     }
 
   } catch (err) {
-    console.error('주문 취소 실패:', err)
+    console.error('🚨 주문 취소 실패:', err)
     alert(`주문 취소 실패: ${err.message}`)
   } finally {
     cancelLoading.value = false
   }
-}
-
-// 주문 상태에 따른 CSS 클래스
-const getStatusClass = (status) => {
-  const statusMap = {
-    '주문접수': 'status-pending',
-    '결제완료': 'status-paid',
-    '배송준비': 'status-preparing',
-    '배송중': 'status-shipping',
-    '배송완료': 'status-delivered',
-    '주문취소': 'status-cancelled',
-    '반품': 'status-returned'
-  }
-  return statusMap[status] || 'status-default'
 }
 
 // 가격 포맷팅
@@ -585,8 +659,6 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-/* 기존 스타일 + 추가 스타일 */
-
 /* 🔥 취소 알림 박스 */
 .cancel-notice {
   display: flex;
