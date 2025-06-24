@@ -5,7 +5,8 @@
     <div class="d-flex align-items-center gap-2">
       <router-link to="/" class="navbar-brand">트라이마켓</router-link>
       <router-link to="/" class="navbar-brand">홈</router-link>
-      <router-link to="/" class="navbar-brand">예고</router-link>
+      <router-link to="/broadcasts/category" class="navbar-brand">라이브 목록</router-link>
+      <router-link to="/broadcasts/schedule" class="navbar-brand">예고</router-link>
       <router-link to="/category" class="navbar-brand">카테고리</router-link>
     </div>
 
@@ -49,20 +50,109 @@
   </nav>
 </template>
 
+
 <script setup>
 import { onMounted, computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import { user, setUserFromToken } from "@/stores/userStore";
+import apiClient from '@/api/axiosInstance' // 🔥 공통 apiClient 추가
 
 const router = useRouter();
 const isDropdownVisible = ref(false);
 
 const computedUser = computed(() => user);
 
-onMounted(() => {
+// 🔥 토큰 유효성 검사 함수
+const isTokenValid = (token) => {
+  if (!token) return false
+
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return false
+
+    let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+    while (base64.length % 4) {
+      base64 += '='
+    }
+
+    const payloadStr = atob(base64)
+    const payload = JSON.parse(payloadStr)
+    const currentTime = Math.floor(Date.now() / 1000)
+
+    // 만료 시간 체크
+    if (payload.exp && payload.exp < currentTime) {
+      return false
+    }
+
+    return true
+  } catch (error) {
+    console.error('토큰 검증 에러:', error)
+    return false
+  }
+}
+
+// 🔥 사용자 정보 검증 함수 (선택적)
+const validateUserInfo = async () => {
+  const token = localStorage.getItem("token")
+  if (!token || !isTokenValid(token)) {
+    return false
+  }
+
+  try {
+    // 🔥 공통 apiClient로 사용자 정보 검증
+    const response = await apiClient.get('/api/users/profile')
+
+    if (response.data.success && response.data.data) {
+      // 서버에서 받은 최신 정보로 업데이트
+      const userData = response.data.data
+      user.id = userData.id || userData.userId
+      user.name = userData.name
+      user.email = userData.email
+      user.role = userData.role || 'USER'
+
+      console.log('✅ 헤더에서 사용자 정보 검증 완료:', user.name)
+      return true
+    }
+  } catch (error) {
+    // 401은 인터셉터에서 자동으로 처리
+    console.log('사용자 정보 검증 실패:', error.message)
+    return false
+  }
+
+  return false
+}
+
+onMounted(async () => {
   const token = localStorage.getItem("token");
-  if (token) {
-    setUserFromToken(token);
+
+  if (token && isTokenValid(token)) {
+    try {
+      // 토큰으로 기본 사용자 정보 설정
+      setUserFromToken(token);
+      console.log('✅ 헤더에서 기본 사용자 정보 설정 완료:', user.name);
+
+      // 🔥 선택적으로 서버에서 최신 정보 검증 (백그라운드)
+      validateUserInfo().catch(() => {
+        // 검증 실패해도 기본 정보는 유지
+        console.log('사용자 정보 백그라운드 검증 실패 - 기본 정보 유지')
+      })
+
+    } catch (error) {
+      console.error('❌ 헤더에서 사용자 정보 설정 실패:', error);
+      localStorage.removeItem("token");
+      user.id = null;
+      user.name = null;
+      user.role = null;
+    }
+  } else {
+    // 토큰이 없거나 무효한 경우
+    if (token) {
+      console.log('🔓 헤더에서 무효한 토큰 제거');
+      localStorage.removeItem("token");
+    }
+    user.id = null;
+    user.name = null;
+    user.role = null;
   }
 });
 
@@ -71,13 +161,13 @@ function showDropdown() {
 }
 
 function hideDropdown() {
-  // 약간의 지연을 주어 메뉴 클릭이 가능하도록 함
   setTimeout(() => {
     isDropdownVisible.value = false;
   }, 150);
 }
 
 function logout() {
+  console.log('🔓 사용자 로그아웃');
   localStorage.removeItem("token");
   user.id = null;
   user.name = null;

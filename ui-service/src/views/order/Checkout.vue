@@ -112,7 +112,7 @@
                   <span class="payment-label">신용/체크카드</span>
                 </label>
 
-                <!-- 🔥 개선된 카드 옵션 버튼들 -->
+                <!-- 개선된 카드 옵션 버튼들 -->
                 <div v-if="selectedSubPayment === 'credit'" class="card-options">
                   <button
                       class="card-option-btn"
@@ -140,16 +140,16 @@
                   </button>
                 </div>
 
-                <!-- 🔥 선택된 결제 방식에 따른 안내 문구 -->
+                <!-- 선택된 결제 방식에 따른 안내 문구 -->
                 <div v-if="selectedSubPayment === 'credit'" class="payment-guide">
                   <div v-if="cardPaymentType === 'card'" class="guide-text">
-                    💳 신용카드 또는 체크카드로 결제합니다
+                    신용카드 또는 체크카드로 결제합니다
                   </div>
                   <div v-else-if="cardPaymentType === 'simple'" class="guide-text">
-                    ⚡ 삼성페이, 애플페이 등 간편결제로 결제합니다
+                    삼성페이, 애플페이 등 간편결제로 결제합니다
                   </div>
                   <div v-else-if="cardPaymentType === 'phone'" class="guide-text">
-                    📱 휴대폰 소액결제로 결제합니다 (통신사 요금에 합산)
+                    휴대폰 소액결제로 결제합니다 (통신사 요금에 합산)
                   </div>
                 </div>
               </div>
@@ -188,7 +188,7 @@
               <li>무이자카드: 광주 씨, 씨티 씨, 롯데 씨, 삼성 씨를 확인 안됨</li>
               <li>삼성카드: 온라인 50만 원 이상 결제 시, 2024 컵 3월 정책 안됨</li>
               <li>하나카드: 온라인 결제 시, 1.2만원 참여 학습 온라인 시개 안됨</li>
-              <li v-if="cardPaymentType === 'phone'" class="phone-notice">📱 휴대폰 결제는 월 30만원 한도가 있습니다</li>
+              <li v-if="cardPaymentType === 'phone'" class="phone-notice">휴대폰 결제는 월 30만원 한도가 있습니다</li>
             </ul>
             <p class="details-link">자세히보기</p>
           </div>
@@ -343,10 +343,11 @@
   </div>
 </template>
 
+// 주문서 컴포넌트 스크립트 - 공통 apiClient 사용
 <script setup>
 import {ref, computed, onMounted} from 'vue'
 import {ChevronLeft} from 'lucide-vue-next'
-import axios from 'axios'
+import apiClient from '@/api/axiosInstance' // 🔥 공통 apiClient만 사용
 import {user, setUserFromToken} from "@/stores/userStore"
 
 // 공통 유틸 import
@@ -357,18 +358,11 @@ import {
   getMessageType
 } from '@/utils/paymentMessages.js'
 
-// API 기본 URL
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080'
-
-// 🔥 결제 타입 상태 추가
-const cardPaymentType = ref('card') // 'card', 'simple', 'phone'
-
-// 상태 관리
+// ... 기존 상태 변수들 동일 ...
+const cardPaymentType = ref('card')
 const selectedPayment = ref('general')
 const selectedSubPayment = ref('credit')
 const pointsToUse = ref(0)
-
-// 주소 모달 관련
 const showAddressModal = ref(false)
 const newAddress = ref({
   zipCode: '',
@@ -376,14 +370,12 @@ const newAddress = ref({
   detailAddress: ''
 })
 
-// 사용자 정보
 const userInfo = ref({
   name: '',
   phone: '',
   email: ''
 })
 
-// 배송 정보
 const deliveryInfo = ref({
   address: '',
   detailAddress: '',
@@ -393,10 +385,7 @@ const deliveryInfo = ref({
   recipientPhone: ''
 })
 
-// 주문 상품
 const orderItems = ref([])
-
-// 가격 정보
 const orderAmount = ref(0)
 const productAmount = ref(0)
 const discountAmount = ref(0)
@@ -406,13 +395,11 @@ const cardDiscount = ref(0)
 const pointsUsed = ref(0)
 const benefitAmount = ref(0)
 const kurlypassAmount = ref(0)
-
-// 인증 관련
 const isLoggedIn = ref(false)
 const authError = ref('')
 const loading = ref(false)
 
-// 계산된 값들
+// ... 기존 computed 동일 ...
 const finalAmount = computed(() => {
   return Math.max(0, orderAmount.value + deliveryFee.value - couponDiscount.value - cardDiscount.value - pointsUsed.value - benefitAmount.value - kurlypassAmount.value)
 })
@@ -427,57 +414,35 @@ const canSaveAddress = computed(() => {
       newAddress.value.detailAddress.trim()
 })
 
-// 🔥 중복 메시지 방지
+// 중복 메시지 방지
 let lastMessage = null
 let lastMessageTime = 0
 
 const showFriendlyMessage = (message, type = 'info') => {
   const now = Date.now()
-
-  // 같은 메시지가 1초 이내에 호출되면 무시
   if (lastMessage === message && (now - lastMessageTime) < 1000) {
-    console.log('🔄 중복 메시지 방지:', message)
     return
   }
-
   lastMessage = message
   lastMessageTime = now
-
-  const icons = {
-    success: '🎉',
-    info: '💡',
-    warning: '⚠️',
-    error: '❌'
-  }
-
-  const icon = icons[type] || '💡'
-  alert(`${icon} ${message}`)
-
-  console.log(`💬 ${type.toUpperCase()}: ${message}`)
+  alert(message)
 }
 
-// 🔥 카드 결제 타입 설정 함수
+// ... 기존 함수들 동일 ...
 const setCardPaymentType = (type) => {
   cardPaymentType.value = type
-
-  // 신용/체크카드가 선택되지 않았다면 자동 선택
   if (selectedSubPayment.value !== 'credit') {
     selectedSubPayment.value = 'credit'
   }
-
-  console.log(`카드 결제 타입 변경: ${type}`)
-
-  // 사용자에게 선택 확인 메시지
   const typeNames = {
     'card': '신용카드',
     'simple': '간편결제',
     'phone': '휴대폰 결제'
   }
-
-  showFriendlyMessage(`${typeNames[type]}가 선택되었습니다! 💳`, 'info')
+  showFriendlyMessage(`${typeNames[type]}가 선택되었습니다!`, 'info')
 }
 
-// 주소 모달 관련 함수들
+// ... 주소 관련 함수들 동일 ...
 const openAddressModal = () => {
   showAddressModal.value = true
   newAddress.value = {
@@ -496,35 +461,30 @@ const closeAddressModal = () => {
   }
 }
 
-// 카카오 API 동적 로드
+// ... 카카오 주소 API 함수들 동일 ...
 const loadKakaoScript = () => {
   return new Promise((resolve, reject) => {
     if (typeof daum !== 'undefined' && daum.Postcode) {
       resolve()
       return
     }
-
     const script = document.createElement('script')
     script.src = '//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js'
     script.onload = () => resolve()
     script.onerror = () => reject(new Error('카카오 API 로드 실패'))
-
     document.head.appendChild(script)
   })
 }
 
-// 주소 검색
 const searchAddress = async () => {
   try {
     if (typeof daum === 'undefined' || !daum.Postcode) {
       await loadKakaoScript()
     }
-
     new daum.Postcode({
       oncomplete: function (data) {
         newAddress.value.zipCode = data.zonecode
         newAddress.value.address = data.address
-
         setTimeout(() => {
           const detailInput = document.querySelector('.detail-address-input')
           if (detailInput) {
@@ -543,111 +503,75 @@ const saveAddress = () => {
     showFriendlyMessage('우편번호, 기본주소, 상세주소를 모두 입력해주세요.', 'warning')
     return
   }
-
   deliveryInfo.value = {
     ...deliveryInfo.value,
     zipCode: newAddress.value.zipCode,
     address: newAddress.value.address,
     detailAddress: newAddress.value.detailAddress
   }
-
   closeAddressModal()
-  showFriendlyMessage('배송지가 변경되었습니다! ', 'success')
+  showFriendlyMessage('배송지가 변경되었습니다!', 'success')
 }
 
 const editDeliveryRequest = () => {
   const newRequest = prompt('배송 요청사항을 입력하세요:', deliveryInfo.value.request)
   if (newRequest !== null) {
     deliveryInfo.value.request = newRequest.trim() || '문 앞에 놓아주세요'
-    showFriendlyMessage('배송 요청사항이 변경되었습니다! 📝', 'info')
+    showFriendlyMessage('배송 요청사항이 변경되었습니다!', 'info')
   }
 }
 
-// 안전한 Base64 디코딩 함수
-const safeBase64Decode = (str) => {
-  try {
-    let base64 = str.replace(/-/g, '+').replace(/_/g, '/')
-    while (base64.length % 4) {
-      base64 += '='
-    }
-    return atob(base64)
-  } catch (error) {
-    throw error
-  }
-}
-
-// 토큰 유효성 검사 함수
+// 🔥 토큰 유효성 검사
 const isTokenValid = (token) => {
   if (!token) return false
-
   try {
     const parts = token.split('.')
     if (parts.length !== 3) return false
-
-    const payloadStr = safeBase64Decode(parts[1])
+    let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+    while (base64.length % 4) {
+      base64 += '='
+    }
+    const payloadStr = atob(base64)
     const payload = JSON.parse(payloadStr)
     const currentTime = Math.floor(Date.now() / 1000)
-
     if (payload.exp && payload.exp < currentTime) {
       return false
     }
-
     return true
   } catch (error) {
+    console.error('토큰 검증 에러:', error)
     return false
   }
 }
 
-// 인증 헤더 생성
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('token')
-
-  const headers = {
-    'Content-Type': 'application/json',
-    'X-User-Id': user.id || 'guest_' + Date.now()
-  }
-
-  if (token && isTokenValid(token) && user.id) {
-    headers.Authorization = `Bearer ${token}`
-  }
-
-  return headers
-}
-
-// 로그인 상태 확인
+// 🔥 로그인 상태 확인
 const checkLoginStatus = () => {
   const token = localStorage.getItem('token')
-
-  console.log('=== 로그인 상태 확인 ===')
-  console.log('Token exists:', !!token)
-
   if (token && isTokenValid(token)) {
     setUserFromToken(token)
-    console.log('After setUserFromToken - user.id:', user.id)
-    console.log('After setUserFromToken - user:', user)
     isLoggedIn.value = !!user.id
+    console.log('✅ 로그인 상태 확인됨:', user.id)
   } else {
     isLoggedIn.value = false
     if (token && !isTokenValid(token)) {
       localStorage.removeItem('token')
+      console.log('🔓 만료된 토큰 제거')
     }
   }
-
-  console.log('Final isLoggedIn:', isLoggedIn.value)
-  console.log('========================')
-
   return isLoggedIn.value
 }
 
-// 사용자 정보 로드
+// 🔥 사용자 정보 로드 - 공통 apiClient 사용
 const loadUserInfo = async () => {
+  console.log('👤 사용자 정보 로드 시작')
+
   if (!isLoggedIn.value) {
+    console.log('👻 게스트 사용자 - 기본값 설정')
     userInfo.value = {
       name: '게스트 사용자',
       phone: '',
       email: ''
     }
-
     deliveryInfo.value = {
       address: '서울특별시 송파구 정현로 135',
       detailAddress: '(어마덜랩터원) 7층 16층 한국스프트에이전시협의회',
@@ -659,15 +583,23 @@ const loadUserInfo = async () => {
     return
   }
 
+  // 사용자 정보 기본값 설정
   userInfo.value = {
     name: user.name || '사용자',
     phone: user.phone || '',
     email: user.email || ''
   }
+  console.log('📋 기본 사용자 정보 설정:', userInfo.value.name)
 
   try {
-    const response = await axios.get(`${API_BASE_URL}/api/users/profile`, {
-      headers: getAuthHeaders()
+    console.log('📡 /api/users/profile 호출 중...')
+
+    // 🔥 공통 apiClient 사용 - 인터셉터가 자동으로 401 처리
+    const response = await apiClient.get('/api/users/profile')
+
+    console.log('✅ 프로필 API 응답:', {
+      status: response.status,
+      success: response.data?.success
     })
 
     if (response.data.success) {
@@ -677,7 +609,9 @@ const loadUserInfo = async () => {
         phone: userData.phone || user.phone || '',
         email: userData.email || user.email || ''
       }
+      console.log('👤 사용자 정보 업데이트:', userInfo.value.name)
 
+      // 주소 정보가 있으면 설정
       if (userData.zipcode || userData.address) {
         deliveryInfo.value = {
           address: userData.address || '',
@@ -687,21 +621,40 @@ const loadUserInfo = async () => {
           recipientName: userData.name || user.name,
           recipientPhone: userData.phone || user.phone || ''
         }
+        console.log('📍 프로필에서 배송지 정보 설정')
       }
     }
   } catch (error) {
-    // API 실패해도 로그인 상태 유지
+    console.error('❌ 사용자 정보 로드 실패:', error.message)
+    // 401은 인터셉터에서 자동으로 처리되므로 여기서는 기본값 유지
+    console.log('기본 사용자 정보로 계속 진행')
   }
 }
 
-// 배송지 정보 로드
+// 🔥 배송지 정보 로드 - 공통 apiClient 사용
 const loadDeliveryInfo = async () => {
-  if (!isLoggedIn.value) return
-  if (deliveryInfo.value.address) return
+  console.log('🚚 배송지 정보 로드 시작')
+
+  if (!isLoggedIn.value) {
+    console.log('👻 게스트 사용자 - 배송지 로드 스킵')
+    return
+  }
+
+  if (deliveryInfo.value.address) {
+    console.log('📍 이미 배송지 정보 있음 - 스킵')
+    return
+  }
 
   try {
-    const response = await axios.get(`${API_BASE_URL}/api/users/addresses`, {
-      headers: getAuthHeaders()
+    console.log('📡 /api/users/addresses 호출 중...')
+
+    // 🔥 공통 apiClient 사용 - 인터셉터가 자동으로 401 처리
+    const response = await apiClient.get('/api/users/addresses')
+
+    console.log('✅ 배송지 API 응답:', {
+      status: response.status,
+      success: response.data?.success,
+      addressCount: response.data?.data?.length || 0
     })
 
     if (response.data.success && response.data.data?.length > 0) {
@@ -714,19 +667,30 @@ const loadDeliveryInfo = async () => {
         recipientName: address.recipientName || userInfo.value.name,
         recipientPhone: address.recipientPhone || userInfo.value.phone
       }
+      console.log('📍 배송지 정보 설정 완료')
+    } else {
+      console.log('📭 배송지 정보 없음')
     }
   } catch (error) {
-    // 로그인 상태 유지
+    console.error('❌ 배송지 정보 로드 실패:', error.message)
+    // 401은 인터셉터에서 자동으로 처리되므로 여기서는 기본값 설정
+    deliveryInfo.value = {
+      address: '서울특별시 송파구 정현로 135',
+      detailAddress: '(어마덜랩터원) 7층 16층 한국스프트에이전시협의회',
+      zipCode: '05506',
+      request: '문 앞에 놓아주세요',
+      recipientName: '게스트 사용자',
+      recipientPhone: ''
+    }
   }
 }
 
-// 주문 데이터 로드
+// ... 기존 주문 데이터 로드 함수 동일 ...
 const loadOrderData = () => {
   try {
     const checkoutData = sessionStorage.getItem('checkout_data')
     if (checkoutData) {
       const data = JSON.parse(checkoutData)
-
       if (data.items && data.items.length > 0) {
         orderItems.value = data.items
         orderAmount.value = data.totalPrice || data.totalAmount || 0
@@ -746,7 +710,7 @@ const loadOrderData = () => {
   }
 }
 
-// 메서드들
+// ... 기존 함수들 동일 ...
 const goBack = () => {
   window.history.back()
 }
@@ -755,64 +719,54 @@ const formatPrice = (price) => {
   return price?.toLocaleString() || '0'
 }
 
-// 아임포트 동적 로드
+// ... 아임포트 관련 함수들 동일 ...
 const loadIamportScript = () => {
   return new Promise((resolve, reject) => {
-    // 이미 로드되었는지 확인
     if (typeof window.IMP !== 'undefined') {
       resolve(window.IMP)
       return
     }
-
-    // 스크립트 태그 생성
     const script = document.createElement('script')
     script.src = 'https://cdn.iamport.kr/v1/iamport.js'
     script.onload = () => {
       if (typeof window.IMP !== 'undefined') {
-        console.log('아임포트 로드 완료')
         resolve(window.IMP)
       } else {
         reject(new Error('아임포트 로드 실패'))
       }
     }
     script.onerror = () => reject(new Error('아임포트 스크립트 로드 에러'))
-
     document.head.appendChild(script)
   })
 }
 
-// 🔥 결제 유효성 검사 개선
 const validatePaymentMethod = () => {
   if (!selectedPayment.value) {
     showFriendlyMessage('결제 수단을 선택해주세요.', 'warning')
     return false
   }
-
   if (selectedPayment.value === 'general' && !selectedSubPayment.value) {
     showFriendlyMessage('세부 결제 방식을 선택해주세요.', 'warning')
     return false
   }
-
-  // 휴대폰 결제 시 추가 검증
   if (selectedSubPayment.value === 'credit' && cardPaymentType.value === 'phone') {
     if (!userInfo.value.phone) {
       showFriendlyMessage('휴대폰 결제를 위해 휴대폰 번호가 필요합니다.', 'warning')
       return false
     }
   }
-
   return true
 }
 
+// 🔥 아임포트 결제 처리 - 공통 apiClient 사용
 const initiatePayment = async (paymentData) => {
   try {
-    console.log('아임포트 스크립트 로드 중...')
     const IMP = await loadIamportScript()
 
     return new Promise((resolve, reject) => {
       IMP.init('imp19424728')
 
-      // PG사 선택 로직 (기존과 동일)
+      // PG사 선택 로직
       let pgProvider = 'kakaopay.TC0ONETIME'
       let payMethod = 'card'
 
@@ -850,10 +804,6 @@ const initiatePayment = async (paymentData) => {
 
       const actualAmount = paymentData.amount || finalAmount.value
 
-      console.log(`선택된 PG: ${pgProvider}`)
-      console.log(`결제 방식: ${payMethod}`)
-      console.log(`결제 금액: ${actualAmount.toLocaleString()}원`)
-
       const paymentRequest = {
         pg: pgProvider,
         pay_method: payMethod,
@@ -879,12 +829,7 @@ const initiatePayment = async (paymentData) => {
 
       IMP.request_pay(paymentRequest, async (response) => {
         try {
-          console.log(`${pgProvider} 결제 응답:`, response)
-
           if (response.success) {
-            console.log('✅ 결제 성공! 이제 실제 주문 생성 시작')
-
-            // 🔥 결제 성공 후에만 실제 주문 생성
             const pendingOrderData = sessionStorage.getItem('pending_order_data')
             if (!pendingOrderData) {
               throw new Error('임시 주문 데이터를 찾을 수 없습니다')
@@ -892,82 +837,52 @@ const initiatePayment = async (paymentData) => {
 
             const orderData = JSON.parse(pendingOrderData)
 
-            // 🔥 이제 실제 주문 생성 API 호출
-            console.log('📝 실제 주문 생성 중...')
-            const orderResponse = await fetch(`${API_BASE_URL}/api/payments/orders/checkout`, {
-              method: 'POST',
-              headers: getAuthHeaders(),
-              body: JSON.stringify({
-                ...orderData,
-                paymentId: response.imp_uid,  // 결제 ID 추가
-                paidAmount: response.paid_amount,
-                pgProvider: pgProvider
-              })
+            // 🔥 공통 apiClient를 사용하여 주문 생성 API 호출
+            const orderResponse = await apiClient.post('/api/payments/orders/checkout', {
+              ...orderData,
+              paymentId: response.imp_uid,
+              paidAmount: response.paid_amount,
+              pgProvider: pgProvider
             })
 
-            if (!orderResponse.ok) {
-              // 🚨 주문 생성 실패 시 결제 취소 필요
-              console.error('❌ 주문 생성 실패 - 결제 취소 필요')
-
-              try {
-                await fetch(`${API_BASE_URL}/api/payments/${response.imp_uid}/cancel`, {
-                  method: 'POST',
-                  headers: getAuthHeaders(),
-                  body: JSON.stringify({
-                    reason: '주문 생성 실패로 인한 자동 취소',
-                    refund_amount: response.paid_amount
-                  })
-                })
-                console.log('🔄 결제 자동 취소 완료')
-              } catch (cancelError) {
-                console.error('❌ 결제 자동 취소 실패:', cancelError)
-              }
-
-              throw new Error('주문 생성 실패')
-            }
-
-            const orderResult = await orderResponse.json()
-            console.log('✅ 실제 주문 생성 성공:', orderResult)
-
-            if (orderResult.success) {
-              // 임시 데이터 정리
+            if (orderResponse.data.success) {
               sessionStorage.removeItem('pending_order_data')
               sessionStorage.removeItem('checkout_data')
 
               const successMsg = getSuccessMessage(pgProvider, response.paid_amount)
               showFriendlyMessage(successMsg, 'success')
 
-              // 주문 완료 페이지로 이동
-              window.location.href = `/order-complete?orderId=${orderResult.data.orderId}&paymentId=${response.imp_uid}&amount=${response.paid_amount}`
+              window.location.href = `/order-complete?orderId=${orderResponse.data.data.orderId}&paymentId=${response.imp_uid}&amount=${response.paid_amount}`
               resolve(response)
             } else {
-              throw new Error(orderResult.message || '주문 생성 실패')
+              throw new Error(orderResponse.data.message || '주문 생성 실패')
             }
 
           } else {
-            console.log('❌ 결제 실패 또는 취소:', response)
-
-            // 🔥 결제 실패/취소 시 임시 데이터 정리
             sessionStorage.removeItem('pending_order_data')
-
-            // 사용자 친화적 메시지
             const friendlyReason = getFailureReason(response.error_code, response.error_msg)
             const messageType = getMessageType(response.error_code, response.error_msg)
-
             showFriendlyMessage(friendlyReason, messageType)
-
             const error = new Error(friendlyReason)
             error.alreadyHandled = true
             reject(error)
           }
 
         } catch (error) {
-          console.error('결제 응답 처리 중 오류:', error)
-
-          // 임시 데이터 정리
           sessionStorage.removeItem('pending_order_data')
-
           if (!error.alreadyHandled) {
+            // 주문 생성 실패 시 결제 취소 처리
+            if (response.success && response.imp_uid) {
+              try {
+                // 🔥 공통 apiClient 사용
+                await apiClient.post(`/api/payments/${response.imp_uid}/cancel`, {
+                  reason: '주문 생성 실패로 인한 자동 취소',
+                  refund_amount: response.paid_amount
+                })
+              } catch (cancelError) {
+                console.error('❌ 결제 취소 실패:', cancelError)
+              }
+            }
             const errorMsg = getFailureReason('SYSTEM_ERROR', '결제 처리 중 오류가 발생했습니다')
             showFriendlyMessage(errorMsg, 'error')
           }
@@ -977,7 +892,6 @@ const initiatePayment = async (paymentData) => {
     })
 
   } catch (error) {
-    console.error('아임포트 초기화 실패:', error)
     sessionStorage.removeItem('pending_order_data')
     const errorMsg = getFailureReason('SYSTEM_ERROR', '결제 시스템 초기화 실패')
     showFriendlyMessage(errorMsg, 'error')
@@ -985,7 +899,6 @@ const initiatePayment = async (paymentData) => {
   }
 }
 
-// 🔥 개선된 결제 수단명 변환
 const getPaymentMethodName = (method) => {
   if (method === 'general' && selectedSubPayment.value === 'credit') {
     const typeNames = {
@@ -1010,11 +923,8 @@ const getPaymentMethodName = (method) => {
 
 // 🔥 개선된 결제 처리 메인 함수
 const processPayment = async () => {
-  console.log('=== processPayment 함수 시작 ===')
-  console.log(`최종 결제 금액: ${finalAmount.value.toLocaleString()}원`)
-  console.log(`선택된 결제방식: ${selectedPayment.value} > ${selectedSubPayment.value} > ${cardPaymentType.value}`)
+  console.log('💳 결제 처리 시작')
 
-  // 결제 방식 유효성 검사
   if (!validatePaymentMethod()) {
     return
   }
@@ -1027,12 +937,43 @@ const processPayment = async () => {
   try {
     loading.value = true
 
-    // 🔥 임시 주문 ID 생성 (실제 DB에 저장하지 않음)
+    // 현재 로그인 상태 재확인
+    const currentLoginStatus = checkLoginStatus()
+    console.log('🔍 결제 전 로그인 상태 확인:', currentLoginStatus)
+
+    // 🔥 로그인이 필요한 결제인 경우 인증 상태 확인
+    if (currentLoginStatus) {
+      try {
+        console.log('📡 결제 전 사용자 인증 확인...')
+        await apiClient.get('/api/users/profile')
+        console.log('✅ 인증 상태 확인 완료')
+      } catch (authError) {
+        console.log('❌ 인증 확인 실패:', authError.friendlyMessage || authError.message)
+
+        // 친화적 에러 메시지 표시
+        const message = authError.friendlyMessage || '로그인이 필요합니다.'
+        showFriendlyMessage(message, 'warning')
+
+        // 로그인 페이지로 이동
+        setTimeout(() => {
+          window.location.href = '/login'
+        }, 1500)
+        return
+      }
+    } else {
+      // 🔥 게스트 결제 처리 (필요한 경우)
+      console.log('👻 게스트 결제 시도')
+      showFriendlyMessage('결제를 위해 로그인이 필요합니다.', 'info')
+      setTimeout(() => {
+        window.location.href = '/login'
+      }, 1500)
+      return
+    }
+
+    // 임시 주문 ID 생성
     const tempOrderId = `ORDER${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
-    console.log('🔄 임시 주문 ID 생성:', tempOrderId)
-
-    // 🔥 주문 데이터를 세션에 임시 저장 (DB에 저장하지 않음)
+    // 주문 데이터를 세션에 임시 저장
     const orderData = {
       userId: user.id && user.id !== 'null' ? user.id : undefined,
       items: orderItems.value.map(item => ({
@@ -1059,13 +1000,11 @@ const processPayment = async () => {
       tempOrderId: tempOrderId
     }
 
-    // 🔥 주문 데이터를 세션에 임시 저장
     sessionStorage.setItem('pending_order_data', JSON.stringify(orderData))
+    console.log('💾 임시 주문 데이터 저장 완료')
 
-    console.log('📝 주문 데이터 임시 저장 완료')
-
-    // 🔥 바로 PG 결제 호출 (주문 생성 없이)
-    console.log('💳 PG 결제 시작')
+    // PG 결제 호출
+    console.log('🔄 PG 결제 시작...')
     await initiatePayment({
       orderId: tempOrderId,
       amount: finalAmount.value,
@@ -1073,14 +1012,13 @@ const processPayment = async () => {
       userEmail: userInfo.value.email,
       userName: userInfo.value.name,
       userPhone: userInfo.value.phone,
-      orderData: orderData  // 주문 데이터 전달
+      orderData: orderData
     })
 
   } catch (error) {
-    console.log('❌ 에러 발생:', error)
-
     if (!error.alreadyHandled) {
-      const friendlyError = getFailureReason(null, error.message)
+      // 친화적 에러 메시지 사용
+      const friendlyError = error.friendlyMessage || getFailureReason(null, error.message)
       showFriendlyMessage(friendlyError, 'error')
     }
   } finally {
@@ -1088,55 +1026,55 @@ const processPayment = async () => {
   }
 }
 
-// 결제 검증 함수
+// 🔥 결제 검증 함수 - 공통 apiClient 사용
 const verifyPayment = async (impUid, merchantUid) => {
   try {
-    console.log('🔍 결제 검증 시작:', {impUid, merchantUid})
-
-    const response = await fetch(`${API_BASE_URL}/api/payments/verify`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({
-        impUid: impUid,
-        merchantUid: merchantUid
-      })
+    // 🔥 공통 apiClient 사용
+    const response = await apiClient.post('/api/payments/verify', {
+      impUid: impUid,
+      merchantUid: merchantUid
     })
 
-    if (!response.ok) {
-      throw new Error('결제 검증 실패')
-    }
-
-    const result = await response.json()
-    console.log('✅ 결제 검증 완료:', result)
-
-    if (result.success) {
-      showFriendlyMessage('결제가 완료되었습니다! 🎉', 'success')
+    if (response.data.success) {
+      showFriendlyMessage('결제가 완료되었습니다!', 'success')
       sessionStorage.removeItem('checkout_data')
       window.location.href = `/order-complete?orderId=${merchantUid}`
     } else {
-      throw new Error(result.message || '결제 검증 실패')
+      throw new Error(response.data.message || '결제 검증 실패')
     }
   } catch (error) {
-    console.error('결제 검증 오류:', error)
+    console.error('❌ 결제 검증 실패:', error)
     const errorMsg = getFailureReason('SYSTEM_ERROR', `결제 검증 중 오류가 발생했습니다: ${error.message}`)
     showFriendlyMessage(errorMsg, 'error')
   }
 }
 
-// 컴포넌트 마운트
+// 🔥 컴포넌트 마운트 - 공통 apiClient 사용
 onMounted(async () => {
   try {
-    checkLoginStatus()
-    loadOrderData()
-    await loadUserInfo()
-    await loadDeliveryInfo()
+    console.log('🚀 주문서 페이지 초기화 시작')
 
-    console.log('✅ 체크아웃 페이지 초기화 완료')
+    // 1. 로그인 상태 확인
+    checkLoginStatus()
+    console.log(`📋 로그인 상태: ${isLoggedIn.value ? '로그인됨' : '게스트'}`)
+
+    // 2. 주문 데이터 로드
+    loadOrderData()
+    console.log(`🛒 주문 상품 수: ${orderItems.value.length}개`)
+
+    // 3. 사용자 정보 로드
+    await loadUserInfo()
+    console.log(`👤 사용자: ${userInfo.value.name}`)
+
+    // 4. 배송지 정보 로드
+    await loadDeliveryInfo()
+    console.log(`🏠 배송지: ${deliveryInfo.value.address ? '설정됨' : '기본값'}`)
+
+    console.log('✅ 주문서 페이지 초기화 완료')
   } catch (error) {
-    console.error('초기화 중 오류:', error)
+    console.error('❌ 페이지 초기화 실패:', error)
     showFriendlyMessage('페이지 로드 중 문제가 발생했습니다.', 'error')
   }
 })
 </script>
-
 <style scoped src="@/assets/css/checkout.css"></style>

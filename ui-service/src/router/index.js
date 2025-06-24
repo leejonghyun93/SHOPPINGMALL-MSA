@@ -31,6 +31,10 @@ import BoardEdit from '@/views/board/BoardEdit.vue'
 import Checkout from '@/views/order/Checkout.vue'
 import OrderComplete from '@/views/order/OrderComplete.vue'
 
+// 방송 관련 컴포넌트
+import BroadcastList from "@/views/live/BroadcastList.vue"
+import LiveBroadcastViewer from '@/views/live/BroadcastViewer.vue'
+
 // 인증 가드
 const requireAuth = (to, from, next) => {
     const token = localStorage.getItem('token')
@@ -105,6 +109,29 @@ const routes = [
         name: 'CategoryDetail',
         component: Category
     },
+    {
+        path: '/broadcasts/category/:categoryId?',  // ? 는 선택적 매개변수
+        name: 'BroadcastCategory',
+        component: BroadcastList,
+        props: true
+    },
+    {
+        path: '/live/:broadcastId',
+        name: 'LiveBroadcastViewer',
+        component: LiveBroadcastViewer,
+        props: true,
+        meta: {
+            title: '라이브 방송 시청',
+            requiresAuth: false // 로그인 없이도 시청 가능
+        }
+    },
+    // 개별 방송 페이지 (추가 필요)
+    // {
+    //     path: '/live/:broadcastId',
+    //     name: 'LiveBroadcast',
+    //     component: () => import('@/views/live/LiveBroadcastView.vue'),
+    //     props: true
+    // },
     {
         path: '/product/:id',
         name: 'ProductDetail',

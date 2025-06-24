@@ -28,32 +28,26 @@ public class GatewaySecurityConfig {
                                 .pathMatchers("/auth/**").permitAll()
                                 .pathMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                                // 🔥 사용자 서비스 공개/반공개 경로
+                                // 🔥 사용자 서비스 - 진짜 공개 경로만
                                 .pathMatchers(HttpMethod.POST, "/api/users/register").permitAll()
                                 .pathMatchers(HttpMethod.POST, "/api/users/verify-password").permitAll()
-                                .pathMatchers(HttpMethod.GET, "/api/users/profile").permitAll()  // 🔥 추가 (SimpleJwtFilter로 토큰 파싱)
-                                .pathMatchers(HttpMethod.PUT, "/api/users/profile").permitAll()  // 🔥 추가 (SimpleJwtFilter로 토큰 파싱)
-                                .pathMatchers(HttpMethod.POST, "/api/users/withdraw").permitAll()  // 🔥 추가 (SimpleJwtFilter로 토큰 파싱)
                                 .pathMatchers(HttpMethod.GET, "/api/users/checkUserId/**").permitAll()
                                 .pathMatchers(HttpMethod.GET, "/api/users/health").permitAll()
-                                .pathMatchers(HttpMethod.GET, "/api/users/list").permitAll()
 
-                                // 🔥 조회성 API (공개)
+                                // 🔥 상품/카테고리 - 진짜 공개 (조회만)
                                 .pathMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
                                 .pathMatchers(HttpMethod.GET, "/api/products/**").permitAll()
                                 .pathMatchers(HttpMethod.POST, "/api/products/guest-cart-details").permitAll()
 
-                                // 🔥 게스트 장바구니 + 로그인 사용자 장바구니 모두 허용
-                                .pathMatchers("/api/cart/**").permitAll()  // 🔥 모든 장바구니 API 허용 (SimpleJwtFilter에서 토큰 파싱)
+                                // 🔥 방송 관련 - 진짜 공개 (조회만)
+                                .pathMatchers(HttpMethod.GET, "/api/broadcasts/**").permitAll()
 
-                                // 🔥 주문 관련 공개 경로 (모든 주문 API 허용)
-                                .pathMatchers("/api/orders/**").permitAll()  // 🔥 모든 주문 API 허용 (SimpleJwtFilter에서 토큰 파싱)
-                                .pathMatchers("/api/checkout/**").permitAll()
+                                // 🔥 게스트 장바구니만 공개
+                                .pathMatchers(HttpMethod.GET, "/api/cart/guest/**").permitAll()
+                                .pathMatchers(HttpMethod.POST, "/api/cart/guest/**").permitAll()
 
-                                // 🔥 결제 관련 공개 경로
-                                .pathMatchers(HttpMethod.GET, "/api/payments/**").permitAll()
+                                // 🔥 결제 관련 - 웹훅과 게스트 결제만 공개
                                 .pathMatchers(HttpMethod.POST, "/api/payments/webhook").permitAll()
-                                .pathMatchers(HttpMethod.POST, "/api/payments/orders/checkout").permitAll()
                                 .pathMatchers(HttpMethod.POST, "/api/payments/guest/**").permitAll()
 
                                 // 🔥 정적 리소스
@@ -61,9 +55,11 @@ public class GatewaySecurityConfig {
                                 .pathMatchers(HttpMethod.GET, "/images/**").permitAll()
                                 .pathMatchers("/actuator/health/**").permitAll()
 
-                                // 🔥 인증이 필요한 경로들은 JWT 필터에서 처리
-                                // SimpleJwtFilter가 토큰을 파싱하고 X-User-Id 헤더를 추가
-                                // JwtAuthorizationFilter가 실제 인증을 강제
+                                // 🔥 나머지 모든 경로는 JWT 인증 필요
+                                // - /api/users/** (profile, points, coupons, addresses 등)
+                                // - /api/orders/** (주문 관련 모든 API)
+                                // - /api/payments/** (웹훅, 게스트 제외한 모든 결제 API)
+                                // - /api/cart/** (게스트 제외한 모든 장바구니 API)
                                 .anyExchange().authenticated()
                 )
                 .build();
@@ -75,7 +71,9 @@ public class GatewaySecurityConfig {
 
         configuration.setAllowedOriginPatterns(List.of(
                 "http://localhost:5173",
-                "http://localhost:3000"
+                "http://localhost:3000",
+                "http://127.0.0.1:5173",
+                "http://127.0.0.1:3000"
         ));
 
         configuration.setAllowedMethods(Arrays.asList(

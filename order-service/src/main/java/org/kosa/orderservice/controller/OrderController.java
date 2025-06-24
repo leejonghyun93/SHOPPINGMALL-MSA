@@ -119,7 +119,7 @@ public class OrderController {
         try {
             log.info("주문 상세 조회: orderId={}", orderId);
 
-            // 🔧 수정: userId가 없어도 주문 조회 가능
+            // 수정: userId가 없어도 주문 조회 가능
             OrderDTO order;
 
             // userId가 제공된 경우 권한 검증과 함께 조회
@@ -156,6 +156,7 @@ public class OrderController {
         return (headerUserId != null && !headerUserId.trim().isEmpty()) ||
                 (paramUserId != null && !paramUserId.trim().isEmpty());
     }
+
     @GetMapping("/{orderId}/cancel")
     public ResponseEntity<ApiResponse<OrderCancelResponseDTO>> getCancelInfo(
             @PathVariable String orderId,
@@ -175,6 +176,7 @@ public class OrderController {
                     .body(ApiResponse.error("주문 취소 정보 조회 중 오류가 발생했습니다."));
         }
     }
+
     /**
      * 주문 취소
      */
@@ -187,31 +189,25 @@ public class OrderController {
             HttpServletRequest httpRequest) {
 
         try {
-            // 🔥 디버깅 로그 추가
-            log.info("=== 주문 취소 요청 디버깅 ===");
-            log.info("Order ID: {}", orderId);
-            log.info("Request userId: {}", request.getUserId());
-            log.info("X-User-Id 헤더: {}", headerUserId);
-            log.info("Authorization 헤더: {}", authHeader != null ? authHeader.substring(0, Math.min(30, authHeader.length())) + "..." : "없음");
-            log.info("===============================");
+            // 주문 취소 요청 로그
+            log.info("주문 취소 요청 - orderId: {}, userId: {}", orderId, request.getUserId());
 
-            // 🔥 헤더 기반 인증 확인
+            // 헤더 기반 인증 확인
             String authenticatedUserId = getAuthenticatedUserId(headerUserId, authHeader);
 
             if (authenticatedUserId == null) {
-                log.warn("❌ 인증되지 않은 주문 취소 시도: orderId={}", orderId);
+                log.warn("인증되지 않은 주문 취소 시도: orderId={}", orderId);
                 return ResponseEntity.status(401)
                         .body(ApiResponse.error("인증이 필요합니다. 로그인 후 다시 시도해주세요."));
             }
 
-            // 🔥 요청한 userId와 인증된 userId 일치 확인
+            // 요청한 userId와 인증된 userId 일치 확인
             if (!authenticatedUserId.equals(request.getUserId())) {
-                log.warn("❌ 권한 없는 주문 취소 시도: orderId={}, 인증된사용자={}, 요청사용자={}",
+                log.warn("권한 없는 주문 취소 시도: orderId={}, 인증된사용자={}, 요청사용자={}",
                         orderId, authenticatedUserId, request.getUserId());
                 return ResponseEntity.status(403)
                         .body(ApiResponse.error("본인의 주문만 취소할 수 있습니다."));
             }
-
 
             // 요청 데이터 검증
             if (!orderId.equals(request.getOrderId())) {
@@ -222,46 +218,48 @@ public class OrderController {
             // 주문 취소 처리
             OrderCancelResponseDTO response = orderService.cancelOrder(request);
 
-            log.info("✅ 주문 취소 성공: orderId={}", orderId);
+            log.info("주문 취소 성공: orderId={}", orderId);
 
             return ResponseEntity.ok(ApiResponse.success("주문이 성공적으로 취소되었습니다.", response));
 
         } catch (IllegalArgumentException e) {
-            log.warn("⚠️ 주문 취소 요청 오류: {}", e.getMessage());
+            log.warn("주문 취소 요청 오류: {}", e.getMessage());
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error(e.getMessage()));
 
         } catch (IllegalStateException e) {
-            log.warn("⚠️ 주문 취소 상태 오류: {}", e.getMessage());
+            log.warn("주문 취소 상태 오류: {}", e.getMessage());
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error(e.getMessage()));
 
         } catch (Exception e) {
-            log.error("🚨 주문 취소 처리 실패", e);
+            log.error("주문 취소 처리 실패", e);
             return ResponseEntity.internalServerError()
                     .body(ApiResponse.error("주문 취소 처리 중 오류가 발생했습니다."));
         }
     }
+
     private String getAuthenticatedUserId(String headerUserId, String authHeader) {
         // 1. X-User-Id 헤더 확인 (Gateway에서 JWT 검증 후 추가)
         if (headerUserId != null && !headerUserId.trim().isEmpty() &&
                 !"null".equals(headerUserId) && !headerUserId.startsWith("guest_")) {
-            log.debug("✅ X-User-Id 헤더에서 인증된 사용자: {}", headerUserId);
+            log.debug("X-User-Id 헤더에서 인증된 사용자: {}", headerUserId);
             return headerUserId;
         }
 
-        // 🔥 임시 해결: Authorization 헤더가 있으면 유효한 것으로 간주
+        // 임시 해결: Authorization 헤더가 있으면 유효한 것으로 간주
         // (AUTH-SERVICE에서 userId=null 문제 때문에)
         if (authHeader != null && authHeader.startsWith("Bearer ") && authHeader.length() > 100) {
-            log.warn("⚠️ X-User-Id가 null이지만 Authorization 헤더가 유효함 - AUTH-SERVICE userId null 문제");
-            log.debug("🔄 Authorization 헤더 기반 임시 인증 허용");
+            log.warn("X-User-Id가 null이지만 Authorization 헤더가 유효함 - AUTH-SERVICE userId null 문제");
+            log.debug("Authorization 헤더 기반 임시 인증 허용");
             return "TEMP_AUTHENTICATED"; // 임시 값
         }
 
         // 3. 둘 다 없으면 인증되지 않은 사용자
-        log.debug("❌ 인증 정보 없음");
+        log.debug("인증 정보 없음");
         return null;
     }
+
     /**
      * 주문 상태 변경 (관리자용)
      */
@@ -283,6 +281,7 @@ public class OrderController {
                     .body(ApiResponse.error("주문 상태 변경 중 오류가 발생했습니다: " + e.getMessage()));
         }
     }
+
     @GetMapping("/{orderId}/cancelable")
     public ResponseEntity<ApiResponse<Boolean>> checkCancelable(
             @PathVariable String orderId,
@@ -300,7 +299,7 @@ public class OrderController {
     }
 
     /**
-     * 🔥 사용자 취소 주문 목록 조회
+     * 사용자 취소 주문 목록 조회
      * GET /api/orders/cancelled
      */
     @GetMapping("/cancelled")
@@ -319,7 +318,7 @@ public class OrderController {
     }
 
     /**
-     * 🔥 간단 주문 취소 (기존 메소드 활용)
+     * 간단 주문 취소 (기존 메소드 활용)
      * PUT /api/orders/{orderId}/simple-cancel
      */
     @PutMapping("/{orderId}/simple-cancel")
@@ -337,6 +336,7 @@ public class OrderController {
                     .body(ApiResponse.error(e.getMessage()));
         }
     }
+
     /**
      * 헬스체크
      */
@@ -353,7 +353,7 @@ public class OrderController {
      * 4. 게스트 사용자 ID 생성
      */
     private String getUserId(Authentication authentication, String headerUserId, String requestUserId) {
-        // 🔧 수정: 요청 바디의 userId를 최우선으로 처리
+        // 수정: 요청 바디의 userId를 최우선으로 처리
         if (requestUserId != null && !requestUserId.trim().isEmpty() &&
                 !"null".equals(requestUserId) && !requestUserId.startsWith("guest_")) {
             log.debug("요청 바디 사용자 ID 사용: {}", requestUserId);
@@ -389,6 +389,7 @@ public class OrderController {
         log.debug("새 게스트 ID 생성: {}", guestId);
         return guestId;
     }
+
     @GetMapping("/debug/list")
     public ResponseEntity<?> debugOrderList() {
         try {
@@ -411,6 +412,7 @@ public class OrderController {
             return ResponseEntity.ok(error);
         }
     }
+
     @GetMapping("/debug/exists/{orderId}")
     public ResponseEntity<?> debugOrderExists(@PathVariable String orderId) {
         try {
@@ -439,8 +441,4 @@ public class OrderController {
             return ResponseEntity.ok(error);
         }
     }
-
 }
-
-
-

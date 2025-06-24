@@ -19,8 +19,8 @@
     <div v-else class="main-content">
       <!-- 왼쪽: 장바구니 내용 -->
       <div class="cart-content">
-        <!-- 장바구니가 비어있을 때 -->
-        <div v-if="cartItems.length === 0" class="empty-cart">
+        <!-- 🔥 안전한 조건 체크: cartItems가 존재하고 배열인지 확인 -->
+        <div v-if="!cartItems || !Array.isArray(cartItems) || cartItems.length === 0" class="empty-cart">
           <div class="empty-icon">!</div>
           <h3>장바구니에 담긴 상품이 없습니다</h3>
         </div>
@@ -36,12 +36,12 @@
                   @change="toggleSelectAll"
               >
               <span class="checkmark"></span>
-              전체선택 {{ selectedItems.length }}/{{ cartItems.length }}
+              전체선택 {{ selectedItems?.length || 0 }}/{{ cartItems?.length || 0 }}
             </label>
             <button
                 class="delete-selected-btn"
                 @click="deleteSelectedItems"
-                :disabled="selectedItems.length === 0"
+                :disabled="!selectedItems || selectedItems.length === 0"
             >
               선택삭제
             </button>
@@ -52,12 +52,12 @@
             <div class="delivery-badge">🚚 샛별배송</div>
             <div class="delivery-text">
               <span class="delivery-time">23시 전 주문 시 내일 아침 7시 전 도착</span>
-              <span class="delivery-condition">(우선배송 상품 포함 {{ freeDeliveryThreshold.toLocaleString() }}원 이상 구매 시)</span>
+              <span class="delivery-condition">(우선배송 상품 포함 {{ freeDeliveryThreshold?.toLocaleString() || '40,000' }}원 이상 구매 시)</span>
             </div>
           </div>
 
           <!-- 냉동 상품 섹션 -->
-          <div v-if="frozenItems.length > 0" class="cart-section">
+          <div v-if="frozenItems && frozenItems.length > 0" class="cart-section">
             <div class="section-header">
               <div class="section-title">
                 <span class="temp-icon">❄️</span>
@@ -85,14 +85,14 @@
                 </div>
 
                 <div class="item-details">
-                  <h3 class="item-name">{{ item.name }}</h3>
+                  <h3 class="item-name">{{ item.name || '상품명 없음' }}</h3>
 
                   <div class="item-price-section">
                     <div class="price-info">
-                      <span v-if="hasItemDiscount(item)" class="discount-rate">{{ item.discountRate }}%</span>
-                      <span class="final-price">{{ formatPrice(item.salePrice) }}원</span>
+                      <span v-if="hasItemDiscount(item)" class="discount-rate">{{ item.discountRate || 0 }}%</span>
+                      <span class="final-price">{{ formatPrice(item.salePrice || 0) }}원</span>
                     </div>
-                    <div v-if="hasItemDiscount(item)" class="original-price">{{ formatPrice(item.price) }}원</div>
+                    <div v-if="hasItemDiscount(item)" class="original-price">{{ formatPrice(item.price || 0) }}원</div>
                   </div>
 
                   <div class="item-total-price">
@@ -107,11 +107,11 @@
                     <button
                         class="quantity-btn"
                         @click="decreaseQuantity(item)"
-                        :disabled="item.quantity <= 1"
+                        :disabled="(item.quantity || 1) <= 1"
                     >
                       <Minus :size="16"/>
                     </button>
-                    <span class="quantity">{{ item.quantity }}</span>
+                    <span class="quantity">{{ item.quantity || 1 }}</span>
                     <button
                         class="quantity-btn"
                         @click="increaseQuantity(item)"
@@ -129,7 +129,7 @@
           </div>
 
           <!-- 일반 상품 섹션 -->
-          <div v-if="normalItems.length > 0" class="cart-section">
+          <div v-if="normalItems && normalItems.length > 0" class="cart-section">
             <div class="section-header">
               <div class="section-title">
                 <span class="temp-icon">🛍️</span>
@@ -157,14 +157,14 @@
                 </div>
 
                 <div class="item-details">
-                  <h3 class="item-name">{{ item.name }}</h3>
+                  <h3 class="item-name">{{ item.name || '상품명 없음' }}</h3>
 
                   <div class="item-price-section">
                     <div class="price-info">
-                      <span v-if="hasItemDiscount(item)" class="discount-rate">{{ item.discountRate }}%</span>
-                      <span class="final-price">{{ formatPrice(item.salePrice) }}원</span>
+                      <span v-if="hasItemDiscount(item)" class="discount-rate">{{ item.discountRate || 0 }}%</span>
+                      <span class="final-price">{{ formatPrice(item.salePrice || 0) }}원</span>
                     </div>
-                    <div v-if="hasItemDiscount(item)" class="original-price">{{ formatPrice(item.price) }}원</div>
+                    <div v-if="hasItemDiscount(item)" class="original-price">{{ formatPrice(item.price || 0) }}원</div>
                   </div>
 
                   <div class="item-total-price">
@@ -179,11 +179,11 @@
                     <button
                         class="quantity-btn"
                         @click="decreaseQuantity(item)"
-                        :disabled="item.quantity <= 1"
+                        :disabled="(item.quantity || 1) <= 1"
                     >
                       <Minus :size="16"/>
                     </button>
-                    <span class="quantity">{{ item.quantity }}</span>
+                    <span class="quantity">{{ item.quantity || 1 }}</span>
                     <button
                         class="quantity-btn"
                         @click="increaseQuantity(item)"
@@ -239,9 +239,12 @@
           <button
               class="checkout-btn"
               @click="goToCheckout"
-              :disabled="selectedItems.length === 0 || cartItems.length === 0"
+              :disabled="!selectedItems || selectedItems.length === 0 || !cartItems || cartItems.length === 0 || checkoutLoading"
           >
-            {{ cartItems.length === 0 ? '로그인' : '주문하기' }}
+            <span v-if="checkoutLoading">주문 준비 중...</span>
+            <span v-else-if="!cartItems || cartItems.length === 0">장바구니 비어있음</span>
+            <span v-else-if="!isLoggedIn">로그인</span>
+            <span v-else>주문하기</span>
           </button>
         </div>
       </div>
@@ -261,23 +264,93 @@ const router = useRouter()
 const FREE_DELIVERY_THRESHOLD = 40000
 const DELIVERY_FEE = 0
 
-// 반응형 상태
+// 🔥 안전한 초기화 - 모든 ref를 적절한 기본값으로 초기화
 const loading = ref(false)
-const cartItems = ref([])
-const selectedItems = ref([])
+const checkoutLoading = ref(false)
+const cartItems = ref([]) // 🔥 빈 배열로 초기화
+const selectedItems = ref([]) // 🔥 빈 배열로 초기화
 const selectAll = ref(false)
 const freeDeliveryThreshold = ref(FREE_DELIVERY_THRESHOLD)
+const isLoggedIn = ref(false)
+
+// 토큰 유효성 검사 함수
+const isTokenValid = (token) => {
+  console.log('🔍 토큰 유효성 검사 시작:', token ? '토큰 있음' : '토큰 없음')
+
+  if (!token) {
+    console.log('❌ 토큰이 없음')
+    return false
+  }
+
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) {
+      console.log('❌ 토큰 형식 오류 - 파트 수:', parts.length)
+      return false
+    }
+
+    let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+    while (base64.length % 4) {
+      base64 += '='
+    }
+
+    const payloadStr = atob(base64)
+    const payload = JSON.parse(payloadStr)
+    const currentTime = Math.floor(Date.now() / 1000)
+
+    console.log('🕐 토큰 만료 확인:', {
+      exp: payload.exp,
+      currentTime,
+      expired: payload.exp < currentTime
+    })
+
+    if (payload.exp && payload.exp < currentTime) {
+      console.log('❌ 토큰 만료됨')
+      return false
+    }
+
+    console.log('✅ 토큰 유효함')
+    return true
+  } catch (error) {
+    console.error('❌ 토큰 검증 에러:', error)
+    return false
+  }
+}
+
+// 로그인 상태 확인 함수
+const checkLoginStatus = () => {
+  console.log('🔐 로그인 상태 확인 시작')
+
+  const token = localStorage.getItem('token')
+  console.log('🎫 로컬스토리지 토큰:', token ? `있음 (${token.length}자)` : '없음')
+
+  const valid = token && isTokenValid(token)
+  isLoggedIn.value = valid
+
+  console.log('📋 로그인 상태 결과:', {
+    hasToken: !!token,
+    isValid: valid,
+    isLoggedIn: isLoggedIn.value
+  })
+
+  if (!valid && token) {
+    console.log('🗑️ 무효한 토큰 제거')
+    localStorage.removeItem('token')
+  }
+
+  return isLoggedIn.value
+}
 
 // 상품 매핑 함수
 const mapCartItemToProduct = (cartItem) => {
+  if (!cartItem) return null
+
   const originalPrice = cartItem.productPrice || cartItem.price || 0;
   const salePrice = cartItem.salePrice || originalPrice;
 
-  // 할인율 계산 개선
   let discountRate = 0;
   if (originalPrice > 0 && salePrice < originalPrice) {
     discountRate = Math.floor(((originalPrice - salePrice) / originalPrice) * 100);
-    // 할인율 제한: 0% ~ 99%
     if (discountRate <= 0 || discountRate >= 100) {
       discountRate = 0;
     }
@@ -299,40 +372,47 @@ const mapCartItemToProduct = (cartItem) => {
 
 // 개별 상품 할인 여부 확인 함수
 const hasItemDiscount = (item) => {
+  if (!item) return false
   return item.discountRate > 0 && item.salePrice < item.price;
 }
 
-// 컴퓨티드 속성들
-const frozenItems = computed(() =>
-    cartItems.value.filter(item => item.category === 'frozen')
-)
+// 🔥 안전한 컴퓨티드 속성들
+const frozenItems = computed(() => {
+  if (!Array.isArray(cartItems.value)) return []
+  return cartItems.value.filter(item => item && item.category === 'frozen')
+})
 
-const normalItems = computed(() =>
-    cartItems.value.filter(item => item.category === 'normal')
-)
+const normalItems = computed(() => {
+  if (!Array.isArray(cartItems.value)) return []
+  return cartItems.value.filter(item => item && item.category === 'normal')
+})
 
-const selectedCartItems = computed(() =>
-    cartItems.value.filter(item => selectedItems.value.includes(item.id))
-)
+const selectedCartItems = computed(() => {
+  if (!Array.isArray(cartItems.value) || !Array.isArray(selectedItems.value)) return []
+  return cartItems.value.filter(item => item && selectedItems.value.includes(item.id))
+})
 
-const totalProductPrice = computed(() =>
-    selectedCartItems.value.reduce((sum, item) => {
-      return sum + (item.price * item.quantity);
-    }, 0)
-)
+const totalProductPrice = computed(() => {
+  if (!Array.isArray(selectedCartItems.value)) return 0
+  return selectedCartItems.value.reduce((sum, item) => {
+    if (!item) return sum
+    return sum + ((item.price || 0) * (item.quantity || 1));
+  }, 0)
+})
 
-const totalSalePrice = computed(() =>
-    selectedCartItems.value.reduce((sum, item) => {
-      return sum + (item.salePrice * item.quantity);
-    }, 0)
-)
+const totalSalePrice = computed(() => {
+  if (!Array.isArray(selectedCartItems.value)) return 0
+  return selectedCartItems.value.reduce((sum, item) => {
+    if (!item) return sum
+    return sum + ((item.salePrice || 0) * (item.quantity || 1));
+  }, 0)
+})
 
 const totalDiscount = computed(() => {
+  if (!Array.isArray(selectedCartItems.value)) return 0
   return selectedCartItems.value.reduce((sum, item) => {
-    if (hasItemDiscount(item)) {
-      return sum + ((item.price - item.salePrice) * item.quantity);
-    }
-    return sum;
+    if (!item || !hasItemDiscount(item)) return sum
+    return sum + (((item.price || 0) - (item.salePrice || 0)) * (item.quantity || 1));
   }, 0)
 })
 
@@ -344,34 +424,39 @@ const finalTotal = computed(() => {
   return totalSalePrice.value + deliveryFee.value;
 })
 
-// 이벤트 핸들러들
+// 🔥 안전한 이벤트 핸들러들
 const toggleSelectAll = () => {
+  if (!Array.isArray(cartItems.value)) return
+
   if (selectAll.value) {
-    selectedItems.value = cartItems.value.map(item => item.id)
+    selectedItems.value = cartItems.value.map(item => item?.id).filter(Boolean)
   } else {
     selectedItems.value = []
   }
 }
 
+// 수량 증가 함수
 const increaseQuantity = async (item) => {
-  const token = localStorage.getItem('token');
-  const originalQuantity = item.quantity;
-  item.quantity++;
+  if (!item) return
 
-  if (token) {
+  const originalQuantity = item.quantity || 1;
+  item.quantity = originalQuantity + 1;
+
+  if (isLoggedIn.value) {
     try {
       await apiClient.put('/api/cart/items', {
         cartItemId: item.id,
         quantity: item.quantity
-      }, {
-        withAuth: true
       });
+      console.log('✅ 수량 증가 성공:', item.quantity)
     } catch (error) {
       item.quantity = originalQuantity;
+
       if (error.response?.status === 404) {
         alert('장바구니 상품을 찾을 수 없습니다. 페이지를 새로고침합니다.');
         window.location.reload();
       } else {
+        console.log('수량 변경 실패:', error.message);
         alert('수량 변경에 실패했습니다.');
       }
     }
@@ -380,27 +465,28 @@ const increaseQuantity = async (item) => {
   }
 }
 
+// 수량 감소 함수
 const decreaseQuantity = async (item) => {
-  if (item.quantity <= 1) return;
+  if (!item || (item.quantity || 1) <= 1) return;
 
-  const token = localStorage.getItem('token');
-  const originalQuantity = item.quantity;
-  item.quantity--;
+  const originalQuantity = item.quantity || 1;
+  item.quantity = originalQuantity - 1;
 
-  if (token) {
+  if (isLoggedIn.value) {
     try {
       await apiClient.put('/api/cart/items', {
         cartItemId: item.id,
         quantity: item.quantity
-      }, {
-        withAuth: true
       });
+      console.log('✅ 수량 감소 성공:', item.quantity)
     } catch (error) {
       item.quantity = originalQuantity;
+
       if (error.response?.status === 404) {
         alert('장바구니 상품을 찾을 수 없습니다. 페이지를 새로고침합니다.');
         window.location.reload();
       } else {
+        console.log('수량 변경 실패:', error.message);
         alert('수량 변경에 실패했습니다.');
       }
     }
@@ -409,20 +495,20 @@ const decreaseQuantity = async (item) => {
   }
 }
 
+// 상품 삭제 함수
 const deleteItem = async (itemId) => {
-  if (!confirm('상품을 장바구니에서 제거하시겠습니까?')) return;
+  if (!itemId || !confirm('상품을 장바구니에서 제거하시겠습니까?')) return;
 
-  const token = localStorage.getItem('token');
-  const item = cartItems.value.find(item => item.id === itemId);
+  const item = cartItems.value.find(item => item?.id === itemId);
 
-  if (token) {
+  if (isLoggedIn.value) {
     try {
-      await apiClient.delete(`/api/cart/items/${itemId}`, {
-        withAuth: true
-      });
+      await apiClient.delete(`/api/cart/items/${itemId}`);
     } catch (error) {
       if (error.response?.status === 404) {
         // 서버에 없어도 UI에서는 제거
+      } else if (error.response?.status === 401) {
+        return // 401은 인터셉터에서 처리
       } else {
         alert('상품 삭제에 실패했습니다.');
         return;
@@ -436,43 +522,44 @@ const deleteItem = async (itemId) => {
     }
   }
 
-  cartItems.value = cartItems.value.filter(item => item.id !== itemId);
+  cartItems.value = cartItems.value.filter(item => item?.id !== itemId);
   selectedItems.value = selectedItems.value.filter(id => id !== itemId);
 }
 
+// 선택 상품 삭제 함수
 const deleteSelectedItems = async () => {
-  if (selectedItems.value.length === 0) return;
+  if (!Array.isArray(selectedItems.value) || selectedItems.value.length === 0) return;
 
   if (!confirm(`선택한 ${selectedItems.value.length}개 상품을 삭제하시겠습니까?`)) return;
 
-  const token = localStorage.getItem('token');
-
-  if (token) {
+  if (isLoggedIn.value) {
     const selectedCartItemIds = cartItems.value
-        .filter(item => selectedItems.value.includes(item.id))
+        .filter(item => item && selectedItems.value.includes(item.id))
         .map(item => item.id);
 
     try {
       await apiClient.delete('/api/cart/items', {
         data: {
           cartItemIds: selectedCartItemIds
-        },
-        withAuth: true
+        }
       });
     } catch (error) {
+      if (error.response?.status === 401) {
+        return // 인터셉터에서 처리
+      }
+
+      // 일괄 삭제 실패 시 개별 삭제 시도
       for (const cartItemId of selectedCartItemIds) {
         try {
-          await apiClient.delete(`/api/cart/items/${cartItemId}`, {
-            withAuth: true
-          });
+          await apiClient.delete(`/api/cart/items/${cartItemId}`);
         } catch (individualError) {
-          console.error(`상품 ${cartItemId} 삭제 실패:`, individualError);
+          // 개별 삭제 실패 로그
         }
       }
     }
   } else {
     const selectedProductIds = cartItems.value
-        .filter(item => selectedItems.value.includes(item.id))
+        .filter(item => item && selectedItems.value.includes(item.id))
         .map(item => item.productId);
 
     const guestCart = JSON.parse(localStorage.getItem('guestCart') || '[]');
@@ -482,20 +569,19 @@ const deleteSelectedItems = async () => {
     localStorage.setItem('guestCart', JSON.stringify(updatedCart));
   }
 
-  cartItems.value = cartItems.value.filter(item => !selectedItems.value.includes(item.id));
+  cartItems.value = cartItems.value.filter(item => item && !selectedItems.value.includes(item.id));
   selectedItems.value = [];
   selectAll.value = false;
 }
 
 const getItemTotalPrice = (item) => {
-  return item.salePrice * item.quantity;
+  if (!item) return 0
+  return (item.salePrice || 0) * (item.quantity || 1);
 }
 
 const getItemTotalDiscount = (item) => {
-  if (hasItemDiscount(item)) {
-    return (item.price - item.salePrice) * item.quantity;
-  }
-  return 0;
+  if (!item || !hasItemDiscount(item)) return 0
+  return ((item.price || 0) - (item.salePrice || 0)) * (item.quantity || 1);
 }
 
 const updateGuestCartQuantity = (productId, newQuantity) => {
@@ -508,26 +594,38 @@ const updateGuestCartQuantity = (productId, newQuantity) => {
       localStorage.setItem('guestCart', JSON.stringify(guestCart));
     }
   } catch (error) {
-    console.error('게스트 장바구니 업데이트 실패:', error);
+    console.error('게스트 장바구니 업데이트 실패:', error)
   }
 }
 
-const goToCheckout = () => {
-  const token = localStorage.getItem('token')
-  if (!token) {
-    alert('주문하려면 로그인이 필요합니다.')
-    router.push('/login')
-    return
-  }
-
-  if (selectedItems.value.length === 0) {
-    alert('주문할 상품을 선택해주세요.')
-    return
-  }
+// 주문하기 함수
+const goToCheckout = async () => {
+  console.log('🛒 주문하기 버튼 클릭됨')
 
   try {
+    checkoutLoading.value = true;
+
+    const currentLoginStatus = checkLoginStatus()
+    if (!currentLoginStatus) {
+      alert('주문하려면 로그인이 필요합니다.')
+      router.push('/login')
+      return
+    }
+
+    if (!Array.isArray(selectedItems.value) || selectedItems.value.length === 0) {
+      alert('주문할 상품을 선택해주세요.')
+      return
+    }
+
+    try {
+      await apiClient.get('/api/users/profile')
+    } catch (authError) {
+      console.log('❌ 인증 실패 - 인터셉터에서 처리됨')
+      return
+    }
+
     const selectedProducts = cartItems.value.filter(item =>
-        selectedItems.value.includes(item.id)
+        item && selectedItems.value.includes(item.id)
     )
 
     const checkoutData = {
@@ -540,8 +638,12 @@ const goToCheckout = () => {
 
     sessionStorage.setItem('checkout_data', JSON.stringify(checkoutData))
     router.push('/checkout')
+
   } catch (error) {
+    console.error('💥 주문하기 처리 중 예상치 못한 오류:', error)
     alert('주문 페이지로 이동 중 오류가 발생했습니다.')
+  } finally {
+    checkoutLoading.value = false;
   }
 }
 
@@ -550,7 +652,7 @@ const goBack = () => {
 }
 
 const formatPrice = (price) => {
-  return price?.toLocaleString() || '0'
+  return (price || 0).toLocaleString()
 }
 
 const generatePlaceholderImage = () => {
@@ -563,81 +665,105 @@ const handleImageError = (event) => {
   event.target.src = generatePlaceholderImage()
 }
 
+// 🔥 안전한 선택 상품 감시
 watch(selectedItems, () => {
+  if (!Array.isArray(cartItems.value) || !Array.isArray(selectedItems.value)) return
   selectAll.value = selectedItems.value.length === cartItems.value.length && cartItems.value.length > 0
 }, { deep: true })
 
+// 컴포넌트 마운트
 onMounted(async () => {
+  console.log('🚀 장바구니 컴포넌트 마운트 시작')
   loading.value = true
 
-  const token = localStorage.getItem('token')
-  const isLoggedIn = !!token
+  try {
+    const loginStatus = checkLoginStatus()
+    console.log('👤 초기 로그인 상태:', loginStatus)
 
-  if (isLoggedIn) {
-    try {
-      const response = await apiClient.get('/api/cart', {
-        withAuth: true
-      })
+    if (loginStatus) {
+      // 로그인 사용자 - 서버에서 장바구니 로드
+      console.log('🔑 로그인 사용자 - 서버 장바구니 로드 시작')
+      try {
+        const response = await apiClient.get('/api/cart')
 
-      if (response.data.success && response.data.data?.cartItems?.length > 0) {
-        const serverItems = response.data.data.cartItems.map(mapCartItemToProduct)
-        cartItems.value = serverItems
-        selectedItems.value = serverItems.map(item => item.id)
-        selectAll.value = serverItems.length > 0
-      } else {
+        if (response.data.success && Array.isArray(response.data.data?.cartItems)) {
+          const serverItems = response.data.data.cartItems
+              .map(mapCartItemToProduct)
+              .filter(Boolean) // null 값 제거
+
+          cartItems.value = serverItems
+          selectedItems.value = serverItems.map(item => item.id)
+          selectAll.value = serverItems.length > 0
+          console.log('📦 서버 장바구니 로드 완료:', serverItems.length, '개 상품')
+        } else {
+          cartItems.value = []
+          console.log('📭 서버 장바구니 비어있음')
+        }
+
+      } catch (error) {
+        console.error('❌ 서버 장바구니 로드 실패:', error.message)
         cartItems.value = []
       }
+    } else {
+      // 게스트 사용자 - 로컬 스토리지에서 장바구니 로드
+      console.log('👻 게스트 사용자 - 로컬 장바구니 로드 시작')
+      try {
+        const localCart = JSON.parse(localStorage.getItem('guestCart') || '[]')
+        console.log('🗂️ 로컬 장바구니 데이터:', localCart.length, '개 상품')
 
-    } catch (error) {
-      if (error.response?.status === 401) {
-        localStorage.removeItem('token')
-      }
-      cartItems.value = []
-    }
-  } else {
-    try {
-      const localCart = JSON.parse(localStorage.getItem('guestCart') || '[]')
+        if (Array.isArray(localCart) && localCart.length > 0) {
+          const requestData = localCart.map(item => ({
+            productId: item.productId,
+            quantity: item.quantity || 1
+          }))
 
-      if (localCart.length > 0) {
-        const productIds = localCart.map(item => item.productId)
-
-        const requestData = productIds.map(productId => ({
-          productId: productId,
-          quantity: localCart.find(item => item.productId === productId)?.quantity || 1
-        }))
-
-        const response = await apiClient.post('/api/products/guest-cart-details', requestData, {
-          withAuth: false
-        })
-
-        const enrichedItems = response.data.map(product => {
-          const localItem = localCart.find(i => i.productId === product.productId)
-          return mapCartItemToProduct({
-            ...product,
-            cartItemId: `local_${product.productId}`,
-            quantity: localItem?.quantity || 1,
-            productName: product.name || product.title,
-            productImage: product.mainImage || product.image,
-            productPrice: product.price,
-            salePrice: product.salePrice || product.price,
-            discountRate: product.discountRate || 0
+          console.log('📡 /api/products/guest-cart-details 호출 중...')
+          const response = await apiClient.post('/api/products/guest-cart-details', requestData, {
+            withAuth: false
           })
-        })
 
-        cartItems.value = enrichedItems
-        selectedItems.value = enrichedItems.map(item => item.id)
-        selectAll.value = enrichedItems.length > 0
-      } else {
+          if (Array.isArray(response.data)) {
+            const enrichedItems = response.data
+                .map(product => {
+                  const localItem = localCart.find(i => i.productId === product.productId)
+                  return mapCartItemToProduct({
+                    ...product,
+                    cartItemId: `local_${product.productId}`,
+                    quantity: localItem?.quantity || 1,
+                    productName: product.name || product.title,
+                    productImage: product.mainImage || product.image,
+                    productPrice: product.price,
+                    salePrice: product.salePrice || product.price,
+                    discountRate: product.discountRate || 0
+                  })
+                })
+                .filter(Boolean) // null 값 제거
+
+            cartItems.value = enrichedItems
+            selectedItems.value = enrichedItems.map(item => item.id)
+            selectAll.value = enrichedItems.length > 0
+            console.log('📦 게스트 장바구니 로드 완료:', enrichedItems.length, '개 상품')
+          } else {
+            cartItems.value = []
+            console.log('📭 게스트 장바구니 응답 데이터 오류')
+          }
+        } else {
+          cartItems.value = []
+          console.log('📭 로컬 장바구니 비어있음')
+        }
+
+      } catch (error) {
+        console.error('❌ 게스트 장바구니 로드 실패:', error)
         cartItems.value = []
       }
-
-    } catch (error) {
-      cartItems.value = []
     }
+  } catch (error) {
+    console.error('❌ 장바구니 마운트 중 예상치 못한 오류:', error)
+    cartItems.value = []
+  } finally {
+    loading.value = false
+    console.log('🏁 장바구니 컴포넌트 마운트 완료')
   }
-
-  loading.value = false
 })
 </script>
-
 <style scoped src="@/assets/css/cart.css"></style>

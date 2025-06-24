@@ -76,7 +76,7 @@ public class UserDto {
     }
 
     /**
-     * 🔥 userId를 Long으로 변환 시도 (실패하면 null 반환)
+     * userId를 Long으로 변환 시도 (실패하면 null 반환)
      * 문자열 userId인 경우 null을 반환하며, 이는 정상적인 동작임
      */
     public Long getUserIdAsLong() {
@@ -87,27 +87,27 @@ public class UserDto {
         try {
             return Long.parseLong(userId.trim());
         } catch (NumberFormatException e) {
-            // 🔥 문자열 userId인 경우 null 반환 (정상 케이스)
+            // 문자열 userId인 경우 null 반환 (정상 케이스)
             return null;
         }
     }
 
     /**
-     * 🔥 사용자 식별자 반환 (숫자든 문자열이든)
+     * 사용자 식별자 반환 (숫자든 문자열이든)
      */
     public String getUserIdentifier() {
         return this.userId;
     }
 
     /**
-     * 🔥 사용자가 숫자 ID를 가지고 있는지 확인
+     * 사용자가 숫자 ID를 가지고 있는지 확인
      */
     public boolean hasNumericUserId() {
         return getUserIdAsLong() != null;
     }
 
     /**
-     * 🔥 사용자가 문자열 ID를 가지고 있는지 확인
+     * 사용자가 문자열 ID를 가지고 있는지 확인
      */
     public boolean hasStringUserId() {
         return !hasNumericUserId() && userId != null && !userId.trim().isEmpty();

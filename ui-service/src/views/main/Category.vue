@@ -205,10 +205,10 @@
             LIVE
           </div>
 
-          <!-- 시청자 수 (라이브 상품인 경우) -->
-          <div v-if="product.viewers" class="viewers-count">
-            👥 {{ product.viewers }}
-          </div>
+<!--          &lt;!&ndash; 시청자 수 (라이브 상품인 경우) &ndash;&gt;-->
+<!--          <div v-if="product.viewers" class="viewers-count">-->
+<!--            👥 {{ product.viewers }}-->
+<!--          </div>-->
 
           <!-- 상품 이미지 -->
           <div class="product-image">

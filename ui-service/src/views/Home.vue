@@ -67,7 +67,7 @@
 
     <!-- 자동재생 토글 -->
     <button class="autoplay-toggle" @click="toggleAutoPlay">
-      {{ isAutoPlay ? '⏸️ 일시정지' : '▶️ 자동재생' }}
+      {{ isAutoPlay ? '일시정지' : '자동재생' }}
     </button>
   </div>
   <div class="category-container">
@@ -86,6 +86,94 @@
         </div>
         <span class="category-name">{{ category.name }}</span>
       </div>
+    </div>
+  </div>
+
+  <div class="live-broadcast-container">
+    <div class="section-header">
+      <h2 class="section-title">🔴 바로 지금! 라이브 찬스</h2>
+      <div class="live-count">
+        <span class="count-badge">{{ liveBroadcasts.length }}개 방송 진행중</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 라이브 방송 카드 리스트 -->
+  <div class="broadcast-scroll-container">
+    <div class="broadcast-list">
+      <div
+          v-for="broadcast in liveBroadcasts.slice(0, 10)"
+          :key="broadcast.broadcast_id"
+          class="broadcast-card"
+          @click="goToBroadcast(broadcast.broadcast_id)"
+      >
+        <!-- 방송 썸네일 -->
+        <div class="broadcast-thumbnail">
+          <img
+              :src="broadcast.thumbnail_url || `https://picsum.photos/seed/${broadcast.broadcast_id}/300/200`"
+              :alt="broadcast.title"
+              class="thumbnail-image"
+          />
+
+          <!-- 라이브 배지 -->
+          <div class="live-badge">
+            <span class="live-dot"></span>
+            LIVE
+          </div>
+
+          <!-- 시청자 수 -->
+          <div class="viewer-count">
+            <span class="viewer-icon">👥</span>
+            {{ formatViewerCount(broadcast.current_viewers) }}
+          </div>
+
+          <!-- 방송 시간 -->
+          <div class="broadcast-time">
+            {{ getBroadcastDuration(broadcast.actual_start_time) }}
+          </div>
+        </div>
+
+        <!-- 방송 정보 -->
+        <div class="broadcast-info">
+          <h3 class="broadcast-title">{{ broadcast.title }}</h3>
+          <p class="broadcast-description">{{ broadcast.description }}</p>
+
+          <!-- 방송자 정보 -->
+          <div class="broadcaster-info">
+            <div class="broadcaster-avatar">
+              <img
+                  :src="`https://picsum.photos/seed/user${broadcast.broadcaster_id}/40/40`"
+                  :alt="broadcast.broadcaster_name"
+                  class="avatar-image"
+              />
+            </div>
+            <span class="broadcaster-name">{{ broadcast.broadcaster_name }}</span>
+          </div>
+
+          <!-- 카테고리 태그 -->
+          <div class="broadcast-tags">
+            <span class="category-tag">{{ broadcast.category }}</span>
+            <span v-if="broadcast.tags" class="tags">
+            {{ broadcast.tags.split(',').slice(0, 2).join(', ') }}
+          </span>
+          </div>
+
+          <!-- 좋아요 수 -->
+          <div class="broadcast-stats">
+          <span class="like-count">
+            <span class="heart-icon">❤️</span>
+            {{ broadcast.like_count }}
+          </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 방송이 없을 때 -->
+    <div v-if="liveBroadcasts.length === 0" class="no-broadcasts">
+      <div class="no-broadcast-icon">📺</div>
+      <h3>현재 진행 중인 라이브 방송이 없습니다</h3>
+      <p>잠시 후 다시 확인해주세요!</p>
     </div>
   </div>
 </template>
@@ -192,6 +280,108 @@ const categories = ref([
 const selectCategory = (categoryId) => {
   selectedCategory.value = categoryId
   console.log('선택된 카테고리:', categoryId)
+}
+
+const liveBroadcasts = ref([
+  {
+    broadcast_id: 1,
+    broadcaster_id: 101,
+    broadcaster_name: "라이프 쇼핑",
+    title: "삼에서 먹어도 제맛! 전복죽 달인",
+    description: "전복죽 만들기의 모든 것! 지금 특가로 만나보세요",
+    broadcast_status: "live",
+    actual_start_time: "2025-06-24T14:30:00",
+    current_viewers: 134,
+    like_count: 89,
+    category: "푸드",
+    tags: "전복죽,간편식,건강식",
+    thumbnail_url: null
+  },
+  {
+    broadcast_id: 2,
+    broadcaster_id: 102,
+    broadcaster_name: "닥터안에그",
+    title: "[1+1]닥터안에그 무황성계 30구",
+    description: "신선한 계란을 특가로! 지금 주문하면 1+1 혜택",
+    broadcast_status: "live",
+    actual_start_time: "2025-06-24T15:00:00",
+    current_viewers: 89,
+    like_count: 45,
+    category: "신선식품",
+    tags: "계란,1+1,특가",
+    thumbnail_url: null
+  },
+  {
+    broadcast_id: 3,
+    broadcaster_id: 103,
+    broadcaster_name: "라이브 특가",
+    title: "엄마 손맛 그 자체! 순두부찌개",
+    description: "집에서 쉽게 만드는 순두부찌개 레시피와 재료 세트",
+    broadcast_status: "live",
+    actual_start_time: "2025-06-24T13:45:00",
+    current_viewers: 71,
+    like_count: 112,
+    category: "간편식",
+    tags: "순두부찌개,집밥,간편식",
+    thumbnail_url: null
+  },
+  {
+    broadcast_id: 4,
+    broadcaster_id: 104,
+    broadcaster_name: "글램핑 한돈깔비",
+    title: "글램핑 한돈깔비❤️ 특가방송",
+    description: "프리미엄 한돈으로 만든 깔비! 글램핑 분위기까지",
+    broadcast_status: "live",
+    actual_start_time: "2025-06-24T16:15:00",
+    current_viewers: 156,
+    like_count: 203,
+    category: "정육",
+    tags: "한돈,깔비,글램핑,특가",
+    thumbnail_url: null
+  },
+  {
+    broadcast_id: 5,
+    broadcaster_id: 105,
+    broadcaster_name: "쪽쪽쪽주",
+    title: "[쪽쪽쪽주] 우욱짬 인기상품",
+    description: "인기 상품들을 한번에! 쪽쪽쪽주 스페셜 라이브",
+    broadcast_status: "live",
+    actual_start_time: "2025-06-24T14:00:00",
+    current_viewers: 267,
+    like_count: 89,
+    category: "종합",
+    tags: "인기상품,스페셜,할인",
+    thumbnail_url: null
+  }
+])
+
+// 시청자 수 포맷팅
+const formatViewerCount = (count) => {
+  if (count >= 1000) {
+    return `${(count / 1000).toFixed(1)}k`
+  }
+  return count.toString()
+}
+
+// 방송 진행 시간 계산
+const getBroadcastDuration = (startTime) => {
+  const start = new Date(startTime)
+  const now = new Date()
+  const diffMinutes = Math.floor((now - start) / (1000 * 60))
+
+  if (diffMinutes < 60) {
+    return `${diffMinutes}분`
+  } else {
+    const hours = Math.floor(diffMinutes / 60)
+    const minutes = diffMinutes % 60
+    return `${hours}시간 ${minutes}분`
+  }
+}
+
+// 방송 페이지로 이동
+const goToBroadcast = (broadcastId) => {
+  console.log('방송 페이지로 이동:', broadcastId)
+  // router.push(`/live/${broadcastId}`)
 }
 </script>
 

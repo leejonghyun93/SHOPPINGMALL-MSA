@@ -42,7 +42,8 @@
                 <div class="menu-icon orders-icon">
                   <svg class="svg-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M20 7H4V5C4 4.44772 4.44772 4 5 4H19C19.5523 4 20 4.44772 20 5V7Z" fill="#1976d2"/>
-                    <path d="M3 7H21V19C21 19.5523 20.5523 20 20 20H4C3.44772 20 3 19.5523 3 19V7Z" stroke="#1976d2" stroke-width="2" fill="none"/>
+                    <path d="M3 7H21V19C21 19.5523 20.5523 20 20 20H4C3.44772 20 3 19.5523 3 19V7Z" stroke="#1976d2"
+                          stroke-width="2" fill="none"/>
                     <path d="M9 11H15" stroke="#1976d2" stroke-width="2" stroke-linecap="round"/>
                   </svg>
                 </div>
@@ -55,7 +56,9 @@
               <div class="menu-item" @click="navigateToTab('coupons')" :class="{ active: activeTab === 'coupons' }">
                 <div class="menu-icon coupons-icon">
                   <svg class="svg-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M21 8V16C21 17.1046 20.1046 18 19 18H5C3.89543 18 3 17.1046 3 16V8C3 6.89543 3.89543 6 5 6H19C20.1046 6 21 6.89543 21 8Z" stroke="#7b1fa2" stroke-width="2" fill="none"/>
+                    <path
+                        d="M21 8V16C21 17.1046 20.1046 18 19 18H5C3.89543 18 3 17.1046 3 16V8C3 6.89543 3.89543 6 5 6H19C20.1046 6 21 6.89543 21 8Z"
+                        stroke="#7b1fa2" stroke-width="2" fill="none"/>
                     <circle cx="8" cy="12" r="1" fill="#7b1fa2"/>
                     <circle cx="16" cy="12" r="1" fill="#7b1fa2"/>
                     <path d="M12 8V16" stroke="#7b1fa2" stroke-width="1" stroke-dasharray="2 2"/>
@@ -70,7 +73,9 @@
               <div class="menu-item" @click="navigateToTab('wishlist')" :class="{ active: activeTab === 'wishlist' }">
                 <div class="menu-icon wishlist-icon">
                   <svg class="svg-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 21.35L10.55 20.03C5.4 15.36 2 12.28 2 8.5C2 5.42 4.42 3 7.5 3C9.24 3 10.91 3.81 12 5.09C13.09 3.81 14.76 3 16.5 3C19.58 3 22 5.42 22 8.5C22 12.28 18.6 15.36 13.45 20.04L12 21.35Z" fill="#d32f2f"/>
+                    <path
+                        d="M12 21.35L10.55 20.03C5.4 15.36 2 12.28 2 8.5C2 5.42 4.42 3 7.5 3C9.24 3 10.91 3.81 12 5.09C13.09 3.81 14.76 3 16.5 3C19.58 3 22 5.42 22 8.5C22 12.28 18.6 15.36 13.45 20.04L12 21.35Z"
+                        fill="#d32f2f"/>
                   </svg>
                 </div>
                 <div class="menu-info">
@@ -82,7 +87,9 @@
               <div class="menu-item" @click="navigateToTab('frequent')" :class="{ active: activeTab === 'frequent' }">
                 <div class="menu-icon frequent-icon">
                   <svg class="svg-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M7 4V2C7 1.44772 7.44772 1 8 1H16C16.5523 1 17 1.44772 17 2V4H20C20.5523 4 21 4.44772 21 5C21 5.55228 20.5523 6 20 6H19V19C19 20.1046 18.1046 21 17 21H7C5.89543 21 5 20.1046 5 19V6H4C3.44772 6 3 5.55228 3 5C3 4.44772 3.44772 4 4 4H7Z" fill="#388e3c"/>
+                    <path
+                        d="M7 4V2C7 1.44772 7.44772 1 8 1H16C16.5523 1 17 1.44772 17 2V4H20C20.5523 4 21 4.44772 21 5C21 5.55228 20.5523 6 20 6H19V19C19 20.1046 18.1046 21 17 21H7C5.89543 21 5 20.1046 5 19V6H4C3.44772 6 3 5.55228 3 5C3 4.44772 3.44772 4 4 4H7Z"
+                        fill="#388e3c"/>
                     <path d="M9 3H15V4H9V3Z" fill="white"/>
                   </svg>
                 </div>
@@ -114,7 +121,8 @@
                 <div class="link-item" @click="navigateToTab('reviews')" :class="{ active: activeTab === 'reviews' }">
                   상품 후기
                 </div>
-                <div class="link-item" @click="navigateToTab('inquiries')" :class="{ active: activeTab === 'inquiries' }">
+                <div class="link-item" @click="navigateToTab('inquiries')"
+                     :class="{ active: activeTab === 'inquiries' }">
                   상품 문의
                 </div>
               </div>
@@ -134,17 +142,19 @@
 
         <!-- 오른쪽 메인 컨텐츠 - 라우터 뷰 -->
         <div class="col-md-9 main-content">
-          <router-view @update-counts="updateCounts" />
+          <router-view @update-counts="updateCounts"/>
         </div>
       </div>
     </div>
   </div>
 </template>
 
+// 수정된 마이페이지 스크립트 - 공통 apiClient 사용
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { user, setUserFromToken } from '@/stores/userStore'
+import apiClient from '@/api/axiosInstance' // 🔥 공통 apiClient 임포트
 
 const route = useRoute()
 const router = useRouter()
@@ -157,7 +167,6 @@ const userName = computed(() => {
 
 // 현재 활성 탭 (라우트 기반)
 const activeTab = computed(() => {
-  // 라우터 이름을 탭 이름으로 변환
   const tabNameMap = {
     'MyPageOrders': 'orders',
     'MyPageProfile': 'profile',
@@ -169,9 +178,9 @@ const activeTab = computed(() => {
     'MyPageInquiries': 'inquiries',
     'MyPageVip': 'vip'
   }
-
   return tabNameMap[route.name] || 'orders'
 })
+
 // 사이드바에 표시할 정보
 const points = ref(0)
 const coupons = ref(0)
@@ -180,7 +189,6 @@ const orderCount = ref(0)
 
 // 탭 네비게이션
 const navigateToTab = (tabName) => {
-  // 라우터 이름 매핑
   const routeNameMap = {
     'orders': 'MyPageOrders',
     'profile': 'MyPageProfile',
@@ -196,8 +204,6 @@ const navigateToTab = (tabName) => {
   const routeName = routeNameMap[tabName]
   if (routeName) {
     router.push({ name: routeName })
-  } else {
-    console.warn(`Unknown tab: ${tabName}`)
   }
 }
 
@@ -208,36 +214,142 @@ const updateCounts = (data) => {
   if (data.giftCards !== undefined) giftCards.value = data.giftCards
 }
 
-// 적립금, 쿠폰 등 추가 정보 가져오기
+// 🔥 공통 apiClient를 사용한 사용자 추가 정보 가져오기
 async function fetchUserExtraInfo() {
+  const token = localStorage.getItem('token')
+  if (!token) {
+    console.log('🔓 토큰 없어서 추가 정보 로딩 생략')
+    return
+  }
+
   try {
-    const token = localStorage.getItem('token')
-    if (!token) return
+    console.log('🔄 사용자 추가 정보 로딩 시작')
+
+    // 🔥 공통 apiClient 사용 - 인터셉터가 자동으로 처리
+    const fetchPromises = [
+      // 포인트 정보
+      apiClient.get('/api/users/points')
+          .then(response => {
+            if (response.data.success) {
+              points.value = response.data.data.points || 0
+              console.log('✅ 포인트 정보 로딩 성공:', points.value)
+            }
+          })
+          .catch(error => {
+            console.log('ℹ️ 포인트 정보 로딩 실패 (무시):', error.message)
+            points.value = 0
+          }),
+
+      // 쿠폰 정보
+      apiClient.get('/api/users/coupons')
+          .then(response => {
+            if (response.data.success) {
+              coupons.value = response.data.data.coupons || 0
+              console.log('✅ 쿠폰 정보 로딩 성공:', coupons.value)
+            }
+          })
+          .catch(error => {
+            console.log('ℹ️ 쿠폰 정보 로딩 실패 (무시):', error.message)
+            coupons.value = 0
+          }),
+
+      // 주문 수 정보
+      apiClient.get('/api/orders/count')
+          .then(response => {
+            if (response.data.success) {
+              orderCount.value = response.data.data.count || 0
+              console.log('✅ 주문 정보 로딩 성공:', orderCount.value)
+            }
+          })
+          .catch(error => {
+            console.log('ℹ️ 주문 정보 로딩 실패 (무시):', error.message)
+            orderCount.value = 0
+          })
+    ]
+
+    // 모든 요청을 병렬로 실행하고 개별 에러는 무시
+    await Promise.allSettled(fetchPromises)
+    console.log('✅ 사용자 추가 정보 로딩 완료')
 
   } catch (error) {
-    console.error('사용자 추가 정보 로드 실패:', error)
+    console.error('❌ 사용자 추가 정보 로딩 전체 실패:', error)
+    // 에러 발생 시 기본값 설정
+    points.value = 0
+    coupons.value = 0
+    orderCount.value = 0
   }
 }
 
 function navigateToProfile() {
-  router.push({ name: 'MyPageProfile' }); // 원래 이름으로 복원
+  router.push({ name: 'MyPageProfile' })
 }
 
-// 🔥 onMounted에서 기본 리다이렉트 수정
-onMounted(() => {
-  // userStore에서 사용자 정보 설정
+// 토큰 유효성 검사
+const isTokenValid = (token) => {
+  if (!token) return false
+
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return false
+
+    let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+    while (base64.length % 4) {
+      base64 += '='
+    }
+
+    const payloadStr = atob(base64)
+    const payload = JSON.parse(payloadStr)
+    const currentTime = Math.floor(Date.now() / 1000)
+
+    if (payload.exp && payload.exp < currentTime) {
+      return false
+    }
+
+    return true
+  } catch (error) {
+    return false
+  }
+}
+
+// 마운트 시 처리
+onMounted(async () => {
+  console.log('🔄 마이페이지 마운트 시작')
+
   const token = localStorage.getItem('token')
-  if (token) {
-    setUserFromToken(token)
+
+  if (!token) {
+    console.log('🔓 토큰 없음 - 로그인 페이지로 이동')
+    router.push('/login')
+    return
   }
 
-  // 추가 정보 가져오기
-  fetchUserExtraInfo()
+  if (!isTokenValid(token)) {
+    console.log('🔓 토큰 무효 - 로그인 페이지로 이동')
+    localStorage.removeItem('token')
+    router.push('/login')
+    return
+  }
+
+  // userStore에서 사용자 정보 설정
+  try {
+    setUserFromToken(token)
+    console.log('✅ 사용자 정보 설정 완료:', user.name)
+  } catch (error) {
+    console.error('❌ 사용자 정보 설정 실패:', error)
+    localStorage.removeItem('token')
+    router.push('/login')
+    return
+  }
+
+  // 🔥 공통 apiClient를 사용한 추가 정보 가져오기
+  await fetchUserExtraInfo()
 
   // 기본 라우트가 없으면 주문 내역으로 리다이렉트
   if (route.name === 'mypage') {
-    router.replace({ name: 'MyPageOrders' }) // 🔥 원래 이름으로 복원
+    router.replace({ name: 'MyPageOrders' })
   }
+
+  console.log('✅ 마이페이지 마운트 완료')
 })
 </script>
 

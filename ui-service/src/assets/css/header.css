@@ -5,31 +5,49 @@
     /* 여백 관련 속성들 제거 */
 }
 
+/* 기본 navbar-brand 스타일 */
 .navbar-brand {
     font-size: 20px;
     font-weight: bold;
-    color: #000000;
-    text-decoration: none;
-}
-/* 현재 활성된 메뉴 스타일 */
-.router-link-active {
-    color: #0d6efd !important; /* Bootstrap primary color, 파란색 */
+    color: #000000 !important; /* 기본 검은색 */
+    text-decoration: none !important;
+    transition: color 0.3s ease; /* 부드러운 색상 전환 */
 }
 
-/* 비활성화일 때 색 유지 */
-.navbar-brand {
-    color: #000000;
-    text-decoration: none;
-    font-weight: bold;
-    font-size: 20px;
+/* 호버 효과 */
+.navbar-brand:hover {
+    color: #6f42c1 !important; /* 보라색 호버 */
 }
+
+/* 현재 활성된 메뉴 스타일 - Vue Router의 기본 클래스들 */
+.navbar-brand.router-link-active,
+.navbar-brand.router-link-exact-active {
+    color: #6f42c1 !important; /* 활성 상태일 때 보라색 */
+}
+
+/* 첫 번째 브랜드 로고는 항상 검은색 유지 */
+.navbar-brand:first-child {
+    color: #000000 !important;
+}
+
+.navbar-brand:first-child:hover {
+    color: #333333 !important; /* 로고는 호버 시 약간 회색 */
+}
+
+.navbar-brand:first-child.router-link-active,
+.navbar-brand:first-child.router-link-exact-active {
+    color: #000000 !important; /* 로고는 활성 상태에도 검은색 */
+}
+
 .nav-link {
     color: #ffffff !important;
     cursor: pointer;
 }
-.bg-dark{
+
+.bg-dark {
     background-color: white;
 }
+
 .btn-link {
     padding: 0;
 }

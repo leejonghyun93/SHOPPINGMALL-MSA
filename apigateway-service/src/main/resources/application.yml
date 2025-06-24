@@ -1,4 +1,4 @@
-# application.yml - 주문 취소 라우팅 문제만 해결한 버전 (원래 설정 유지)
+# application.yml - 방송 서비스 라우팅 추가
 server:
   port: 8080
 
@@ -61,6 +61,73 @@ spring:
             - name: LoggingFilter
               args:
                 baseMessage: "Order Cancel Protected"
+                preLogger: true
+                postLogger: true
+
+        # 🎥 BROADCAST SERVICE 라우팅 (새로 추가)
+        - id: broadcast-live-public
+          uri: lb://BROADCAST-SERVICE
+          predicates:
+            - Path=/api/broadcasts/live
+            - Method=GET
+          filters:
+            - name: SimpleJwtFilter  # JWT가 있으면 파싱하되 필수 아님
+            - name: LoggingFilter
+              args:
+                baseMessage: "Broadcast Live Public"
+                preLogger: true
+                postLogger: true
+
+        - id: broadcast-schedule-public
+          uri: lb://BROADCAST-SERVICE
+          predicates:
+            - Path=/api/broadcasts/schedule
+            - Method=GET
+          filters:
+            - name: SimpleJwtFilter
+            - name: LoggingFilter
+              args:
+                baseMessage: "Broadcast Schedule Public"
+                preLogger: true
+                postLogger: true
+
+        - id: broadcast-category-public
+          uri: lb://BROADCAST-SERVICE
+          predicates:
+            - Path=/api/broadcasts/category/**
+            - Method=GET
+          filters:
+            - name: SimpleJwtFilter
+            - name: LoggingFilter
+              args:
+                baseMessage: "Broadcast Category Public"
+                preLogger: true
+                postLogger: true
+
+        - id: broadcast-detail-public
+          uri: lb://BROADCAST-SERVICE
+          predicates:
+            - Path=/api/broadcasts/**
+            - Method=GET
+          filters:
+            - name: SimpleJwtFilter
+            - name: LoggingFilter
+              args:
+                baseMessage: "Broadcast Detail Public"
+                preLogger: true
+                postLogger: true
+
+        # 방송 생성/수정/삭제 등은 인증 필요
+        - id: broadcast-service-protected
+          uri: lb://BROADCAST-SERVICE
+          predicates:
+            - Path=/api/broadcasts/**
+            - Method=POST,PUT,DELETE,PATCH
+          filters:
+            - name: JwtAuthorization
+            - name: LoggingFilter
+              args:
+                baseMessage: "Broadcast Service Protected"
                 preLogger: true
                 postLogger: true
 

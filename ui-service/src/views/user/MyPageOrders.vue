@@ -34,11 +34,11 @@
         <div v-if="selectedPeriod || searchQuery" class="filter-status">
           <div class="filter-tags">
             <span v-if="selectedPeriod" class="filter-tag">
-              📅 {{ selectedPeriod }}개월
+              {{ selectedPeriod }}개월
               <button @click="clearPeriodFilter" class="filter-clear">×</button>
             </span>
             <span v-if="searchQuery" class="filter-tag">
-              🔍 "{{ searchQuery }}"
+              "{{ searchQuery }}"
               <button @click="clearSearchFilter" class="filter-clear">×</button>
             </span>
           </div>
@@ -91,13 +91,13 @@
               <div class="order-header">
                 <div class="order-info">
                   <div class="order-date">{{ formatDate(order.orderDate) }}</div>
-                  <div class="order-number">주문번호 {{ order.orderId }} 📋</div>
+                  <div class="order-number">주문번호 {{ order.orderId }}</div>
                   <div class="order-status">
-                    <!-- 🔥 상태 유틸리티 적용 -->
+                    <!-- 상태 유틸리티 적용 -->
                     <span class="status-badge" :class="getStatusClass(order.orderStatus)">
                       {{ getStatusIcon(order.orderStatus) }} {{ getStatusDisplayName(order.orderStatus) }}
                     </span>
-                    <span class="order-time">{{ formatDateTime(order.orderDate) }} 📦</span>
+                    <span class="order-time">{{ formatDateTime(order.orderDate) }}</span>
                   </div>
                 </div>
                 <button @click="viewOrderDetail(order.orderId)" class="detail-button" title="주문 상세보기">
@@ -152,7 +152,7 @@
                     <RefreshCw class="btn-icon" />
                     재주문
                   </button>
-                  <!-- 🔥 상태 유틸리티로 취소 버튼 조건 확인 -->
+                  <!-- 상태 유틸리티로 취소 버튼 조건 확인 -->
                   <button
                       v-if="canCancelOrder(order.orderStatus)"
                       @click="cancelOrder(order.orderId)"
@@ -236,7 +236,7 @@ import {
   Star
 } from 'lucide-vue-next'
 
-// 🔥 상태 유틸리티 import
+// 상태 유틸리티 import
 import {
   getStatusDisplayName,
   getStatusClass,
@@ -263,68 +263,37 @@ const getAuthHeaders = () => {
   const token = localStorage.getItem('token')
   const userId = localStorage.getItem('userId')
 
-  console.log('🔍 인증 정보 확인:', {
-    tokenExists: !!token,
-    tokenLength: token ? token.length : 0,
-    userId: userId,
-    tokenStart: token ? token.substring(0, 20) + '...' : 'none'
-  })
-
   const headers = {
     'Content-Type': 'application/json'
   }
 
-  // 🔥 토큰이 있고 유효할 때만 Authorization 헤더 추가
+  // 토큰이 있고 유효할 때만 Authorization 헤더 추가
   if (token && token.trim() && token !== 'null' && token !== 'undefined') {
     // Bearer 접두사가 없다면 추가
     const authToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`
     headers.Authorization = authToken
-    console.log('✅ Authorization 헤더 추가됨:', authToken.substring(0, 30) + '...')
-  } else {
-    console.log('⚠️ 토큰이 없거나 유효하지 않음')
   }
 
   // userId 헤더도 추가 (백엔드에서 요구할 수 있음)
   if (userId && userId !== 'null' && userId !== 'undefined') {
     headers['X-User-Id'] = userId
-    console.log('✅ X-User-Id 헤더 추가됨:', userId)
   }
-
-  console.log('📤 최종 헤더:', {
-    'Content-Type': headers['Content-Type'],
-    'Authorization': headers.Authorization ? headers.Authorization.substring(0, 30) + '...' : '없음',
-    'X-User-Id': headers['X-User-Id'] || '없음'
-  })
 
   return headers
 }
 
-// 🔥 토큰 자동 갱신 함수
+// 토큰 자동 갱신 함수
 const refreshTokenIfNeeded = async () => {
   const token = localStorage.getItem('token')
   const userId = localStorage.getItem('userId')
 
-  console.log('🔄 토큰 갱신 시작:', {
-    tokenExists: !!token,
-    tokenLength: token ? token.length : 0,
-    userId: userId,
-    tokenStart: token ? token.substring(0, 30) + '...' : 'none'
-  })
-
   if (!token || token === 'null' || token === 'undefined') {
-    console.error('❌ 갱신할 토큰이 없음')
     return false
   }
 
   try {
     // Bearer 접두사 확인 및 정리
     const cleanToken = token.startsWith('Bearer ') ? token.substring(7) : token
-
-    console.log('📤 토큰 갱신 요청:', {
-      url: `${API_BASE_URL}/auth/refresh`,
-      tokenLength: cleanToken.length,
-      tokenPreview: cleanToken.substring(0, 50) + '...'
-    })
 
     const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
       method: 'POST',
@@ -334,23 +303,14 @@ const refreshTokenIfNeeded = async () => {
       }
     })
 
-    console.log('📡 토큰 갱신 응답:', {
-      status: response.status,
-      statusText: response.statusText,
-      ok: response.ok,
-      headers: Object.fromEntries(response.headers.entries())
-    })
-
     // 응답 본문 읽기
     const responseText = await response.text()
-    console.log('📄 토큰 갱신 응답 본문:', responseText)
 
     if (response.ok) {
       let result
       try {
         result = JSON.parse(responseText)
       } catch (parseError) {
-        console.error('❌ 토큰 갱신 응답 JSON 파싱 실패:', parseError)
         return false
       }
 
@@ -362,31 +322,15 @@ const refreshTokenIfNeeded = async () => {
         if (result.userId) localStorage.setItem('userId', result.userId)
         if (result.username) localStorage.setItem('username', result.username)
 
-        console.log('✅ 토큰 자동 갱신 성공:', {
-          newTokenLength: result.token.length,
-          userId: result.userId,
-          username: result.username
-        })
         return true
       } else {
-        console.error('❌ 토큰 갱신 실패 - 응답 형식 오류:', result)
         return false
       }
     } else {
-      console.error('❌ 토큰 갱신 HTTP 오류:', {
-        status: response.status,
-        statusText: response.statusText,
-        body: responseText
-      })
       return false
     }
 
   } catch (error) {
-    console.error('❌ 토큰 갱신 네트워크 오류:', {
-      name: error.name,
-      message: error.message,
-      stack: error.stack
-    })
     return false
   }
 }
@@ -401,8 +345,6 @@ const loadOrders = async () => {
 
     const url = `${API_BASE_URL}/api/orders/list?userId=${userId}`
 
-    console.log('주문 목록 요청:', url)
-
     const response = await fetch(url, {
       method: 'GET',
       headers: getAuthHeaders()
@@ -413,7 +355,6 @@ const loadOrders = async () => {
     }
 
     const result = await response.json()
-    console.log('주문 목록 응답:', result)
 
     if (result.success) {
       // 백엔드에서 받은 데이터를 프론트엔드 형식에 맞게 변환
@@ -425,18 +366,6 @@ const loadOrders = async () => {
         // OrderDTO의 items 구조에 맞게 매핑
         items: order.orderItems || order.items || []
       }))
-
-      // 🔥 디버깅: 로드된 주문들의 상태 확인
-      console.log('=== 주문 상태 디버깅 ===')
-      orders.value.forEach(order => {
-        console.log(`주문 ${order.orderId}:`)
-        console.log(`  - 원본 상태: "${order.orderStatus}"`)
-        console.log(`  - 표시명: "${getStatusDisplayName(order.orderStatus)}"`)
-        console.log(`  - CSS 클래스: "${getStatusClass(order.orderStatus)}"`)
-        console.log(`  - 취소 가능: ${canCancelOrder(order.orderStatus)}`)
-        console.log(`  - 아이콘: ${getStatusIcon(order.orderStatus)}`)
-      })
-      console.log('========================')
 
     } else {
       throw new Error(result.message || '주문 목록을 불러오는데 실패했습니다.')
@@ -516,7 +445,6 @@ const onSearch = () => {
 // 기간 변경 처리
 const onPeriodChange = () => {
   currentPage.value = 1
-  console.log('기간 변경:', selectedPeriod.value + '개월')
 }
 
 // 필터 초기화 함수들
@@ -536,15 +464,13 @@ const clearAllFilters = () => {
   currentPage.value = 1
 }
 
-// 🔥 주문 상세보기 - OrderComplete 페이지로 이동
+// 주문 상세보기 - OrderComplete 페이지로 이동
 const viewOrderDetail = (orderId) => {
-  console.log('주문 상세보기:', orderId)
   router.push(`/order-complete?orderId=${orderId}`)
 }
 
-// 🔥 후기 작성
+// 후기 작성
 const writeReview = (order) => {
-  console.log('후기 작성:', order.orderId)
   // 후기 작성 페이지로 이동 (향후 구현)
   alert('후기 작성 기능은 준비 중입니다.')
 }
@@ -590,11 +516,9 @@ const formatPrice = (price) => {
   return price.toLocaleString()
 }
 
-// 🔥 주문 취소 (토큰 자동 갱신 포함)
+// 주문 취소 (토큰 자동 갱신 포함)
 const cancelOrder = async (orderId) => {
   try {
-    console.log('🚀 주문 취소 시작:', orderId)
-
     // 1. 기본 인증 확인
     const token = localStorage.getItem('token')
     const userId = localStorage.getItem('userId')
@@ -635,8 +559,6 @@ const cancelOrder = async (orderId) => {
       paymentId: order.paymentId || null
     }
 
-    console.log('🔥 주문 취소 요청 데이터:', cancelData)
-
     // 6. 첫 번째 API 호출
     let response = await fetch(`${API_BASE_URL}/api/orders/${orderId}/cancel`, {
       method: 'POST',
@@ -644,35 +566,18 @@ const cancelOrder = async (orderId) => {
       body: JSON.stringify(cancelData)
     })
 
-    console.log('📡 첫 번째 응답:', {
-      status: response.status,
-      statusText: response.statusText,
-      ok: response.ok
-    })
-
     // 7. 401 오류시 토큰 갱신 후 재시도
     if (response.status === 401) {
-      console.log('🔄 토큰 만료 감지, 갱신 시도...')
-
       const refreshed = await refreshTokenIfNeeded()
       if (refreshed) {
-        console.log('✅ 토큰 갱신 완료, 주문 취소 재시도...')
-
         // 토큰 갱신 성공, 다시 요청
         response = await fetch(`${API_BASE_URL}/api/orders/${orderId}/cancel`, {
           method: 'POST',
           headers: getAuthHeaders(), // 새로운 토큰으로 헤더 재생성
           body: JSON.stringify(cancelData)
         })
-
-        console.log('📡 재시도 응답:', {
-          status: response.status,
-          statusText: response.statusText,
-          ok: response.ok
-        })
       } else {
         // 토큰 갱신 실패
-        console.error('❌ 토큰 갱신 실패')
         alert('로그인이 만료되었습니다. 다시 로그인해주세요.')
         localStorage.removeItem('token')
         localStorage.removeItem('userId')
@@ -683,21 +588,18 @@ const cancelOrder = async (orderId) => {
 
     // 8. 다른 오류 처리
     if (response.status === 403) {
-      console.error('❌ 403 Forbidden - 권한 없음')
       alert('이 작업을 수행할 권한이 없습니다.')
       return
     }
 
     // 9. 응답 본문 처리
     const responseText = await response.text()
-    console.log('📄 최종 응답 본문:', responseText)
 
     let result
     if (responseText) {
       try {
         result = JSON.parse(responseText)
       } catch (parseError) {
-        console.error('❌ JSON 파싱 실패:', parseError)
         throw new Error(`서버 응답 파싱 실패: ${responseText}`)
       }
     } else {
@@ -713,18 +615,12 @@ const cancelOrder = async (orderId) => {
     }
 
   } catch (err) {
-    console.error('🚨 주문 취소 최종 실패:', {
-      name: err.name,
-      message: err.message,
-      stack: err.stack
-    })
     alert(`주문 취소 실패: ${err.message}`)
   }
 }
 
 // 재주문
 const reorder = (items) => {
-  console.log('재주문:', items)
   const productIds = items.map(item => item.productId)
   router.push({
     path: '/cart',
