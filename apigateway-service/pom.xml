@@ -56,15 +56,6 @@
 			<version>2.3.1</version>
 		</dependency>
 
-		<!-- 🔴 구버전 JWT 제거됨! -->
-		<!--
-		<dependency>
-			<groupId>io.jsonwebtoken</groupId>
-			<artifactId>jjwt</artifactId>
-			<version>0.9.1</version>
-		</dependency>
-		-->
-
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
@@ -90,7 +81,7 @@
 			<artifactId>spring-boot-starter-actuator</artifactId>
 		</dependency>
 
-		<!-- 🟢 신버전 JWT 라이브러리만 유지 (0.11.5) -->
+		<!-- 신버전 JWT 라이브러리만 유지 (0.11.5) -->
 		<dependency>
 			<groupId>io.jsonwebtoken</groupId>
 			<artifactId>jjwt-api</artifactId>

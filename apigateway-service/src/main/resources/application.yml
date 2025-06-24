@@ -1,4 +1,4 @@
-# application.yml - 방송 서비스 라우팅 추가
+# application.yml - SimpleJwtFilter 제거된 버전
 server:
   port: 8080
 
@@ -64,14 +64,13 @@ spring:
                 preLogger: true
                 postLogger: true
 
-        # 🎥 BROADCAST SERVICE 라우팅 (새로 추가)
+        # 🎥 BROADCAST SERVICE 라우팅 (SimpleJwtFilter 제거)
         - id: broadcast-live-public
           uri: lb://BROADCAST-SERVICE
           predicates:
             - Path=/api/broadcasts/live
             - Method=GET
           filters:
-            - name: SimpleJwtFilter  # JWT가 있으면 파싱하되 필수 아님
             - name: LoggingFilter
               args:
                 baseMessage: "Broadcast Live Public"
@@ -84,7 +83,6 @@ spring:
             - Path=/api/broadcasts/schedule
             - Method=GET
           filters:
-            - name: SimpleJwtFilter
             - name: LoggingFilter
               args:
                 baseMessage: "Broadcast Schedule Public"
@@ -97,7 +95,6 @@ spring:
             - Path=/api/broadcasts/category/**
             - Method=GET
           filters:
-            - name: SimpleJwtFilter
             - name: LoggingFilter
               args:
                 baseMessage: "Broadcast Category Public"
@@ -110,7 +107,6 @@ spring:
             - Path=/api/broadcasts/**
             - Method=GET
           filters:
-            - name: SimpleJwtFilter
             - name: LoggingFilter
               args:
                 baseMessage: "Broadcast Detail Public"
@@ -131,14 +127,13 @@ spring:
                 preLogger: true
                 postLogger: true
 
-        # 🔥 💳 PAYMENT SERVICE 라우팅
+        # 🔥 💳 PAYMENT SERVICE 라우팅 (SimpleJwtFilter 제거)
         - id: payment-orders-checkout-public
           uri: lb://PAYMENT-SERVICE
           predicates:
             - Path=/api/payments/orders/checkout
             - Method=POST
           filters:
-            - name: SimpleJwtFilter  # JWT가 있으면 파싱하되 필수 아님
             - name: LoggingFilter
               args:
                 baseMessage: "Payment Orders Checkout"
@@ -151,7 +146,6 @@ spring:
             - Path=/api/payments/orders/**
             - Method=GET
           filters:
-            - name: SimpleJwtFilter
             - name: LoggingFilter
               args:
                 baseMessage: "Payment Orders GET"
@@ -164,7 +158,6 @@ spring:
             - Path=/api/payments/verify
             - Method=POST
           filters:
-            - name: SimpleJwtFilter
             - name: LoggingFilter
               args:
                 baseMessage: "Payment Verify"
@@ -177,7 +170,6 @@ spring:
             - Path=/api/payments/prepare
             - Method=POST
           filters:
-            - name: SimpleJwtFilter
             - name: LoggingFilter
               args:
                 baseMessage: "Payment Prepare"
@@ -190,7 +182,6 @@ spring:
             - Path=/api/payments/*/cancel
             - Method=POST
           filters:
-            - name: SimpleJwtFilter
             - name: LoggingFilter
               args:
                 baseMessage: "Payment Cancel"
@@ -215,7 +206,6 @@ spring:
             - Path=/api/payments/**
             - Method=GET
           filters:
-            - name: SimpleJwtFilter
             - name: LoggingFilter
               args:
                 baseMessage: "Payment Status"
@@ -273,27 +263,25 @@ spring:
                 preLogger: true
                 postLogger: true
 
-        #  CART SERVICE 라우팅 - 비회원도 접근 가능하도록 공개
+        #  CART SERVICE 라우팅 (SimpleJwtFilter 제거)
         - id: cart-service-public
           uri: lb://CART-SERVICE
           predicates:
             - Path=/api/cart/**
           filters:
-            - name: SimpleJwtFilter
             - name: LoggingFilter
               args:
                 baseMessage: "Cart Service Public"
                 preLogger: true
                 postLogger: true
 
-        #  ORDER SERVICE 공개 라우팅 -  POST 요청도 허용하도록 수정
+        #  ORDER SERVICE 공개 라우팅 (SimpleJwtFilter 제거)
         - id: order-checkout-public
           uri: lb://ORDER-SERVICE
           predicates:
             - Path=/api/orders/checkout
             - Method=GET,POST
           filters:
-            - name: SimpleJwtFilter  #  JWT 토큰이 있으면 파싱하되 필수는 아님
             - name: LoggingFilter
               args:
                 baseMessage: "Order Checkout Public"
@@ -306,7 +294,6 @@ spring:
             - Path=/api/checkout/**
             - Method=GET,POST
           filters:
-            - name: SimpleJwtFilter
             - name: LoggingFilter
               args:
                 baseMessage: "Order Service Public General"
@@ -350,7 +337,7 @@ spring:
             - Path=/api/users/list
             - Method=GET
 
-        # JWT 인증이 필요한 사용자 경로들 (SimpleJwtFilter 추가)
+        # JWT 인증이 필요한 사용자 경로들 (SimpleJwtFilter 제거)
         - id: user-verify-password-auth
           uri: lb://USER-SERVICE
           predicates:
@@ -369,7 +356,6 @@ spring:
             - Path=/api/users/profile
             - Method=GET
           filters:
-            - name: SimpleJwtFilter  #  JWT 필터 추가!
             - name: LoggingFilter
               args:
                 baseMessage: "User Profile GET"
@@ -382,7 +368,6 @@ spring:
             - Path=/api/users/withdraw
             - Method=POST
           filters:
-            - name: SimpleJwtFilter  #  JWT 필터 추가 (인증 필요)
             - name: LoggingFilter
               args:
                 baseMessage: "User Withdraw"
@@ -395,7 +380,6 @@ spring:
             - Path=/api/users/profile
             - Method=PUT
           filters:
-            - name: SimpleJwtFilter  #  JWT 필터 추가!
             - name: LoggingFilter
               args:
                 baseMessage: "User Profile PUT"
@@ -564,14 +548,13 @@ spring:
                 preLogger: true
                 postLogger: true
 
-        #  ORDER SERVICE 라우팅
+        #  ORDER SERVICE 라우팅 (SimpleJwtFilter 제거)
         - id: order-service-public-get
           uri: lb://ORDER-SERVICE
           predicates:
             - Path=/api/orders/**
             - Method=GET
           filters:
-            - name: SimpleJwtFilter  # JWT 토큰이 있으면 파싱하되 필수는 아님
             - name: LoggingFilter
               args:
                 baseMessage: "Order Service GET"

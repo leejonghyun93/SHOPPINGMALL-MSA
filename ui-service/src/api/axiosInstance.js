@@ -109,6 +109,21 @@ apiClient.interceptors.request.use(
         if (config.withAuth !== false && token && isTokenValid(token)) {
             config.headers.Authorization = `Bearer ${token}`
             console.log('🔐 토큰 헤더 추가:', `Bearer ${token.substring(0, 20)}...`)
+
+            // 🔥 토큰 내용 확인 (디버깅용)
+            try {
+                const parts = token.split('.')
+                const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')))
+                console.log('🎫 토큰 사용자:', payload.sub, '만료시간:', new Date(payload.exp * 1000).toLocaleString())
+            } catch (e) {
+                console.log('🎫 토큰 파싱 실패')
+            }
+        } else {
+            console.log('🚫 토큰 없음 또는 무효:', {
+                hasToken: !!token,
+                isValid: token ? isTokenValid(token) : false,
+                withAuth: config.withAuth
+            })
         }
 
         // withAuth 속성 제거 (서버로 전송되지 않도록)
@@ -154,14 +169,29 @@ apiClient.interceptors.response.use(
         if (status === 401) {
             console.log('🔒 401 인증 에러 발생:', url)
 
-            // 사용자 친화적 메시지 표시
-            const friendlyMessage = getAuthErrorMessage(url)
+            // 🔥 401 응답의 메시지 확인
+            const serverMessage = error.response?.data?.message
+            const isTokenInvalid = serverMessage?.includes('JWT') ||
+                serverMessage?.includes('token') ||
+                serverMessage?.includes('Authorization header missing') ||
+                serverMessage?.includes('Invalid JWT token')
 
-            // 로그아웃 처리 (필요한 경우만 리다이렉트)
-            handleLogout(friendlyMessage)
+            console.log('🔍 서버 응답 분석:', {
+                message: serverMessage,
+                isTokenInvalid: isTokenInvalid
+            })
 
-            // 에러 객체에 친화적 메시지 추가
-            error.friendlyMessage = friendlyMessage
+            // 🔥 실제 토큰 무효인 경우에만 로그아웃 처리
+            if (isTokenInvalid) {
+                console.log('🔓 유효하지 않은 토큰으로 인한 로그아웃')
+                const friendlyMessage = '인증이 만료되어 다시 로그인이 필요합니다.'
+                handleLogout(friendlyMessage)
+                error.friendlyMessage = friendlyMessage
+            } else {
+                // 🔥 권한 부족 등 기타 401 에러는 로그아웃하지 않음
+                console.log('ℹ️ 권한 부족 또는 기타 401 에러 - 로그아웃하지 않음')
+                error.friendlyMessage = '접근 권한이 없습니다. 페이지를 새로고침해보세요.'
+            }
         }
 
         // 🔥 네트워크 에러 처리

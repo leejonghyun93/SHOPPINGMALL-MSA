@@ -215,68 +215,73 @@ const updateCounts = (data) => {
 }
 
 // 🔥 공통 apiClient를 사용한 사용자 추가 정보 가져오기
-async function fetchUserExtraInfo() {
-  const token = localStorage.getItem('token')
-  if (!token) {
-    console.log('🔓 토큰 없어서 추가 정보 로딩 생략')
-    return
-  }
+// 🔥 사용자 추가 정보 로딩 (포인트, 쿠폰 등)
+const fetchUserExtraInfo = async () => {
+  console.log('🔄 사용자 추가 정보 로딩 시작')
 
-  try {
-    console.log('🔄 사용자 추가 정보 로딩 시작')
+  // 🔥 각 API를 개별적으로 호출하여 일부 실패해도 다른 정보는 로드되도록
+  const apiCalls = [
+    {
+      name: '포인트 정보',
+      call: () => apiClient.get('/api/users/points'),
+      onSuccess: (response) => {
+        if (response.data.success) {
+          availablePoints.value = response.data.data || 0
+          console.log('✅ 포인트 정보 로드:', availablePoints.value)
+        }
+      }
+    },
+    {
+      name: '쿠폰 정보',
+      call: () => apiClient.get('/api/users/coupons'),
+      onSuccess: (response) => {
+        if (response.data.success) {
+          availableCoupons.value = response.data.data?.length || 0
+          console.log('✅ 쿠폰 정보 로드:', availableCoupons.value)
+        }
+      }
+    },
+    {
+      name: '주문 개수',
+      call: () => apiClient.get('/api/orders/count'),
+      onSuccess: (response) => {
+        if (response.data.success) {
+          totalOrders.value = response.data.data || 0
+          console.log('✅ 주문 개수 로드:', totalOrders.value)
+        }
+      }
+    }
+  ]
 
-    // 🔥 공통 apiClient 사용 - 인터셉터가 자동으로 처리
-    const fetchPromises = [
-      // 포인트 정보
-      apiClient.get('/api/users/points')
-          .then(response => {
-            if (response.data.success) {
-              points.value = response.data.data.points || 0
-              console.log('✅ 포인트 정보 로딩 성공:', points.value)
-            }
-          })
-          .catch(error => {
-            console.log('ℹ️ 포인트 정보 로딩 실패 (무시):', error.message)
-            points.value = 0
-          }),
+  // 🔥 각 API를 병렬로 호출하되 실패해도 다른 API는 계속 실행
+  const results = await Promise.allSettled(
+      apiCalls.map(async (api) => {
+        try {
+          const response = await api.call()
+          api.onSuccess(response)
+          return { name: api.name, success: true }
+        } catch (error) {
+          console.log(`⚠️ ${api.name} 로드 실패:`, error.friendlyMessage || error.message)
+          return { name: api.name, success: false, error: error.message }
+        }
+      })
+  )
 
-      // 쿠폰 정보
-      apiClient.get('/api/users/coupons')
-          .then(response => {
-            if (response.data.success) {
-              coupons.value = response.data.data.coupons || 0
-              console.log('✅ 쿠폰 정보 로딩 성공:', coupons.value)
-            }
-          })
-          .catch(error => {
-            console.log('ℹ️ 쿠폰 정보 로딩 실패 (무시):', error.message)
-            coupons.value = 0
-          }),
+  // 🔥 로드 결과 요약
+  const successCount = results.filter(r => r.value?.success).length
+  const totalCount = results.length
 
-      // 주문 수 정보
-      apiClient.get('/api/orders/count')
-          .then(response => {
-            if (response.data.success) {
-              orderCount.value = response.data.data.count || 0
-              console.log('✅ 주문 정보 로딩 성공:', orderCount.value)
-            }
-          })
-          .catch(error => {
-            console.log('ℹ️ 주문 정보 로딩 실패 (무시):', error.message)
-            orderCount.value = 0
-          })
-    ]
+  console.log(`📊 추가 정보 로딩 완료: ${successCount}/${totalCount}개 성공`)
 
-    // 모든 요청을 병렬로 실행하고 개별 에러는 무시
-    await Promise.allSettled(fetchPromises)
-    console.log('✅ 사용자 추가 정보 로딩 완료')
+  // 🔥 일부 실패한 경우 사용자에게 알림 (선택적)
+  if (successCount < totalCount) {
+    const failedApis = results
+        .filter(r => !r.value?.success)
+        .map(r => r.value?.name)
+        .join(', ')
 
-  } catch (error) {
-    console.error('❌ 사용자 추가 정보 로딩 전체 실패:', error)
-    // 에러 발생 시 기본값 설정
-    points.value = 0
-    coupons.value = 0
-    orderCount.value = 0
+    console.log(`ℹ️ 일부 정보 로드 실패: ${failedApis}`)
+    // showNotification('일부 정보를 불러올 수 없습니다. 페이지를 새로고침해보세요.', 'warning')
   }
 }
 
