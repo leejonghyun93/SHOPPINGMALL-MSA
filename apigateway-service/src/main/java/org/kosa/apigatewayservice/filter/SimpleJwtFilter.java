@@ -23,7 +23,7 @@ import java.util.List;
 @Component
 public class SimpleJwtFilter implements WebFilter {
 
-    // 🔥 Auth Service와 동일한 JWT Secret 사용
+    // Auth Service와 동일한 JWT Secret 사용
     @Value("${jwt.secret:verySecretKeyThatIsAtLeast32BytesLong1234}")
     private String jwtSecret;
 
@@ -36,14 +36,14 @@ public class SimpleJwtFilter implements WebFilter {
         ServerHttpRequest request = exchange.getRequest();
         String path = request.getPath().value();
 
-        // 🔥 완전 공개 경로는 JWT 검증 스킵
+        //  완전 공개 경로는 JWT 검증 스킵
         if (isPublicPath(path)) {
             return chain.filter(exchange);
         }
 
         String authHeader = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
 
-        // 🔥 Authorization 헤더가 없는 경우
+        //  Authorization 헤더가 없는 경우
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             // 인증이 필요한 경로인 경우 401 반환
             if (isAuthRequiredPath(path)) {
@@ -56,7 +56,7 @@ public class SimpleJwtFilter implements WebFilter {
         String token = authHeader.substring(7);
 
         try {
-            // 🔥 JWT 토큰 파싱 및 검증
+            //  JWT 토큰 파싱 및 검증
             Claims claims = Jwts.parserBuilder()
                     .setSigningKey(getSigningKey())
                     .build()
@@ -69,7 +69,7 @@ public class SimpleJwtFilter implements WebFilter {
             String email = claims.get("email", String.class);
             String phone = claims.get("phone", String.class);
 
-            // 🔥 요청 헤더에 사용자 정보 추가
+            // 요청 헤더에 사용자 정보 추가
             ServerHttpRequest modifiedRequest = request.mutate()
                     .header("X-User-Id", userId)
                     .header("X-User-Role", role)
@@ -78,7 +78,7 @@ public class SimpleJwtFilter implements WebFilter {
                     .header("X-User-Phone", phone != null ? phone : "")
                     .build();
 
-            // 🔥 Spring Security Context에 인증 정보 설정
+            // Spring Security Context에 인증 정보 설정
             List<SimpleGrantedAuthority> authorities = Collections.singletonList(
                     new SimpleGrantedAuthority("ROLE_" + (role != null ? role : "USER"))
             );
@@ -90,7 +90,7 @@ public class SimpleJwtFilter implements WebFilter {
                     .contextWrite(ReactiveSecurityContextHolder.withAuthentication(authToken));
 
         } catch (Exception e) {
-            // 🔥 JWT 파싱 실패
+            // JWT 파싱 실패
             System.err.println("JWT 파싱 실패: " + e.getMessage());
 
             // 인증이 필요한 경로인 경우 401 반환
@@ -103,7 +103,7 @@ public class SimpleJwtFilter implements WebFilter {
         }
     }
 
-    // 🔥 완전 공개 경로 확인
+    // 완전 공개 경로 확인
     private boolean isPublicPath(String path) {
         return path.startsWith("/auth/") ||
                 path.startsWith("/api/users/register") ||
@@ -122,7 +122,7 @@ public class SimpleJwtFilter implements WebFilter {
                 path.startsWith("/actuator/health/");
     }
 
-    // 🔥 인증이 필요한 경로 확인
+    // 인증이 필요한 경로 확인
     private boolean isAuthRequiredPath(String path) {
         return path.startsWith("/api/users/profile") ||
                 path.startsWith("/api/users/points") ||
@@ -134,7 +134,7 @@ public class SimpleJwtFilter implements WebFilter {
                 path.startsWith("/api/payments/") && !path.startsWith("/api/payments/guest/") && !path.startsWith("/api/payments/webhook");
     }
 
-    // 🔥 401 Unauthorized 응답 처리
+    // 401 Unauthorized 응답 처리
     private Mono<Void> handleUnauthorized(ServerWebExchange exchange, String message) {
         exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
         exchange.getResponse().getHeaders().add("Content-Type", "application/json");

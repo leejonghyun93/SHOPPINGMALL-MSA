@@ -35,6 +35,10 @@ import OrderComplete from '@/views/order/OrderComplete.vue'
 import BroadcastList from "@/views/live/BroadcastList.vue"
 import LiveBroadcastViewer from '@/views/live/BroadcastViewer.vue'
 
+// 방송 예약 컴포넌트
+import BroadcastCalendar from "@/views/live/calendar.vue"
+import {Calendar} from "lucide-vue-next";
+
 // 인증 가드
 const requireAuth = (to, from, next) => {
     const token = localStorage.getItem('token')
@@ -116,6 +120,11 @@ const routes = [
         props: true
     },
     {
+        path: '/broadcasts/calendar',
+        name: 'BroadcastCalendar',
+        component: BroadcastCalendar
+    },
+    {
         path: '/live/:broadcastId',
         name: 'LiveBroadcastViewer',
         component: LiveBroadcastViewer,
@@ -147,26 +156,6 @@ const routes = [
         name: 'UserEdit',
         component: UserEdit,
         props: true
-    },
-    {
-        path: '/boardList',
-        name: 'BoardList',
-        component: BoardList
-    },
-    {
-        path: '/board/write',
-        name: 'BoardWrite',
-        component: BoardWrite
-    },
-    {
-        path: '/board/:bno',
-        name: 'BoardDetail',
-        component: BoardDetail
-    },
-    {
-        path: '/board/edit/:bno',
-        name: 'BoardEdit',
-        component: BoardEdit
     },
     {
         path: '/cart',

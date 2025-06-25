@@ -19,7 +19,7 @@
     <div v-else class="main-content">
       <!-- 왼쪽: 장바구니 내용 -->
       <div class="cart-content">
-        <!-- 🔥 안전한 조건 체크: cartItems가 존재하고 배열인지 확인 -->
+        <!-- 안전한 조건 체크: cartItems가 존재하고 배열인지 확인 -->
         <div v-if="!cartItems || !Array.isArray(cartItems) || cartItems.length === 0" class="empty-cart">
           <div class="empty-icon">!</div>
           <h3>장바구니에 담긴 상품이 없습니다</h3>
@@ -264,28 +264,24 @@ const router = useRouter()
 const FREE_DELIVERY_THRESHOLD = 40000
 const DELIVERY_FEE = 0
 
-// 🔥 안전한 초기화 - 모든 ref를 적절한 기본값으로 초기화
+// 안전한 초기화 - 모든 ref를 적절한 기본값으로 초기화
 const loading = ref(false)
 const checkoutLoading = ref(false)
-const cartItems = ref([]) // 🔥 빈 배열로 초기화
-const selectedItems = ref([]) // 🔥 빈 배열로 초기화
+const cartItems = ref([])
+const selectedItems = ref([])
 const selectAll = ref(false)
 const freeDeliveryThreshold = ref(FREE_DELIVERY_THRESHOLD)
 const isLoggedIn = ref(false)
 
 // 토큰 유효성 검사 함수
 const isTokenValid = (token) => {
-  console.log('🔍 토큰 유효성 검사 시작:', token ? '토큰 있음' : '토큰 없음')
-
   if (!token) {
-    console.log('❌ 토큰이 없음')
     return false
   }
 
   try {
     const parts = token.split('.')
     if (parts.length !== 3) {
-      console.log('❌ 토큰 형식 오류 - 파트 수:', parts.length)
       return false
     }
 
@@ -298,43 +294,23 @@ const isTokenValid = (token) => {
     const payload = JSON.parse(payloadStr)
     const currentTime = Math.floor(Date.now() / 1000)
 
-    console.log('🕐 토큰 만료 확인:', {
-      exp: payload.exp,
-      currentTime,
-      expired: payload.exp < currentTime
-    })
-
     if (payload.exp && payload.exp < currentTime) {
-      console.log('❌ 토큰 만료됨')
       return false
     }
 
-    console.log('✅ 토큰 유효함')
     return true
   } catch (error) {
-    console.error('❌ 토큰 검증 에러:', error)
     return false
   }
 }
 
 // 로그인 상태 확인 함수
 const checkLoginStatus = () => {
-  console.log('🔐 로그인 상태 확인 시작')
-
   const token = localStorage.getItem('token')
-  console.log('🎫 로컬스토리지 토큰:', token ? `있음 (${token.length}자)` : '없음')
-
   const valid = token && isTokenValid(token)
   isLoggedIn.value = valid
 
-  console.log('📋 로그인 상태 결과:', {
-    hasToken: !!token,
-    isValid: valid,
-    isLoggedIn: isLoggedIn.value
-  })
-
   if (!valid && token) {
-    console.log('🗑️ 무효한 토큰 제거')
     localStorage.removeItem('token')
   }
 
@@ -376,7 +352,7 @@ const hasItemDiscount = (item) => {
   return item.discountRate > 0 && item.salePrice < item.price;
 }
 
-// 🔥 안전한 컴퓨티드 속성들
+// 안전한 컴퓨티드 속성들
 const frozenItems = computed(() => {
   if (!Array.isArray(cartItems.value)) return []
   return cartItems.value.filter(item => item && item.category === 'frozen')
@@ -424,7 +400,7 @@ const finalTotal = computed(() => {
   return totalSalePrice.value + deliveryFee.value;
 })
 
-// 🔥 안전한 이벤트 핸들러들
+// 안전한 이벤트 핸들러들
 const toggleSelectAll = () => {
   if (!Array.isArray(cartItems.value)) return
 
@@ -448,7 +424,6 @@ const increaseQuantity = async (item) => {
         cartItemId: item.id,
         quantity: item.quantity
       });
-      console.log('✅ 수량 증가 성공:', item.quantity)
     } catch (error) {
       item.quantity = originalQuantity;
 
@@ -456,7 +431,6 @@ const increaseQuantity = async (item) => {
         alert('장바구니 상품을 찾을 수 없습니다. 페이지를 새로고침합니다.');
         window.location.reload();
       } else {
-        console.log('수량 변경 실패:', error.message);
         alert('수량 변경에 실패했습니다.');
       }
     }
@@ -478,7 +452,6 @@ const decreaseQuantity = async (item) => {
         cartItemId: item.id,
         quantity: item.quantity
       });
-      console.log('✅ 수량 감소 성공:', item.quantity)
     } catch (error) {
       item.quantity = originalQuantity;
 
@@ -486,7 +459,6 @@ const decreaseQuantity = async (item) => {
         alert('장바구니 상품을 찾을 수 없습니다. 페이지를 새로고침합니다.');
         window.location.reload();
       } else {
-        console.log('수량 변경 실패:', error.message);
         alert('수량 변경에 실패했습니다.');
       }
     }
@@ -553,7 +525,7 @@ const deleteSelectedItems = async () => {
         try {
           await apiClient.delete(`/api/cart/items/${cartItemId}`);
         } catch (individualError) {
-          // 개별 삭제 실패 로그
+          // 개별 삭제 실패 처리
         }
       }
     }
@@ -594,14 +566,12 @@ const updateGuestCartQuantity = (productId, newQuantity) => {
       localStorage.setItem('guestCart', JSON.stringify(guestCart));
     }
   } catch (error) {
-    console.error('게스트 장바구니 업데이트 실패:', error)
+    // 에러 처리
   }
 }
 
 // 주문하기 함수
 const goToCheckout = async () => {
-  console.log('🛒 주문하기 버튼 클릭됨')
-
   try {
     checkoutLoading.value = true;
 
@@ -620,7 +590,6 @@ const goToCheckout = async () => {
     try {
       await apiClient.get('/api/users/profile')
     } catch (authError) {
-      console.log('❌ 인증 실패 - 인터셉터에서 처리됨')
       return
     }
 
@@ -640,7 +609,6 @@ const goToCheckout = async () => {
     router.push('/checkout')
 
   } catch (error) {
-    console.error('💥 주문하기 처리 중 예상치 못한 오류:', error)
     alert('주문 페이지로 이동 중 오류가 발생했습니다.')
   } finally {
     checkoutLoading.value = false;
@@ -665,7 +633,7 @@ const handleImageError = (event) => {
   event.target.src = generatePlaceholderImage()
 }
 
-// 🔥 안전한 선택 상품 감시
+// 안전한 선택 상품 감시
 watch(selectedItems, () => {
   if (!Array.isArray(cartItems.value) || !Array.isArray(selectedItems.value)) return
   selectAll.value = selectedItems.value.length === cartItems.value.length && cartItems.value.length > 0
@@ -673,16 +641,13 @@ watch(selectedItems, () => {
 
 // 컴포넌트 마운트
 onMounted(async () => {
-  console.log('🚀 장바구니 컴포넌트 마운트 시작')
   loading.value = true
 
   try {
     const loginStatus = checkLoginStatus()
-    console.log('👤 초기 로그인 상태:', loginStatus)
 
     if (loginStatus) {
       // 로그인 사용자 - 서버에서 장바구니 로드
-      console.log('🔑 로그인 사용자 - 서버 장바구니 로드 시작')
       try {
         const response = await apiClient.get('/api/cart')
 
@@ -694,22 +659,17 @@ onMounted(async () => {
           cartItems.value = serverItems
           selectedItems.value = serverItems.map(item => item.id)
           selectAll.value = serverItems.length > 0
-          console.log('📦 서버 장바구니 로드 완료:', serverItems.length, '개 상품')
         } else {
           cartItems.value = []
-          console.log('📭 서버 장바구니 비어있음')
         }
 
       } catch (error) {
-        console.error('❌ 서버 장바구니 로드 실패:', error.message)
         cartItems.value = []
       }
     } else {
       // 게스트 사용자 - 로컬 스토리지에서 장바구니 로드
-      console.log('👻 게스트 사용자 - 로컬 장바구니 로드 시작')
       try {
         const localCart = JSON.parse(localStorage.getItem('guestCart') || '[]')
-        console.log('🗂️ 로컬 장바구니 데이터:', localCart.length, '개 상품')
 
         if (Array.isArray(localCart) && localCart.length > 0) {
           const requestData = localCart.map(item => ({
@@ -717,7 +677,6 @@ onMounted(async () => {
             quantity: item.quantity || 1
           }))
 
-          console.log('📡 /api/products/guest-cart-details 호출 중...')
           const response = await apiClient.post('/api/products/guest-cart-details', requestData, {
             withAuth: false
           })
@@ -742,27 +701,21 @@ onMounted(async () => {
             cartItems.value = enrichedItems
             selectedItems.value = enrichedItems.map(item => item.id)
             selectAll.value = enrichedItems.length > 0
-            console.log('📦 게스트 장바구니 로드 완료:', enrichedItems.length, '개 상품')
           } else {
             cartItems.value = []
-            console.log('📭 게스트 장바구니 응답 데이터 오류')
           }
         } else {
           cartItems.value = []
-          console.log('📭 로컬 장바구니 비어있음')
         }
 
       } catch (error) {
-        console.error('❌ 게스트 장바구니 로드 실패:', error)
         cartItems.value = []
       }
     }
   } catch (error) {
-    console.error('❌ 장바구니 마운트 중 예상치 못한 오류:', error)
     cartItems.value = []
   } finally {
     loading.value = false
-    console.log('🏁 장바구니 컴포넌트 마운트 완료')
   }
 })
 </script>

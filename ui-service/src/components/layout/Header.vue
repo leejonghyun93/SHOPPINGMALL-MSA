@@ -6,7 +6,7 @@
       <router-link to="/" class="navbar-brand">트라이마켓</router-link>
       <router-link to="/" class="navbar-brand">홈</router-link>
       <router-link to="/broadcasts/category" class="navbar-brand">라이브 목록</router-link>
-      <router-link to="/broadcasts/schedule" class="navbar-brand">예고</router-link>
+      <router-link to="/broadcasts/calendar" class="navbar-brand">예고</router-link>
       <router-link to="/category" class="navbar-brand">카테고리</router-link>
     </div>
 
@@ -55,14 +55,14 @@
 import { onMounted, computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import { user, setUserFromToken } from "@/stores/userStore";
-import apiClient from '@/api/axiosInstance' // 🔥 공통 apiClient 추가
+import apiClient from '@/api/axiosInstance' //  공통 apiClient 추가
 
 const router = useRouter();
 const isDropdownVisible = ref(false);
 
 const computedUser = computed(() => user);
 
-// 🔥 토큰 유효성 검사 함수
+//  토큰 유효성 검사 함수
 const isTokenValid = (token) => {
   if (!token) return false
 
@@ -91,7 +91,7 @@ const isTokenValid = (token) => {
   }
 }
 
-// 🔥 사용자 정보 검증 함수 (선택적)
+//  사용자 정보 검증 함수 (선택적)
 const validateUserInfo = async () => {
   const token = localStorage.getItem("token")
   if (!token || !isTokenValid(token)) {
@@ -99,7 +99,7 @@ const validateUserInfo = async () => {
   }
 
   try {
-    // 🔥 공통 apiClient로 사용자 정보 검증
+    //  공통 apiClient로 사용자 정보 검증
     const response = await apiClient.get('/api/users/profile')
 
     if (response.data.success && response.data.data) {
@@ -110,12 +110,10 @@ const validateUserInfo = async () => {
       user.email = userData.email
       user.role = userData.role || 'USER'
 
-      console.log('✅ 헤더에서 사용자 정보 검증 완료:', user.name)
       return true
     }
   } catch (error) {
     // 401은 인터셉터에서 자동으로 처리
-    console.log('사용자 정보 검증 실패:', error.message)
     return false
   }
 
@@ -129,16 +127,14 @@ onMounted(async () => {
     try {
       // 토큰으로 기본 사용자 정보 설정
       setUserFromToken(token);
-      console.log('✅ 헤더에서 기본 사용자 정보 설정 완료:', user.name);
 
-      // 🔥 선택적으로 서버에서 최신 정보 검증 (백그라운드)
+      // 선택적으로 서버에서 최신 정보 검증 (백그라운드)
       validateUserInfo().catch(() => {
         // 검증 실패해도 기본 정보는 유지
         console.log('사용자 정보 백그라운드 검증 실패 - 기본 정보 유지')
       })
 
     } catch (error) {
-      console.error('❌ 헤더에서 사용자 정보 설정 실패:', error);
       localStorage.removeItem("token");
       user.id = null;
       user.name = null;
@@ -147,7 +143,6 @@ onMounted(async () => {
   } else {
     // 토큰이 없거나 무효한 경우
     if (token) {
-      console.log('🔓 헤더에서 무효한 토큰 제거');
       localStorage.removeItem("token");
     }
     user.id = null;
@@ -167,7 +162,6 @@ function hideDropdown() {
 }
 
 function logout() {
-  console.log('🔓 사용자 로그아웃');
   localStorage.removeItem("token");
   user.id = null;
   user.name = null;

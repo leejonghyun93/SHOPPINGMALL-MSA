@@ -26,7 +26,7 @@ public class LoggingFilter extends AbstractGatewayFilterFactory<LoggingFilter.Co
             ServerHttpResponse response = exchange.getResponse();
 
             if (config.isPreLogger()) {
-                log.info("🚀 [{}] Request: {} {} from {} | Headers: {}",
+                log.info(" [{}] Request: {} {} from {} | Headers: {}",
                         config.getBaseMessage(),
                         request.getMethod(),
                         request.getURI().getPath(),
@@ -36,7 +36,7 @@ public class LoggingFilter extends AbstractGatewayFilterFactory<LoggingFilter.Co
 
             return chain.filter(exchange).then(Mono.fromRunnable(() -> {
                 if (config.isPostLogger()) {
-                    log.info("✅ [{}] Response: {} for {} {} | Content-Type: {}",
+                    log.info(" [{}] Response: {} for {} {} | Content-Type: {}",
                             config.getBaseMessage(),
                             response.getStatusCode(),
                             request.getMethod(),

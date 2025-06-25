@@ -17,7 +17,7 @@ spring:
     name: APIGATEWAY-SERVICE
   cloud:
     gateway:
-      #  🔥 CORS 설정을 하나로 통합 (중복 제거)
+      #  CORS 설정을 하나로 통합 (중복 제거)
       globalcors:
         cors-configurations:
           '[/**]':
@@ -37,7 +37,7 @@ spring:
             maxAge: 3600
         add-to-simple-url-handler-mapping: true
 
-      # 🔥 CORS 헤더 중복 제거 필터 추가 (필수!)
+      #  CORS 헤더 중복 제거 필터 추가 (필수!)
       default-filters:
         - name: DedupeResponseHeader
           args:
@@ -50,7 +50,7 @@ spring:
             postLogger: true
 
       routes:
-        # 🔥 주문 취소를 맨 앞으로 이동 (가장 구체적이므로)
+        #  주문 취소를 맨 앞으로 이동 (가장 구체적이므로)
         - id: order-cancel-protected
           uri: lb://ORDER-SERVICE
           predicates:
@@ -127,7 +127,7 @@ spring:
                 preLogger: true
                 postLogger: true
 
-        # 🔥 💳 PAYMENT SERVICE 라우팅 (SimpleJwtFilter 제거)
+        # PAYMENT SERVICE 라우팅 (SimpleJwtFilter 제거)
         - id: payment-orders-checkout-public
           uri: lb://PAYMENT-SERVICE
           predicates:
@@ -618,6 +618,113 @@ spring:
             - name: LoggingFilter
               args:
                 baseMessage: "User Service Protected"
+                preLogger: true
+                postLogger: true
+
+        # Health Check (완전 공개)
+        - id: notification-health-public
+          uri: lb://NOTIFICATION-SERVICE
+          predicates:
+            - Path=/api/notifications/health
+            - Method=GET
+          filters:
+            - name: LoggingFilter
+              args:
+                baseMessage: "Notification Health Check"
+                preLogger: true
+                postLogger: true
+
+        # 방송 시작 알림 구독/취소 (인증 필요)
+        - id: notification-subscription-protected
+          uri: lb://NOTIFICATION-SERVICE
+          predicates:
+            - Path=/api/notifications/subscriptions/**
+            - Method=POST,DELETE,PUT
+          filters:
+            - name: JwtAuthorization
+            - name: LoggingFilter
+              args:
+                baseMessage: "Notification Subscription Protected"
+                preLogger: true
+                postLogger: true
+
+        # 사용자별 알림 조회 (인증 필요)
+        - id: notification-user-protected
+          uri: lb://NOTIFICATION-SERVICE
+          predicates:
+            - Path=/api/notifications/users/**
+            - Method=GET,PATCH
+          filters:
+            - name: JwtAuthorization
+            - name: LoggingFilter
+              args:
+                baseMessage: "Notification User Protected"
+                preLogger: true
+                postLogger: true
+
+        # 방송 관련 알림 조회 (공개 - 구독자 수 등)
+        - id: notification-broadcast-public
+          uri: lb://NOTIFICATION-SERVICE
+          predicates:
+            - Path=/api/notifications/broadcasts/**
+            - Method=GET
+          filters:
+            - name: LoggingFilter
+              args:
+                baseMessage: "Notification Broadcast Public"
+                preLogger: true
+                postLogger: true
+
+        # 내부 API - 방송 서비스에서 호출 (공개)
+        - id: notification-internal-public
+          uri: lb://NOTIFICATION-SERVICE
+          predicates:
+            - Path=/api/notifications/broadcasts/*/start-notifications
+            - Method=POST
+          filters:
+            - name: LoggingFilter
+              args:
+                baseMessage: "Notification Internal API"
+                preLogger: true
+                postLogger: true
+
+        # WebSocket 연결 (인증 필요)
+        - id: notification-websocket-protected
+          uri: lb://NOTIFICATION-SERVICE
+          predicates:
+            - Path=/ws-notifications/**
+          filters:
+            - name: JwtAuthorization
+            - name: LoggingFilter
+              args:
+                baseMessage: "Notification WebSocket"
+                preLogger: true
+                postLogger: true
+
+        # 나머지 알림 API (인증 필요)
+        - id: notification-service-protected
+          uri: lb://NOTIFICATION-SERVICE
+          predicates:
+            - Path=/api/notifications/**
+            - Method=POST,PUT,DELETE,PATCH
+          filters:
+            - name: JwtAuthorization
+            - name: LoggingFilter
+              args:
+                baseMessage: "Notification Service Protected"
+                preLogger: true
+                postLogger: true
+
+        # 알림 서비스 일반 조회 (공개)
+        - id: notification-service-public
+          uri: lb://NOTIFICATION-SERVICE
+          predicates:
+            - Path=/api/notifications/**
+            - Method=GET
+          filters:
+            - name: LoggingFilter
+              args:
+                baseMessage: "Notification Service Public"
                 preLogger: true
                 postLogger: true
 

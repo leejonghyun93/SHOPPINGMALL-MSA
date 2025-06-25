@@ -48,7 +48,7 @@ public class OrderService {
                     .mapToInt(CheckoutItemDTO::getTotalPrice)
                     .sum();
 
-            Integer deliveryFee = totalItemPrice >= 40000 ? 0 : 3000;
+            Integer deliveryFee = totalItemPrice >= 40000 ? 0 : 0;
 
             Integer finalTotalPrice = totalItemPrice + deliveryFee -
                     (request.getUsedPoint() != null ? request.getUsedPoint() : 0);

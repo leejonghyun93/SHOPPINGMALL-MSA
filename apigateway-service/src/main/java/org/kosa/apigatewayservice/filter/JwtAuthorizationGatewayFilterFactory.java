@@ -37,11 +37,11 @@ public class JwtAuthorizationGatewayFilterFactory extends AbstractGatewayFilterF
             String path = exchange.getRequest().getURI().getPath();
             HttpMethod method = exchange.getRequest().getMethod();
 
-            log.info("🔐 JWT Authorization Filter - Path: {}, Method: {}", path, method);
+            log.info(" JWT Authorization Filter - Path: {}, Method: {}", path, method);
 
             // CORS Preflight 요청은 통과
             if (method == HttpMethod.OPTIONS) {
-                log.info("✅ CORS Preflight request - allowing: {}", path);
+                log.info(" CORS Preflight request - allowing: {}", path);
                 return chain.filter(exchange);
             }
 
@@ -49,7 +49,7 @@ public class JwtAuthorizationGatewayFilterFactory extends AbstractGatewayFilterF
             String authHeader = exchange.getRequest().getHeaders().getFirst("Authorization");
 
             if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                log.warn("❌ Missing or invalid Authorization header for path: {} [{}]", path, method);
+                log.warn(" Missing or invalid Authorization header for path: {} [{}]", path, method);
                 exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
                 return exchange.getResponse().setComplete();
             }
@@ -65,26 +65,26 @@ public class JwtAuthorizationGatewayFilterFactory extends AbstractGatewayFilterF
                         .parseClaimsJws(token)
                         .getBody();
 
-                // 🔥 사용자 정보 추출 (문자열 subject 완벽 지원)
+                // 사용자 정보 추출 (문자열 subject 완벽 지원)
                 String subject = claims.getSubject();
                 String username = claims.get("username", String.class);
                 String name = claims.get("name", String.class);
                 String email = claims.get("email", String.class);
                 String phone = claims.get("phone", String.class);
 
-                // 🔥 userId 처리: subject를 그대로 사용 (숫자든 문자열이든)
+                //  userId 처리: subject를 그대로 사용 (숫자든 문자열이든)
                 String userId = subject != null ? subject : username;
                 String finalUsername = username != null ? username : subject;
 
                 if (userId == null) {
-                    log.error("❌ JWT에서 사용자 식별자를 찾을 수 없음");
+                    log.error(" JWT에서 사용자 식별자를 찾을 수 없음");
                     exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
                     return exchange.getResponse().setComplete();
                 }
 
-                log.info("✅ JWT validated - Subject: '{}', Username: '{}', Final UserId: '{}'", subject, username, userId);
+                log.info("JWT validated - Subject: '{}', Username: '{}', Final UserId: '{}'", subject, username, userId);
 
-                // 🔥 사용자 정보를 헤더에 추가
+                //  사용자 정보를 헤더에 추가
                 ServerHttpRequest modifiedRequest = exchange.getRequest().mutate()
                         .header("X-User-Id", userId)
                         .header("X-Username", finalUsername != null ? finalUsername : userId)
@@ -94,12 +94,12 @@ public class JwtAuthorizationGatewayFilterFactory extends AbstractGatewayFilterF
                         .header("X-User-Role", "USER")
                         .build();
 
-                log.info("🎯 JWT Authorization 성공 - X-User-Id: '{}', X-Username: '{}'", userId, finalUsername);
+                log.info(" JWT Authorization 성공 - X-User-Id: '{}', X-Username: '{}'", userId, finalUsername);
 
                 return chain.filter(exchange.mutate().request(modifiedRequest).build());
 
             } catch (JwtException | IllegalArgumentException e) {
-                log.error("❌ JWT validation failed for path: {}, error: {}", path, e.getMessage());
+                log.error(" JWT validation failed for path: {}, error: {}", path, e.getMessage());
                 exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
                 return exchange.getResponse().setComplete();
             }

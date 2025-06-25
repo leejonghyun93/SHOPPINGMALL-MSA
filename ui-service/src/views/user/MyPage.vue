@@ -154,7 +154,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { user, setUserFromToken } from '@/stores/userStore'
-import apiClient from '@/api/axiosInstance' // 🔥 공통 apiClient 임포트
+import apiClient from '@/api/axiosInstance' //  공통 apiClient 임포트
 
 const route = useRoute()
 const router = useRouter()
@@ -214,12 +214,11 @@ const updateCounts = (data) => {
   if (data.giftCards !== undefined) giftCards.value = data.giftCards
 }
 
-// 🔥 공통 apiClient를 사용한 사용자 추가 정보 가져오기
-// 🔥 사용자 추가 정보 로딩 (포인트, 쿠폰 등)
+//  공통 apiClient를 사용한 사용자 추가 정보 가져오기
+//  사용자 추가 정보 로딩 (포인트, 쿠폰 등)
 const fetchUserExtraInfo = async () => {
-  console.log('🔄 사용자 추가 정보 로딩 시작')
 
-  // 🔥 각 API를 개별적으로 호출하여 일부 실패해도 다른 정보는 로드되도록
+  // 각 API를 개별적으로 호출하여 일부 실패해도 다른 정보는 로드되도록
   const apiCalls = [
     {
       name: '포인트 정보',
@@ -227,7 +226,6 @@ const fetchUserExtraInfo = async () => {
       onSuccess: (response) => {
         if (response.data.success) {
           availablePoints.value = response.data.data || 0
-          console.log('✅ 포인트 정보 로드:', availablePoints.value)
         }
       }
     },
@@ -237,7 +235,7 @@ const fetchUserExtraInfo = async () => {
       onSuccess: (response) => {
         if (response.data.success) {
           availableCoupons.value = response.data.data?.length || 0
-          console.log('✅ 쿠폰 정보 로드:', availableCoupons.value)
+
         }
       }
     },
@@ -247,13 +245,12 @@ const fetchUserExtraInfo = async () => {
       onSuccess: (response) => {
         if (response.data.success) {
           totalOrders.value = response.data.data || 0
-          console.log('✅ 주문 개수 로드:', totalOrders.value)
         }
       }
     }
   ]
 
-  // 🔥 각 API를 병렬로 호출하되 실패해도 다른 API는 계속 실행
+  // 각 API를 병렬로 호출하되 실패해도 다른 API는 계속 실행
   const results = await Promise.allSettled(
       apiCalls.map(async (api) => {
         try {
@@ -261,27 +258,22 @@ const fetchUserExtraInfo = async () => {
           api.onSuccess(response)
           return { name: api.name, success: true }
         } catch (error) {
-          console.log(`⚠️ ${api.name} 로드 실패:`, error.friendlyMessage || error.message)
           return { name: api.name, success: false, error: error.message }
         }
       })
   )
 
-  // 🔥 로드 결과 요약
+  // 로드 결과 요약
   const successCount = results.filter(r => r.value?.success).length
   const totalCount = results.length
 
-  console.log(`📊 추가 정보 로딩 완료: ${successCount}/${totalCount}개 성공`)
-
-  // 🔥 일부 실패한 경우 사용자에게 알림 (선택적)
+  // 일부 실패한 경우 사용자에게 알림 (선택적)
   if (successCount < totalCount) {
     const failedApis = results
         .filter(r => !r.value?.success)
         .map(r => r.value?.name)
         .join(', ')
 
-    console.log(`ℹ️ 일부 정보 로드 실패: ${failedApis}`)
-    // showNotification('일부 정보를 불러올 수 없습니다. 페이지를 새로고침해보세요.', 'warning')
   }
 }
 
@@ -318,18 +310,15 @@ const isTokenValid = (token) => {
 
 // 마운트 시 처리
 onMounted(async () => {
-  console.log('🔄 마이페이지 마운트 시작')
 
   const token = localStorage.getItem('token')
 
   if (!token) {
-    console.log('🔓 토큰 없음 - 로그인 페이지로 이동')
     router.push('/login')
     return
   }
 
   if (!isTokenValid(token)) {
-    console.log('🔓 토큰 무효 - 로그인 페이지로 이동')
     localStorage.removeItem('token')
     router.push('/login')
     return
@@ -338,15 +327,12 @@ onMounted(async () => {
   // userStore에서 사용자 정보 설정
   try {
     setUserFromToken(token)
-    console.log('✅ 사용자 정보 설정 완료:', user.name)
   } catch (error) {
-    console.error('❌ 사용자 정보 설정 실패:', error)
     localStorage.removeItem('token')
     router.push('/login')
     return
   }
 
-  // 🔥 공통 apiClient를 사용한 추가 정보 가져오기
   await fetchUserExtraInfo()
 
   // 기본 라우트가 없으면 주문 내역으로 리다이렉트
@@ -354,7 +340,6 @@ onMounted(async () => {
     router.replace({ name: 'MyPageOrders' })
   }
 
-  console.log('✅ 마이페이지 마운트 완료')
 })
 </script>
 
