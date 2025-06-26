@@ -45,6 +45,13 @@
         >
           ›
         </button>
+
+        <!-- 서버 상태 표시 (알림 서버만) -->
+        <div class="ms-auto">
+          <span :class="['badge', serverStatus === 'connected' ? 'bg-success' : 'bg-danger']">
+            {{ serverStatus === 'connected' ? '알림 서버 연결됨' : '알림 서버 연결 안됨' }}
+          </span>
+        </div>
       </div>
     </div>
   </div>
@@ -55,7 +62,9 @@
 
       <!-- 로딩 중 -->
       <div v-if="isLoadingSchedule" class="text-center py-5">
-        <i class="fas fa-spinner fa-spin fa-2x text-primary mb-3"></i>
+        <div class="spinner-border text-primary mb-3" role="status">
+          <span class="visually-hidden">Loading...</span>
+        </div>
         <h5 class="text-muted">방송 스케줄을 불러오는 중...</h5>
       </div>
 
@@ -68,33 +77,41 @@
                 v-for="broadcast in timeSlot.broadcasts"
                 :key="broadcast.id"
                 class="broadcast-item d-flex mb-3 bg-white"
+                :class="{ 'past-broadcast': isBroadcastPast(broadcast, timeSlot.time) }"
                 @click="handleBroadcastClick(broadcast)"
             >
               <!-- 시간 표시 -->
               <div class="time-display d-flex align-items-center justify-content-center">
                 <span class="time-text">{{ timeSlot.time }}</span>
+                <!-- 지난 방송 표시 -->
+                <div v-if="isBroadcastPast(broadcast, timeSlot.time)" class="past-indicator">
+                  <small class="text-muted">종료</small>
+                </div>
               </div>
 
               <!-- 방송 썸네일 -->
               <div class="broadcast-thumbnail">
                 <img
-                    :src="broadcast.thumbnail || '/default-thumbnail.jpg'"
+                    :src="broadcast.thumbnailUrl || '/default-thumbnail.jpg'"
                     :alt="broadcast.title"
                     @error="handleImageError"
                 >
+                <!-- 지난 방송 오버레이 -->
+                <div v-if="isBroadcastPast(broadcast, timeSlot.time)" class="past-overlay">
+                  <span class="text-white">종료</span>
+                </div>
               </div>
 
               <!-- 방송 정보 -->
               <div class="broadcast-info">
                 <!-- 방송 제목 -->
-                <h6 class="broadcast-title">
+                <h6 class="broadcast-title" :class="{ 'text-muted': isBroadcastPast(broadcast, timeSlot.time) }">
                   {{ broadcast.title }}
                 </h6>
 
                 <!-- 상품 정보 -->
                 <div class="product-section" v-if="broadcast.productName">
                   <div class="product-icon-name">
-                    <i class="fas fa-gift"></i>
                     <span class="product-name">{{ broadcast.productName }}</span>
                   </div>
                   <div class="price-section" v-if="broadcast.salePrice">
@@ -107,19 +124,26 @@
                   {{ broadcast.broadcasterName }}
                 </div>
 
-                <!-- 알림 받기 버튼 -->
+                <!-- 알림 받기 버튼 (방송 시간이 지나지 않은 경우만 표시) -->
                 <button
+                    v-if="!isBroadcastPast(broadcast, timeSlot.time)"
                     :class="[
                       'notification-btn-new',
                       broadcast.isNotificationSet ? 'notification-active' : ''
                     ]"
                     @click.stop="toggleNotification(broadcast)"
-                    :disabled="isNotificationLoading"
+                    :disabled="isNotificationLoading || serverStatus !== 'connected'"
                 >
-                  <i v-if="isNotificationLoading" class="fas fa-spinner fa-spin"></i>
-                  <i v-else class="fas fa-bell"></i>
-                  {{ broadcast.isNotificationSet ? '알림설정됨' : '알림받기' }}
+                  <span v-if="isNotificationLoading">로딩...</span>
+                  <span v-else>{{ broadcast.isNotificationSet ? '알림설정됨' : '알림받기' }}</span>
                 </button>
+
+                <!-- 지난 방송 상태 표시 -->
+                <div v-else class="past-broadcast-status">
+                  <span class="badge bg-secondary">
+                    방송 종료
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -128,9 +152,9 @@
 
       <!-- 방송이 없는 경우 -->
       <div v-else class="no-broadcasts text-center py-5">
-        <i class="fas fa-tv fa-3x text-muted mb-3"></i>
+        <div class="display-4 text-muted mb-3">TV</div>
         <h5 class="text-muted">선택한 날짜에 예정된 방송이 없습니다</h5>
-        <p class="text-muted small">다른 날짜를 선택해보세요</p>
+        <p class="text-muted small">방송 서비스가 구현되면 실제 방송 목록이 표시됩니다</p>
       </div>
     </div>
   </div>
@@ -138,133 +162,116 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-
-// 서버 설정
-const NOTIFICATION_SERVICE_URL = 'http://localhost:8096'
-const BROADCAST_SERVICE_URL = 'http://localhost:8080'  // 방송 서비스 URL
-const API_BASE_URL = `${NOTIFICATION_SERVICE_URL}/api/notifications`
+import {
+  NOTIFICATION_CONFIG,
+  notificationApiCall,
+  getCurrentUser,
+  subscribeBroadcastStart,
+  unsubscribeBroadcast
+} from '@/config/notificationConfig'
 
 // 상태 관리
 const isNotificationLoading = ref(false)
 const isLoadingSchedule = ref(false)
-const currentApiUrl = ref(API_BASE_URL)
+const serverStatus = ref('disconnected')
 
-// API 호출 함수
-const apiCall = async (url, options = {}) => {
-  const token = localStorage.getItem('jwtToken') || localStorage.getItem('token')
+// 방송 시간이 지났는지 확인하는 함수
+const isBroadcastPast = (broadcast, timeSlot) => {
+  try {
+    const now = new Date()
+    const broadcastDate = new Date(selectedDate.value)
+    const [hours, minutes] = timeSlot.split(':').map(Number)
 
-  const defaultHeaders = {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json'
+    broadcastDate.setHours(hours, minutes, 0, 0)
+
+    const durationHours = broadcast.duration || 1
+    const broadcastEndTime = new Date(broadcastDate.getTime() + (durationHours * 60 * 60 * 1000))
+
+    return now > broadcastEndTime
+  } catch (error) {
+    return false
   }
-
-  if (token) {
-    defaultHeaders['Authorization'] = `Bearer ${token}`
-  }
-
-  const requestOptions = {
-    mode: 'cors',
-    ...options,
-    headers: {
-      ...defaultHeaders,
-      ...options.headers
-    }
-  }
-
-  return fetch(url, requestOptions)
 }
 
-// 🔥 실제 방송 스케줄 API 호출
-const fetchBroadcastSchedule = async (date) => {
+// 알림 서버 연결 체크
+const checkNotificationServer = async () => {
   try {
-    const dateString = date.toISOString().split('T')[0] // YYYY-MM-DD 형식
+    const response = await notificationApiCall(NOTIFICATION_CONFIG.ENDPOINTS.HEALTH)
 
-    // 방송 서비스에서 스케줄 데이터 가져오기
-    const response = await apiCall(`${BROADCAST_SERVICE_URL}/api/broadcasts/schedule?date=${dateString}`)
+    if (response.ok) {
+      serverStatus.value = 'connected'
+      return true
+    }
+  } catch (error) {
+    // 연결 실패 시 상태만 업데이트
+  }
+
+  serverStatus.value = 'disconnected'
+  return false
+}
+
+// DB에서 방송 스케줄 조회
+const fetchBroadcastsFromDB = async (date) => {
+  try {
+    const dateString = date.toISOString().split('T')[0]
+    const response = await notificationApiCall(`${NOTIFICATION_CONFIG.ENDPOINTS.BROADCASTS_SCHEDULE}?date=${dateString}`)
 
     if (response.ok) {
       const data = await response.json()
       return data || []
     } else {
-      console.error('방송 스케줄 조회 실패:', response.status)
       return []
     }
   } catch (error) {
-    console.error('방송 스케줄 API 호출 실패:', error)
     return []
   }
 }
 
-// 🔥 사용자 알림 구독 상태 조회
+// 사용자 알림 구독 상태 조회
 const loadUserNotificationSettings = async (scheduleData) => {
+  if (scheduleData.length === 0) return scheduleData
+
   try {
     const user = getCurrentUser()
-    const response = await apiCall(`${currentApiUrl.value}/subscriptions/users/${user.id}`)
+
+    if (!user.identifier) {
+      return scheduleData
+    }
+
+    const userParam = user.identifier
+    const endpoint = `/subscriptions/users/${userParam}`
+
+    const response = await notificationApiCall(endpoint)
 
     if (response.ok) {
       const userSubscriptions = await response.json()
+
       const subscribedBroadcastIds = new Set(
           userSubscriptions.map(sub => sub.broadcastId)
       )
 
-      // 스케줄 데이터에 구독 상태 반영
       scheduleData.forEach(timeSlot => {
         timeSlot.broadcasts.forEach(broadcast => {
-          broadcast.isNotificationSet = subscribedBroadcastIds.has(broadcast.id)
+          const isSubscribed = subscribedBroadcastIds.has(broadcast.id)
+          broadcast.isNotificationSet = isSubscribed
+        })
+      })
+    } else {
+      scheduleData.forEach(timeSlot => {
+        timeSlot.broadcasts.forEach(broadcast => {
+          broadcast.isNotificationSet = false
         })
       })
     }
   } catch (error) {
-    console.error('사용자 알림 설정 조회 실패:', error)
+    scheduleData.forEach(timeSlot => {
+      timeSlot.broadcasts.forEach(broadcast => {
+        broadcast.isNotificationSet = false
+      })
+    })
   }
 
   return scheduleData
-}
-
-// 알림 구독 함수
-const subscribeBroadcastStart = async (userId, broadcastId) => {
-  const response = await apiCall(`${currentApiUrl.value}/subscriptions/broadcast-start?userId=${userId}&broadcastId=${broadcastId}`, {
-    method: 'POST'
-  })
-
-  if (!response.ok) {
-    const errorText = await response.text()
-    throw new Error(errorText || `HTTP ${response.status}`)
-  }
-
-  return await response.json()
-}
-
-// 알림 구독 취소 함수
-const unsubscribeBroadcast = async (userId, broadcastId) => {
-  const response = await apiCall(`${currentApiUrl.value}/subscriptions?userId=${userId}&broadcastId=${broadcastId}&type=BROADCAST_START`, {
-    method: 'DELETE'
-  })
-
-  if (!response.ok) {
-    const errorText = await response.text()
-    throw new Error(errorText || `HTTP ${response.status}`)
-  }
-}
-
-// 사용자 정보 가져오기
-const getCurrentUser = () => {
-  const token = localStorage.getItem('jwtToken') || localStorage.getItem('token')
-
-  if (token) {
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]))
-      return {
-        id: payload.userId || payload.sub || payload.id || 1,
-        username: payload.username || payload.name || 'testuser'
-      }
-    } catch (error) {
-      console.error('JWT 토큰 파싱 실패:', error)
-      return { id: 1, username: 'testuser' }
-    }
-  }
-
-  return { id: 1, username: 'testuser' }
 }
 
 // 날짜 관련
@@ -272,29 +279,18 @@ const currentDate = ref(new Date())
 const selectedDate = ref(new Date())
 const days = ['일', '월', '화', '수', '목', '금', '토']
 
-// 🔥 방송 스케줄 데이터 (DB에서 가져옴)
+// 방송 스케줄 데이터
 const broadcastSchedule = ref([])
 
-// 🔥 방송 스케줄 로드 함수
+// 방송 스케줄 로드 함수
 const loadBroadcastSchedule = async (date = selectedDate.value) => {
   isLoadingSchedule.value = true
 
   try {
-    console.log('방송 스케줄 로드:', date.toLocaleDateString('ko-KR'))
-
-    // 1. 방송 스케줄 데이터 가져오기
-    let scheduleData = await fetchBroadcastSchedule(date)
-
-    // 2. 사용자 알림 설정 상태 조회
+    let scheduleData = await fetchBroadcastsFromDB(date)
     scheduleData = await loadUserNotificationSettings(scheduleData)
-
-    // 3. 스케줄 업데이트
     broadcastSchedule.value = scheduleData
-
-    console.log('방송 스케줄 로드 완료:', scheduleData.length, '개 시간대')
-
   } catch (error) {
-    console.error('방송 스케줄 로드 실패:', error)
     broadcastSchedule.value = []
   } finally {
     isLoadingSchedule.value = false
@@ -335,9 +331,6 @@ const isSelected = (date) => {
 // 이벤트 핸들러들
 const handleDateClick = async (date) => {
   selectedDate.value = date
-  console.log('선택된 날짜:', date.toLocaleDateString('ko-KR'))
-
-  // 🔥 선택된 날짜의 방송 스케줄 다시 로드
   await loadBroadcastSchedule(date)
 }
 
@@ -358,7 +351,6 @@ const formatPrice = (price) => {
 }
 
 const handleBroadcastClick = (broadcast) => {
-  console.log('방송 클릭:', broadcast.title)
   // 방송 상세 페이지로 이동
 }
 
@@ -366,56 +358,91 @@ const handleImageError = (event) => {
   event.target.src = '/default-thumbnail.jpg'
 }
 
-// 알림 토글 함수
 const toggleNotification = async (broadcast) => {
-  if (isNotificationLoading.value) return
+  if (isNotificationLoading.value || serverStatus.value !== 'connected') return
 
   const user = getCurrentUser()
+
+  if (!user.identifier) {
+    alert('알림 설정을 위해 로그인이 필요합니다')
+    return
+  }
 
   try {
     isNotificationLoading.value = true
 
+    const userParam = user.identifier
+
     if (broadcast.isNotificationSet) {
-      // 구독 취소
-      await unsubscribeBroadcast(user.id, broadcast.id)
+      await unsubscribeBroadcast(userParam, broadcast.id)
       broadcast.isNotificationSet = false
-      alert('✅ 알림 구독이 취소되었습니다')
+      alert('알림 구독이 취소되었습니다')
     } else {
-      // 구독 신청
-      await subscribeBroadcastStart(user.id, broadcast.id)
+      await subscribeBroadcastStart(userParam, broadcast.id)
       broadcast.isNotificationSet = true
-      alert('🔔 방송 시작 알림을 설정했습니다!')
+      alert('방송 시작 알림을 설정했습니다!')
     }
 
   } catch (error) {
-    console.error('❌ 알림 설정 실패:', error)
-    alert(`❌ 알림 설정 중 오류가 발생했습니다: ${error.message}`)
+    let errorMessage = '알림 설정 중 오류가 발생했습니다.'
+
+    if (error.response) {
+      const errorData = error.response.data
+
+      if (errorData && errorData.error) {
+        switch (errorData.error) {
+          case 'INVALID_PARAMETER':
+            if (errorData.message && errorData.message.includes('이미 구독')) {
+              broadcast.isNotificationSet = true
+              alert('이미 알림이 설정되어 있습니다!')
+              return
+            } else {
+              errorMessage = '잘못된 요청입니다. 페이지를 새로고침해주세요.'
+            }
+            break
+          case 'INVALID_USER_ID':
+            errorMessage = '사용자 정보가 올바르지 않습니다. 다시 로그인해주세요.'
+            localStorage.removeItem('token')
+            break
+          case 'INTERNAL_ERROR':
+            errorMessage = '서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
+            break
+          default:
+            errorMessage = errorData.message || errorMessage
+        }
+      }
+      else if (error.response.status === 401) {
+        errorMessage = '인증이 필요합니다. 다시 로그인해주세요.'
+        localStorage.removeItem('token')
+      } else if (error.response.status === 403) {
+        errorMessage = '권한이 없습니다.'
+      } else if (error.response.status === 409) {
+        broadcast.isNotificationSet = true
+        alert('이미 알림이 설정되어 있습니다!')
+        return
+      } else if (error.response.status >= 500) {
+        errorMessage = '서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
+      }
+    }
+    else if (!error.response) {
+      errorMessage = '네트워크 연결을 확인해주세요.'
+    }
+
+    alert(errorMessage)
   } finally {
     isNotificationLoading.value = false
   }
 }
 
-// 🔥 날짜 변경시 자동 스케줄 로드
+// 날짜 변경시 자동 스케줄 로드
 watch(selectedDate, async (newDate) => {
   await loadBroadcastSchedule(newDate)
 })
 
 // 컴포넌트 초기화
 onMounted(async () => {
-  console.log('🚀 컴포넌트 초기화 시작')
-
-  // 테스트용 토큰 설정
-  if (!localStorage.getItem('jwtToken')) {
-    const testPayload = { userId: 1, username: 'testuser' }
-    const testToken = btoa(JSON.stringify(testPayload))
-    localStorage.setItem('jwtToken', `test.${testToken}.signature`)
-    console.log('🧪 테스트 토큰 생성됨')
-  }
-
-  // 🔥 실제 방송 스케줄 로드
+  await checkNotificationServer()
   await loadBroadcastSchedule()
-
-  console.log('✅ 초기화 완료')
 })
 </script>
 
@@ -472,17 +499,34 @@ onMounted(async () => {
   background-color: #f8f9fa;
 }
 
+.broadcast-item.past-broadcast {
+  opacity: 0.7;
+  background-color: #f8f9fa !important;
+}
+
+.broadcast-item.past-broadcast:hover {
+  background-color: #e9ecef !important;
+}
+
 .time-display {
   width: 70px;
   height: 120px;
   background-color: white;
   border-right: 1px solid #e9ecef;
+  position: relative;
 }
 
 .time-text {
   font-size: 18px;
   font-weight: bold;
   color: #333;
+}
+
+.past-indicator {
+  position: absolute;
+  bottom: 5px;
+  left: 50%;
+  transform: translateX(-50%);
 }
 
 .broadcast-thumbnail {
@@ -496,6 +540,19 @@ onMounted(async () => {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.past-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
 }
 
 .broadcast-info {
@@ -542,6 +599,11 @@ onMounted(async () => {
   cursor: not-allowed;
 }
 
+.past-broadcast-status {
+  margin-bottom: 12px;
+  align-self: flex-start;
+}
+
 .product-section {
   margin-bottom: 8px;
 }
@@ -550,13 +612,6 @@ onMounted(async () => {
   display: flex;
   align-items: flex-start;
   margin-bottom: 6px;
-}
-
-.product-icon-name i {
-  color: #4a90e2;
-  margin-right: 6px;
-  margin-top: 2px;
-  font-size: 12px;
 }
 
 .product-name {

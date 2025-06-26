@@ -299,6 +299,31 @@ public class UserService {
         return userGradeRepository.findAllByOrderByGradeMinAmountAsc();
     }
 
+    /**
+     * 사용자 ID로 이메일 조회
+     */
 
+    public String getUserEmailByUserId(String userId) {
+        try {
+            log.info("DB에서 사용자 이메일 조회: userId={}", userId);
+
+            // 🔥 Member 엔티티 사용 (User가 아닌)
+            Optional<Member> memberOpt = userRepository.findByUserId(userId);
+            if (memberOpt.isPresent()) {
+                Member member = memberOpt.get();
+                String email = member.getEmail();
+                log.info("사용자 이메일 조회 성공: userId={}, email={}***", userId,
+                        email.substring(0, Math.min(2, email.length())));
+                return email;
+            }
+
+            log.warn("사용자를 찾을 수 없음: userId={}", userId);
+            return null;
+
+        } catch (Exception e) {
+            log.error("사용자 이메일 조회 실패: userId={}, error={}", userId, e.getMessage(), e);
+            return null;  // 🔥 예외 던지지 말고 null 반환
+        }
+    }
 
 }

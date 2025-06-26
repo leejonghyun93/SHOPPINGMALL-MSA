@@ -2,9 +2,13 @@ package org.kosa.notificationservice.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.kosa.notificationservice.dto.BroadcastDto;
+import org.kosa.notificationservice.dto.BroadcastScheduleDto;
 import org.kosa.notificationservice.dto.NotificationCreateDto;
 import org.kosa.notificationservice.dto.NotificationResponseDto;
+import org.kosa.notificationservice.entity.BroadcastEntity;
 import org.kosa.notificationservice.entity.LiveBroadcastNotification;
+import org.kosa.notificationservice.repository.BroadcastRepository;
 import org.kosa.notificationservice.repository.LiveBroadcastNotificationRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -12,7 +16,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -20,7 +26,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Transactional
 public class NotificationService {
-
+    private final BroadcastRepository broadcastRepository;
     private final LiveBroadcastNotificationRepository notificationRepository;
     private final KafkaNotificationProducer kafkaProducer;
 
@@ -93,7 +99,7 @@ public class NotificationService {
      * 사용자별 알림 목록 조회 (페이징)
      */
     @Transactional(readOnly = true)
-    public Page<NotificationResponseDto> getUserNotifications(Long userId, Pageable pageable) {
+    public Page<NotificationResponseDto> getUserNotifications(String userId, Pageable pageable) {
         Page<LiveBroadcastNotification> notifications =
                 notificationRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
 
@@ -104,7 +110,7 @@ public class NotificationService {
      * 읽지 않은 알림 목록 조회
      */
     @Transactional(readOnly = true)
-    public List<NotificationResponseDto> getUnreadNotifications(Long userId) {
+    public List<NotificationResponseDto> getUnreadNotifications(String userId) {
         List<LiveBroadcastNotification> notifications =
                 notificationRepository.findByUserIdAndIsReadFalseOrderByCreatedAtDesc(userId);
 
@@ -117,14 +123,14 @@ public class NotificationService {
      * 읽지 않은 알림 개수 조회
      */
     @Transactional(readOnly = true)
-    public long getUnreadCount(Long userId) {
+    public long getUnreadCount(String userId) {
         return notificationRepository.countByUserIdAndIsReadFalse(userId);
     }
 
     /**
      * 알림 읽음 처리
      */
-    public void markAsRead(Long notificationId, Long userId) {
+    public void markAsRead(Long notificationId, String userId) {
         notificationRepository.markAsRead(notificationId, userId, LocalDateTime.now());
         log.info("알림 읽음 처리: notificationId={}, userId={}", notificationId, userId);
     }
@@ -132,7 +138,7 @@ public class NotificationService {
     /**
      * 알림 구독 취소 (삭제)
      */
-    public void deleteNotification(Long userId, Long broadcastId, String type) {
+    public void deleteNotification(String userId, Long broadcastId, String type) {
         notificationRepository.deleteByUserIdAndBroadcastIdAndType(userId, broadcastId, type);
         log.info("알림 구독 취소: userId={}, broadcastId={}, type={}", userId, broadcastId, type);
     }

@@ -26,11 +26,13 @@ public class NotificationSubscriptionService {
 
     private final LiveBroadcastNotificationRepository notificationRepository;
     private final BroadcastServiceClient broadcastServiceClient;
+    private final EmailService emailService;
+    private final UserEmailService userEmailService;
 
     /**
      * 🔔 방송 시작 알림 구독 신청
      */
-    public NotificationResponseDto subscribeBroadcastStart(Long userId, Long broadcastId) {
+    public NotificationResponseDto subscribeBroadcastStart(String userId, Long broadcastId) {
         log.info("방송 시작 알림 구독 신청: userId={}, broadcastId={}", userId, broadcastId);
 
         // 1. 중복 구독 체크
@@ -38,7 +40,7 @@ public class NotificationSubscriptionService {
             throw new IllegalArgumentException("이미 구독 중인 방송입니다.");
         }
 
-        // 2. 방송 정보 조회
+        // 2. 방송 정보 조회 (실제 방송자 이름 포함)
         BroadcastServiceClient.BroadcastInfo broadcastInfo =
                 broadcastServiceClient.getBroadcastInfo(broadcastId);
 
@@ -46,24 +48,32 @@ public class NotificationSubscriptionService {
             throw new IllegalArgumentException("존재하지 않는 방송입니다: " + broadcastId);
         }
 
-        // 3. 알림 엔티티 생성
+        // 3. 방송자 이름 확인 로그
+        log.info("방송 정보 조회 완료: broadcastId={}, title={}, broadcasterName={}, hostUserId={}",
+                broadcastId, broadcastInfo.title, broadcastInfo.broadcasterName, broadcastInfo.hostUserId);
+
+        // 4. 실제 방송자 이름으로 알림 메시지 생성
+        String broadcasterName = broadcastInfo.broadcasterName != null ?
+                broadcastInfo.broadcasterName : "방송자";
+
+        // 5. 알림 엔티티 생성
         LiveBroadcastNotification notification = LiveBroadcastNotification.builder()
                 .broadcastId(broadcastId)
                 .userId(userId)
                 .type("BROADCAST_START")
                 .title(broadcastInfo.title + " 방송 시작 알림")
-                .message(broadcastInfo.broadcasterName + "님의 방송이 시작되면 알려드릴게요!")
+                .message(String.format("%s님의 방송이 시작되면 알려드릴게요!", broadcasterName))  // 🔥 실제 이름 사용
                 .priority("HIGH")
                 .isSent(false)
                 .isRead(false)
                 .createdAt(LocalDateTime.now())
                 .build();
 
-        // 4. DB 저장
+        // 6. DB 저장
         LiveBroadcastNotification saved = notificationRepository.save(notification);
 
-        log.info("방송 시작 알림 구독 완료: notificationId={}, userId={}, broadcastId={}",
-                saved.getNotificationId(), userId, broadcastId);
+        log.info("방송 시작 알림 구독 완료: notificationId={}, userId={}, broadcastId={}, broadcasterName={}",
+                saved.getNotificationId(), userId, broadcastId, broadcasterName);
 
         return convertToResponseDto(saved);
     }
@@ -71,7 +81,7 @@ public class NotificationSubscriptionService {
     /**
      * ❌ 방송 알림 구독 취소
      */
-    public void unsubscribeBroadcast(Long userId, Long broadcastId, String type) {
+    public void unsubscribeBroadcast(String userId, Long broadcastId, String type) {
         log.info("방송 알림 구독 취소: userId={}, broadcastId={}, type={}", userId, broadcastId, type);
 
         // 구독 중인 알림이 있는지 먼저 확인
@@ -91,7 +101,7 @@ public class NotificationSubscriptionService {
      * 📋 사용자의 구독 중인 방송 목록 조회
      */
     @Transactional(readOnly = true)
-    public List<NotificationResponseDto> getUserSubscriptions(Long userId) {
+    public List<NotificationResponseDto> getUserSubscriptions(String userId) {
         log.info("사용자 구독 목록 조회: userId={}", userId);
 
         // 사용자의 미발송 알림들 조회 (구독 중인 것들)
@@ -121,10 +131,10 @@ public class NotificationSubscriptionService {
      * 🔥 방송 시작시 구독자들에게 대량 알림 생성 (Live Streaming Service에서 호출)
      */
     public List<NotificationResponseDto> createBroadcastStartNotifications(Long broadcastId) {
-        log.info("방송 시작 - 구독자들에게 알림 생성: broadcastId={}", broadcastId);
+        log.info("방송 시작 알림 처리: broadcastId={}", broadcastId);
 
         try {
-            // 1. 방송 정보 조회
+            // 1. 방송 정보 조회 (실제 방송자 이름 포함)
             BroadcastServiceClient.BroadcastInfo broadcastInfo =
                     broadcastServiceClient.getBroadcastInfo(broadcastId);
 
@@ -133,44 +143,62 @@ public class NotificationSubscriptionService {
                 return new ArrayList<>();
             }
 
-            // 2. 해당 방송을 구독 중인 미발송 알림들 조회
-            List<LiveBroadcastNotification> existingNotifications =
+            log.info("방송 시작 알림 처리 - 방송 정보: broadcastId={}, title={}, broadcasterName={}",
+                    broadcastId, broadcastInfo.title, broadcastInfo.broadcasterName);
+
+            // 2. 해당 방송의 구독자들 조회
+            List<LiveBroadcastNotification> notifications =
                     notificationRepository.findByBroadcastIdAndIsSentFalse(broadcastId);
 
-            if (existingNotifications.isEmpty()) {
-                log.info("구독자가 없습니다: broadcastId={}", broadcastId);
-                return new ArrayList<>();
+            log.info("방송 구독자 수: broadcastId={}, subscriberCount={}", broadcastId, notifications.size());
+
+            // 3. 구독자들에게 이메일 발송
+            String broadcasterName = broadcastInfo.broadcasterName != null ?
+                    broadcastInfo.broadcasterName : "방송자";
+
+            for (LiveBroadcastNotification notification : notifications) {
+                try {
+                    String userEmail = userEmailService.getUserEmail(notification.getUserId());
+
+                    if (userEmail != null) {
+                        // 🔥 실제 방송자 이름으로 이메일 발송
+                        emailService.sendBroadcastStartNotification(
+                                userEmail,
+                                notification.getUserId(),
+                                broadcastInfo.title,
+                                broadcasterName,  // 실제 방송자 이름 사용
+                                broadcastId
+                        );
+
+                        // 발송 완료 처리
+                        notification.setIsSent(true);
+                        notification.setSentAt(LocalDateTime.now());
+
+                        log.info("방송 시작 알림 이메일 발송 완료: userId={}, broadcasterName={}",
+                                notification.getUserId(), broadcasterName);
+                    } else {
+                        log.warn("사용자 이메일을 찾을 수 없습니다: userId={}", notification.getUserId());
+                    }
+                } catch (Exception e) {
+                    log.error("이메일 발송 실패: userId={}, error={}",
+                            notification.getUserId(), e.getMessage());
+                }
             }
 
-            // 3. 알림 제목/메시지 업데이트 (방송 시작에 맞게)
-            for (LiveBroadcastNotification notification : existingNotifications) {
-                notification.setTitle(broadcastInfo.title + " - 방송이 시작되었습니다!");
-                notification.setMessage(String.format(
-                        "🔴 %s님의 라이브 방송이 지금 시작되었습니다!\n" +
-                                "📺 방송 제목: %s\n" +
-                                "⏰ 시작 시간: %s\n\n" +
-                                "놓치지 마시고 지금 바로 시청하세요!",
-                        broadcastInfo.broadcasterName,
-                        broadcastInfo.title,
-                        broadcastInfo.scheduledStartTime
-                ));
-                notification.setPriority("URGENT"); // 방송 시작시에는 긴급으로 변경
-            }
+            // 4. 알림 상태 일괄 업데이트
+            notificationRepository.saveAll(notifications);
 
-            // 4. 업데이트된 알림들 저장
-            List<LiveBroadcastNotification> updatedNotifications =
-                    notificationRepository.saveAll(existingNotifications);
+            log.info("방송 시작 알림 처리 완료: broadcastId={}, 발송완료={}/{}",
+                    broadcastId,
+                    notifications.stream().mapToInt(n -> n.getIsSent() ? 1 : 0).sum(),
+                    notifications.size());
 
-            log.info("방송 시작 알림 생성 완료: broadcastId={}, subscriberCount={}",
-                    broadcastId, updatedNotifications.size());
-
-            // 5. ResponseDto로 변환하여 반환
-            return updatedNotifications.stream()
+            return notifications.stream()
                     .map(this::convertToResponseDto)
                     .collect(Collectors.toList());
 
         } catch (Exception e) {
-            log.error("방송 시작 알림 생성 실패: broadcastId={}, error={}", broadcastId, e.getMessage(), e);
+            log.error("방송 알림 처리 실패: broadcastId={}, error={}", broadcastId, e.getMessage());
             return new ArrayList<>();
         }
     }
@@ -179,7 +207,7 @@ public class NotificationSubscriptionService {
      * 📊 사용자의 모든 알림 목록 조회 (읽음/안읽음 포함)
      */
     @Transactional(readOnly = true)
-    public List<NotificationResponseDto> getAllUserNotifications(Long userId) {
+    public List<NotificationResponseDto> getAllUserNotifications(String userId) {
         log.info("사용자 전체 알림 목록 조회: userId={}", userId);
 
         List<LiveBroadcastNotification> notifications =
@@ -224,6 +252,49 @@ public class NotificationSubscriptionService {
     }
 
     /**
+     * 🔥 방송자 정보 갱신 (방송 정보 변경시)
+     * 기존 알림 메시지의 방송자 이름을 업데이트
+     */
+    @Transactional
+    public void updateBroadcasterInfo(Long broadcastId) {
+        log.info("방송자 정보 갱신: broadcastId={}", broadcastId);
+
+        try {
+            // 1. 최신 방송 정보 조회
+            BroadcastServiceClient.BroadcastInfo broadcastInfo =
+                    broadcastServiceClient.getBroadcastInfo(broadcastId);
+
+            if (broadcastInfo == null) {
+                log.warn("방송 정보를 찾을 수 없습니다: broadcastId={}", broadcastId);
+                return;
+            }
+
+            // 2. 해당 방송의 미발송 알림들 조회
+            List<LiveBroadcastNotification> notifications =
+                    notificationRepository.findByBroadcastIdAndIsSentFalse(broadcastId);
+
+            // 3. 알림 메시지 업데이트
+            String broadcasterName = broadcastInfo.broadcasterName != null ?
+                    broadcastInfo.broadcasterName : "방송자";
+
+            for (LiveBroadcastNotification notification : notifications) {
+                String updatedMessage = String.format("%s님의 방송이 시작되면 알려드릴게요!", broadcasterName);
+                notification.setMessage(updatedMessage);
+                notification.setTitle(broadcastInfo.title + " 방송 시작 알림");
+            }
+
+            // 4. 일괄 업데이트
+            notificationRepository.saveAll(notifications);
+
+            log.info("방송자 정보 갱신 완료: broadcastId={}, updatedCount={}, broadcasterName={}",
+                    broadcastId, notifications.size(), broadcasterName);
+
+        } catch (Exception e) {
+            log.error("방송자 정보 갱신 실패: broadcastId={}, error={}", broadcastId, e.getMessage());
+        }
+    }
+
+    /**
      * Entity를 ResponseDto로 변환
      */
     private NotificationResponseDto convertToResponseDto(LiveBroadcastNotification notification) {
@@ -240,7 +311,6 @@ public class NotificationSubscriptionService {
                 .isRead(notification.getIsRead())
                 .readAt(notification.getReadAt())
                 .createdAt(notification.getCreatedAt())
-
                 .build();
     }
 }

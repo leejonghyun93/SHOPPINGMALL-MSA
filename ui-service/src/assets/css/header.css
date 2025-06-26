@@ -1,3 +1,203 @@
+/* 알림 관련 전용 스타일 - 기존 CSS와 충돌 방지 */
+.notification-container {
+    position: relative;
+    cursor: pointer;
+}
+
+.notification-icon {
+    color: #000000 !important;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    border-radius: 50%;
+    text-decoration: none !important;
+}
+
+.notification-icon:hover {
+    color: #6f42c1 !important;
+    background-color: rgba(111, 66, 193, 0.1);
+    transform: translateY(-1px);
+}
+
+/* 기존 CSS의 badge와 구분하기 위해 클래스명 변경 */
+.notification-count-badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background-color: #28a745 !important;
+    color: white;
+    border-radius: 50%;
+    padding: 2px 6px;
+    font-size: 0.7rem;
+    font-weight: bold;
+    min-width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    border: 2px solid white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    animation: notification-pulse 2s infinite;
+}
+
+@keyframes notification-pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 6px rgba(40, 167, 69, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0);
+    }
+}
+
+.notification-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    width: 350px;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.3s ease;
+}
+
+.notification-dropdown.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.notification-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid #eee;
+    background-color: #f8f9fa;
+    border-radius: 8px 8px 0 0;
+}
+
+.notification-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.notification-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    color: #666;
+}
+
+.notification-item {
+    display: flex;
+    align-items: flex-start;
+    padding: 12px 16px;
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.notification-item:hover {
+    background-color: #f8f9fa;
+}
+
+.notification-item.unread {
+    background-color: #f0f8ff;
+}
+
+.notification-content {
+    flex-grow: 1;
+}
+
+.notification-title {
+    font-weight: 600;
+    font-size: 14px;
+    color: #333;
+    margin-bottom: 4px;
+    line-height: 1.3;
+}
+
+.notification-message {
+    font-size: 13px;
+    color: #666;
+    margin-bottom: 6px;
+    line-height: 1.4;
+}
+
+.notification-time {
+    font-size: 11px;
+    color: #999;
+}
+
+.unread-indicator {
+    width: 8px;
+    height: 8px;
+    background-color: #007bff;
+    border-radius: 50%;
+    margin-top: 6px;
+    margin-left: 8px;
+    flex-shrink: 0;
+}
+
+.no-notifications {
+    padding: 20px;
+}
+
+.notification-footer {
+    padding: 12px 16px;
+    border-top: 1px solid #eee;
+    background-color: #f8f9fa;
+    border-radius: 0 0 8px 8px;
+}
+
+/* SVG 아이콘 크기 */
+.svg-icon {
+    width: 1.3rem;
+    height: 1.3rem;
+    transition: all 0.3s ease;
+}
+
+.notification-icon:hover .svg-icon {
+    transform: scale(1.1);
+}
+
+/* 반응형 */
+@media (max-width: 768px) {
+    .notification-dropdown {
+        width: 300px;
+        right: -50px;
+    }
+
+    .svg-icon {
+        width: 1.4rem;
+        height: 1.4rem;
+    }
+
+    .notification-icon {
+        padding: 10px;
+    }
+
+    .notification-count-badge {
+        top: -6px;
+        right: -6px;
+        min-width: 20px;
+        height: 20px;
+        font-size: 0.75rem;
+    }
+}
+
 .custom-navbar {
     width: 100%;
     background-color: #ffffff;
@@ -140,6 +340,123 @@
     color: white;
 }
 
+/* ===== 아이콘 관련 스타일 ===== */
+
+/* 아이콘 링크 기본 스타일 */
+.icon-link {
+    position: relative;
+    text-decoration: none !important;
+    color: #000000 !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    padding: 8px;
+    border-radius: 50%;
+}
+
+/* 아이콘 링크 호버 효과 */
+.icon-link:hover {
+    color: #6f42c1 !important;
+    background-color: rgba(111, 66, 193, 0.1);
+    text-decoration: none !important;
+    transform: translateY(-1px);
+}
+
+/* 아이콘 컨테이너 */
+.icon-container {
+    position: relative;
+    display: inline-block;
+}
+
+/* 아이콘 크기 */
+.icon-container i {
+    font-size: 1.3rem;
+    transition: all 0.3s ease;
+}
+
+/* 아이콘 호버 시 약간 커지는 효과 */
+.icon-link:hover .icon-container i {
+    transform: scale(1.1);
+}
+
+/* 배지 기본 스타일 */
+.badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background-color: #dc3545;
+    color: white;
+    border-radius: 50%;
+    padding: 2px 6px;
+    font-size: 0.7rem;
+    font-weight: bold;
+    min-width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    border: 2px solid white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    animation: pulse 2s infinite;
+}
+
+/* 알림 배지는 초록색 */
+.notification-badge {
+    background-color: #28a745 !important;
+}
+
+/* 배지 펄스 애니메이션 */
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 6px rgba(220, 53, 69, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
+    }
+}
+
+/* 알림 배지 펄스 애니메이션 */
+.notification-badge {
+    animation: notification-pulse 2s infinite;
+}
+
+@keyframes notification-pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 6px rgba(40, 167, 69, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0);
+    }
+}
+
+/* 배지가 너무 큰 숫자일 때 (99+) */
+.badge.large-count {
+    font-size: 0.6rem;
+    padding: 1px 4px;
+    min-width: 20px;
+    height: 16px;
+}
+
+/* 아이콘이 활성 상태일 때 */
+.icon-link.router-link-active,
+.icon-link.router-link-exact-active {
+    color: #6f42c1 !important;
+    background-color: rgba(111, 66, 193, 0.15);
+}
+
+/* 아이콘 영역 간격 조정 */
+.icon-link + .icon-link {
+    margin-left: 0.5rem;
+}
+
 /* 반응형 - 모바일에서는 호버 대신 클릭 */
 @media (max-width: 768px) {
     .user-menu-container {
@@ -152,5 +469,30 @@
         right: 10px;
         left: 10px;
         width: auto;
+    }
+
+    /* 모바일에서 아이콘 크기 조정 */
+    .icon-container i {
+        font-size: 1.4rem;
+    }
+
+    .icon-link {
+        padding: 10px;
+    }
+
+    /* 모바일에서 배지 크기 조정 */
+    .badge {
+        top: -6px;
+        right: -6px;
+        min-width: 20px;
+        height: 20px;
+        font-size: 0.75rem;
+    }
+}
+
+/* 다크모드 지원 (선택사항) */
+@media (prefers-color-scheme: dark) {
+    .icon-link:hover {
+        background-color: rgba(111, 66, 193, 0.2);
     }
 }

@@ -15,7 +15,7 @@ public class NotificationResponseDto {
 
     private Long notificationId;
     private Long broadcastId;
-    private Long userId;
+    private String userId;
     private String type;
     private String title;
     private String message;

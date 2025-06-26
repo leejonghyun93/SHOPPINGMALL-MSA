@@ -1,27 +1,112 @@
+# ========================================
+# 🏠 알림 서비스 로컬 개발 설정 (수정됨)
+# ========================================
+
+server:
+  port: 8096
+
 spring:
   application:
     name: NOTIFICATION-SERVICE
 
+  # ===== Config Server 연결 =====
   config:
-    import: optional:configserver:http://localhost:8888
-  rabbitmq:
-    host: localhost
-    port: 5672
-    username: guest
-    password: guest
+    import: "optional:configserver:http://localhost:8888"
+    timeout: 3000ms
+    fail-fast: false  # Config Server 실패해도 애플리케이션 시작
+    retry:
+      initial-interval: 1000ms
+      max-attempts: 3
+      max-interval: 2000ms
+      multiplier: 1.2
+
+  # ===== 로컬 이메일 설정 (Gmail 사용) =====
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME}           # 🔒 환경변수로 설정
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop  # 로컬 개발시 테이블 자동 생성
+    database-platform: org.hibernate.dialect.H2Dialect
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  # ===== 로컬 Kafka 설정 (기본값) =====
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: notification-group-local
+      auto-offset-reset: latest
+    producer:
+      retries: 0  # 로컬에서는 재시도 안함
+
+# ===== 🔥 수정된 로컬 개발용 설정 =====
+notification:
+  email:
+    enabled: true  # 🔥 이메일 활성화
+    from-email: "fhohffodf93@gmail.com"  # 실제 발송 이메일
+    from-name: "Local Dev Notification"
+    retry-count: 1
+    retry-delay: 2000
+  websocket:
+    enabled: true
+  batch:
+    enabled: true  # 🔥 배치 활성화 (테스트용)
+    reminder-job-cron: "0 */1 * * * *"  # 1분마다 실행 (테스트용)
+
+external-services:
+  user-service-detail-url: "http://localhost:8081/api/users"
+  broadcast-service-url: "http://localhost:8082/api/broadcasts"
+  frontend-base-url: "http://localhost:3000"
+  unsubscribe-url: "http://localhost:3000/unsubscribe"
+
+# ===== Eureka 설정 =====
 eureka:
+  instance:
+    hostname: localhost
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${server.port}
   client:
+    register-with-eureka: true
+    fetch-registry: true
     service-url:
       defaultZone: http://localhost:8761/eureka
 
+# ===== 로컬 개발용 JWT =====
+jwt:
+  secret-key: localDevSecretKeyForTestingOnly123456
 
+# ===== 로컬 개발용 로깅 =====
+logging:
+  level:
+    org.kosa.notificationservice: DEBUG
+    org.springframework.mail: DEBUG  # 🔥 메일 로그 레벨 DEBUG로 변경
+    org.springframework.kafka: WARN
+    org.springframework.web: INFO
+    org.kosa.notificationservice.service.EmailService: DEBUG  # 이메일 서비스 디버그
+    root: INFO
+
+# ===== 개발용 관리 엔드포인트 =====
 management:
   endpoints:
     web:
       exposure:
-        include: refresh, busrefresh
+        include: health,info,refresh,h2-console
+      base-path: /actuator
   endpoint:
-    busrefresh:
-      enabled: true
+    health:
+      show-details: always
   security:
     enabled: false

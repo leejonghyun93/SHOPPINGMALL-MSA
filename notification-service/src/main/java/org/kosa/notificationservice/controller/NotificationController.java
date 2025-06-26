@@ -3,16 +3,24 @@ package org.kosa.notificationservice.controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.kosa.notificationservice.dto.BroadcastScheduleDto;
 import org.kosa.notificationservice.dto.NotificationCreateDto;
 import org.kosa.notificationservice.dto.NotificationResponseDto;
+import org.kosa.notificationservice.service.BroadcastService;
 import org.kosa.notificationservice.service.NotificationService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/notifications")
@@ -22,7 +30,35 @@ import java.util.List;
 public class NotificationController {
 
     private final NotificationService notificationService;
+    private final BroadcastService broadcastService;
 
+    @GetMapping("/health")
+    public ResponseEntity<Map<String, String>> health() {
+        Map<String, String> status = new HashMap<>();
+        status.put("status", "UP");
+        status.put("service", "NOTIFICATION-SERVICE");
+        status.put("timestamp", LocalDateTime.now().toString());
+        return ResponseEntity.ok(status);
+    }
+
+    /**
+     * 🔥 방송 스케줄 조회 API 추가
+     */
+    @GetMapping("/broadcasts/schedule")
+    public ResponseEntity<List<BroadcastScheduleDto>> getBroadcastSchedule(
+            @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+
+        log.info("방송 스케줄 조회 요청: {}", date);
+
+        try {
+            List<BroadcastScheduleDto> schedule = broadcastService.getBroadcastScheduleByDate(date);
+            log.info("방송 스케줄 조회 성공: {} 개 시간대", schedule.size());
+            return ResponseEntity.ok(schedule);
+        } catch (Exception e) {
+            log.error("방송 스케줄 조회 실패", e);
+            return ResponseEntity.ok(Collections.emptyList());
+        }
+    }
     /**
      * 새 알림 생성
      */
@@ -55,7 +91,7 @@ public class NotificationController {
      */
     @GetMapping("/users/{userId}")
     public ResponseEntity<Page<NotificationResponseDto>> getUserNotifications(
-            @PathVariable Long userId,
+            @PathVariable String userId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
 
@@ -71,7 +107,7 @@ public class NotificationController {
      */
     @GetMapping("/users/{userId}/unread")
     public ResponseEntity<List<NotificationResponseDto>> getUnreadNotifications(
-            @PathVariable Long userId) {
+            @PathVariable String userId) {
 
         List<NotificationResponseDto> notifications =
                 notificationService.getUnreadNotifications(userId);
@@ -83,7 +119,7 @@ public class NotificationController {
      * 읽지 않은 알림 개수 조회
      */
     @GetMapping("/users/{userId}/unread/count")
-    public ResponseEntity<Long> getUnreadCount(@PathVariable Long userId) {
+    public ResponseEntity<Long> getUnreadCount(@PathVariable String userId) {
         long count = notificationService.getUnreadCount(userId);
         return ResponseEntity.ok(count);
     }
@@ -94,7 +130,7 @@ public class NotificationController {
     @PatchMapping("/{notificationId}/read")
     public ResponseEntity<Void> markAsRead(
             @PathVariable Long notificationId,
-            @RequestParam Long userId) {
+            @RequestParam String userId) {
 
         notificationService.markAsRead(notificationId, userId);
         return ResponseEntity.ok().build();
@@ -105,7 +141,7 @@ public class NotificationController {
      */
     @DeleteMapping("/users/{userId}/broadcasts/{broadcastId}")
     public ResponseEntity<Void> unsubscribeNotification(
-            @PathVariable Long userId,
+            @PathVariable String userId,
             @PathVariable Long broadcastId,
             @RequestParam String type) {
 

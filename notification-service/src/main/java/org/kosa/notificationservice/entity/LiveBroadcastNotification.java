@@ -27,7 +27,7 @@ public class LiveBroadcastNotification {
     private Long broadcastId;
 
     @Column(name = "user_id", nullable = false)
-    private Long userId;
+    private String userId;
 
     @Column(name = "type", nullable = false, length = 30)
     private String type;

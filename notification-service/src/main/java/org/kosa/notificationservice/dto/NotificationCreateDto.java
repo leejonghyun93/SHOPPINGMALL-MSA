@@ -13,7 +13,7 @@ public class NotificationCreateDto {
     private Long broadcastId;
 
     @NotNull(message = "사용자 ID는 필수입니다")
-    private Long userId;
+    private String userId;
 
     @NotBlank(message = "알림 타입은 필수입니다")
     private String type; // BROADCAST_START, BROADCAST_END, BROADCAST_REMINDER

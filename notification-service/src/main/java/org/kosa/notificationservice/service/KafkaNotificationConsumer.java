@@ -82,7 +82,7 @@ public class KafkaNotificationConsumer {
     /**
      * 사용자 이메일 조회 (Feign Client 사용)
      */
-    private String getUserEmail(Long userId) {
+    private String getUserEmail(String userId) {
         try {
             // UserService에서 사용자 정보 조회
             return userServiceClient.getUserEmail(userId);

@@ -17,7 +17,7 @@ public class WebSocketNotificationService {
     /**
      * 특정 사용자에게 실시간 알림 전송 (임시 구현)
      */
-    public void sendNotificationToUser(Long userId, NotificationResponseDto notification) {
+    public void sendNotificationToUser(String userId, NotificationResponseDto notification) {
         try {
             // TODO: 실제 WebSocket 구현으로 교체
             log.info("WebSocket 알림 전송 (시뮬레이션): userId={}, notificationId={}",
@@ -48,7 +48,7 @@ public class WebSocketNotificationService {
     /**
      * 읽지 않은 알림 개수 업데이트 (임시 구현)
      */
-    public void sendUnreadCountUpdate(Long userId, long unreadCount) {
+    public void sendUnreadCountUpdate(String userId, long unreadCount) {
         try {
             log.info("읽지 않은 알림 개수 업데이트 (시뮬레이션): userId={}, count={}",
                     userId, unreadCount);
