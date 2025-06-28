@@ -19,3 +19,20 @@ encrypt:
     location: file:/apiEncryptionKey.jks
     password: test1234
     alias: apiEncryptionKey
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: ["refresh", "busrefresh", "prometheus", "health", "info"]
+  endpoint:
+    prometheus:
+      enabled: true
+    health:
+      show-details: always
+    metrics:
+      export:
+        prometheus:
+          enabled: true
+      tags:
+        application: ${spring.application.name}

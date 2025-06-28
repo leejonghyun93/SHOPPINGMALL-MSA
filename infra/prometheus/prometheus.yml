@@ -1,0 +1,138 @@
+# Prometheus 설정 파일 - 메트릭 수집 및 모니터링 시스템 설정
+
+# 전역(글로벌) 설정 - 모든 스크랩 작업에 기본적으로 적용되는 설정
+global:
+  scrape_interval: 15s     # 메트릭을 수집하는 기본 간격 (15초마다 타겟에서 메트릭 수집)
+  evaluation_interval: 15s # 알림 규칙을 평가하는 간격 (15초마다 알림 조건 확인)
+
+# 규칙 파일 설정 (선택사항) - 알림 규칙과 기록 규칙을 정의한 YAML 파일들
+rule_files:
+# - "first_rules.yml"    # 첫 번째 규칙 파일 (주석 처리됨)
+# - "second_rules.yml"   # 두 번째 규칙 파일 (주석 처리됨)
+
+# 스크랩 설정 - 어떤 타겟에서 메트릭을 수집할지 정의하는 가장 중요한 설정
+scrape_configs:
+
+  # Prometheus 자체 모니터링 - Prometheus 서버 자신의 메트릭을 수집
+  - job_name: 'prometheus'        # 이 스크랩 작업의 이름 (고유해야 함)
+    static_configs:               # 고정된 타겟 설정 (동적 발견이 아닌 수동 설정)
+      - targets: ['localhost:9090']  # 수집할 타겟들의 주소:포트 목록 (여기서는 Prometheus 자신)
+
+  # Eureka Service Discovery를 통한 자동 서비스 발견
+  - job_name: 'spring-boot-services'
+    eureka_sd_configs:
+      - server: 'http://host.docker.internal:8761/eureka'  # localhost → host.docker.internal
+        refresh_interval: 30s
+    relabel_configs:
+      # 인스턴스 메타데이터에서 management.port가 있는 경우 사용
+      - source_labels: [__meta_eureka_app_instance_metadata_management_port]
+        target_label: __address__
+        regex: (.+)
+        replacement: host.docker.internal:${1}  # localhost → host.docker.internal
+      # management.port가 없으면 기본 포트 사용
+      - source_labels: [__meta_eureka_app_instance_metadata_management_port]
+        target_label: __address__
+        regex: ^$
+        replacement: host.docker.internal:${__meta_eureka_app_instance_port}  # localhost → host.docker.internal
+      # 서비스 이름을 job 라벨로 설정
+      - source_labels: [__meta_eureka_app_name]
+        target_label: job
+        replacement: ${1}
+      # 인스턴스 ID 설정
+      - source_labels: [__meta_eureka_app_instance_id]
+        target_label: instance
+        replacement: ${1}
+      # 메트릭 경로 설정
+      - target_label: __metrics_path__
+        replacement: /actuator/prometheus
+
+  # 각 서비스별 개별 설정 (Eureka 사용하지 않는 경우)
+  - job_name: 'apigateway-service'
+    static_configs:
+      - targets: ['host.docker.internal:8080']  # localhost → host.docker.internal
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+
+  - job_name: 'auth-service'
+    static_configs:
+      - targets: ['host.docker.internal:8082']  # localhost → host.docker.internal
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+
+  - job_name: 'user-service'
+    static_configs:
+      - targets: ['host.docker.internal:8103']  # localhost → host.docker.internal
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+
+  - job_name: 'product-service'
+    static_configs:
+      - targets: ['host.docker.internal:8093']  # localhost → host.docker.internal
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+
+  - job_name: 'order-service'
+    static_configs:
+      - targets: ['host.docker.internal:8089']  # localhost → host.docker.internal
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+
+  - job_name: 'cart-service'
+    static_configs:
+      - targets: ['host.docker.internal:8086']  # localhost → host.docker.internal
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+
+  - job_name: 'payment-service'
+    static_configs:
+      - targets: ['host.docker.internal:8090']  # localhost → host.docker.internal
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+
+  - job_name: 'board-service'
+    static_configs:
+      - targets: ['host.docker.internal:8087']  # localhost → host.docker.internal
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+
+  - job_name: 'category-service'
+    static_configs:
+      - targets: ['host.docker.internal:8085']  # localhost → host.docker.internal
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+
+  - job_name: 'image-service'
+    static_configs:
+      - targets: ['host.docker.internal:8088']  # localhost → host.docker.internal
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+
+  - job_name: 'live-streaming-service'
+    static_configs:
+      - targets: ['host.docker.internal:8094']  # localhost → host.docker.internal
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+
+  #  - job_name: 'live-chat-service'
+  #    static_configs:
+  #      - targets: ['host.docker.internal:8091']  # localhost → host.docker.internal
+  #    metrics_path: '/actuator/prometheus'
+  #    scrape_interval: 10s
+
+  - job_name: 'notification-service'
+    static_configs:
+      - targets: ['host.docker.internal:8096']  # localhost → host.docker.internal
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+
+  - job_name: 'eureka-service'
+    static_configs:
+      - targets: ['host.docker.internal:8761']  # localhost → host.docker.internal
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 15s
+
+  - job_name: 'config-service'
+    static_configs:
+      - targets: ['host.docker.internal:8888']  # localhost → host.docker.internal
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 15s

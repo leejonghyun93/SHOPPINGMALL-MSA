@@ -77,7 +77,9 @@
         <div class="notification-dropdown" :class="{ 'show': isNotificationDropdownVisible }">
           <div class="notification-header">
             <h6 class="mb-0">알림</h6>
-            <button v-if="notifications.length > 0" @click="markAllAsRead" class="btn btn-sm btn-link p-0">
+            <button v-if="notifications.length > 0 && unreadNotificationCount > 0"
+                    @click="markAllAsRead"
+                    class="btn btn-sm btn-link p-0">
               모두 읽음
             </button>
           </div>
@@ -96,8 +98,19 @@
               <div v-for="notification in notifications"
                    :key="notification.notificationId"
                    class="notification-item"
-                   :class="{ 'unread': !notification.isRead }"
+                   :class="{
+                     'unread': !notification.isRead,
+                     'broadcast-start': notification.type === 'BROADCAST_START',
+                     'high-priority': notification.priority === 'HIGH' || notification.priority === 'URGENT'
+                   }"
                    @click="handleNotificationClick(notification)">
+
+                <!-- 🔥 알림 타입 아이콘 추가 -->
+                <div class="notification-type-icon">
+                  {{ notification.type === 'BROADCAST_START' ? '🔴' :
+                    notification.type === 'BROADCAST_END' ? '⏹️' :
+                        notification.type === 'BROADCAST_REMINDER' ? '🔔' : '📢' }}
+                </div>
 
                 <div class="notification-content">
                   <div class="notification-title">{{ notification.title }}</div>
@@ -105,22 +118,32 @@
                   <div class="notification-time">{{ formatTime(notification.createdAt) }}</div>
                 </div>
 
-                <div v-if="!notification.isRead" class="unread-indicator"></div>
+                <!-- 🔥 읽지 않은 알림 표시 개선 -->
+                <div v-if="!notification.isRead" class="unread-indicator">
+                  <div class="unread-dot"></div>
+                </div>
               </div>
             </div>
 
             <!-- 알림 없음 -->
             <div v-else class="no-notifications">
               <div class="text-muted text-center py-3">
-                <div class="mb-2">알림</div>
+                <div class="mb-2">📭</div>
+                <div class="mb-1">알림</div>
                 <small>새로운 알림이 없습니다</small>
               </div>
             </div>
           </div>
 
+          <!-- 🔥 푸터 개선 -->
           <div v-if="notifications.length > 0" class="notification-footer">
-            <router-link to="/notifications" class="btn btn-sm btn-outline-primary w-100" @click="hideNotificationDropdown">
+            <router-link to="/notifications"
+                         class="btn btn-sm btn-outline-primary w-100"
+                         @click="hideNotificationDropdown">
               모든 알림 보기
+              <span v-if="unreadNotificationCount > 10" class="ms-1">
+                ({{ unreadNotificationCount - 10 }}개 더)
+              </span>
             </router-link>
           </div>
         </div>
@@ -134,7 +157,7 @@ import { onMounted, computed, ref, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { user, setUserFromToken } from "@/stores/userStore";
 import apiClient from '@/api/axiosInstance'
-import { notificationApiCall } from '@/config/notificationConfig'
+import { notificationApiCall, notificationHelpers } from '@/config/notificationConfig'
 
 const router = useRouter();
 const isDropdownVisible = ref(false);
@@ -216,26 +239,27 @@ const fetchCartCount = async () => {
   }
 }
 
-// 실시간 알림 데이터 가져오기
+// 🔥 실시간 알림 데이터 가져오기 (새로운 API 사용)
 const fetchNotifications = async () => {
   if (!computedUser.value.id) return;
 
   try {
-    // 읽지 않은 알림 수 가져오기
-    const unreadResponse = await notificationApiCall('/notifications/unread-count');
-    if (unreadResponse.ok) {
+    // 🔥 새로운 API 사용: 읽지 않은 알림 개수 조회
+    const unreadResponse = await notificationApiCall(`/unread-count?userId=${computedUser.value.id}`);
+    if (unreadResponse && unreadResponse.ok) {
       const unreadData = await unreadResponse.json();
       unreadNotificationCount.value = unreadData.count || 0;
     }
 
-    // 최근 알림 목록 가져오기 (최대 10개)
-    const notificationsResponse = await notificationApiCall('/notifications/recent?limit=10');
-    if (notificationsResponse.ok) {
+    // 🔥 새로운 API 사용: 최근 알림 목록 조회 (최대 10개)
+    const notificationsResponse = await notificationApiCall(`/recent?userId=${computedUser.value.id}&limit=10`);
+    if (notificationsResponse && notificationsResponse.ok) {
       const notificationsData = await notificationsResponse.json();
       notifications.value = notificationsData || [];
     }
   } catch (error) {
-    // 에러 무시
+    console.error('알림 조회 실패:', error);
+    // 에러 시 기존 값 유지
   }
 }
 
@@ -246,7 +270,7 @@ const startNotificationPolling = () => {
   // 30초마다 알림 확인
   notificationPollingInterval = setInterval(() => {
     fetchNotifications();
-  }, 30000);
+  }, 10000);
 }
 
 // 알림 폴링 중지
@@ -257,64 +281,66 @@ const stopNotificationPolling = () => {
   }
 }
 
-// 시간 포맷팅
+//  시간 포맷팅 (헬퍼 사용)
 const formatTime = (timeString) => {
-  const now = new Date();
-  const time = new Date(timeString);
-  const diffInMinutes = Math.floor((now - time) / (1000 * 60));
-
-  if (diffInMinutes < 1) return '방금 전';
-  if (diffInMinutes < 60) return `${diffInMinutes}분 전`;
-  if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}시간 전`;
-
-  const diffInDays = Math.floor(diffInMinutes / 1440);
-  if (diffInDays < 7) return `${diffInDays}일 전`;
-
-  return time.toLocaleDateString();
+  return notificationHelpers.formatTime(timeString);
 }
 
-// 알림 클릭 처리
+//  알림 클릭 처리 (개선된 버전)
 const handleNotificationClick = async (notification) => {
   try {
-    // 읽음 처리
+    //  읽지 않은 알림이면 읽음 처리
     if (!notification.isRead) {
-      await notificationApiCall(`/notifications/${notification.notificationId}/read`, {
-        method: 'PATCH'
-      });
+      const success = await notificationHelpers.markAsRead(notification.notificationId, computedUser.value.id);
 
-      notification.isRead = true;
-      unreadNotificationCount.value = Math.max(0, unreadNotificationCount.value - 1);
+      if (success) {
+        // 로컬 상태 업데이트
+        notification.isRead = true;
+        notification.readAt = new Date().toISOString();
+        unreadNotificationCount.value = Math.max(0, unreadNotificationCount.value - 1);
+      }
     }
 
     hideNotificationDropdown();
 
-    // 알림 타입에 따른 페이지 이동
+    //  알림 타입에 따른 페이지 이동 (기존 로직 유지 + 개선)
     if (notification.type === 'BROADCAST_START') {
-      // 방송 관련 알림이면 라이브 목록으로 이동
-      router.push('/broadcasts/category');
+      // 방송 관련 알림이면 해당 방송으로 이동 (broadcastId가 있으면)
+      if (notification.broadcastId) {
+        router.push(`/live/${notification.broadcastId}`);
+      } else {
+        router.push('/broadcasts/category');
+      }
     } else {
       // 기본적으로 알림 페이지로 이동
       router.push('/notifications');
     }
   } catch (error) {
-    // 에러 무시
+    console.error('알림 클릭 처리 오류:', error);
+    hideNotificationDropdown();
   }
 }
 
-// 모든 알림 읽음 처리
+//  모든 알림 읽음 처리 (새로운 API 사용)
 const markAllAsRead = async () => {
   try {
-    await notificationApiCall('/notifications/mark-all-read', {
-      method: 'PATCH'
-    });
+    // 🔥 새로운 API 사용: 모든 알림 읽음 처리
+    const success = await notificationHelpers.markAllAsRead(computedUser.value.id);
 
-    notifications.value.forEach(notification => {
-      notification.isRead = true;
-    });
+    if (success) {
+      // 로컬 상태 업데이트
+      notifications.value.forEach(notification => {
+        notification.isRead = true;
+        notification.readAt = new Date().toISOString();
+      });
 
-    unreadNotificationCount.value = 0;
+      unreadNotificationCount.value = 0;
+      console.log('모든 알림 읽음 처리 완료');
+    } else {
+      console.warn('모든 알림 읽음 처리 실패');
+    }
   } catch (error) {
-    // 에러 무시
+    console.error('모든 알림 읽음 처리 오류:', error);
   }
 }
 
@@ -345,6 +371,27 @@ function hideNotificationDropdown() {
   }, 150);
 }
 
+// 수동 새로고침 함수 추가
+const refreshNotifications = async () => {
+  console.log('알림 수동 새로고침...');
+  isLoadingNotifications.value = true;
+
+  try {
+    await fetchNotifications();
+    console.log('알림 새로고침 완료');
+  } catch (error) {
+    console.error('알림 새로고침 실패:', error);
+  } finally {
+    isLoadingNotifications.value = false;
+  }
+}
+const handleNotificationIconClick = () => {
+  // 알림 아이콘 클릭 시 즉시 새로고침
+  if (!isNotificationDropdownVisible.value) {
+    refreshNotifications();
+  }
+  showNotificationDropdown();
+}
 function logout() {
   stopNotificationPolling();
   localStorage.removeItem("token");
@@ -393,7 +440,108 @@ onMounted(async () => {
     user.role = null;
   }
 });
+// 🔍 브라우저 Console에서 실행할 디버깅 코드
 
+// 1단계: 현재 사용자 정보 확인
+console.log('=== 1단계: 사용자 정보 확인 ===');
+console.log('computedUser:', computedUser.value);
+console.log('사용자 ID:', computedUser.value.id);
+
+// 2단계: 토큰 확인
+console.log('=== 2단계: 토큰 확인 ===');
+const token = localStorage.getItem('token');
+console.log('토큰 존재:', !!token);
+console.log('토큰 앞부분:', token ? token.substring(0, 50) + '...' : 'null');
+
+// 3단계: API 직접 호출 테스트
+console.log('=== 3단계: API 직접 호출 테스트 ===');
+
+const testNotificationAPI = async () => {
+  const userId = computedUser.value.id;
+
+  if (!userId) {
+    console.error('❌ 사용자 ID가 없습니다!');
+    return;
+  }
+
+  try {
+    // 🔥 읽지 않은 알림 개수 테스트
+    console.log('🔗 읽지 않은 알림 개수 API 호출...');
+    const unreadUrl = `http://localhost:8096/api/notifications/unread-count?userId=${userId}`;
+    console.log('📡 URL:', unreadUrl);
+
+    const unreadResponse = await fetch(unreadUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    console.log('📊 응답 상태:', unreadResponse.status, unreadResponse.statusText);
+
+    if (unreadResponse.ok) {
+      const unreadData = await unreadResponse.json();
+      console.log('✅ 읽지 않은 알림 데이터:', unreadData);
+    } else {
+      const errorText = await unreadResponse.text();
+      console.error('❌ 읽지 않은 알림 오류:', errorText);
+    }
+
+    // 🔥 최근 알림 목록 테스트
+    console.log('🔗 최근 알림 목록 API 호출...');
+    const recentUrl = `http://localhost:8096/api/notifications/recent?userId=${userId}&limit=10`;
+    console.log('📡 URL:', recentUrl);
+
+    const recentResponse = await fetch(recentUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    console.log('📊 응답 상태:', recentResponse.status, recentResponse.statusText);
+
+    if (recentResponse.ok) {
+      const recentData = await recentResponse.json();
+      console.log('✅ 최근 알림 데이터:', recentData);
+      console.log('📝 알림 개수:', recentData.length);
+    } else {
+      const errorText = await recentResponse.text();
+      console.error('❌ 최근 알림 오류:', errorText);
+    }
+
+  } catch (error) {
+    console.error('💥 API 호출 중 예외 발생:', error);
+  }
+};
+
+// 4단계: 헬스체크
+const checkHealth = async () => {
+  try {
+    console.log('🏥 헬스체크...');
+    const healthResponse = await fetch('http://localhost:8096/api/notifications/health');
+    console.log('🏥 헬스체크 상태:', healthResponse.status);
+
+    if (healthResponse.ok) {
+      const healthData = await healthResponse.json();
+      console.log('✅ 서비스 상태:', healthData);
+    }
+  } catch (error) {
+    console.error('❌ 서비스 연결 실패:', error);
+  }
+};
+
+// 실행
+testNotificationAPI();
+checkHealth();
+
+// 5단계: Network 탭 확인 안내
+console.log('=== 5단계: Network 탭 확인 ===');
+console.log('👉 개발자 도구의 Network 탭을 열고');
+console.log('👉 알림 관련 API 호출이 실제로 되는지 확인하세요');
+console.log('👉 CORS 오류나 404 오류가 있는지 확인하세요');
 onUnmounted(() => {
   stopNotificationPolling();
 });

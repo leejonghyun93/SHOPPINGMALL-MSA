@@ -30,7 +30,7 @@ public class NotificationSubscriptionService {
     private final UserEmailService userEmailService;
 
     /**
-     * 🔔 방송 시작 알림 구독 신청
+     * 방송 시작 알림 구독 신청
      */
     public NotificationResponseDto subscribeBroadcastStart(String userId, Long broadcastId) {
         log.info("방송 시작 알림 구독 신청: userId={}, broadcastId={}", userId, broadcastId);

@@ -10,3 +10,19 @@ eureka:
     register-with-eureka: false
     fetch-registry: false
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: ["refresh", "busrefresh", "prometheus", "health", "info"]
+  endpoint:
+    prometheus:
+      enabled: true
+    health:
+      show-details: always
+    metrics:
+      export:
+        prometheus:
+          enabled: true
+      tags:
+        application: ${spring.application.name}

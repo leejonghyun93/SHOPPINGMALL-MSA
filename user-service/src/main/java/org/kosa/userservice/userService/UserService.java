@@ -239,20 +239,30 @@ public class UserService {
     }
 
     public Optional<UserDto> getMemberByNameAndEmail(String name, String email) {
-        return userRepository.findByNameAndEmail(name, email)
-                .map(this::toUserDto);
-    }
+        try {
+            log.info("이름과 이메일로 회원 조회 - name: {}, email: {}***",
+                    name, email.length() > 3 ? email.substring(0, 3) : email);
 
-    @Transactional
-    public void updatePassword(String userId, String encodedPassword) {
-        Optional<Member> memberOptional = userRepository.findByUserId(userId);
-        if (memberOptional.isPresent()) {
-            Member member = memberOptional.get();
-            member.setPassword(encodedPassword);
-            userRepository.save(member);
-            log.info("비밀번호 업데이트 완료 (암호화된 비밀번호) - userId: {}", userId);
-        } else {
-            throw new RuntimeException("해당 회원을 찾을 수 없습니다.");
+            // 🔥 JPA Repository를 직접 사용하여 Member 엔티티 조회
+            Optional<Member> memberOpt = userRepository.findByNameAndEmailAndStatusAndSecessionYn(
+                    name, email, "ACTIVE", "N"
+            );
+
+            if (memberOpt.isPresent()) {
+                Member member = memberOpt.get();
+                log.info("회원 조회 성공 - userId: {}", member.getUserId());
+
+                // 🔥 기존 toUserDto 메서드를 사용하여 변환
+                UserDto userDto = toUserDto(member);
+                return Optional.of(userDto);
+            } else {
+                log.warn("회원 조회 실패 - 일치하는 회원 없음");
+                return Optional.empty();
+            }
+
+        } catch (Exception e) {
+            log.error("회원 조회 중 오류 발생: {}", e.getMessage(), e);
+            return Optional.empty();
         }
     }
 
@@ -322,7 +332,7 @@ public class UserService {
 
         } catch (Exception e) {
             log.error("사용자 이메일 조회 실패: userId={}, error={}", userId, e.getMessage(), e);
-            return null;  // 🔥 예외 던지지 말고 null 반환
+            throw new RuntimeException("사용자 이메일 조회 실패", e);
         }
     }
 

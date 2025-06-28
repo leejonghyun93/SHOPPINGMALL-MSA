@@ -1,0 +1,302 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.kosa.boardservice.mapper.ProductQnaMapper">
+
+    <!-- 🔥 재사용 가능한 컬럼 정의 -->
+    <sql id="qnaColumns">
+        QNA_ID as qnaId,
+        PRODUCT_ID as productId,
+        USER_ID as userId,
+        QNA_TYPE as qnaType,
+        TITLE as title,
+        CONTENT as content,
+        QNA_STATUS as qnaStatus,
+        IS_SECRET as isSecret,
+        VIEW_COUNT as viewCount,
+        AUTHOR_NAME as authorName,
+        AUTHOR_IP as authorIp,
+        PASSWORD as password,
+        ANSWER_DATE as answerDate,
+        ANSWER_USER_ID as answerUserId,
+        CREATED_DATE as createdDate,
+        UPDATED_DATE as updatedDate
+    </sql>
+
+    <sql id="answerColumns">
+        ANSWER_ID as answerId,
+        QNA_ID as qnaId,
+        USER_ID as userId,
+        CONTENT as content,
+        ANSWER_STATUS as answerStatus,
+        IS_SELLER as isSeller,
+        AUTHOR_NAME as authorName,
+        CREATED_DATE as createdDate,
+        UPDATED_DATE as updatedDate
+    </sql>
+
+    <!-- 검색 조건 정의 -->
+    <sql id="searchCondition">
+        <if test="dto.searchValue != null and dto.searchValue != ''">
+            AND (TITLE LIKE CONCAT('%', #{dto.searchValue}, '%')
+            OR CONTENT LIKE CONCAT('%', #{dto.searchValue}, '%'))
+        </if>
+    </sql>
+
+    <!-- 정렬 조건 정의 -->
+    <sql id="orderByCondition">
+        <choose>
+            <when test="dto.sortBy != null and dto.sortBy == 'status'">
+                ORDER BY QNA_STATUS ASC, CREATED_DATE DESC
+            </when>
+            <when test="dto.sortBy != null and dto.sortBy == 'createdDate'">
+                ORDER BY CREATED_DATE DESC
+            </when>
+            <when test="dto.sortBy != null and dto.sortBy == 'createdAt'">
+                ORDER BY CREATED_DATE DESC
+            </when>
+            <otherwise>
+                ORDER BY CREATED_DATE DESC
+            </otherwise>
+        </choose>
+    </sql>
+
+    <!-- 상품별 정렬 조건 정의 -->
+    <sql id="productOrderByCondition">
+        <choose>
+            <when test="sortBy != null and sortBy == 'status'">
+                ORDER BY QNA_STATUS ASC, CREATED_DATE DESC
+            </when>
+            <when test="sortBy != null and sortBy == 'createdDate'">
+                ORDER BY CREATED_DATE DESC
+            </when>
+            <when test="sortBy != null and sortBy == 'createdAt'">
+                ORDER BY CREATED_DATE DESC
+            </when>
+            <otherwise>
+                ORDER BY CREATED_DATE DESC
+            </otherwise>
+        </choose>
+    </sql>
+
+    <!-- 🔥 회원 이름 조회 -->
+    <select id="selectMemberNameByUserId" resultType="string">
+        SELECT NAME
+        FROM tb_member
+        WHERE USER_ID = #{userId}
+          AND STATUS = 'ACTIVE'
+          AND SECESSION_YN = 'N'
+    </select>
+
+    <!-- 🔥 구매 인증 확인 -->
+    <select id="checkPurchaseVerification" resultType="int">
+        SELECT COUNT(*)
+        FROM tb_order o
+                 INNER JOIN tb_order_item oi ON o.ORDER_ID = oi.ORDER_ID
+        WHERE o.USER_ID = #{userId}
+          AND oi.PRODUCT_ID = #{productId}
+          AND o.ORDER_STATUS = '배송완료'
+    </select>
+
+    <!-- 전체 Q&A 개수 조회 -->
+    <select id="getTotalCount" resultType="int">
+        SELECT COUNT(*)
+        FROM tb_product_qna
+        WHERE 1=1
+        <if test="searchValue != null and searchValue != ''">
+            AND (TITLE LIKE CONCAT('%', #{searchValue}, '%')
+            OR CONTENT LIKE CONCAT('%', #{searchValue}, '%'))
+        </if>
+    </select>
+
+    <!-- 페이징된 Q&A 목록 조회 -->
+    <select id="selectPagedQnas" resultType="org.kosa.boardservice.dto.ProductQnaDto">
+        SELECT
+        <include refid="qnaColumns"/>
+        FROM tb_product_qna
+        WHERE 1=1
+        <include refid="searchCondition"/>
+        <include refid="orderByCondition"/>
+        LIMIT #{dto.startRow}, #{dto.size}
+    </select>
+
+    <!-- 상품별 Q&A 조회 -->
+    <select id="selectProductQnasByStringId" resultType="org.kosa.boardservice.dto.ProductQnaDto">
+        SELECT
+        <include refid="qnaColumns"/>
+        FROM tb_product_qna
+        WHERE PRODUCT_ID = #{productId}
+        <include refid="productOrderByCondition"/>
+        LIMIT #{startRow}, #{size}
+    </select>
+
+    <!-- 상품별 Q&A 개수 조회 -->
+    <select id="getProductQnaCountByStringId" resultType="int">
+        SELECT COUNT(*)
+        FROM tb_product_qna
+        WHERE PRODUCT_ID = #{productId}
+    </select>
+
+    <!-- 🔥 Q&A 상세 조회 (답변 정보 포함) -->
+    <select id="selectQnaById" resultType="org.kosa.boardservice.dto.ProductQnaDto">
+        SELECT
+            q.QNA_ID as qnaId,
+            q.PRODUCT_ID as productId,
+            q.USER_ID as userId,
+            q.QNA_TYPE as qnaType,
+            q.TITLE as title,
+            q.CONTENT as content,
+            q.QNA_STATUS as qnaStatus,
+            q.IS_SECRET as isSecret,
+            q.VIEW_COUNT as viewCount,
+            q.AUTHOR_NAME as authorName,
+            q.AUTHOR_IP as authorIp,
+            q.PASSWORD as password,
+            q.ANSWER_DATE as answerDate,
+            q.ANSWER_USER_ID as answerUserId,
+            q.CREATED_DATE as createdDate,
+            q.UPDATED_DATE as updatedDate,
+            a.CONTENT as answerContent,
+            a.AUTHOR_NAME as answerAuthorName
+        FROM tb_product_qna q
+                 LEFT JOIN tb_product_qna_answer a ON q.QNA_ID = a.QNA_ID AND a.ANSWER_STATUS = 'ACTIVE'
+        WHERE q.QNA_ID = #{qnaId}
+    </select>
+
+    <!-- 🔥 Q&A 등록 -->
+    <insert id="insertQna" parameterType="org.kosa.boardservice.dto.ProductQnaDto">
+        INSERT INTO tb_product_qna (
+            QNA_ID,
+            PRODUCT_ID,
+            USER_ID,
+            QNA_TYPE,
+            TITLE,
+            CONTENT,
+            QNA_STATUS,
+            IS_SECRET,
+            VIEW_COUNT,
+            AUTHOR_NAME,
+            AUTHOR_IP,
+            PASSWORD,
+            CREATED_DATE,
+            UPDATED_DATE
+        ) VALUES (
+                     #{qnaId},
+                     #{productId},
+                     #{userId},
+                     #{qnaType},
+                     #{title},
+                     #{content},
+                     #{qnaStatus},
+                     #{isSecret},
+                     #{viewCount},
+                     #{authorName},
+                     #{authorIp},
+                     #{password},
+                     #{createdDate},
+                     #{updatedDate}
+                 )
+    </insert>
+
+    <!-- 🔥 Q&A 수정 -->
+    <update id="updateQna" parameterType="org.kosa.boardservice.dto.ProductQnaDto">
+        UPDATE tb_product_qna
+        SET
+            TITLE = #{title},
+            CONTENT = #{content},
+            QNA_TYPE = #{qnaType},
+            IS_SECRET = #{isSecret},
+            UPDATED_DATE = #{updatedDate}
+        WHERE QNA_ID = #{qnaId}
+    </update>
+
+    <!-- 🔥 Q&A 삭제 -->
+    <delete id="deleteQna">
+        DELETE FROM tb_product_qna
+        WHERE QNA_ID = #{qnaId}
+    </delete>
+
+    <!-- 조회수 증가 -->
+    <update id="increaseViewCount">
+        UPDATE tb_product_qna
+        SET VIEW_COUNT = VIEW_COUNT + 1
+        WHERE QNA_ID = #{qnaId}
+    </update>
+
+    <!-- 🔥 특정 Q&A의 답변 목록 조회 -->
+    <select id="selectAnswersByQnaId" resultType="org.kosa.boardservice.dto.ProductQnaAnswerDto">
+        SELECT
+        <include refid="answerColumns"/>
+        FROM tb_product_qna_answer
+        WHERE QNA_ID = #{qnaId}
+        AND ANSWER_STATUS = 'ACTIVE'
+        ORDER BY CREATED_DATE ASC
+    </select>
+
+    <!-- 🔥 답변 등록 -->
+    <insert id="insertAnswer" parameterType="org.kosa.boardservice.dto.ProductQnaAnswerDto">
+        INSERT INTO tb_product_qna_answer (
+            ANSWER_ID,
+            QNA_ID,
+            USER_ID,
+            CONTENT,
+            ANSWER_STATUS,
+            IS_SELLER,
+            AUTHOR_NAME,
+            CREATED_DATE,
+            UPDATED_DATE
+        ) VALUES (
+                     #{answerId},
+                     #{qnaId},
+                     #{userId},
+                     #{content},
+                     #{answerStatus},
+                     #{isSeller},
+                     #{authorName},
+                     #{createdDate},
+                     #{updatedDate}
+                 )
+    </insert>
+
+    <!-- 🔥 답변 수정 -->
+    <update id="updateAnswer" parameterType="org.kosa.boardservice.dto.ProductQnaAnswerDto">
+        UPDATE tb_product_qna_answer
+        SET
+            CONTENT = #{content},
+            UPDATED_DATE = #{updatedDate}
+        WHERE ANSWER_ID = #{answerId}
+    </update>
+
+    <!-- 🔥 답변 삭제 -->
+    <delete id="deleteAnswer">
+        DELETE FROM tb_product_qna_answer
+        WHERE ANSWER_ID = #{answerId}
+    </delete>
+
+    <!-- 🔥 Q&A 상태 업데이트 -->
+    <update id="updateQnaStatus">
+        UPDATE tb_product_qna
+        SET
+            QNA_STATUS = #{status},
+            ANSWER_DATE = CASE WHEN #{status} = 'ANSWERED' THEN NOW() ELSE ANSWER_DATE END,
+            UPDATED_DATE = NOW()
+        WHERE QNA_ID = #{qnaId}
+    </update>
+
+    <!-- 🔥 사용자별 Q&A 조회 (마이페이지용) -->
+    <select id="selectQnasByUserId" resultType="org.kosa.boardservice.dto.ProductQnaDto">
+        SELECT
+        <include refid="qnaColumns"/>
+        FROM tb_product_qna
+        WHERE USER_ID = #{userId}
+        ORDER BY CREATED_DATE DESC
+        LIMIT #{startRow}, #{size}
+    </select>
+
+    <!-- 사용자별 Q&A 개수 -->
+    <select id="getUserQnaCount" resultType="int">
+        SELECT COUNT(*)
+        FROM tb_product_qna
+        WHERE USER_ID = #{userId}
+    </select>
+
+</mapper>

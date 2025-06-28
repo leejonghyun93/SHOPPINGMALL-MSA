@@ -21,6 +21,9 @@ public class JwtUtil {
     @Value("${jwt.expiration:3600000}") // 1시간
     private long expiration;
 
+    @Value("${jwt.refresh-expiration:604800000}") // 기본 7일
+    private long refreshExpiration;
+
     private Key key;
 
     @PostConstruct
@@ -47,23 +50,17 @@ public class JwtUtil {
         String subject;
         if (userId != null) {
             subject = String.valueOf(userId);  // 숫자 ID를 문자열로
-            log.info(" JWT 생성 - 숫자 userId를 subject로 사용: '{}'", subject);
         } else if (username != null && !username.trim().isEmpty()) {
             subject = username;  // 문자열 username을 subject로
-            log.info(" JWT 생성 - username을 subject로 사용: '{}'", subject);
         } else {
             throw new IllegalArgumentException("userId와 username 모두 null일 수 없습니다");
         }
 
-        log.info("JWT 토큰 생성 중 - Subject: '{}', Username: '{}', UserId: {}", subject, username, userId);
-
         String token = Jwts.builder()
-                .setSubject(subject)  //  userId 또는 username
-                .claim("username", username)
-                .claim("name", name)
-                .claim("email", email)
-                .claim("phone", phone)
+                .setSubject(String.valueOf(userId))
+                .claim("username", username)  // 최소한의 공개 정보만
                 .claim("role", "USER")
+                .setIssuedAt(now)
                 .setIssuer("auth-service")
                 .setIssuedAt(now)
                 .setExpiration(expireDate)
@@ -341,4 +338,17 @@ public class JwtUtil {
             throw e;
         }
     }
+    public String generateRefreshToken(Long userId) {
+        Date now = new Date();
+        Date expireDate = new Date(now.getTime() + refreshExpiration);  // refreshExpiration: 예) 7일(604800000 ms)
+
+        return Jwts.builder()
+                .setSubject(String.valueOf(userId))
+                .setIssuer("auth-service")
+                .setIssuedAt(now)
+                .setExpiration(expireDate)
+                .signWith(key, SignatureAlgorithm.HS256)
+                .compact();
+    }
+
 }

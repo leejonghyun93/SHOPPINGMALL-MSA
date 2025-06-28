@@ -1,4 +1,4 @@
-# application.yml - SimpleJwtFilter 제거된 버전
+# application.yml - Q&A Service 라우팅 추가 (URI 오타 수정)
 server:
   port: 8080
 
@@ -16,8 +16,9 @@ spring:
   application:
     name: APIGATEWAY-SERVICE
   cloud:
+    config:
+      enabled: false
     gateway:
-      #  CORS 설정을 하나로 통합 (중복 제거)
       globalcors:
         cors-configurations:
           '[/**]':
@@ -37,7 +38,6 @@ spring:
             maxAge: 3600
         add-to-simple-url-handler-mapping: true
 
-      #  CORS 헤더 중복 제거 필터 추가 (필수!)
       default-filters:
         - name: DedupeResponseHeader
           args:
@@ -50,7 +50,273 @@ spring:
             postLogger: true
 
       routes:
-        #  주문 취소를 맨 앞으로 이동 (가장 구체적이므로)
+        # ===============================================
+        # 🔥 Q&A SERVICE 라우팅 (Board Service 내부)
+        # ===============================================
+        - id: qna-health-check
+          uri: lb://BOARD-SERVICE
+          predicates:
+            - Path=/api/qna/health
+            - Method=GET
+          filters:
+            - name: LoggingFilter
+              args:
+                baseMessage: "Q&A Health Check"
+                preLogger: true
+                postLogger: true
+
+        # Q&A 상품별 조회 (공개)
+        - id: qna-product-public
+          uri: lb://BOARD-SERVICE
+          predicates:
+            - Path=/api/qna/product/**
+            - Method=GET
+          filters:
+            - name: LoggingFilter
+              args:
+                baseMessage: "Q&A Product Public"
+                preLogger: true
+                postLogger: true
+
+        # Q&A 목록 조회 (공개)
+        - id: qna-list-public
+          uri: lb://BOARD-SERVICE
+          predicates:
+            - Path=/api/qna/list
+            - Method=GET
+          filters:
+            - name: LoggingFilter
+              args:
+                baseMessage: "Q&A List Public"
+                preLogger: true
+                postLogger: true
+
+        # 내 Q&A 조회 (인증 필요)
+        - id: qna-my-protected
+          uri: lb://BOARD-SERVICE
+          predicates:
+            - Path=/api/qna/my
+            - Method=GET
+          filters:
+            - name: JwtAuthorization
+            - name: LoggingFilter
+              args:
+                baseMessage: "Q&A My Protected"
+                preLogger: true
+                postLogger: true
+
+        # Q&A 상세 조회 (공개)
+        - id: qna-detail-public
+          uri: lb://BOARD-SERVICE
+          predicates:
+            - Path=/api/qna/**
+            - Method=GET
+          filters:
+            - name: LoggingFilter
+              args:
+                baseMessage: "Q&A Detail Public"
+                preLogger: true
+                postLogger: true
+
+        # Q&A 작성/수정/삭제 (인증 필요)
+        - id: qna-service-protected
+          uri: lb://BOARD-SERVICE
+          predicates:
+            - Path=/api/qna,/api/qna/**
+            - Method=POST,PUT,DELETE,PATCH
+          filters:
+            - name: JwtAuthorization
+            - name: LoggingFilter
+              args:
+                baseMessage: "Q&A Service Protected"
+                preLogger: true
+                postLogger: true
+
+        # ===============================================
+        # BOARD SERVICE 라우팅 (리뷰)
+        # ===============================================
+        - id: board-health-check
+          uri: lb://BOARD-SERVICE
+          predicates:
+            - Path=/api/board/health
+            - Method=GET
+          filters:
+            - name: LoggingFilter
+              args:
+                baseMessage: "Board Health Check"
+                preLogger: true
+                postLogger: true
+
+        - id: board-product-reviews-public
+          uri: lb://BOARD-SERVICE
+          predicates:
+            - Path=/api/board/product/**
+            - Method=GET
+          filters:
+            - name: LoggingFilter
+              args:
+                baseMessage: "Board Product Reviews"
+                preLogger: true
+                postLogger: true
+
+        - id: board-review-list-public
+          uri: lb://BOARD-SERVICE
+          predicates:
+            - Path=/api/board/list
+            - Method=GET
+          filters:
+            - name: LoggingFilter
+              args:
+                baseMessage: "Board Review List"
+                preLogger: true
+                postLogger: true
+
+        - id: board-review-detail-public
+          uri: lb://BOARD-SERVICE
+          predicates:
+            - Path=/api/board/**
+            - Method=GET
+          filters:
+            - name: LoggingFilter
+              args:
+                baseMessage: "Board Review Detail"
+                preLogger: true
+                postLogger: true
+
+        # 인증이 필요한 Board Service 작업들
+        - id: board-service-protected
+          uri: lb://BOARD-SERVICE
+          predicates:
+            - Path=/api/board/**
+            - Method=POST,PUT,DELETE,PATCH
+          filters:
+            - name: JwtAuthorization
+            - name: LoggingFilter
+              args:
+                baseMessage: "Board Service Protected"
+                preLogger: true
+                postLogger: true
+
+        # ===============================================
+        # USER SERVICE 라우팅
+        # ===============================================
+
+        # 🔥 수정: URI 오타 수정 (lb:// 형식으로)
+        - id: user-findId-public
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/api/users/findId
+            - Method=GET
+          filters:
+            - name: LoggingFilter
+              args:
+                baseMessage: "User Find ID"
+                preLogger: true
+                postLogger: true
+
+        # USER SERVICE 공개 라우팅 (구체적인 경로부터 먼저)
+        - id: user-register-public
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/api/users/register
+            - Method=POST
+          filters:
+            - name: LoggingFilter
+              args:
+                baseMessage: "User Register"
+                preLogger: true
+                postLogger: true
+
+        - id: user-checkid-public
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/api/users/checkUserId
+            - Method=GET
+          filters:
+            - name: LoggingFilter
+              args:
+                baseMessage: "User Check ID"
+                preLogger: true
+                postLogger: true
+
+        - id: user-health-public
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/api/users/health
+            - Method=GET
+          filters:
+            - name: LoggingFilter
+              args:
+                baseMessage: "User Health"
+                preLogger: true
+                postLogger: true
+
+        - id: user-list-public
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/api/users/list
+            - Method=GET
+          filters:
+            - name: LoggingFilter
+              args:
+                baseMessage: "User List"
+                preLogger: true
+                postLogger: true
+
+        # JWT 인증이 필요한 사용자 경로들
+        - id: user-verify-password-auth
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/api/users/verify-password
+            - Method=POST
+          filters:
+            - name: LoggingFilter
+              args:
+                baseMessage: "User Verify Password"
+                preLogger: true
+                postLogger: true
+
+        - id: user-profile-get-auth
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/api/users/profile
+            - Method=GET
+          filters:
+            - name: LoggingFilter
+              args:
+                baseMessage: "User Profile GET"
+                preLogger: true
+                postLogger: true
+
+        - id: user-withdraw-auth
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/api/users/withdraw
+            - Method=POST
+          filters:
+            - name: LoggingFilter
+              args:
+                baseMessage: "User Withdraw"
+                preLogger: true
+                postLogger: true
+
+        - id: user-profile-put-auth
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/api/users/profile
+            - Method=PUT
+          filters:
+            - name: LoggingFilter
+              args:
+                baseMessage: "User Profile PUT"
+                preLogger: true
+                postLogger: true
+
+        # ===============================================
+        # 기타 서비스 라우팅
+        # ===============================================
+
+        # 주문 취소
         - id: order-cancel-protected
           uri: lb://ORDER-SERVICE
           predicates:
@@ -64,7 +330,7 @@ spring:
                 preLogger: true
                 postLogger: true
 
-        # 🎥 BROADCAST SERVICE 라우팅 (SimpleJwtFilter 제거)
+        # 🎥 BROADCAST SERVICE 라우팅
         - id: broadcast-live-public
           uri: lb://BROADCAST-SERVICE
           predicates:
@@ -127,7 +393,7 @@ spring:
                 preLogger: true
                 postLogger: true
 
-        # PAYMENT SERVICE 라우팅 (SimpleJwtFilter 제거)
+        # PAYMENT SERVICE 라우팅
         - id: payment-orders-checkout-public
           uri: lb://PAYMENT-SERVICE
           predicates:
@@ -137,54 +403,6 @@ spring:
             - name: LoggingFilter
               args:
                 baseMessage: "Payment Orders Checkout"
-                preLogger: true
-                postLogger: true
-
-        - id: payment-orders-get-public
-          uri: lb://PAYMENT-SERVICE
-          predicates:
-            - Path=/api/payments/orders/**
-            - Method=GET
-          filters:
-            - name: LoggingFilter
-              args:
-                baseMessage: "Payment Orders GET"
-                preLogger: true
-                postLogger: true
-
-        - id: payment-verify-public
-          uri: lb://PAYMENT-SERVICE
-          predicates:
-            - Path=/api/payments/verify
-            - Method=POST
-          filters:
-            - name: LoggingFilter
-              args:
-                baseMessage: "Payment Verify"
-                preLogger: true
-                postLogger: true
-
-        - id: payment-prepare-public
-          uri: lb://PAYMENT-SERVICE
-          predicates:
-            - Path=/api/payments/prepare
-            - Method=POST
-          filters:
-            - name: LoggingFilter
-              args:
-                baseMessage: "Payment Prepare"
-                preLogger: true
-                postLogger: true
-
-        - id: payment-cancel-public
-          uri: lb://PAYMENT-SERVICE
-          predicates:
-            - Path=/api/payments/*/cancel
-            - Method=POST
-          filters:
-            - name: LoggingFilter
-              args:
-                baseMessage: "Payment Cancel"
                 preLogger: true
                 postLogger: true
 
@@ -237,19 +455,6 @@ spring:
                 preLogger: true
                 postLogger: true
 
-        - id: image-service-protected
-          uri: lb://IMAGE-SERVICE
-          predicates:
-            - Path=/api/images/**
-            - Method=PUT,DELETE,PATCH
-          filters:
-            - name: JwtAuthorization
-            - name: LoggingFilter
-              args:
-                baseMessage: "Image Service Protected"
-                preLogger: true
-                postLogger: true
-
         # AUTH SERVICE 라우팅
         - id: auth-service-public
           uri: lb://AUTH-SERVICE
@@ -263,7 +468,7 @@ spring:
                 preLogger: true
                 postLogger: true
 
-        #  CART SERVICE 라우팅 (SimpleJwtFilter 제거)
+        # CART SERVICE 라우팅
         - id: cart-service-public
           uri: lb://CART-SERVICE
           predicates:
@@ -271,11 +476,11 @@ spring:
           filters:
             - name: LoggingFilter
               args:
-                baseMessage: "Cart Service Public"
+                baseMessage: "Cart Service"
                 preLogger: true
                 postLogger: true
 
-        #  ORDER SERVICE 공개 라우팅 (SimpleJwtFilter 제거)
+        # ORDER SERVICE 라우팅
         - id: order-checkout-public
           uri: lb://ORDER-SERVICE
           predicates:
@@ -288,141 +493,7 @@ spring:
                 preLogger: true
                 postLogger: true
 
-        - id: order-service-public-general
-          uri: lb://ORDER-SERVICE
-          predicates:
-            - Path=/api/checkout/**
-            - Method=GET,POST
-          filters:
-            - name: LoggingFilter
-              args:
-                baseMessage: "Order Service Public General"
-                preLogger: true
-                postLogger: true
-
-        # USER SERVICE 공개 라우팅 (구체적인 경로부터 먼저)
-        - id: user-register-public
-          uri: lb://USER-SERVICE
-          predicates:
-            - Path=/api/users/register
-            - Method=POST
-          filters:
-            - name: LoggingFilter
-              args:
-                baseMessage: "User Register"
-                preLogger: true
-                postLogger: true
-
-        - id: user-checkid-public
-          uri: lb://USER-SERVICE
-          predicates:
-            - Path=/api/users/checkUserId
-            - Method=GET
-          filters:
-            - name: LoggingFilter
-              args:
-                baseMessage: "User Check ID"
-                preLogger: true
-                postLogger: true
-
-        - id: user-health-public
-          uri: lb://USER-SERVICE
-          predicates:
-            - Path=/api/users/health
-            - Method=GET
-
-        - id: user-list-public
-          uri: lb://USER-SERVICE
-          predicates:
-            - Path=/api/users/list
-            - Method=GET
-
-        # JWT 인증이 필요한 사용자 경로들 (SimpleJwtFilter 제거)
-        - id: user-verify-password-auth
-          uri: lb://USER-SERVICE
-          predicates:
-            - Path=/api/users/verify-password
-            - Method=POST
-          filters:
-            - name: LoggingFilter
-              args:
-                baseMessage: "User Verify Password"
-                preLogger: true
-                postLogger: true
-
-        - id: user-profile-get-auth
-          uri: lb://USER-SERVICE
-          predicates:
-            - Path=/api/users/profile
-            - Method=GET
-          filters:
-            - name: LoggingFilter
-              args:
-                baseMessage: "User Profile GET"
-                preLogger: true
-                postLogger: true
-
-        - id: user-withdraw-auth
-          uri: lb://USER-SERVICE
-          predicates:
-            - Path=/api/users/withdraw
-            - Method=POST
-          filters:
-            - name: LoggingFilter
-              args:
-                baseMessage: "User Withdraw"
-                preLogger: true
-                postLogger: true
-
-        - id: user-profile-put-auth
-          uri: lb://USER-SERVICE
-          predicates:
-            - Path=/api/users/profile
-            - Method=PUT
-          filters:
-            - name: LoggingFilter
-              args:
-                baseMessage: "User Profile PUT"
-                preLogger: true
-                postLogger: true
-
-        # 카테고리 서비스 - 구체적인 패턴부터 먼저
-        - id: category-sub-public
-          uri: lb://CATEGORY-SERVICE
-          predicates:
-            - Path=/api/categories/*/sub
-            - Method=GET
-          filters:
-            - name: LoggingFilter
-              args:
-                baseMessage: "Category Sub API"
-                preLogger: true
-                postLogger: true
-
-        - id: category-children-ids-public
-          uri: lb://CATEGORY-SERVICE
-          predicates:
-            - Path=/api/categories/*/children-ids
-            - Method=GET
-          filters:
-            - name: LoggingFilter
-              args:
-                baseMessage: "Category Children IDs API"
-                preLogger: true
-                postLogger: true
-
-        - id: category-exists-public
-          uri: lb://CATEGORY-SERVICE
-          predicates:
-            - Path=/api/categories/*/exists
-            - Method=GET
-          filters:
-            - name: LoggingFilter
-              args:
-                baseMessage: "Category Exists API"
-                preLogger: true
-                postLogger: true
-
+        # 카테고리 서비스
         - id: category-hierarchy-public
           uri: lb://CATEGORY-SERVICE
           predicates:
@@ -435,19 +506,6 @@ spring:
                 preLogger: true
                 postLogger: true
 
-        - id: category-main-public
-          uri: lb://CATEGORY-SERVICE
-          predicates:
-            - Path=/api/categories/main
-            - Method=GET
-          filters:
-            - name: LoggingFilter
-              args:
-                baseMessage: "Category Main API"
-                preLogger: true
-                postLogger: true
-
-        # 가장 일반적인 카테고리 패턴을 마지막에
         - id: category-detail-public
           uri: lb://CATEGORY-SERVICE
           predicates:
@@ -460,7 +518,7 @@ spring:
                 preLogger: true
                 postLogger: true
 
-        #  추가: guest-cart-details 전용 라우트 (가장 구체적이므로 맨 앞에)
+        # 상품 서비스
         - id: product-guest-cart-details-public
           uri: lb://PRODUCT-SERVICE
           predicates:
@@ -473,69 +531,6 @@ spring:
                 preLogger: true
                 postLogger: true
 
-        #  상품 서비스 공개 라우팅 (중복 제거 및 ORDER 조정)
-        # 더 구체적인 패턴부터 먼저 배치
-        - id: product-debug-public
-          uri: lb://PRODUCT-SERVICE
-          predicates:
-            - Path=/api/products/debug/**
-            - Method=GET
-          filters:
-            - name: LoggingFilter
-              args:
-                baseMessage: "Product Debug API"
-                preLogger: true
-                postLogger: true
-
-        - id: product-test-public
-          uri: lb://PRODUCT-SERVICE
-          predicates:
-            - Path=/api/products/test/**
-            - Method=GET
-          filters:
-            - name: LoggingFilter
-              args:
-                baseMessage: "Product Test API"
-                preLogger: true
-                postLogger: true
-
-        - id: product-stats-public
-          uri: lb://PRODUCT-SERVICE
-          predicates:
-            - Path=/api/products/stats/**
-            - Method=GET
-          filters:
-            - name: LoggingFilter
-              args:
-                baseMessage: "Product Stats API"
-                preLogger: true
-                postLogger: true
-
-        - id: product-filter-public
-          uri: lb://PRODUCT-SERVICE
-          predicates:
-            - Path=/api/products/filter
-            - Method=GET
-          filters:
-            - name: LoggingFilter
-              args:
-                baseMessage: "Product Filter API"
-                preLogger: true
-                postLogger: true
-
-        - id: product-category-public
-          uri: lb://PRODUCT-SERVICE
-          predicates:
-            - Path=/api/products/category/**
-            - Method=GET
-          filters:
-            - name: LoggingFilter
-              args:
-                baseMessage: "Product Category API"
-                preLogger: true
-                postLogger: true
-
-        #  일반적인 상품 조회 (GET만 허용)
         - id: product-service-public-get
           uri: lb://PRODUCT-SERVICE
           predicates:
@@ -548,37 +543,11 @@ spring:
                 preLogger: true
                 postLogger: true
 
-        #  ORDER SERVICE 라우팅 (SimpleJwtFilter 제거)
-        - id: order-service-public-get
-          uri: lb://ORDER-SERVICE
-          predicates:
-            - Path=/api/orders/**
-            - Method=GET
-          filters:
-            - name: LoggingFilter
-              args:
-                baseMessage: "Order Service GET"
-                preLogger: true
-                postLogger: true
-
         # ============================================
-        #  보호된 경로들은 공개 경로들 이후에 정의
+        # 보호된 경로들
         # ============================================
 
-        #  Order Service 사용자별 주문 조회 (인증 필요)
-        - id: order-service-user-protected
-          uri: lb://ORDER-SERVICE
-          predicates:
-            - Path=/api/orders/list, /api/orders/list/**
-            - Method=GET,PUT
-          filters:
-            - name: JwtAuthorization
-            - name: LoggingFilter
-              args:
-                baseMessage: "Order Service User Protected"
-                preLogger: true
-                postLogger: true
-
+        # Order Service 보호된 경로
         - id: order-service-protected
           uri: lb://ORDER-SERVICE
           predicates:
@@ -592,7 +561,7 @@ spring:
                 preLogger: true
                 postLogger: true
 
-        #  상품 서비스 보호된 라우팅 (POST, PUT, DELETE 등)
+        # Product Service 보호된 경로
         - id: product-service-protected
           uri: lb://PRODUCT-SERVICE
           predicates:
@@ -606,13 +575,12 @@ spring:
                 preLogger: true
                 postLogger: true
 
-        #  USER SERVICE 보호된 라우팅을 가장 마지막에 배치
-        # 이미 위에서 구체적인 경로들을 정의했으므로, 여기서는 나머지 경로들만 처리됨
+        # User Service 보호된 경로
         - id: user-service-protected
           uri: lb://USER-SERVICE
           predicates:
             - Path=/api/users/**
-            - Method=DELETE,PATCH  #  POST와 PUT 제거 (이미 위에서 처리됨)
+            - Method=DELETE,PATCH
           filters:
             - name: JwtAuthorization
             - name: LoggingFilter
@@ -621,7 +589,7 @@ spring:
                 preLogger: true
                 postLogger: true
 
-        # Health Check (완전 공개)
+        # NOTIFICATION SERVICE 라우팅
         - id: notification-health-public
           uri: lb://NOTIFICATION-SERVICE
           predicates:
@@ -634,88 +602,6 @@ spring:
                 preLogger: true
                 postLogger: true
 
-        # 방송 시작 알림 구독/취소 (인증 필요)
-        - id: notification-subscription-protected
-          uri: lb://NOTIFICATION-SERVICE
-          predicates:
-            - Path=/api/notifications/subscriptions/**
-            - Method=POST,DELETE,PUT
-          filters:
-            - name: JwtAuthorization
-            - name: LoggingFilter
-              args:
-                baseMessage: "Notification Subscription Protected"
-                preLogger: true
-                postLogger: true
-
-        # 사용자별 알림 조회 (인증 필요)
-        - id: notification-user-protected
-          uri: lb://NOTIFICATION-SERVICE
-          predicates:
-            - Path=/api/notifications/users/**
-            - Method=GET,PATCH
-          filters:
-            - name: JwtAuthorization
-            - name: LoggingFilter
-              args:
-                baseMessage: "Notification User Protected"
-                preLogger: true
-                postLogger: true
-
-        # 방송 관련 알림 조회 (공개 - 구독자 수 등)
-        - id: notification-broadcast-public
-          uri: lb://NOTIFICATION-SERVICE
-          predicates:
-            - Path=/api/notifications/broadcasts/**
-            - Method=GET
-          filters:
-            - name: LoggingFilter
-              args:
-                baseMessage: "Notification Broadcast Public"
-                preLogger: true
-                postLogger: true
-
-        # 내부 API - 방송 서비스에서 호출 (공개)
-        - id: notification-internal-public
-          uri: lb://NOTIFICATION-SERVICE
-          predicates:
-            - Path=/api/notifications/broadcasts/*/start-notifications
-            - Method=POST
-          filters:
-            - name: LoggingFilter
-              args:
-                baseMessage: "Notification Internal API"
-                preLogger: true
-                postLogger: true
-
-        # WebSocket 연결 (인증 필요)
-        - id: notification-websocket-protected
-          uri: lb://NOTIFICATION-SERVICE
-          predicates:
-            - Path=/ws-notifications/**
-          filters:
-            - name: JwtAuthorization
-            - name: LoggingFilter
-              args:
-                baseMessage: "Notification WebSocket"
-                preLogger: true
-                postLogger: true
-
-        # 나머지 알림 API (인증 필요)
-        - id: notification-service-protected
-          uri: lb://NOTIFICATION-SERVICE
-          predicates:
-            - Path=/api/notifications/**
-            - Method=POST,PUT,DELETE,PATCH
-          filters:
-            - name: JwtAuthorization
-            - name: LoggingFilter
-              args:
-                baseMessage: "Notification Service Protected"
-                preLogger: true
-                postLogger: true
-
-        # 알림 서비스 일반 조회 (공개)
         - id: notification-service-public
           uri: lb://NOTIFICATION-SERVICE
           predicates:
@@ -728,25 +614,75 @@ spring:
                 preLogger: true
                 postLogger: true
 
+        # 비밀번호 찾기 (공개)
+        - id: auth-findpassword-public
+          uri: lb://AUTH-SERVICE
+          predicates:
+            - Path=/auth/findPassword
+            - Method=POST
+          filters:
+            - name: LoggingFilter
+              args:
+                baseMessage: "Auth Find Password"
+                preLogger: true
+                postLogger: true
+
+        # 인증번호 검증 (공개)
+        - id: auth-verify-reset-code-public
+          uri: lb://AUTH-SERVICE
+          predicates:
+            - Path=/auth/verifyResetCode
+            - Method=POST
+          filters:
+            - name: LoggingFilter
+              args:
+                baseMessage: "Auth Verify Reset Code"
+                preLogger: true
+                postLogger: true
+
+        # 비밀번호 재설정 (공개)
+        - id: auth-reset-password-public
+          uri: lb://AUTH-SERVICE
+          predicates:
+            - Path=/auth/resetPassword
+            - Method=POST
+          filters:
+            - name: LoggingFilter
+              args:
+                baseMessage: "Auth Reset Password"
+                preLogger: true
+                postLogger: true
+
+        # 기존 AUTH SERVICE 라우팅 (일반적인 경로, 맨 마지막에 위치해야 함)
+        - id: auth-service-public
+          uri: lb://AUTH-SERVICE
+          predicates:
+            - Path=/auth/**
+          filters:
+            - RewritePath=/auth/(?<segment>.*), /auth/${segment}
+            - name: LoggingFilter
+              args:
+                baseMessage: "Auth Service"
+                preLogger: true
+                postLogger: true
+
 logging:
   level:
     org.springframework.cloud.gateway: DEBUG
     org.kosa.apigatewayservice: DEBUG
     org.springframework.cloud.gateway.route: DEBUG
     org.springframework.cloud.gateway.handler: DEBUG
-    org.springframework.web: DEBUG
-    org.springframework.web.cors: DEBUG
 
 management:
   endpoints:
     web:
       exposure:
-        include: "*"
+        include: ["refresh", "busrefresh", "prometheus", "health", "info"]
   endpoint:
+    prometheus:
+      enabled: true
     health:
       show-details: always
-    gateway:
-      enabled: true
 
 jwt:
   secret-key: "verySecretKeyThatIsAtLeast32BytesLong1234"

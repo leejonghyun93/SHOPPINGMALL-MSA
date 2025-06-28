@@ -30,7 +30,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: refresh, busrefresh
+        include: "refresh", "busrefresh" , "prometheus", "health", "info"
   endpoint:
     busrefresh:
       enabled: true

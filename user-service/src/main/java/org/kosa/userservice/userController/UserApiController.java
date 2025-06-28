@@ -23,72 +23,88 @@ public class UserApiController {
     private final UserService userService;
     private final JwtUtil jwtUtil;
 
+    @GetMapping("/findId")
+    public ResponseEntity<?> findId(
+            @RequestParam("name") String name,
+            @RequestParam("email") String email) {
+
+        log.info("아이디 찾기 요청 - name: {}, email: {}***", name,
+                email.length() > 3 ? email.substring(0, 3) : email);
+
+        try {
+            // 입력 검증
+            if (name == null || name.trim().isEmpty()) {
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("success", false);
+                errorResponse.put("message", "이름을 입력해주세요.");
+                return ResponseEntity.badRequest().body(errorResponse);
+            }
+
+            if (email == null || email.trim().isEmpty()) {
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("success", false);
+                errorResponse.put("message", "이메일을 입력해주세요.");
+                return ResponseEntity.badRequest().body(errorResponse);
+            }
+
+            // 이름과 이메일로 사용자 찾기
+            Optional<UserDto> userOpt = userService.getMemberByNameAndEmail(name.trim(), email.trim());
+
+            if (userOpt.isPresent()) {
+                UserDto user = userOpt.get();
+
+                log.info("아이디 찾기 성공 - name: {}, email: {}***, userId: {}",
+                        name, email.substring(0, Math.min(3, email.length())), user.getUserId());
+
+                // 성공 응답
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", true);
+                response.put("message", "아이디 찾기 성공");
+                response.put("userId", user.getUserId());
+                response.put("timestamp", LocalDateTime.now());
+
+                return ResponseEntity.ok(response);
+
+            } else {
+                log.warn("아이디 찾기 실패 - 일치하는 사용자 없음: name={}, email={}***",
+                        name, email.length() > 3 ? email.substring(0, 3) : email);
+
+                // 404 응답
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", false);
+                response.put("message", "입력하신 정보와 일치하는 계정을 찾을 수 없습니다.");
+                response.put("timestamp", LocalDateTime.now());
+
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+            }
+
+        } catch (Exception e) {
+            log.error("아이디 찾기 중 오류 발생 - name: {}, email: {}***, error: {}",
+                    name, email.length() > 3 ? email.substring(0, 3) : email, e.getMessage(), e);
+
+            // 500 응답
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+            response.put("timestamp", LocalDateTime.now());
+
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
+
     @PostMapping("/register")
     public ResponseEntity<Member> registerUser(@RequestBody Member member) {
         Member savedMember = userService.saveMember(member);
         return ResponseEntity.ok(savedMember);
     }
 
-//    @GetMapping("/{userId}")
-//    public ResponseEntity<?> getUserDetail(@PathVariable String userId) {
-//        return userService.getMemberDetail(userId)
-//                .map(ResponseEntity::ok)
-//                .orElse(ResponseEntity.notFound().build());
-//    }
-// UserApiController.java의 기존 getUserDetail() 메서드를 다음으로 교체
-
     @GetMapping("/{userId}")
     public ResponseEntity<?> getUserDetail(@PathVariable String userId) {
-        try {
-            log.info("사용자 정보 조회 요청: userId={}", userId);
-
-            Optional<UserDto> userDto = userService.getMemberDetail(userId);
-
-            if (userDto.isPresent()) {
-                UserDto user = userDto.get();
-
-                // 필요한 정보만 반환 (보안상 비밀번호 등 제외)
-                Map<String, Object> userData = new HashMap<>();
-                userData.put("userId", user.getUserId());
-                userData.put("name", user.getName());
-                userData.put("email", user.getEmail());
-                userData.put("phone", user.getPhone());
-                userData.put("status", user.getStatus());
-                userData.put("createdDate", user.getCreatedDate());
-
-                Map<String, Object> response = new HashMap<>();
-                response.put("success", true);
-                response.put("message", "사용자 정보 조회 성공");
-                response.put("data", userData);
-
-                log.info("사용자 정보 조회 성공: userId={}, name={}", userId, user.getName());
-                return ResponseEntity.ok(response);
-
-            } else {
-                log.warn("사용자 정보 조회 실패 - 사용자 없음: userId={}", userId);
-
-                Map<String, Object> response = new HashMap<>();
-                response.put("success", false);
-                response.put("message", "사용자를 찾을 수 없습니다");
-                response.put("timestamp", LocalDateTime.now());
-                response.put("status", 404);
-
-                return ResponseEntity.status(404).body(response);
-            }
-
-        } catch (Exception e) {
-            log.error("사용자 정보 조회 중 오류 발생: userId={}, error={}", userId, e.getMessage(), e);
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("success", false);
-            response.put("error", "INTERNAL_SERVER_ERROR");
-            response.put("message", "서버 내부 오류가 발생했습니다: " + e.getMessage());
-            response.put("timestamp", LocalDateTime.now());
-            response.put("status", 500);
-
-            return ResponseEntity.status(500).body(response);
-        }
+        return userService.getMemberDetail(userId)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
+
     @DeleteMapping("/delete/{userId}")
     public ResponseEntity<Void> deleteUser(@PathVariable String userId, HttpServletRequest request) {
         log.info("Delete request for userId: {}", userId);
@@ -181,27 +197,6 @@ public class UserApiController {
                         .body("해당하는 사용자를 찾을 수 없습니다."));
     }
 
-    @PutMapping("/{userId}/password")
-    public ResponseEntity<?> updatePassword(@PathVariable String userId, @RequestBody String encodedPassword) {
-        try {
-            userService.updatePassword(userId, encodedPassword);
-            return ResponseEntity.ok("비밀번호가 성공적으로 변경되었습니다.");
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("비밀번호 변경 중 오류가 발생했습니다.");
-        }
-    }
-
-    @PutMapping("/{userId}/password-raw")
-    public ResponseEntity<?> updatePasswordRaw(@PathVariable String userId, @RequestBody String rawPassword) {
-        try {
-            userService.updatePasswordRaw(userId, rawPassword);
-            return ResponseEntity.ok("비밀번호가 성공적으로 변경되었습니다.");
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("비밀번호 변경 중 오류가 발생했습니다.");
-        }
-    }
     @PostMapping("/verify-password")
     public ResponseEntity<?> verifyPassword(
             @RequestBody Map<String, String> request,

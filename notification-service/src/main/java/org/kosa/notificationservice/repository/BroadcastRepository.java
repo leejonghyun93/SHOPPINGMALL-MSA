@@ -104,169 +104,41 @@ public interface BroadcastRepository extends JpaRepository<BroadcastEntity, Long
             "AND b.broadcastStatus = 'scheduled'")
     long countTodayScheduledBroadcasts();
 
-    // ========== 🔥 새로 추가: 방송자 정보 조회 메서드들 ==========
+    // ========== 🔥 실제 운영용: broadcaster_id만 사용하는 메서드들 ==========
 
     /**
-     * 🔥 방송 정보와 방송자 이름을 함께 조회하는 메서드
-     * tb_live_broadcasts와 tb_member를 JOIN하여 실제 방송자 이름 조회
+     * 🔥 broadcaster_id만 조회 (회원 테이블 JOIN 없이)
      */
-    @Query(value = """
-        SELECT b.broadcast_id as broadcastId,
-               b.title as title,
-               b.description as description,
-               b.broadcast_status as broadcastStatus,
-               b.scheduled_start_time as scheduledStartTime,
-               b.broadcaster_id as broadcasterId,
-               m.USER_ID as broadcasterUserId,
-               m.NAME as broadcasterName,
-               m.EMAIL as broadcasterEmail
-        FROM tb_live_broadcasts b
-        LEFT JOIN tb_member m ON CAST(b.broadcaster_id AS CHAR) = m.USER_ID
-        WHERE b.broadcast_id = :broadcastId
-        """, nativeQuery = true)
-    Optional<BroadcastWithMemberInfo> findBroadcastWithMemberInfo(@Param("broadcastId") Long broadcastId);
+    @Query("SELECT b.broadcasterId FROM BroadcastEntity b WHERE b.broadcastId = :broadcastId")
+    Optional<Long> findBroadcasterIdByBroadcastId(@Param("broadcastId") Long broadcastId);
 
     /**
-     * 🔥 현재 시작하는 방송들과 방송자 정보를 함께 조회
+     * 🔥 특정 broadcaster_id의 방송 목록 조회
      */
-    @Query(value = """
-        SELECT b.broadcast_id as broadcastId,
-               b.title as title,
-               b.description as description,
-               b.broadcast_status as broadcastStatus,
-               b.scheduled_start_time as scheduledStartTime,
-               b.broadcaster_id as broadcasterId,
-               m.USER_ID as broadcasterUserId,
-               m.NAME as broadcasterName,
-               m.EMAIL as broadcasterEmail
-        FROM tb_live_broadcasts b
-        LEFT JOIN tb_member m ON CAST(b.broadcaster_id AS CHAR) = m.USER_ID
-        WHERE b.scheduled_start_time BETWEEN :startTime AND :endTime
-        AND b.broadcast_status = :status
-        ORDER BY b.scheduled_start_time
-        """, nativeQuery = true)
-    List<BroadcastWithMemberInfo> findStartingBroadcastsWithMemberInfo(
+    List<BroadcastEntity> findByBroadcasterIdOrderByScheduledStartTimeDesc(Long broadcasterId);
+
+    /**
+     * 🔥 특정 broadcaster_id의 활성 방송 조회
+     */
+    @Query("SELECT b FROM BroadcastEntity b WHERE " +
+            "b.broadcasterId = :broadcasterId " +
+            "AND b.broadcastStatus IN ('scheduled', 'live', 'starting') " +
+            "ORDER BY b.scheduledStartTime ASC")
+    List<BroadcastEntity> findActiveBroadcastsByBroadcasterId(@Param("broadcasterId") Long broadcasterId);
+
+    /**
+     * 🔥 broadcaster_id별 방송 개수 조회
+     */
+    long countByBroadcasterId(Long broadcasterId);
+
+    /**
+     * 🔥 현재 시작하는 방송들의 broadcaster_id 목록 조회
+     */
+    @Query("SELECT DISTINCT b.broadcasterId FROM BroadcastEntity b WHERE " +
+            "b.scheduledStartTime BETWEEN :startTime AND :endTime " +
+            "AND b.broadcastStatus = 'scheduled'")
+    List<Long> findStartingBroadcasterIds(
             @Param("startTime") LocalDateTime startTime,
-            @Param("endTime") LocalDateTime endTime,
-            @Param("status") String status);
-
-    /**
-     * 🔥 특정 방송자의 방송 목록 조회
-     */
-    @Query(value = """
-        SELECT b.broadcast_id as broadcastId,
-               b.title as title,
-               b.description as description,
-               b.broadcast_status as broadcastStatus,
-               b.scheduled_start_time as scheduledStartTime,
-               b.broadcaster_id as broadcasterId,
-               m.USER_ID as broadcasterUserId,
-               m.NAME as broadcasterName,
-               m.EMAIL as broadcasterEmail
-        FROM tb_live_broadcasts b
-        LEFT JOIN tb_member m ON CAST(b.broadcaster_id AS CHAR) = m.USER_ID
-        WHERE m.USER_ID = :userId
-        ORDER BY b.scheduled_start_time DESC
-        """, nativeQuery = true)
-    List<BroadcastWithMemberInfo> findBroadcastsByBroadcasterUserId(@Param("userId") String userId);
-
-    /**
-     * 🔥 방송자 이름만 조회하는 간단한 메서드
-     */
-    @Query(value = """
-        SELECT m.NAME
-        FROM tb_live_broadcasts b
-        LEFT JOIN tb_member m ON CAST(b.broadcaster_id AS CHAR) = m.USER_ID
-        WHERE b.broadcast_id = :broadcastId
-        """, nativeQuery = true)
-    Optional<String> findBroadcasterNameByBroadcastId(@Param("broadcastId") Long broadcastId);
-
-    /**
-     * 🔥 broadcaster_id로 USER_ID 조회
-     */
-    @Query(value = """
-        SELECT m.USER_ID
-        FROM tb_live_broadcasts b
-        LEFT JOIN tb_member m ON CAST(b.broadcaster_id AS CHAR) = m.USER_ID
-        WHERE b.broadcast_id = :broadcastId
-        """, nativeQuery = true)
-    Optional<String> findBroadcasterUserIdByBroadcastId(@Param("broadcastId") Long broadcastId);
-
-    /**
-     * 🔥 방송자 이메일 조회
-     */
-    @Query(value = """
-        SELECT m.EMAIL
-        FROM tb_live_broadcasts b
-        LEFT JOIN tb_member m ON CAST(b.broadcaster_id AS CHAR) = m.USER_ID
-        WHERE b.broadcast_id = :broadcastId
-        """, nativeQuery = true)
-    Optional<String> findBroadcasterEmailByBroadcastId(@Param("broadcastId") Long broadcastId);
-
-    /**
-     * 🔥 방송자 정보와 함께 스케줄 조회 (특정 날짜)
-     */
-    @Query(value = """
-        SELECT b.broadcast_id as broadcastId,
-               b.title as title,
-               b.description as description,
-               b.broadcast_status as broadcastStatus,
-               b.scheduled_start_time as scheduledStartTime,
-               b.broadcaster_id as broadcasterId,
-               m.USER_ID as broadcasterUserId,
-               m.NAME as broadcasterName,
-               m.EMAIL as broadcasterEmail
-        FROM tb_live_broadcasts b
-        LEFT JOIN tb_member m ON CAST(b.broadcaster_id AS CHAR) = m.USER_ID
-        WHERE DATE(b.scheduled_start_time) = :date
-        AND b.broadcast_status = 'scheduled'
-        ORDER BY b.scheduled_start_time ASC
-        """, nativeQuery = true)
-    List<BroadcastWithMemberInfo> findScheduledBroadcastsWithMemberInfoByDate(@Param("date") LocalDate date);
-
-    /**
-     * 방송 정보와 회원 정보를 담는 Projection 인터페이스
-     */
-    interface BroadcastWithMemberInfo {
-        Long getBroadcastId();
-        String getTitle();
-        String getDescription();
-        String getBroadcastStatus();
-        LocalDateTime getScheduledStartTime();
-        Long getBroadcasterId();
-        String getBroadcasterUserId();  // tb_member.USER_ID
-        String getBroadcasterName();    // tb_member.NAME
-        String getBroadcasterEmail();   // tb_member.EMAIL
-    }
-
-    /**
-     * 🔥 broadcaster_id별 방송 개수 조회 (통계용)
-     */
-    @Query(value = """
-        SELECT COUNT(*)
-        FROM tb_live_broadcasts b
-        WHERE b.broadcaster_id = :broadcasterId
-        """, nativeQuery = true)
-    long countByBroadcasterId(@Param("broadcasterId") Long broadcasterId);
-
-    /**
-     * 🔥 특정 방송자의 활성 방송 조회
-     */
-    @Query(value = """
-        SELECT b.broadcast_id as broadcastId,
-               b.title as title,
-               b.description as description,
-               b.broadcast_status as broadcastStatus,
-               b.scheduled_start_time as scheduledStartTime,
-               b.broadcaster_id as broadcasterId,
-               m.USER_ID as broadcasterUserId,
-               m.NAME as broadcasterName,
-               m.EMAIL as broadcasterEmail
-        FROM tb_live_broadcasts b
-        LEFT JOIN tb_member m ON CAST(b.broadcaster_id AS CHAR) = m.USER_ID
-        WHERE m.USER_ID = :userId
-        AND b.broadcast_status IN ('scheduled', 'live', 'starting')
-        ORDER BY b.scheduled_start_time ASC
-        """, nativeQuery = true)
-    List<BroadcastWithMemberInfo> findActiveBroadcastsByBroadcasterUserId(@Param("userId") String userId);
+            @Param("endTime") LocalDateTime endTime
+    );
 }

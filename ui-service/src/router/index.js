@@ -9,7 +9,6 @@ import Register from '../views/user/Register.vue'
 import FindId from '../views/user/FindId.vue'
 import FindPassword from '../views/user/FindPassword.vue'
 import Category from '../views/main/Category.vue'
-import BoardList from '../views/board/BoardList.vue'
 
 // User 관련 컴포넌트
 import MyPage from '@/views/user/MyPage.vue'
@@ -22,10 +21,6 @@ import UserEdit from '@/views/user/UserEdit.vue'
 import ProductDetail from '@/views/product/ProductDetail.vue'
 import Cart from '@/views/product/Cart.vue'
 
-// Board 관련 컴포넌트
-import BoardWrite from '@/views/board/BoardWrite.vue'
-import BoardDetail from '@/views/board/BoardDetail.vue'
-import BoardEdit from '@/views/board/BoardEdit.vue'
 
 // Order 관련 컴포넌트
 import Checkout from '@/views/order/Checkout.vue'
@@ -37,7 +32,7 @@ import LiveBroadcastViewer from '@/views/live/BroadcastViewer.vue'
 
 // 방송 예약 컴포넌트
 import BroadcastCalendar from "@/views/live/calendar.vue"
-import {Calendar} from "lucide-vue-next";
+
 
 // 인증 가드
 const requireAuth = (to, from, next) => {
@@ -66,12 +61,12 @@ const routes = [
         component: Register
     },
     {
-        path: '/find-id',
+        path: '/findId',
         name: 'FindId',
         component: FindId
     },
     {
-        path: '/find-password',
+        path: '/findPassword',
         name: 'FindPassword',
         component: FindPassword
     },

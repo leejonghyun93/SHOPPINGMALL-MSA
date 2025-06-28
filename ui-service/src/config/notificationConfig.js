@@ -1,7 +1,7 @@
-// src/config/notificationConfig.js - CORS 오류 수정
+// src/config/notificationConfig.js - 기존 코드 + 헤더용 함수 추가
+
 export const NOTIFICATION_CONFIG = {
-    // 🔥 임시로 알림 서비스에 직접 호출 (API Gateway 문제 해결 전까지)
-    BASE_URL: 'http://localhost:8096/api/notifications',  // 직접 호출로 임시 변경
+    BASE_URL: 'http://localhost:8096/api/notifications',
     ENDPOINTS: {
         HEALTH: '/health',
         BROADCASTS_SCHEDULE: '/broadcasts/schedule',
@@ -15,13 +15,11 @@ export const NOTIFICATION_CONFIG = {
     }
 }
 
-// 🔥 방송 알림 구독 함수 - 올바른 엔드포인트로 수정
 export const subscribeBroadcastStart = async (userIdentifier, broadcastId) => {
     if (!userIdentifier || !broadcastId) {
         throw new Error('필수 파라미터가 누락되었습니다.')
     }
 
-    // 🔥 컨트롤러의 실제 엔드포인트와 일치하도록 수정
     const endpoint = `/subscriptions/broadcast-start?userId=${userIdentifier}&broadcastId=${broadcastId}`
 
     const response = await notificationApiCall(endpoint, {
@@ -46,13 +44,11 @@ export const subscribeBroadcastStart = async (userIdentifier, broadcastId) => {
     return await response.json()
 }
 
-// 🔥 방송 알림 구독 취소 함수 - 올바른 엔드포인트로 수정
 export const unsubscribeBroadcast = async (userIdentifier, broadcastId) => {
     if (!userIdentifier || !broadcastId) {
         throw new Error('필수 파라미터가 누락되었습니다.')
     }
 
-    // 🔥 컨트롤러의 실제 엔드포인트와 일치하도록 수정
     const endpoint = `/subscriptions?userId=${userIdentifier}&broadcastId=${broadcastId}&type=BROADCAST_START`
 
     const response = await notificationApiCall(endpoint, {
@@ -75,7 +71,6 @@ export const unsubscribeBroadcast = async (userIdentifier, broadcastId) => {
     }
 }
 
-// 🔥 JWT에서 사용자 정보 추출
 const getCurrentUser = () => {
     const token = localStorage.getItem('token')
 
@@ -91,12 +86,10 @@ const getCurrentUser = () => {
         }
 
         const payload = JSON.parse(atob(base64))
-        console.log('🔍 JWT 페이로드:', payload)
 
         let userId = null
         let userIdentifier = null
 
-        // 1. 숫자 ID 추출 시도
         const potentialIds = [payload.userId, payload.sub, payload.id]
         for (const id of potentialIds) {
             if (id && !isNaN(Number(id)) && Number(id) > 0) {
@@ -106,10 +99,8 @@ const getCurrentUser = () => {
             }
         }
 
-        // 2. 숫자 ID가 없으면 문자열 식별자 사용
         if (!userId) {
             userIdentifier = payload.sub || payload.username || payload.id
-            console.log('📝 숫자 ID가 없어서 문자열 식별자 사용:', userIdentifier)
         }
 
         const username = payload.username || payload.name || userIdentifier || 'user'
@@ -121,12 +112,10 @@ const getCurrentUser = () => {
         }
 
     } catch (error) {
-        console.error('JWT 파싱 오류:', error)
         return { id: null, username: 'guest', identifier: null }
     }
 }
 
-// 토큰 유효성 검사
 const isTokenValid = (token) => {
     if (!token) return false
 
@@ -153,7 +142,6 @@ const isTokenValid = (token) => {
     }
 }
 
-// JWT 헤더 생성
 const getAuthHeaders = () => {
     const token = localStorage.getItem('token')
 
@@ -169,7 +157,6 @@ const getAuthHeaders = () => {
     return headers
 }
 
-// 🔥 알림 API 호출
 export const notificationApiCall = async (endpoint, options = {}) => {
     let url
 
@@ -182,8 +169,6 @@ export const notificationApiCall = async (endpoint, options = {}) => {
     }
 
     try {
-        console.log(`🔗 알림 API 호출: ${url}`)
-
         const response = await fetch(url, {
             method: options.method || 'GET',
             mode: 'cors',
@@ -194,12 +179,9 @@ export const notificationApiCall = async (endpoint, options = {}) => {
             ...options
         })
 
-        console.log(`📡 응답: ${response.status} ${response.statusText}`)
-
         return response
 
     } catch (error) {
-        console.error('❌ API 호출 실패:', error)
         return {
             ok: false,
             status: 0,
@@ -209,5 +191,90 @@ export const notificationApiCall = async (endpoint, options = {}) => {
     }
 }
 
-// export
+export const notificationHelpers = {
+
+    async getUnreadCount(userId) {
+        try {
+            const response = await notificationApiCall(`/unread-count?userId=${userId}`);
+            if (response && response.ok) {
+                const data = await response.json();
+                return data.count || 0;
+            }
+            return 0;
+        } catch (error) {
+            return 0;
+        }
+    },
+
+    async getRecentNotifications(userId, limit = 10) {
+        try {
+            const response = await notificationApiCall(`/recent?userId=${userId}&limit=${limit}`);
+            if (response && response.ok) {
+                return await response.json();
+            }
+            return [];
+        } catch (error) {
+            return [];
+        }
+    },
+
+    async markAllAsRead(userId) {
+        try {
+            const response = await notificationApiCall(`/mark-all-read?userId=${userId}`, {
+                method: 'PATCH'
+            });
+            return response && response.ok;
+        } catch (error) {
+            return false;
+        }
+    },
+
+    async markAsRead(notificationId, userId) {
+        try {
+            const response = await notificationApiCall(`/${notificationId}/read?userId=${userId}`, {
+                method: 'PATCH'
+            });
+            return response && response.ok;
+        } catch (error) {
+            return false;
+        }
+    },
+
+    formatTime(timeString) {
+        const now = new Date();
+        const time = new Date(timeString);
+        const diffInMinutes = Math.floor((now - time) / (1000 * 60));
+
+        if (diffInMinutes < 1) return '방금 전';
+        if (diffInMinutes < 60) return `${diffInMinutes}분 전`;
+        if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}시간 전`;
+
+        const diffInDays = Math.floor(diffInMinutes / 1440);
+        if (diffInDays < 7) return `${diffInDays}일 전`;
+
+        return time.toLocaleDateString('ko-KR');
+    },
+
+    getNotificationIcon(type) {
+        const iconMap = {
+            'BROADCAST_START': 'live',
+            'BROADCAST_END': 'stop',
+            'BROADCAST_REMINDER': 'bell',
+            'BROADCAST_CANCEL': 'x',
+            'GENERAL': 'info'
+        };
+        return iconMap[type] || 'info';
+    },
+
+    getPriorityColor(priority) {
+        const colorMap = {
+            'LOW': '#6c757d',
+            'NORMAL': '#007bff',
+            'HIGH': '#fd7e14',
+            'URGENT': '#dc3545'
+        };
+        return colorMap[priority] || '#007bff';
+    }
+};
+
 export { getCurrentUser }

@@ -40,8 +40,8 @@
             <label class="form-check-label" for="rememberId">아이디 저장</label>
           </div>
           <div>
-            <router-link to="/find-id" class="small me-2">아이디 찾기</router-link>
-            <router-link to="/find-password" class="small">비밀번호 찾기</router-link>
+            <router-link to="/findId" class="small me-2">아이디 찾기</router-link>
+            <router-link to="/findPassword" class="small">비밀번호 찾기</router-link>
           </div>
         </div>
 
@@ -128,8 +128,6 @@ const handleLogin = async () => {
       } else {
         localStorage.removeItem("savedUserId");
       }
-
-      alert("✅ 로그인 성공!");
       await router.push("/");
     } else {
       errorMessage.value = response.data.message || "로그인 실패";

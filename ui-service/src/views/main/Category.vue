@@ -50,10 +50,6 @@
         <h2 class="best-title">
           인기 BEST
           <span class="info-icon">ⓘ</span>
-          <!-- 디버깅 토글 버튼 -->
-          <button @click="showDebug = !showDebug" class="debug-toggle-btn" title="디버깅 패널 토글">
-            🔧
-          </button>
         </h2>
         <div class="filter-tabs">
           <button
@@ -96,10 +92,7 @@
         <div class="products-slider-container">
           <div class="products-info">
             <span class="products-count">인기 상품 TOP {{ Math.min(products.length, 10) }}</span>
-            <span class="products-category">
-              {{ selectedCategory === 'ALL' ? '전체' : selectedCategory }}
-              <span v-if="selectedSubCategory"> > {{ selectedSubCategory }}</span>
-            </span>
+
           </div>
 
           <div
@@ -153,7 +146,6 @@
               <div class="product-info">
                 <h3 class="product-title">{{ product.title || '상품명 없음' }}</h3>
                 <div class="product-pricing">
-                  <span v-if="product.discount" class="discount-rate">{{ product.discount }}%</span>
                   <span class="price">{{ formatPrice(product.price) }}원</span>
                   <span v-if="product.originalPrice && product.originalPrice !== product.price" class="original-price">
                     {{ formatPrice(product.originalPrice) }}원
@@ -161,7 +153,6 @@
                 </div>
                 <div class="product-meta">
                   <span class="shipping-info">🚚 무료배송</span>
-                  <span v-if="product.categoryId" class="category-tag">{{ product.categoryId }}</span>
                 </div>
               </div>
             </div>
@@ -229,7 +220,6 @@
           <div class="product-info">
             <h3 class="product-title">{{ product.title || '상품명 없음' }}</h3>
             <div class="product-pricing">
-              <span v-if="product.discount" class="discount-rate">{{ product.discount }}%</span>
               <span class="price">{{ formatPrice(product.price) }}원</span>
               <span v-if="product.originalPrice && product.originalPrice !== product.price" class="original-price">
                 {{ formatPrice(product.originalPrice) }}원
@@ -281,7 +271,6 @@ const categories = ref([
 ])
 
 const filterTabs = ref([
-  {id: 'live', name: '라이브'},
   {id: 'sale', name: '상품'}
 ])
 

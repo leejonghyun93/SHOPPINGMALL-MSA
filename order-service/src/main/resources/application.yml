@@ -45,10 +45,18 @@ management:
   endpoints:
     web:
       exposure:
-        include: refresh, busrefresh
+        include: ["refresh", "busrefresh", "prometheus", "health", "info"]
   endpoint:
-    busrefresh:
+    prometheus:
       enabled: true
+    health:
+      show-details: always
+    metrics:
+      export:
+        prometheus:
+          enabled: true
+      tags:
+        application: ${spring.application.name}
   security:
     enabled: false
 

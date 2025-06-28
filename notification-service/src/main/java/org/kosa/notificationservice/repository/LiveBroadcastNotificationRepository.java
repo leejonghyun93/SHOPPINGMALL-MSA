@@ -11,6 +11,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface LiveBroadcastNotificationRepository extends JpaRepository<LiveBroadcastNotification, Long> {
@@ -50,12 +51,12 @@ public interface LiveBroadcastNotificationRepository extends JpaRepository<LiveB
     List<LiveBroadcastNotification> findByBroadcastIdAndIsSentFalse(Long broadcastId);
 
     /**
-     * 🔥 특정 방송의 특정 타입 미발송 알림 조회
+     * 특정 방송의 특정 타입 미발송 알림 조회
      */
     List<LiveBroadcastNotification> findByBroadcastIdAndIsSentFalseAndType(Long broadcastId, String type);
 
     /**
-     * 🔥 여러 방송의 특정 타입 미발송 알림 조회 (배치용)
+     *  여러 방송의 특정 타입 미발송 알림 조회 (배치용)
      */
     List<LiveBroadcastNotification> findByBroadcastIdInAndIsSentFalseAndType(
             List<Long> broadcastIds, String type);
@@ -85,12 +86,12 @@ public interface LiveBroadcastNotificationRepository extends JpaRepository<LiveB
     long countByBroadcastId(Long broadcastId);
 
     /**
-     * 🔥 전체 미발송 알림 개수
+     *  전체 미발송 알림 개수
      */
     long countByIsSentFalse();
 
     /**
-     * 🔥 특정 타입의 미발송 알림 개수
+     *  특정 타입의 미발송 알림 개수
      */
     long countByTypeAndIsSentFalse(String type);
 
@@ -112,7 +113,7 @@ public interface LiveBroadcastNotificationRepository extends JpaRepository<LiveB
                    @Param("readAt") LocalDateTime readAt);
 
     /**
-     * 🔥 대량 알림 발송 완료 처리
+     *  대량 알림 발송 완료 처리
      */
     @Modifying
     @Query("UPDATE LiveBroadcastNotification n SET n.isSent = true, n.sentAt = :sentAt " +
@@ -121,7 +122,7 @@ public interface LiveBroadcastNotificationRepository extends JpaRepository<LiveB
                                @Param("sentAt") LocalDateTime sentAt);
 
     /**
-     * 🔥 특정 방송의 모든 알림 발송 완료 처리
+     * 특정 방송의 모든 알림 발송 완료 처리
      */
     @Modifying
     @Query("UPDATE LiveBroadcastNotification n SET n.isSent = true, n.sentAt = :sentAt " +
@@ -144,33 +145,106 @@ public interface LiveBroadcastNotificationRepository extends JpaRepository<LiveB
     // ========== 통계 및 관리용 메서드들 ==========
 
     /**
-     * 🔥 특정 사용자의 특정 방송 알림 조회
+     *  특정 사용자의 특정 방송 알림 조회
      */
     List<LiveBroadcastNotification> findByUserIdAndBroadcastId(String userId, Long broadcastId);
 
     /**
-     * 🔥 특정 사용자의 특정 방송 특정 타입 알림 조회
+     *  특정 사용자의 특정 방송 특정 타입 알림 조회
      */
     List<LiveBroadcastNotification> findByUserIdAndBroadcastIdAndType(String userId, Long broadcastId, String type);
 
     /**
-     * 🔥 발송 실패한 알림들 조회 (재시도용)
+     * 발송 실패한 알림들 조회 (재시도용)
      */
     @Query("SELECT n FROM LiveBroadcastNotification n WHERE " +
             "n.isSent = false AND n.createdAt < :cutoffTime")
     List<LiveBroadcastNotification> findFailedNotifications(@Param("cutoffTime") LocalDateTime cutoffTime);
 
     /**
-     * 🔥 오늘 발송된 알림 통계
+     *  오늘 발송된 알림 통계
      */
     @Query("SELECT COUNT(n) FROM LiveBroadcastNotification n WHERE " +
             "DATE(n.sentAt) = CURRENT_DATE AND n.isSent = true")
     long countTodaySentNotifications();
 
     /**
-     * 🔥 특정 방송의 구독자 목록 조회 (사용자 ID만)
+     *  특정 방송의 구독자 목록 조회 (사용자 ID만)
      */
     @Query("SELECT DISTINCT n.userId FROM LiveBroadcastNotification n WHERE " +
             "n.broadcastId = :broadcastId AND n.isSent = false AND n.type = 'BROADCAST_START'")
     List<String> findSubscriberUserIds(@Param("broadcastId") Long broadcastId);
+
+    // LiveBroadcastNotificationRepository.java에 추가할 메서드들
+
+// ==========  헤더 알림용 추가 메서드들 ==========
+
+    /**
+     *  사용자별 전체 알림 개수
+     */
+    long countByUserId(String userId);
+
+    /**
+     *  사용자별 특정 시간 이후 알림 개수 (최근 알림 통계용)
+     */
+    long countByUserIdAndCreatedAtAfter(String userId, LocalDateTime fromDate);
+
+    /**
+     *  특정 사용자의 최근 알림 조회 (limit 적용)
+     */
+    @Query("SELECT n FROM LiveBroadcastNotification n WHERE n.userId = :userId " +
+            "ORDER BY n.createdAt DESC")
+    List<LiveBroadcastNotification> findRecentNotificationsByUserId(
+            @Param("userId") String userId,
+            Pageable pageable
+    );
+
+    /**
+     * 사용자별 모든 읽지 않은 알림 읽음 처리 (bulk update)
+     */
+    @Modifying
+    @Query("UPDATE LiveBroadcastNotification n SET n.isRead = true, n.readAt = :readAt " +
+            "WHERE n.userId = :userId AND n.isRead = false")
+    int markAllAsReadByUserId(@Param("userId") String userId, @Param("readAt") LocalDateTime readAt);
+
+    /**
+     * 특정 알림이 해당 사용자의 것인지 확인
+     */
+    boolean existsByNotificationIdAndUserId(Long notificationId, String userId);
+
+    /**
+     *  사용자별 알림 타입별 개수 조회
+     */
+    @Query("SELECT n.type, COUNT(n) FROM LiveBroadcastNotification n " +
+            "WHERE n.userId = :userId GROUP BY n.type")
+    List<Object[]> countByUserIdGroupByType(@Param("userId") String userId);
+
+    /**
+     *  사용자별 최근 N개 알림 조회 (읽음/안읽음 구분)
+     */
+    @Query("SELECT n FROM LiveBroadcastNotification n WHERE n.userId = :userId " +
+            "ORDER BY n.isRead ASC, n.createdAt DESC")
+    List<LiveBroadcastNotification> findRecentNotificationsWithUnreadFirst(
+            @Param("userId") String userId,
+            Pageable pageable
+    );
+
+    /**
+     *  특정 시간 범위의 사용자 알림 조회 (통계용)
+     */
+    @Query("SELECT n FROM LiveBroadcastNotification n WHERE n.userId = :userId " +
+            "AND n.createdAt BETWEEN :startDate AND :endDate " +
+            "ORDER BY n.createdAt DESC")
+    List<LiveBroadcastNotification> findByUserIdAndDateRange(
+            @Param("userId") String userId,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate
+    );
+
+    /**
+     * 사용자의 가장 최근 알림 조회
+     */
+    @Query("SELECT n FROM LiveBroadcastNotification n WHERE n.userId = :userId " +
+            "ORDER BY n.createdAt DESC LIMIT 1")
+    Optional<LiveBroadcastNotification> findLatestNotificationByUserId(@Param("userId") String userId);
 }

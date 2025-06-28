@@ -20,11 +20,6 @@
         <button class="back-button" @click="goBack">
           <ChevronLeft :size="24" />
         </button>
-        <div class="header-actions">
-          <button class="share-button" @click="handleShare">
-            <Share2 :size="20" />
-          </button>
-        </div>
       </div>
 
       <!-- 상품 이미지 섹션 -->
@@ -69,20 +64,15 @@
           <div v-if="getDiscountRate() > 0" class="original-price">{{ formatPrice(product.price) }}원</div>
         </div>
 
-        <div class="delivery-notice">
-          <span class="delivery-text">첫 구매라면 10,000원! 즉시 할인!</span>
-          <ChevronLeft class="chevron-right" :size="16" />
-        </div>
-
         <!-- 상품 상세 정보 테이블 -->
         <div class="product-details-table">
           <div class="detail-row">
             <span class="detail-label">배송</span>
-            <span class="detail-value">샛별배송</span>
+            <span class="detail-value">무료배송</span>
           </div>
           <div class="detail-row">
             <span class="detail-label">판매자</span>
-            <span class="detail-value">컬리</span>
+            <span class="detail-value">트라이마켓</span>
           </div>
           <div v-if="product.deliveryInfo" class="detail-row">
             <span class="detail-label">포장타입</span>
@@ -121,12 +111,6 @@
                 @click="toggleWishlist"
             >
               <Heart :size="20" :fill="isWishlisted ? '#ff4444' : 'none'" />
-            </button>
-            <button
-                class="notification-button"
-                @click="toggleNotification"
-            >
-              <Bell :size="20" />
             </button>
           </div>
           <button class="buy-now-button" @click="handleAddToCart">
@@ -174,41 +158,240 @@
             <p v-if="product.productDescription">상품설명: {{ product.productDescription }}</p>
           </div>
 
+          <!-- 🔥 리뷰 탭 -->
           <div v-if="selectedTab === 'reviews'" class="reviews-content">
             <div class="review-summary">
               <div class="rating-overview">
                 <div class="average-rating">
                   <span class="rating-score">{{ getAverageRating() }}</span>
-                  <div class="stars">
-                    <Star v-for="i in 5" :key="i" :size="16" :fill="i <= Math.floor(getAverageRating()) ? '#ffc107' : 'none'" />
-                  </div>
                 </div>
                 <span class="review-count">({{ getReviewCount() }}개 후기)</span>
               </div>
+
+              <div class="review-actions">
+                <button
+                    v-if="!showReviewForm"
+                    @click="showReviewForm = true"
+                    class="write-review-button"
+                >
+                  <Plus :size="16" />
+                  리뷰 작성하기
+                </button>
+              </div>
             </div>
 
+            <!-- 리뷰 작성/수정 폼 -->
+            <div v-if="showReviewForm" class="review-form">
+              <h4>{{ isReviewEditMode ? '리뷰 수정' : '리뷰 작성' }}</h4>
+
+              <div class="form-group">
+                <label>평점</label>
+                <div class="rating-input">
+                  <Star
+                      v-for="i in 5"
+                      :key="i"
+                      :size="24"
+                      :fill="i <= reviewForm.rating ? '#ffc107' : 'none'"
+                      :stroke="i <= reviewForm.rating ? '#ffc107' : '#ccc'"
+                      @click="reviewForm.rating = i"
+                      style="cursor: pointer;"
+                  />
+                  <span class="rating-text">{{ reviewForm.rating }}점</span>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label>제목</label>
+                <input
+                    v-model="reviewForm.title"
+                    type="text"
+                    placeholder="리뷰 제목을 입력하세요"
+                    class="form-input"
+                />
+              </div>
+
+              <div class="form-group">
+                <label>내용</label>
+                <textarea
+                    v-model="reviewForm.content"
+                    placeholder="리뷰 내용을 입력하세요"
+                    rows="4"
+                    class="form-textarea"
+                ></textarea>
+              </div>
+
+              <div class="form-buttons">
+                <button @click="cancelReviewForm" class="cancel-button">취소</button>
+                <button
+                    @click="isReviewEditMode ? updateReview() : submitReview()"
+                    class="submit-button"
+                >
+                  {{ isReviewEditMode ? '수정' : '등록' }}
+                </button>
+              </div>
+            </div>
+
+            <!-- 리뷰 목록 -->
             <div class="review-list">
               <div v-if="reviews.length === 0" class="no-reviews">
                 <p>아직 작성된 후기가 없습니다.</p>
+                <p>첫 번째 후기를 작성해보세요!</p>
               </div>
-              <div v-else class="review-item" v-for="review in reviews" :key="review.id">
-                <div class="reviewer-info">
-                  <span class="reviewer-name">{{ maskUserName(review.userName) }}</span>
-                  <div class="review-rating">
-                    <Star v-for="i in 5" :key="i" :size="12" :fill="i <= review.rating ? '#ffc107' : 'none'" />
+
+              <div class="review-item" v-for="review in reviews" :key="review.reviewId">
+                <div class="review-header">
+                  <div class="reviewer-info">
+                    <span class="reviewer-name">{{ maskUserName(review.authorName) }}</span>
+                    <div class="review-rating">
+                      <Star v-for="i in 5" :key="i" :size="12" :fill="i <= review.rating ? '#ffc107' : 'none'" />
+                    </div>
+                  </div>
+
+                  <div v-if="(getCurrentUser()?.sub || getCurrentUser()?.userId) === review.userId" class="review-actions">
+                    <button @click="editReview(review)" class="edit-button">수정</button>
+                    <button @click="deleteReview(review.reviewId)" class="delete-button">삭제</button>
                   </div>
                 </div>
+
+                <h5 class="review-title">{{ review.title }}</h5>
                 <p class="review-text">{{ review.content }}</p>
-                <span class="review-date">{{ formatDate(review.createdAt) }}</span>
+                <span class="review-date">{{ formatDate(review.createdDate) }}</span>
               </div>
             </div>
           </div>
 
+          <!-- 🔥 Q&A 문의 탭 - 새로 추가된 부분 -->
           <div v-if="selectedTab === 'inquiry'" class="inquiry-content">
-            <p>상품 문의는 고객센터로 연락주세요.</p>
-            <div class="contact-info">
-              <p>📞 고객센터: 1588-1234</p>
-              <p>⏰ 운영시간: 09:00 ~ 18:00 (주말, 공휴일 휴무)</p>
+            <div class="qna-summary">
+              <div class="qna-overview">
+                <span class="qna-count">{{ getQnaCount() }}개의 문의</span>
+              </div>
+
+              <!-- Q&A 작성 버튼 -->
+              <div class="qna-actions">
+                <button
+                    v-if="!showQnaForm"
+                    @click="showQnaForm = true"
+                    class="write-qna-button"
+                >
+                  <Plus :size="16" />
+                  문의 작성하기
+                </button>
+              </div>
+            </div>
+
+            <!-- Q&A 작성/수정 폼 -->
+            <div v-if="showQnaForm" class="qna-form">
+              <h4>{{ isQnaEditMode ? '문의 수정' : '문의 작성' }}</h4>
+
+              <div class="form-group">
+                <label>문의 유형</label>
+                <select v-model="qnaForm.qnaType" class="form-select">
+                  <option value="배송">배송</option>
+                  <option value="상품">상품</option>
+                  <option value="교환/반품">교환/반품</option>
+                  <option value="기타">기타</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label>제목</label>
+                <input
+                    v-model="qnaForm.title"
+                    type="text"
+                    placeholder="문의 제목을 입력하세요"
+                    class="form-input"
+                />
+              </div>
+
+              <div class="form-group">
+                <label>내용</label>
+                <textarea
+                    v-model="qnaForm.content"
+                    placeholder="문의 내용을 입력하세요"
+                    rows="4"
+                    class="form-textarea"
+                ></textarea>
+              </div>
+
+              <div class="form-group">
+                <label class="checkbox-label">
+                  <input type="checkbox" v-model="qnaForm.isSecret">
+                  비밀글로 작성하기
+                </label>
+              </div>
+
+              <div class="form-buttons">
+                <button @click="cancelQnaForm" class="cancel-button">취소</button>
+                <button
+                    @click="isQnaEditMode ? updateQna() : submitQna()"
+                    class="submit-button"
+                >
+                  {{ isQnaEditMode ? '수정' : '등록' }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Q&A 목록 -->
+            <div class="qna-list">
+              <div v-if="qnas.length === 0" class="no-qnas">
+                <p>아직 작성된 문의가 없습니다.</p>
+                <p>궁금한 점이 있다면 문의를 남겨보세요!</p>
+              </div>
+
+              <div class="qna-item" v-for="qna in qnas" :key="qna.qnaId">
+                <div class="qna-header">
+                  <div class="qna-info">
+                    <span class="qna-type">{{ qna.qnaType }}</span>
+                    <span v-if="qna.isSecret === 'Y'" class="secret-badge">🔒 비밀글</span>
+                    <span :class="['qna-status', qna.qnaStatus.toLowerCase()]">
+                      {{ getQnaStatusText(qna.qnaStatus) }}
+                    </span>
+                  </div>
+
+                  <!-- 수정/삭제 버튼 (본인 문의인 경우만) -->
+                  <div v-if="(getCurrentUser()?.sub || getCurrentUser()?.userId) === qna.userId" class="qna-actions">
+                    <button @click="editQna(qna)" class="edit-button">수정</button>
+                    <button @click="deleteQna(qna.qnaId)" class="delete-button">삭제</button>
+                  </div>
+                </div>
+
+                <!-- Q&A 제목 -->
+                <h5 class="qna-title" @click="toggleQnaDetail(qna.qnaId)">
+                  {{ qna.title }}
+                  <ChevronDown :size="16" :class="['expand-icon', { expanded: expandedQna === qna.qnaId }]" />
+                </h5>
+
+                <!-- Q&A 메타 정보 -->
+                <div class="qna-meta">
+                  <span class="qna-author">{{ maskUserName(qna.authorName) }}</span>
+                  <span class="qna-date">{{ formatDate(qna.createdDate) }}</span>
+                  <span class="qna-views">조회 {{ qna.viewCount || 0 }}</span>
+                </div>
+
+                <!-- Q&A 상세 내용 (펼쳐진 경우만 표시) -->
+                <div v-if="expandedQna === qna.qnaId" class="qna-detail">
+                  <div class="qna-question">
+                    <h6>문의 내용</h6>
+                    <p>{{ qna.content }}</p>
+                  </div>
+
+                  <!-- 답변이 있는 경우 -->
+                  <div v-if="qna.answerContent" class="qna-answer">
+                    <h6>답변</h6>
+                    <p>{{ qna.answerContent }}</p>
+                    <div class="answer-meta">
+                      <span class="answer-author">{{ qna.answerAuthorName || '관리자' }}</span>
+                      <span class="answer-date">{{ formatDate(qna.answerDate) }}</span>
+                    </div>
+                  </div>
+
+                  <!-- 답변이 없는 경우 -->
+                  <div v-else class="no-answer">
+                    <p>아직 답변이 등록되지 않았습니다.</p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -233,13 +416,6 @@
         </div>
       </div>
 
-      <!-- 선택 상세 버튼 (하단 고정) -->
-      <div class="detail-selection-button">
-        <button class="selection-detail-btn" @click="showSelectionModal">
-          상품 선택
-          <Plus :size="16" />
-        </button>
-      </div>
     </div>
   </div>
 </template>
@@ -247,9 +423,8 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ChevronLeft, Share2, Heart, Bell, Star, Plus } from 'lucide-vue-next'
-// 🔥 수정: axios 대신 apiClient 사용
-import apiClient from '@/api/axiosInstance' // 실제 파일 위치에 맞게 수정 필요
+import { ChevronLeft, Share2, Heart, Bell, Star, Plus, ChevronDown } from 'lucide-vue-next'
+import apiClient from '@/api/axiosInstance'
 
 const router = useRouter()
 const route = useRoute()
@@ -259,25 +434,46 @@ const error = ref(null)
 const product = ref(null)
 const relatedProducts = ref([])
 const reviews = ref([])
+const qnas = ref([]) // 🔥 Q&A 목록 추가
 const selectedTab = ref('details')
 const quantity = ref(1)
 const isWishlisted = ref(false)
 const showNotification = ref(false)
 const currentImageIndex = ref(0)
 
+// 🔥 리뷰 CRUD 관련 상태
+const showReviewForm = ref(false)
+const isReviewEditMode = ref(false)
+const reviewForm = ref({
+  rating: 5,
+  title: '',
+  content: ''
+})
+const editingReviewId = ref(null)
+
+// 🔥 Q&A CRUD 관련 상태 추가
+const showQnaForm = ref(false)
+const isQnaEditMode = ref(false)
+const qnaForm = ref({
+  qnaType: '기타',
+  title: '',
+  content: '',
+  isSecret: false
+})
+const editingQnaId = ref(null)
+const expandedQna = ref(null) // 펼쳐진 Q&A ID
+
 const tabs = computed(() => [
   { id: 'details', label: '상품설명' },
   { id: 'info', label: '상세정보' },
   { id: 'reviews', label: `후기 (${getReviewCount()})` },
-  { id: 'inquiry', label: '문의' }
+  { id: 'inquiry', label: `문의 (${getQnaCount()})` } // 🔥 Q&A 개수 표시
 ])
 
-// 🔥 수정: 토큰 키 이름 통일
 const getAuthToken = () => {
-  return localStorage.getItem('token') // 실제 저장된 키 이름과 일치
+  return localStorage.getItem('token')
 }
 
-// 🔥 수정: JWT 디코딩 함수 개선
 function base64UrlDecode(str) {
   let base64 = str.replace(/-/g, '+').replace(/_/g, '/')
   while (base64.length % 4) {
@@ -289,27 +485,348 @@ function base64UrlDecode(str) {
 const isAuthenticated = () => {
   const token = getAuthToken()
   if (!token) {
-    console.log('🔓 토큰이 없음')
     return false
   }
   try {
     const payloadJson = base64UrlDecode(token.split('.')[1])
     const payload = JSON.parse(payloadJson)
     const isValid = payload.exp > Date.now() / 1000
-    console.log('🔐 토큰 검증:', {
-      valid: isValid,
-      exp: new Date(payload.exp * 1000),
-      now: new Date()
-    })
     return isValid
   } catch (e) {
-    console.error('❌ JWT 디코딩 실패:', e)
     return false
   }
 }
 
-// 🔥 제거: setupAxiosInterceptors 함수 삭제 (apiClient에서 처리)
+const getCurrentUser = () => {
+  const token = getAuthToken()
+  if (!token) return null
 
+  try {
+    const payloadJson = base64UrlDecode(token.split('.')[1])
+    const payload = JSON.parse(payloadJson)
+    return payload
+  } catch (e) {
+    return null
+  }
+}
+
+const isMyReview = (review) => {
+  const currentUser = getCurrentUser()
+  if (!currentUser) return false
+
+  return review.authorName === currentUser.sub ||
+      review.authorId === currentUser.userId ||
+      review.userId === currentUser.userId
+}
+
+// 🔥 Q&A 관련 유틸리티 함수들
+const getQnaCount = () => qnas.value.length
+
+const getQnaStatusText = (status) => {
+  const statusMap = {
+    'WAITING': '답변대기',
+    'ANSWERED': '답변완료',
+    'CLOSED': '문의종료'
+  }
+  return statusMap[status] || status
+}
+
+const toggleQnaDetail = (qnaId) => {
+  expandedQna.value = expandedQna.value === qnaId ? null : qnaId
+}
+
+// 🔥 Q&A CRUD 함수들
+const submitQna = async () => {
+  console.log('🚀 Q&A 등록 시작...')
+
+  if (!isAuthenticated()) {
+    alert('로그인이 필요합니다.')
+    router.push('/login')
+    return
+  }
+
+  if (!qnaForm.value.title.trim() || !qnaForm.value.content.trim()) {
+    alert('제목과 내용을 모두 입력해주세요.')
+    return
+  }
+
+  try {
+    const qnaData = {
+      productId: route.params.id.toString(),
+      qnaType: qnaForm.value.qnaType,
+      title: qnaForm.value.title.trim(),
+      content: qnaForm.value.content.trim(),
+      isSecret: qnaForm.value.isSecret ? 'Y' : 'N'
+    }
+
+    console.log('📝 Q&A 등록 요청 데이터:', qnaData)
+
+    const response = await apiClient.post('/api/qna', qnaData, {
+      withAuth: true,
+      timeout: 10000
+    })
+
+    console.log('✅ Q&A 등록 성공:', response.data)
+
+    if (response.data.success) {
+      alert('문의가 등록되었습니다.')
+      cancelQnaForm()
+      await loadProductQnas(route.params.id)
+    } else {
+      alert(response.data.message || 'Q&A 등록에 실패했습니다.')
+    }
+
+  } catch (error) {
+    console.error('🔥 Q&A 등록 실패:', error)
+
+    if (error.response?.status === 401) {
+      alert('로그인이 필요합니다.')
+      localStorage.removeItem('token')
+      router.push('/login')
+    } else if (error.response?.status === 403) {
+      alert('해당 상품을 구매하고 배송완료된 고객만 문의를 작성할 수 있습니다.')
+    } else if (error.response?.status === 400) {
+      const errorMsg = error.response?.data?.message || '입력 정보를 확인해주세요.'
+      alert(`Q&A 등록 실패: ${errorMsg}`)
+    } else {
+      alert(`문의 등록에 실패했습니다: ${error.response?.data?.message || error.message}`)
+    }
+  }
+}
+
+const editQna = (qna) => {
+  isQnaEditMode.value = true
+  showQnaForm.value = true
+  editingQnaId.value = qna.qnaId
+
+  qnaForm.value = {
+    qnaType: qna.qnaType,
+    title: qna.title,
+    content: qna.content,
+    isSecret: qna.isSecret === 'Y'
+  }
+}
+
+const updateQna = async () => {
+  if (!qnaForm.value.title.trim() || !qnaForm.value.content.trim()) {
+    alert('제목과 내용을 모두 입력해주세요.')
+    return
+  }
+
+  try {
+    const qnaData = {
+      qnaType: qnaForm.value.qnaType,
+      title: qnaForm.value.title.trim(),
+      content: qnaForm.value.content.trim(),
+      isSecret: qnaForm.value.isSecret ? 'Y' : 'N'
+    }
+
+    await apiClient.put(`/api/qna/${editingQnaId.value}`, qnaData, { withAuth: true })
+
+    alert('문의가 수정되었습니다.')
+    cancelQnaForm()
+    await loadProductQnas(route.params.id)
+  } catch (error) {
+    console.error('Q&A 수정 실패:', error)
+    if (error.response?.status === 403) {
+      alert('본인의 문의만 수정할 수 있습니다.')
+    } else {
+      alert('문의 수정에 실패했습니다.')
+    }
+  }
+}
+
+const deleteQna = async (qnaId) => {
+  if (!confirm('정말로 이 문의를 삭제하시겠습니까?')) {
+    return
+  }
+
+  try {
+    await apiClient.delete(`/api/qna/${qnaId}`, { withAuth: true })
+
+    alert('문의가 삭제되었습니다.')
+    await loadProductQnas(route.params.id)
+  } catch (error) {
+    console.error('Q&A 삭제 실패:', error)
+    if (error.response?.status === 403) {
+      alert('본인의 문의만 삭제할 수 있습니다.')
+    } else {
+      alert('문의 삭제에 실패했습니다.')
+    }
+  }
+}
+
+const cancelQnaForm = () => {
+  showQnaForm.value = false
+  isQnaEditMode.value = false
+  editingQnaId.value = null
+  qnaForm.value = {
+    qnaType: '기타',
+    title: '',
+    content: '',
+    isSecret: false
+  }
+}
+
+// 🔥 Q&A 로딩 함수
+const loadProductQnas = async (productId) => {
+  try {
+    console.log('🔍 Q&A 로딩 시작:', productId)
+
+    // 상품별 Q&A 조회
+    const response = await apiClient.get(`/api/qna/product/${productId}`, {
+      params: {
+        page: 1,
+        size: 10,
+        sortBy: 'createdAt'
+      },
+      withAuth: false
+    })
+
+    console.log('✅ Q&A API 응답:', response.data)
+
+    if (response.data && Array.isArray(response.data)) {
+      qnas.value = response.data.map(qna => ({
+        ...qna,
+        id: qna.qnaId,
+        userName: qna.authorName,
+        createdAt: qna.createdDate,
+        userId: qna.userId || qna.authorId || qna.user_id,
+        authorId: qna.authorId || qna.userId || qna.user_id
+      }))
+
+      console.log('✅ Q&A 로딩 성공:', qnas.value.length, '건')
+    } else {
+      qnas.value = []
+      console.log('⚠️ Q&A 데이터 없음')
+    }
+
+  } catch (error) {
+    console.error('❌ Q&A 로딩 실패:', error)
+    qnas.value = []
+  }
+}
+
+// 🔥 리뷰 CRUD 함수들 (기존 코드 유지)
+const submitReview = async () => {
+  console.log('🚀 리뷰 등록 시작...')
+
+  if (!isAuthenticated()) {
+    alert('로그인이 필요합니다.')
+    router.push('/login')
+    return
+  }
+
+  if (!reviewForm.value.title.trim() || !reviewForm.value.content.trim()) {
+    alert('제목과 내용을 모두 입력해주세요.')
+    return
+  }
+
+  try {
+    const reviewData = {
+      productId: route.params.id.toString(),
+      title: reviewForm.value.title.trim(),
+      content: reviewForm.value.content.trim(),
+      rating: reviewForm.value.rating
+    }
+
+    console.log('📝 리뷰 등록 요청 데이터:', reviewData)
+
+    const response = await apiClient.post('/api/board/reviews', reviewData, {
+      withAuth: true,
+      timeout: 10000
+    })
+
+    console.log('✅ 리뷰 등록 성공:', response.data)
+
+    if (response.data.success) {
+      alert('리뷰가 등록되었습니다.')
+      cancelReviewForm()
+      await loadProductReviews(route.params.id)
+    } else {
+      alert(response.data.message || '리뷰 등록에 실패했습니다.')
+    }
+
+  } catch (error) {
+    console.error('🔥 리뷰 등록 실패:', error)
+
+    if (error.response?.status === 401) {
+      alert('로그인이 필요합니다.')
+      localStorage.removeItem('token')
+      router.push('/login')
+    } else if (error.response?.status === 400) {
+      const errorMsg = error.response?.data?.message || '입력 정보를 확인해주세요.'
+      alert(`리뷰 등록 실패: ${errorMsg}`)
+    } else {
+      alert(`리뷰 등록에 실패했습니다: ${error.response?.data?.message || error.message}`)
+    }
+  }
+}
+
+const editReview = (review) => {
+  isReviewEditMode.value = true
+  showReviewForm.value = true
+  editingReviewId.value = review.reviewId
+
+  reviewForm.value = {
+    rating: review.rating,
+    title: review.title,
+    content: review.content
+  }
+}
+
+const updateReview = async () => {
+  if (!reviewForm.value.title.trim() || !reviewForm.value.content.trim()) {
+    alert('제목과 내용을 모두 입력해주세요.')
+    return
+  }
+
+  try {
+    const reviewData = {
+      title: reviewForm.value.title.trim(),
+      content: reviewForm.value.content.trim(),
+      rating: reviewForm.value.rating
+    }
+
+    await apiClient.put(`/api/board/reviews/${editingReviewId.value}`, reviewData, { withAuth: true })
+
+    alert('리뷰가 수정되었습니다.')
+    cancelReviewForm()
+    await loadProductReviews(route.params.id)
+  } catch (error) {
+    console.error('리뷰 수정 실패:', error)
+    alert('리뷰 수정에 실패했습니다.')
+  }
+}
+
+const deleteReview = async (reviewId) => {
+  if (!confirm('정말로 이 리뷰를 삭제하시겠습니까?')) {
+    return
+  }
+
+  try {
+    await apiClient.delete(`/api/board/reviews/${reviewId}`, { withAuth: true })
+
+    alert('리뷰가 삭제되었습니다.')
+    await loadProductReviews(route.params.id)
+  } catch (error) {
+    console.error('리뷰 삭제 실패:', error)
+    alert('리뷰 삭제에 실패했습니다.')
+  }
+}
+
+const cancelReviewForm = () => {
+  showReviewForm.value = false
+  isReviewEditMode.value = false
+  editingReviewId.value = null
+  reviewForm.value = {
+    rating: 5,
+    title: '',
+    content: ''
+  }
+}
+
+// 기타 유틸리티 함수들
 const getDiscountRate = () => {
   if (!product.value) return 0;
 
@@ -317,7 +834,6 @@ const getDiscountRate = () => {
     const discountAmount = product.value.price - product.value.salePrice;
     const discountRate = Math.floor((discountAmount / product.value.price) * 100);
 
-    // 할인율 제한: 0% ~ 99%
     if (discountRate <= 0 || discountRate >= 100) {
       return 0;
     }
@@ -327,53 +843,132 @@ const getDiscountRate = () => {
 
   return 0;
 };
-const getAverageRating = () => product.value?.averageRating || product.value?.productRating || 4.5
-const getReviewCount = () => product.value?.reviewCount || product.value?.productReviewCount || 0
+
+const getAverageRating = () => {
+  if (reviews.value.length === 0) return 0;
+
+  const totalRating = reviews.value.reduce((sum, review) => sum + (review.rating || 0), 0);
+  return (totalRating / reviews.value.length).toFixed(1);
+};
+
+const getReviewCount = () => reviews.value.length;
 
 const getProductImage = (prod) => {
   if (prod.images?.length > 0) return prod.images[0]
   return prod.mainImage || prod.image || 'https://via.placeholder.com/300x200?text=상품+이미지'
 }
 
-// 🔥 수정: loadProduct 함수 - apiClient 사용
+const loadProductReviews = async (productId) => {
+  try {
+    console.log('🔍 리뷰 로딩 시작:', productId);
+
+    try {
+      const productReviewResponse = await apiClient.get(`/api/board/product/${productId}`, {
+        params: {
+          page: 1,
+          size: 10,
+          sortBy: 'createdAt'
+        },
+        withAuth: false
+      });
+
+      if (productReviewResponse.data && Array.isArray(productReviewResponse.data) && productReviewResponse.data.length > 0) {
+        reviews.value = productReviewResponse.data.map(review => ({
+          ...review,
+          id: review.reviewId,
+          userName: review.authorName,
+          createdAt: review.createdDate,
+          userId: review.userId || review.authorId || review.user_id,
+          authorId: review.authorId || review.userId || review.user_id
+        }));
+
+        console.log('✅ 상품별 리뷰 API 성공:', reviews.value);
+        return;
+      }
+    } catch (err) {
+      console.warn('❌ 상품별 리뷰 API 실패:', err.response?.status, err.message);
+    }
+
+    try {
+      const allReviewsResponse = await apiClient.get('/api/board/list', {
+        params: {
+          page: 1,
+          size: 50,
+          sortBy: 'createdAt'
+        },
+        withAuth: false,
+        timeout: 10000
+      });
+
+      if (allReviewsResponse.data) {
+        let reviewData = [];
+
+        if (Array.isArray(allReviewsResponse.data)) {
+          reviewData = allReviewsResponse.data;
+        } else if (allReviewsResponse.data.content && Array.isArray(allReviewsResponse.data.content)) {
+          reviewData = allReviewsResponse.data.content;
+        } else if (allReviewsResponse.data.data && Array.isArray(allReviewsResponse.data.data)) {
+          reviewData = allReviewsResponse.data.data;
+        }
+
+        const filteredReviews = reviewData.filter(review => {
+          return review.productId === productId ||
+              review.productId === parseInt(productId) ||
+              review.productId?.toString() === productId.toString();
+        });
+
+        reviews.value = filteredReviews.map(review => ({
+          ...review,
+          id: review.reviewId,
+          userName: review.authorName,
+          createdAt: review.createdDate,
+          userId: review.userId || review.authorId || review.user_id,
+          authorId: review.authorId || review.userId || review.user_id
+        }));
+
+        console.log('✅ 전체 리뷰에서 필터링 성공:', reviews.value);
+      } else {
+        reviews.value = [];
+      }
+    } catch (err) {
+      console.error('❌ 전체 리뷰 API 실패:', err);
+      reviews.value = [];
+    }
+
+  } catch (error) {
+    console.error('❌ 리뷰 로딩 전체 실패:', error);
+    reviews.value = [];
+  }
+};
+
 const loadProduct = async () => {
   try {
     loading.value = true
     error.value = null
     const productId = route.params.id
 
-    console.log('🔍 상품 조회 시작:', productId)
-
-    // 🔥 프록시 사용으로 /api 경로 사용
     const response = await apiClient.get(`/api/products/${productId}`, {
-      withAuth: false // 상품 조회는 인증 불필요
+      withAuth: false
     })
 
     product.value = response.data
-    console.log('✅ 상품 조회 성공:', product.value)
 
     await loadRelatedProducts(productId)
   } catch (err) {
-    console.error('❌ 상품 조회 실패:', err)
     error.value = err.response?.data?.message || '상품 정보를 불러오는데 실패했습니다.'
   } finally {
     loading.value = false
   }
 }
 
-// 🔥 수정: loadRelatedProducts 함수 - apiClient 사용
 const loadRelatedProducts = async (productId) => {
   try {
-    console.log('🔍 연관 상품 조회 시작:', productId)
-
     const res = await apiClient.get(`/api/products/${productId}/related?limit=4`, {
-      withAuth: false // 연관 상품 조회도 인증 불필요
+      withAuth: false
     })
 
     relatedProducts.value = res.data || []
-    console.log('✅ 연관 상품 조회 성공:', relatedProducts.value.length)
   } catch (err) {
-    console.error('❌ 연관 상품 조회 실패:', err)
     relatedProducts.value = []
   }
 }
@@ -381,33 +976,11 @@ const loadRelatedProducts = async (productId) => {
 const goBack = () => router.go(-1)
 const goToProduct = (id) => router.push(`/product/${id}`)
 
-const handleShare = () => {
-  if (navigator.share) {
-    navigator.share({
-      title: product.value?.name,
-      text: product.value?.subtitle || product.value?.productShortDescription,
-      url: window.location.href
-    }).catch(console.error)
-  } else {
-    navigator.clipboard.writeText(window.location.href)
-    alert('상품 링크가 복사되었습니다!')
-  }
-}
-
 const toggleWishlist = () => {
   isWishlisted.value = !isWishlisted.value
 }
 
-const toggleNotification = () => {
-  showNotification.value = !showNotification.value
-}
-
-// 🔥 수정: handleAddToCart 함수 완전 개선
-// 🔥 수정: handleAddToCart 함수 완전 개선
 const handleAddToCart = async () => {
-  console.log('🛒 장바구니 담기 시작');
-
-  // 상품 정보 검증
   if (!product.value?.productId) {
     alert('상품 정보를 찾을 수 없습니다.');
     return;
@@ -416,34 +989,20 @@ const handleAddToCart = async () => {
   const cartItem = {
     productId: product.value.productId,
     quantity: quantity.value,
-    productOptionId: 'defaultOptionId' // ✅ 기본값 추가
+    productOptionId: 'defaultOptionId'
   };
 
-  // 🔍 토큰 상태 확인
   const token = localStorage.getItem('token');
-  console.log('🔐 토큰 확인:', {
-    exists: !!token,
-    length: token?.length,
-    preview: token ? token.substring(0, 50) + '...' : 'No token'
-  });
-
-  // ✅ 로그인 상태 확인 개선
   const isLoggedIn = !!token && isAuthenticated();
-  console.log('🔐 로그인 상태:', isLoggedIn);
 
-  // 비인증 사용자 처리
   if (!isLoggedIn) {
-    console.log('🔓 비인증 사용자 - 로컬 스토리지 사용');
-
     const localCart = JSON.parse(localStorage.getItem('guestCart') || '[]')
 
     const existingIndex = localCart.findIndex(item => item.productId === cartItem.productId)
 
     if (existingIndex >= 0) {
-      // 이미 담긴 상품이면 수량 증가
       localCart[existingIndex].quantity += cartItem.quantity
     } else {
-      // 새로운 상품이면 추가
       localCart.push(cartItem)
     }
 
@@ -457,16 +1016,10 @@ const handleAddToCart = async () => {
     return
   }
 
-  // ✅ 로그인한 사용자 - 서버 API 호출
   try {
-    console.log('📡 서버 API 호출 시작');
-
-    // ✅ apiClient 사용 (Authorization 헤더 자동 처리)
     const response = await apiClient.post('/api/cart', cartItem, {
-      withAuth: true // ✅ 명시적으로 인증 헤더 포함
+      withAuth: true
     });
-
-    console.log('✅ 서버 응답:', response.data);
 
     if (response.data.success) {
       const goToCart = confirm('장바구니에 추가되었습니다! 장바구니로 이동하시겠습니까?');
@@ -478,16 +1031,7 @@ const handleAddToCart = async () => {
     }
 
   } catch (error) {
-    console.error('❌ 서버 API 호출 실패:', error);
-
-    // ✅ 에러 상세 정보 출력
     if (error.response) {
-      console.error('❌ 응답 에러:', {
-        status: error.response.status,
-        statusText: error.response.statusText,
-        data: error.response.data
-      });
-
       if (error.response.status === 401) {
         alert('인증이 만료되었습니다. 다시 로그인해주세요.');
         localStorage.removeItem('token');
@@ -497,18 +1041,12 @@ const handleAddToCart = async () => {
 
       alert(`요청 실패: ${error.response.status} ${error.response.statusText}`);
     } else if (error.request) {
-      console.error('❌ 네트워크 에러:', error.request);
       alert('네트워크 오류가 발생했습니다.');
     } else {
-      console.error('❌ 기타 에러:', error.message);
       alert('장바구니 추가 중 오류가 발생했습니다.');
     }
   }
 };
-
-const showSelectionModal = () => {
-  // 상품 옵션 선택 모달 표시 로직
-}
 
 const getCurrentImage = () => {
   if (product.value?.images?.length > 0)
@@ -519,25 +1057,35 @@ const getCurrentImage = () => {
 const getFinalPrice = () => {
   if (!product.value) return 0;
 
-  // salePrice가 유효하면 사용
   if (product.value.salePrice > 0 && product.value.salePrice < product.value.price) {
     return product.value.salePrice;
   }
 
-  // 그렇지 않으면 원가격
   return product.value.price || 0;
-};
-const hasDiscount = () => {
-  const discountRate = getDiscountRate();
-  const finalPrice = getFinalPrice();
-  const originalPrice = product.value?.price || 0;
-
-  return discountRate > 0 && finalPrice < originalPrice;
 };
 
 const formatPrice = (price) => price?.toLocaleString() || '0'
-const formatDate = (date) => new Date(date).toLocaleDateString('ko-KR')
-const maskUserName = (name) => name?.charAt(0) + '*'.repeat(name.length - 1)
+
+const formatDate = (date) => {
+  if (!date) return '';
+  try {
+    return new Date(date).toLocaleDateString('ko-KR', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  } catch (e) {
+    return date;
+  }
+};
+
+const maskUserName = (name) => {
+  if (!name || name.length === 0) return '익명';
+  if (name.length === 1) return name;
+  if (name.length === 2) return name.charAt(0) + '*';
+  return name.charAt(0) + '*'.repeat(name.length - 2) + name.charAt(name.length - 1);
+};
+
 const handleImageError = (e) => {
   if (e.target.dataset.errorHandled) return
   e.target.dataset.errorHandled = 'true'
@@ -548,14 +1096,24 @@ const handleImageError = (e) => {
   e.target.parentNode.appendChild(placeholder)
 }
 
-onMounted(() => {
-  // 🔥 제거: setupAxiosInterceptors() 호출 삭제
-  loadProduct()
-})
+// 라이프사이클
+onMounted(async () => {
+  await loadProduct();
 
-watch(() => route.params.id, (newId) => {
-  if (newId) loadProduct()
-})
+  const productId = route.params.id;
+  if (productId) {
+    await loadProductReviews(productId);
+    await loadProductQnas(productId); // 🔥 Q&A도 로딩
+  }
+});
+
+watch(() => route.params.id, async (newId) => {
+  if (newId) {
+    await loadProduct();
+    await loadProductReviews(newId);
+    await loadProductQnas(newId); // 🔥 Q&A도 로딩
+  }
+});
 </script>
 
 <style scoped src="@/assets/css/productDetail.css"></style>

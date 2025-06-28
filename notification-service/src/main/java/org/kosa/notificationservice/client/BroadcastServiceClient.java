@@ -2,17 +2,19 @@ package org.kosa.notificationservice.client;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.kosa.notificationservice.entity.BroadcastEntity;
 import org.kosa.notificationservice.repository.BroadcastRepository;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * 방송 서비스 클라이언트 (실제 데이터베이스 연동)
- * tb_live_broadcasts와 tb_member 테이블을 JOIN하여 실제 방송자 정보 조회
+ * 실제 운영용 방송 서비스 클라이언트
+ * broadcaster_id를 통해 방송자 정보를 조회하고 UserServiceClient로 회원 정보 조회
  */
 @Component
 @RequiredArgsConstructor
@@ -23,7 +25,7 @@ public class BroadcastServiceClient {
     private final UserServiceClient userServiceClient;
 
     /**
-     * 지금 시작하는 방송 ID들 조회 (실제 DB에서)
+     * 지금 시작하는 방송 ID들 조회
      */
     public List<Long> getBroadcastsStartingNow() {
         try {
@@ -34,20 +36,21 @@ public class BroadcastServiceClient {
             LocalDateTime startTime = now.minusMinutes(1);
             LocalDateTime endTime = now.plusMinutes(1);
 
-            List<BroadcastRepository.BroadcastWithMemberInfo> startingBroadcasts =
-                    broadcastRepository.findStartingBroadcastsWithMemberInfo(startTime, endTime, "scheduled");
+            List<BroadcastEntity> startingBroadcasts =
+                    broadcastRepository.findByScheduledStartTimeBetweenAndBroadcastStatus(
+                            startTime, endTime, "scheduled");
 
             List<Long> broadcastIds = startingBroadcasts.stream()
-                    .map(BroadcastRepository.BroadcastWithMemberInfo::getBroadcastId)
+                    .map(BroadcastEntity::getBroadcastId)
                     .collect(Collectors.toList());
 
             if (!broadcastIds.isEmpty()) {
+                log.info("🎬 시작하는 방송들: {}", broadcastIds);
                 startingBroadcasts.forEach(broadcast -> {
-                    log.info("🎬 시작하는 방송: ID={}, 제목={}, 방송자={} ({})",
+                    log.info("방송 정보: ID={}, 제목={}, broadcaster_id={}",
                             broadcast.getBroadcastId(),
                             broadcast.getTitle(),
-                            broadcast.getBroadcasterName(),
-                            broadcast.getBroadcasterUserId());
+                            broadcast.getBroadcasterId());
                 });
             }
 
@@ -60,37 +63,37 @@ public class BroadcastServiceClient {
     }
 
     /**
-     * 특정 방송 정보 조회 (실제 방송자 정보 포함)
+     * 특정 방송 정보 조회 (방송자 정보 포함)
      */
     public BroadcastInfo getBroadcastInfo(Long broadcastId) {
         try {
             log.info("방송 정보 조회: broadcastId={}", broadcastId);
 
-            // 🔥 실제 DB에서 방송 정보와 방송자 정보를 함께 조회
-            BroadcastRepository.BroadcastWithMemberInfo broadcastWithMember =
-                    broadcastRepository.findBroadcastWithMemberInfo(broadcastId)
-                            .orElse(null);
+            // 1. 방송 정보 조회
+            BroadcastEntity broadcast = broadcastRepository.findById(broadcastId)
+                    .orElse(null);
 
-            if (broadcastWithMember == null) {
+            if (broadcast == null) {
                 log.warn("방송을 찾을 수 없습니다: broadcastId={}", broadcastId);
                 return null;
             }
 
-            // 방송자 이름이 없는 경우 USER_ID로 대체
-            String broadcasterName = broadcastWithMember.getBroadcasterName() != null ?
-                    broadcastWithMember.getBroadcasterName() :
-                    "사용자" + broadcastWithMember.getBroadcasterUserId();
+            // 2. broadcaster_id로 방송자 정보 조회
+            Long broadcasterId = broadcast.getBroadcasterId();
+            String broadcasterUserId = getBroadcasterUserId(broadcasterId);
+            String broadcasterName = getBroadcasterName(broadcasterUserId, broadcasterId);
 
             BroadcastInfo broadcastInfo = BroadcastInfo.builder()
-                    .broadcastId(broadcastWithMember.getBroadcastId())
-                    .title(broadcastWithMember.getTitle())
-                    .hostUserId(broadcastWithMember.getBroadcasterUserId())
+                    .broadcastId(broadcast.getBroadcastId())
+                    .title(broadcast.getTitle())
+                    .hostUserId(broadcasterUserId)
                     .broadcasterName(broadcasterName)
-                    .scheduledStartTime(broadcastWithMember.getScheduledStartTime())
+                    .scheduledStartTime(broadcast.getScheduledStartTime())
+                    .broadcasterId(broadcasterId)
                     .build();
 
-            log.info("방송 정보 조회 성공: broadcastId={}, title={}, broadcasterName={}, hostUserId={}",
-                    broadcastId, broadcastInfo.title, broadcastInfo.broadcasterName, broadcastInfo.hostUserId);
+            log.info("방송 정보 조회 성공: broadcastId={}, title={}, broadcaster_id={}, broadcasterName={}",
+                    broadcastId, broadcastInfo.title, broadcasterId, broadcasterName);
 
             return broadcastInfo;
 
@@ -101,12 +104,80 @@ public class BroadcastServiceClient {
     }
 
     /**
-     * 🔥 방송자 이름만 빠르게 조회
+     * broadcaster_id를 USER_ID로 변환
+     * 실제 데이터베이스에서 broadcaster_id와 USER_ID 매핑
+     */
+    private String getBroadcasterUserId(Long broadcasterId) {
+        if (broadcasterId == null) {
+            return null;
+        }
+
+        try {
+            // 🔥 실제 운영: broadcaster_id를 문자열로 변환하여 USER_ID로 사용
+            String userIdCandidate = String.valueOf(broadcasterId);
+
+            // UserService에서 해당 USER_ID가 존재하는지 확인
+            Map<String, Object> userInfo = userServiceClient.getUserInfo(userIdCandidate);
+            if (userInfo != null && userInfo.get("name") != null) {
+                log.info("broadcaster_id {}를 USER_ID {}로 매핑 성공", broadcasterId, userIdCandidate);
+                return userIdCandidate;
+            }
+
+            // 🔥 실제 매핑 테이블이나 다른 규칙이 있다면 여기서 처리
+            // 예: SELECT user_id FROM broadcaster_mapping WHERE broadcaster_id = ?
+            // String mappedUserId = broadcasterMappingRepository.findUserIdByBroadcasterId(broadcasterId);
+
+            log.warn("broadcaster_id {}에 해당하는 USER_ID를 찾을 수 없습니다", broadcasterId);
+            return null;
+
+        } catch (Exception e) {
+            log.error("broadcaster_id {} 변환 실패: {}", broadcasterId, e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 방송자 이름 조회
+     */
+    private String getBroadcasterName(String broadcasterUserId, Long broadcasterId) {
+        try {
+            // 1. USER_ID가 있으면 UserService에서 실제 회원 이름 조회
+            if (broadcasterUserId != null) {
+                String name = userServiceClient.getUserName(broadcasterUserId);
+                if (name != null && !name.trim().isEmpty()) {
+                    log.info("방송자 이름 조회 성공: USER_ID={}, name={}", broadcasterUserId, name);
+                    return name;
+                }
+            }
+
+            // 2. 실제 회원 정보가 없으면 broadcaster_id 기반 기본 이름
+            String defaultName = "방송자" + broadcasterId;
+            log.warn("방송자 실제 이름을 찾을 수 없어 기본 이름 사용: USER_ID={}, defaultName={}",
+                    broadcasterUserId, defaultName);
+            return defaultName;
+
+        } catch (Exception e) {
+            log.error("방송자 이름 조회 실패: USER_ID={}, broadcaster_id={}, error={}",
+                    broadcasterUserId, broadcasterId, e.getMessage());
+            return "방송자" + broadcasterId;
+        }
+    }
+
+    /**
+     * 방송자 이름만 빠르게 조회
      */
     public String getBroadcasterName(Long broadcastId) {
         try {
-            return broadcastRepository.findBroadcasterNameByBroadcastId(broadcastId)
-                    .orElse("알 수 없는 방송자");
+            Long broadcasterId = broadcastRepository.findBroadcasterIdByBroadcastId(broadcastId)
+                    .orElse(null);
+
+            if (broadcasterId == null) {
+                return "알 수 없는 방송자";
+            }
+
+            String broadcasterUserId = getBroadcasterUserId(broadcasterId);
+            return getBroadcasterName(broadcasterUserId, broadcasterId);
+
         } catch (Exception e) {
             log.error("방송자 이름 조회 실패: broadcastId={}", broadcastId, e);
             return "알 수 없는 방송자";
@@ -114,48 +185,65 @@ public class BroadcastServiceClient {
     }
 
     /**
-     * 🔥 방송자 USER_ID만 빠르게 조회
+     * 특정 broadcaster_id의 방송 목록 조회
      */
-    public String getBroadcasterUserId(Long broadcastId) {
+    public List<BroadcastInfo> getBroadcastsByBroadcasterId(Long broadcasterId) {
         try {
-            return broadcastRepository.findBroadcasterUserIdByBroadcastId(broadcastId)
-                    .orElse(null);
-        } catch (Exception e) {
-            log.error("방송자 USER_ID 조회 실패: broadcastId={}", broadcastId, e);
-            return null;
-        }
-    }
+            List<BroadcastEntity> broadcasts =
+                    broadcastRepository.findByBroadcasterIdOrderByScheduledStartTimeDesc(broadcasterId);
 
-    /**
-     * 🔥 특정 방송자의 방송 목록 조회
-     */
-    public List<BroadcastInfo> getBroadcastsByBroadcaster(String broadcasterUserId) {
-        try {
-            List<BroadcastRepository.BroadcastWithMemberInfo> broadcasts =
-                    broadcastRepository.findBroadcastsByBroadcasterUserId(broadcasterUserId);
+            String broadcasterUserId = getBroadcasterUserId(broadcasterId);
+            String broadcasterName = getBroadcasterName(broadcasterUserId, broadcasterId);
 
             return broadcasts.stream()
                     .map(broadcast -> BroadcastInfo.builder()
                             .broadcastId(broadcast.getBroadcastId())
                             .title(broadcast.getTitle())
-                            .hostUserId(broadcast.getBroadcasterUserId())
-                            .broadcasterName(broadcast.getBroadcasterName())
+                            .hostUserId(broadcasterUserId)
+                            .broadcasterName(broadcasterName)
                             .scheduledStartTime(broadcast.getScheduledStartTime())
+                            .broadcasterId(broadcasterId)
                             .build())
                     .collect(Collectors.toList());
 
         } catch (Exception e) {
-            log.error("방송자별 방송 목록 조회 실패: broadcasterUserId={}", broadcasterUserId, e);
+            log.error("방송자별 방송 목록 조회 실패: broadcasterId={}", broadcasterId, e);
             return new ArrayList<>();
         }
     }
 
     /**
-     * 🔥 테스트용: 항상 방송이 시작하는 메서드 (개발/테스트시에만 사용)
+     * 방송 존재 여부 확인
+     */
+    public boolean existsBroadcast(Long broadcastId) {
+        try {
+            return broadcastRepository.existsById(broadcastId);
+        } catch (Exception e) {
+            log.error("방송 존재 여부 확인 실패: broadcastId={}", broadcastId, e);
+            return false;
+        }
+    }
+
+    /**
+     * 방송 상태 확인
+     */
+    public String getBroadcastStatus(Long broadcastId) {
+        try {
+            return broadcastRepository.findById(broadcastId)
+                    .map(BroadcastEntity::getBroadcastStatus)
+                    .orElse("unknown");
+        } catch (Exception e) {
+            log.error("방송 상태 확인 실패: broadcastId={}", broadcastId, e);
+            return "unknown";
+        }
+    }
+
+    /**
+     * 테스트용 메서드 (개발 환경에서만 사용)
      */
     public List<Long> getBroadcastsStartingNowForTest() {
         List<Long> startingBroadcasts = new ArrayList<>();
-        startingBroadcasts.add(11L);  // 테스트용 방송
+        startingBroadcasts.add(11L);
         log.info("🧪 테스트용 방송 시작: {}", startingBroadcasts);
         return startingBroadcasts;
     }
@@ -166,9 +254,10 @@ public class BroadcastServiceClient {
     public static class BroadcastInfo {
         public Long broadcastId;
         public String title;
-        public String hostUserId;        // 방송자의 USER_ID (tb_member.USER_ID)
-        public String broadcasterName;   // 방송자의 실제 이름 (tb_member.NAME)
+        public String hostUserId;        // 방송자의 USER_ID
+        public String broadcasterName;   // 방송자의 이름
         public LocalDateTime scheduledStartTime;
+        public Long broadcasterId;       // 방송자 ID (숫자)
 
         public static BroadcastInfoBuilder builder() {
             return new BroadcastInfoBuilder();
@@ -180,6 +269,7 @@ public class BroadcastServiceClient {
             private String hostUserId;
             private String broadcasterName;
             private LocalDateTime scheduledStartTime;
+            private Long broadcasterId;
 
             public BroadcastInfoBuilder broadcastId(Long broadcastId) {
                 this.broadcastId = broadcastId;
@@ -206,6 +296,11 @@ public class BroadcastServiceClient {
                 return this;
             }
 
+            public BroadcastInfoBuilder broadcasterId(Long broadcasterId) {
+                this.broadcasterId = broadcasterId;
+                return this;
+            }
+
             public BroadcastInfo build() {
                 BroadcastInfo info = new BroadcastInfo();
                 info.broadcastId = this.broadcastId;
@@ -213,6 +308,7 @@ public class BroadcastServiceClient {
                 info.hostUserId = this.hostUserId;
                 info.broadcasterName = this.broadcasterName;
                 info.scheduledStartTime = this.scheduledStartTime;
+                info.broadcasterId = this.broadcasterId;
                 return info;
             }
         }

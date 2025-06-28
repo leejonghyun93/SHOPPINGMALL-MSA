@@ -85,84 +85,121 @@ public class UserServiceClient {
         } catch (Exception e) {
             log.error("사용자 정보 조회 중 오류: userId={}, error={}", userId, e.getMessage());
 
-            // 🔥 API 호출 실패시 fallback으로 테스트 데이터 반환 (개발용)
-            return getFallbackUserInfo(userId);
+            // 🔥 실제 운영에서는 null 반환 (하드코딩 제거)
+            return null;
         }
     }
 
     /**
-     * 🔥 API 호출 실패시 fallback 테스트 데이터
-     * 실제 운영에서는 제거하고 예외를 던져야 함
+     * 🔥 회원 존재 여부 확인
      */
-    private Map<String, Object> getFallbackUserInfo(String userId) {
-        log.warn("User Service API 호출 실패, fallback 데이터 사용: userId={}", userId);
-
-        // 실제 tb_member 테이블의 데이터 구조에 맞춰 반환
-        switch (userId) {
-            case "qweas":
-                return Map.of(
-                        "USER_ID", "qweas",
-                        "name", "김방송", // tb_member.NAME
-                        "email", "kim.broadcast@example.com", // tb_member.EMAIL
-                        "phone", "010-1234-5678",
-                        "status", "ACTIVE"
-                );
-            case "admin":
-                return Map.of(
-                        "USER_ID", "admin",
-                        "name", "관리자",
-                        "email", "admin@example.com",
-                        "status", "ACTIVE"
-                );
-            case "testuser":
-                return Map.of(
-                        "USER_ID", "testuser",
-                        "name", "테스트유저",
-                        "email", "test@example.com",
-                        "status", "ACTIVE"
-                );
-            default:
-                return Map.of(
-                        "USER_ID", userId,
-                        "name", "사용자" + userId,
-                        "email", userId + "@example.com",
-                        "status", "ACTIVE"
-                );
-        }
-    }
-
-    /**
-     * 🔥 실제 운영 환경에서는 이런 메서드로 회원 정보 조회
-     * User Service에서 tb_member 테이블 직접 조회하는 API 필요
-     */
-    /*
-    public MemberInfo getMemberInfo(String userId) {
+    public boolean existsUser(String userId) {
         try {
-            String url = userServiceUrl + "/api/members/" + userId;
+            String url = userServiceUrl + "/api/users/" + userId + "/exists";
 
-            ResponseEntity<MemberResponse> response = restTemplate.getForEntity(url, MemberResponse.class);
+            ResponseEntity<Map> response = restTemplate.getForEntity(url, Map.class);
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                MemberResponse memberResponse = response.getBody();
+                Map<String, Object> responseBody = response.getBody();
+                return (Boolean) responseBody.getOrDefault("exists", false);
+            }
 
-                return MemberInfo.builder()
-                    .userId(memberResponse.getUserId())
-                    .name(memberResponse.getName())
-                    .email(memberResponse.getEmail())
-                    .phone(memberResponse.getPhone())
-                    .status(memberResponse.getStatus())
-                    .gradeId(memberResponse.getGradeId())
-                    .build();
+            return false;
+
+        } catch (Exception e) {
+            log.error("사용자 존재 여부 확인 실패: userId={}, error={}", userId, e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * 🔥 사용자 이름만 조회
+     */
+    public String getUserName(String userId) {
+        try {
+            Map<String, Object> userInfo = getUserInfo(userId);
+
+            if (userInfo != null) {
+                String name = (String) userInfo.get("name");
+                if (name != null && !name.trim().isEmpty()) {
+                    return name;
+                }
+            }
+
+            log.warn("사용자 이름을 찾을 수 없습니다: userId={}", userId);
+            return null;
+
+        } catch (Exception e) {
+            log.error("사용자 이름 조회 실패: userId={}, error={}", userId, e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 🔥 다중 사용자 정보 조회 (배치 처리용)
+     */
+    public Map<String, Map<String, Object>> getUserInfoBatch(java.util.List<String> userIds) {
+        try {
+            String url = userServiceUrl + "/api/users/batch";
+
+            Map<String, Object> requestBody = Map.of("userIds", userIds);
+
+            ResponseEntity<Map> response = restTemplate.postForEntity(url, requestBody, Map.class);
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                Map<String, Object> responseBody = response.getBody();
+
+                if (responseBody.containsKey("data")) {
+                    return (Map<String, Map<String, Object>>) responseBody.get("data");
+                }
+            }
+
+            log.warn("배치 사용자 정보 조회 실패: userIds={}", userIds);
+            return Map.of();
+
+        } catch (Exception e) {
+            log.error("배치 사용자 정보 조회 실패: userIds={}, error={}", userIds, e.getMessage());
+            return Map.of();
+        }
+    }
+
+    /**
+     * 🔥 사용자 프로필 이미지 URL 조회
+     */
+    public String getUserProfileImageUrl(String userId) {
+        try {
+            Map<String, Object> userInfo = getUserInfo(userId);
+
+            if (userInfo != null) {
+                return (String) userInfo.get("profileImg");
             }
 
             return null;
 
         } catch (Exception e) {
-            log.error("회원 정보 조회 실패: userId={}", userId, e);
+            log.error("사용자 프로필 이미지 조회 실패: userId={}, error={}", userId, e.getMessage());
             return null;
         }
     }
-    */
+
+    /**
+     * 🔥 사용자 등급 정보 조회
+     */
+    public String getUserGrade(String userId) {
+        try {
+            Map<String, Object> userInfo = getUserInfo(userId);
+
+            if (userInfo != null) {
+                return (String) userInfo.get("gradeId");
+            }
+
+            return null;
+
+        } catch (Exception e) {
+            log.error("사용자 등급 조회 실패: userId={}, error={}", userId, e.getMessage());
+            return null;
+        }
+    }
 
     // 응답 DTO 클래스들
     public static class UserEmailResponse {
@@ -188,7 +225,7 @@ public class UserServiceClient {
     }
 
     /**
-     * 🔥 실제 회원 정보 DTO (tb_member 테이블 구조에 맞춤)
+     * 회원 정보 DTO (tb_member 테이블 구조에 맞춤)
      */
     public static class MemberInfo {
         private String userId;        // USER_ID
@@ -197,6 +234,7 @@ public class UserServiceClient {
         private String phone;         // PHONE
         private String status;        // STATUS
         private String gradeId;       // GRADE_ID
+        private String profileImg;    // PROFILE_IMG
 
         // Builder pattern
         public static MemberInfoBuilder builder() {
@@ -210,6 +248,7 @@ public class UserServiceClient {
             private String phone;
             private String status;
             private String gradeId;
+            private String profileImg;
 
             public MemberInfoBuilder userId(String userId) {
                 this.userId = userId;
@@ -241,6 +280,11 @@ public class UserServiceClient {
                 return this;
             }
 
+            public MemberInfoBuilder profileImg(String profileImg) {
+                this.profileImg = profileImg;
+                return this;
+            }
+
             public MemberInfo build() {
                 MemberInfo info = new MemberInfo();
                 info.userId = this.userId;
@@ -249,6 +293,7 @@ public class UserServiceClient {
                 info.phone = this.phone;
                 info.status = this.status;
                 info.gradeId = this.gradeId;
+                info.profileImg = this.profileImg;
                 return info;
             }
         }
@@ -260,5 +305,6 @@ public class UserServiceClient {
         public String getPhone() { return phone; }
         public String getStatus() { return status; }
         public String getGradeId() { return gradeId; }
+        public String getProfileImg() { return profileImg; }
     }
 }

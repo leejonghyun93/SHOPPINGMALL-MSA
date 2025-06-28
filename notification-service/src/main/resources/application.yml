@@ -103,10 +103,17 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,refresh,h2-console
-      base-path: /actuator
+        include: ["refresh", "busrefresh", "prometheus", "health", "info"]
   endpoint:
+    prometheus:
+      enabled: true
     health:
       show-details: always
+    metrics:
+      export:
+        prometheus:
+          enabled: true
+      tags:
+        application: ${spring.application.name}
   security:
     enabled: false
