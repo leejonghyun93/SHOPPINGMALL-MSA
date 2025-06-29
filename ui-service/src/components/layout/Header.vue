@@ -14,10 +14,20 @@
     <div class="d-flex align-items-center">
       <!-- 검색창 -->
       <div class="input-group search-box me-2">
-        <input type="text" class="form-control form-control-sm" placeholder="상품명 또는 브랜드 입력" />
-        <span class="input-group-text">
+        <input
+            type="text"
+            class="form-control form-control-sm"
+            placeholder="상품명을 입력하세요"
+            v-model="searchKeyword"
+            @keyup.enter="performSearch"
+        />
+        <button
+            class="input-group-text search-btn"
+            @click="performSearch"
+            :disabled="!searchKeyword.trim()"
+        >
           검색
-        </span>
+        </button>
       </div>
 
       <!-- 로그인/회원가입 (로그인 안된 상태) -->
@@ -167,10 +177,33 @@ const cartCount = ref(0);
 const unreadNotificationCount = ref(0);
 const notifications = ref([]);
 
+// 🔥 검색 관련 변수
+const searchKeyword = ref('');
+
 // 폴링 인터벌 ID
 let notificationPollingInterval = null;
 
 const computedUser = computed(() => user);
+
+// 🔥 검색 기능
+const performSearch = () => {
+  const keyword = searchKeyword.value.trim();
+
+  if (!keyword) {
+    return;
+  }
+
+  console.log('검색 실행:', keyword);
+
+  // 카테고리 페이지로 이동하면서 검색어를 URL 파라미터로 전달
+  router.push({
+    path: '/category',
+    query: { search: keyword }
+  });
+
+  // 검색 후 검색창 비우기 (선택사항)
+  // searchKeyword.value = '';
+};
 
 // 토큰 유효성 검사 함수
 const isTokenValid = (token) => {
@@ -385,6 +418,7 @@ const refreshNotifications = async () => {
     isLoadingNotifications.value = false;
   }
 }
+
 const handleNotificationIconClick = () => {
   // 알림 아이콘 클릭 시 즉시 새로고침
   if (!isNotificationDropdownVisible.value) {
@@ -392,6 +426,7 @@ const handleNotificationIconClick = () => {
   }
   showNotificationDropdown();
 }
+
 function logout() {
   stopNotificationPolling();
   localStorage.removeItem("token");
@@ -440,111 +475,31 @@ onMounted(async () => {
     user.role = null;
   }
 });
-// 🔍 브라우저 Console에서 실행할 디버깅 코드
 
-// 1단계: 현재 사용자 정보 확인
-console.log('=== 1단계: 사용자 정보 확인 ===');
-console.log('computedUser:', computedUser.value);
-console.log('사용자 ID:', computedUser.value.id);
-
-// 2단계: 토큰 확인
-console.log('=== 2단계: 토큰 확인 ===');
-const token = localStorage.getItem('token');
-console.log('토큰 존재:', !!token);
-console.log('토큰 앞부분:', token ? token.substring(0, 50) + '...' : 'null');
-
-// 3단계: API 직접 호출 테스트
-console.log('=== 3단계: API 직접 호출 테스트 ===');
-
-const testNotificationAPI = async () => {
-  const userId = computedUser.value.id;
-
-  if (!userId) {
-    console.error('❌ 사용자 ID가 없습니다!');
-    return;
-  }
-
-  try {
-    // 🔥 읽지 않은 알림 개수 테스트
-    console.log('🔗 읽지 않은 알림 개수 API 호출...');
-    const unreadUrl = `http://localhost:8096/api/notifications/unread-count?userId=${userId}`;
-    console.log('📡 URL:', unreadUrl);
-
-    const unreadResponse = await fetch(unreadUrl, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    console.log('📊 응답 상태:', unreadResponse.status, unreadResponse.statusText);
-
-    if (unreadResponse.ok) {
-      const unreadData = await unreadResponse.json();
-      console.log('✅ 읽지 않은 알림 데이터:', unreadData);
-    } else {
-      const errorText = await unreadResponse.text();
-      console.error('❌ 읽지 않은 알림 오류:', errorText);
-    }
-
-    // 🔥 최근 알림 목록 테스트
-    console.log('🔗 최근 알림 목록 API 호출...');
-    const recentUrl = `http://localhost:8096/api/notifications/recent?userId=${userId}&limit=10`;
-    console.log('📡 URL:', recentUrl);
-
-    const recentResponse = await fetch(recentUrl, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    console.log('📊 응답 상태:', recentResponse.status, recentResponse.statusText);
-
-    if (recentResponse.ok) {
-      const recentData = await recentResponse.json();
-      console.log('✅ 최근 알림 데이터:', recentData);
-      console.log('📝 알림 개수:', recentData.length);
-    } else {
-      const errorText = await recentResponse.text();
-      console.error('❌ 최근 알림 오류:', errorText);
-    }
-
-  } catch (error) {
-    console.error('💥 API 호출 중 예외 발생:', error);
-  }
-};
-
-// 4단계: 헬스체크
-const checkHealth = async () => {
-  try {
-    console.log('🏥 헬스체크...');
-    const healthResponse = await fetch('http://localhost:8096/api/notifications/health');
-    console.log('🏥 헬스체크 상태:', healthResponse.status);
-
-    if (healthResponse.ok) {
-      const healthData = await healthResponse.json();
-      console.log('✅ 서비스 상태:', healthData);
-    }
-  } catch (error) {
-    console.error('❌ 서비스 연결 실패:', error);
-  }
-};
-
-// 실행
-testNotificationAPI();
-checkHealth();
-
-// 5단계: Network 탭 확인 안내
-console.log('=== 5단계: Network 탭 확인 ===');
-console.log('👉 개발자 도구의 Network 탭을 열고');
-console.log('👉 알림 관련 API 호출이 실제로 되는지 확인하세요');
-console.log('👉 CORS 오류나 404 오류가 있는지 확인하세요');
 onUnmounted(() => {
   stopNotificationPolling();
 });
 </script>
 
 <style scoped src="@/assets/css/header.css"></style>
+
+<!-- 🔥 검색 버튼 스타일 -->
+<style scoped>
+.search-btn {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.search-btn:hover:not(:disabled) {
+  background-color: #0056b3;
+}
+
+.search-btn:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+</style>

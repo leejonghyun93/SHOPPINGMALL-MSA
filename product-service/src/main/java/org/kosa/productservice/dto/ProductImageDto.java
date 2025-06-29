@@ -1,10 +1,9 @@
 package org.kosa.productservice.dto;
 
 import lombok.*;
+import org.kosa.productservice.entity.ProductImage;
 
 import java.time.LocalDateTime;
-import java.util.Comparator;
-import java.util.List;
 
 // ProductImageDto.java - 이미지 서비스에서
 @Getter

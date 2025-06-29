@@ -46,24 +46,39 @@ public class JwtUtil {
         Date now = new Date();
         Date expireDate = new Date(now.getTime() + expiration);
 
-        //  subject 결정 로직: userId가 있으면 숫자로, 없으면 username을 subject로 사용
         String subject;
         if (userId != null) {
-            subject = String.valueOf(userId);  // 숫자 ID를 문자열로
+            subject = String.valueOf(userId);
         } else if (username != null && !username.trim().isEmpty()) {
-            subject = username;  // 문자열 username을 subject로
+            subject = username;
         } else {
             throw new IllegalArgumentException("userId와 username 모두 null일 수 없습니다");
         }
 
-        String token = Jwts.builder()
-                .setSubject(String.valueOf(userId))
-                .claim("username", username)  // 최소한의 공개 정보만
+        JwtBuilder builder = Jwts.builder()
+                .setSubject(subject)
+                .claim("username", username)
                 .claim("role", "USER")
                 .setIssuedAt(now)
                 .setIssuer("auth-service")
-                .setIssuedAt(now)
-                .setExpiration(expireDate)
+                .setExpiration(expireDate);
+
+        // 이름은 민감하지 않으므로 포함 (선택사항)
+        if (name != null && !name.trim().isEmpty()) {
+            builder.claim("name", name);
+        }
+
+        // 이메일의 앞 3글자만 포함 (힌트용, 선택사항)
+        if (email != null && email.length() > 3) {
+            builder.claim("emailHint", email.substring(0, 3) + "***");
+        }
+
+        // 휴대폰 뒷 4자리만 포함 (힌트용, 선택사항)
+        if (phone != null && phone.length() >= 4) {
+            builder.claim("phoneHint", "***" + phone.substring(phone.length() - 4));
+        }
+
+        String token = builder
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
 

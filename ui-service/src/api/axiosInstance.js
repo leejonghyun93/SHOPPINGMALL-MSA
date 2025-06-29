@@ -1,4 +1,4 @@
-// @/api/axiosInstance.js - 클린 버전
+// @/api/axiosInstance.js - 에러 페이지 기능 추가
 import axios from 'axios'
 import { user } from '@/stores/userStore'
 
@@ -39,6 +39,52 @@ const handleLogout = (reason = '인증 만료') => {
         // 헤더만 업데이트하여 로그아웃 상태 반영
         window.dispatchEvent(new Event('auth-changed'))
     }
+}
+
+// 🔥 에러 페이지로 리다이렉트하는 함수 추가
+const redirectToErrorPage = (status, message, details) => {
+    // 현재 페이지가 이미 에러 페이지라면 리다이렉트하지 않음
+    if (window.location.pathname.startsWith('/error/')) {
+        return
+    }
+
+    // SPA 라우터가 있는 경우
+    if (window.router) {
+        window.router.push({
+            name: 'ErrorPage',
+            params: { code: status },
+            query: {
+                message: message || '',
+                details: details || ''
+            }
+        })
+    } else {
+        // 라우터가 없는 경우 직접 URL 변경
+        const params = new URLSearchParams()
+        if (message) params.set('message', message)
+        if (details) params.set('details', details)
+
+        const queryString = params.toString()
+        const url = `/error/${status}${queryString ? `?${queryString}` : ''}`
+
+        window.location.href = url
+    }
+}
+
+// 🔥 에러 상태 코드별 처리 여부 결정
+const shouldShowErrorPage = (status) => {
+    // 300번대 - 리다이렉트는 브라우저가 자동 처리하므로 에러 페이지 표시 안 함
+    if (status >= 300 && status < 400) {
+        return false
+    }
+
+    // 401은 기존 로그인 처리를 우선함
+    if (status === 401) {
+        return false
+    }
+
+    // 400번대, 500번대는 에러 페이지 표시
+    return status >= 400
 }
 
 // 토큰 유효성 검사 함수
@@ -114,7 +160,7 @@ apiClient.interceptors.request.use(
     }
 )
 
-// 응답 인터셉터 - 401 에러 스마트 처리
+// 🔥 응답 인터셉터 - 에러 페이지 기능 추가
 apiClient.interceptors.response.use(
     (response) => {
         return response
@@ -122,35 +168,65 @@ apiClient.interceptors.response.use(
     (error) => {
         const status = error.response?.status
         const url = error.config?.url
-        const message = error.response?.data?.message
+        const message = error.response?.data?.message || error.message
+        const serverData = error.response?.data
 
-        // 401 Unauthorized 스마트 처리
+        console.log(`🚨 API 에러 발생: ${status} - ${url}`)
+
+        // 401 Unauthorized 스마트 처리 (기존 로직 유지)
         if (status === 401) {
-            // 401 응답의 메시지 확인
             const serverMessage = error.response?.data?.message
             const isTokenInvalid = serverMessage?.includes('JWT') ||
                 serverMessage?.includes('token') ||
                 serverMessage?.includes('Authorization header missing') ||
                 serverMessage?.includes('Invalid JWT token')
 
-            // 실제 토큰 무효인 경우에만 로그아웃 처리
             if (isTokenInvalid) {
                 const friendlyMessage = '인증이 만료되어 다시 로그인이 필요합니다.'
                 handleLogout(friendlyMessage)
                 error.friendlyMessage = friendlyMessage
             } else {
-                // 권한 부족 등 기타 401 에러는 로그아웃하지 않음
                 error.friendlyMessage = '접근 권한이 없습니다. 페이지를 새로고침해보세요.'
             }
+        }
+        // 🔥 새로 추가: 다른 에러들은 에러 페이지로 리다이렉트
+        else if (status && shouldShowErrorPage(status)) {
+            // 에러 상세 정보 수집
+            const errorDetails = JSON.stringify({
+                url: url,
+                status: status,
+                message: message,
+                serverData: serverData,
+                timestamp: new Date().toISOString()
+            }, null, 2)
+
+            console.log(`🔄 에러 페이지로 리다이렉트: ${status}`)
+
+            // 에러 페이지로 리다이렉트
+            redirectToErrorPage(status, message, errorDetails)
         }
 
         // 네트워크 에러 처리
         if (!error.response) {
             error.friendlyMessage = '네트워크 연결을 확인해주세요.'
+
+            // 네트워크 에러도 에러 페이지로 (502로 처리)
+            console.log('🔄 네트워크 에러 - 502 에러 페이지로 리다이렉트')
+            redirectToErrorPage(502, '네트워크 연결에 문제가 발생했습니다',
+                JSON.stringify({
+                    error: 'Network Error',
+                    url: url,
+                    timestamp: new Date().toISOString()
+                }, null, 2))
         }
 
         return Promise.reject(error)
     }
 )
+
+// 🔥 라우터 참조 설정 함수 (main.js에서 호출)
+export const setRouter = (router) => {
+    window.router = router
+}
 
 export default apiClient

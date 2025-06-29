@@ -103,7 +103,10 @@
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-bus-amqp</artifactId>
         </dependency>
-
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-config</artifactId>
+        </dependency>
         <!-- JSON 직렬화를 위한 Jackson (Kafka 메시지를 JSON으로 주고받을 경우) -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>

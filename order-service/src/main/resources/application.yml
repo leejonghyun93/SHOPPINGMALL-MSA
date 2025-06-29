@@ -1,72 +1,12 @@
-server:
-  port: 8089
-
 spring:
   application:
-    name: ORDER-SERVICE
-  datasource:
-    url: jdbc:mariadb://localhost:3306/shopmall
-    username: kosa
-    password: 1004
-    driver-class-name: org.mariadb.jdbc.Driver
-  jpa:
-    hibernate:
-      ddl-auto: validate
-    database-platform: org.hibernate.dialect.MariaDBDialect
-    show-sql: true
-    properties:
-      hibernate:
-        format_sql: true
-  kafka:
-    bootstrap-servers: localhost:9092
-    consumer:
-      group-id: order-service-group
-      auto-offset-reset: earliest
-      enable-auto-commit: false
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
-      properties:
-        spring.json.trusted.packages: "*"
-    producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    name: order-service
 
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
 
-kafka:
-  topic:
-    user-withdrawal: user-withdrawal-topic
+  config:
+    import: optional:configserver:http://localhost:8888
 
-eureka:
-  client:
-    service-url:
-      defaultZone: http://localhost:8761/eureka
-
-management:
-  endpoints:
-    web:
-      exposure:
-        include: ["refresh", "busrefresh", "prometheus", "health", "info"]
-  endpoint:
-    prometheus:
-      enabled: true
-    health:
-      show-details: always
-    metrics:
-      export:
-        prometheus:
-          enabled: true
-      tags:
-        application: ${spring.application.name}
-  security:
-    enabled: false
-
-rabbitmq:
-  host: localhost
-  port: 5672
-  username: guest
-  password: guest
-
-logging:
-  level:
-    org.springframework.kafka: DEBUG
-    org.kosa.orderservice.service: DEBUG
+server:
+  port: 8089

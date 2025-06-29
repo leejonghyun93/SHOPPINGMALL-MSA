@@ -1,4 +1,4 @@
-package org.kosa.orderservice.dto;
+package org.kosa.orderservice.entity;
 
 import jakarta.persistence.*;
 import lombok.*;

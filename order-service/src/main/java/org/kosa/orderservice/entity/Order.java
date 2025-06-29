@@ -1,8 +1,7 @@
-package org.kosa.orderservice.dto;
+package org.kosa.orderservice.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.GenericGenerator;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;

@@ -21,7 +21,6 @@ import UserEdit from '@/views/user/UserEdit.vue'
 import ProductDetail from '@/views/product/ProductDetail.vue'
 import Cart from '@/views/product/Cart.vue'
 
-
 // Order 관련 컴포넌트
 import Checkout from '@/views/order/Checkout.vue'
 import OrderComplete from '@/views/order/OrderComplete.vue'
@@ -33,6 +32,8 @@ import LiveBroadcastViewer from '@/views/live/BroadcastViewer.vue'
 // 방송 예약 컴포넌트
 import BroadcastCalendar from "@/views/live/calendar.vue"
 
+// 🔥 에러 페이지 컴포넌트 추가
+import ErrorPage from '@/views/ErrorPage.vue'
 
 // 인증 가드
 const requireAuth = (to, from, next) => {
@@ -48,49 +49,77 @@ const routes = [
     {
         path: '/',
         name: 'Home',
-        component: Home
+        component: Home,
+        meta: {
+            title: '홈페이지'
+        }
     },
     {
         path: '/login',
         name: 'Login',
-        component: Login
+        component: Login,
+        meta: {
+            title: '로그인'
+        }
     },
     {
         path: '/register',
         name: 'Register',
-        component: Register
+        component: Register,
+        meta: {
+            title: '회원가입'
+        }
     },
     {
         path: '/findId',
         name: 'FindId',
-        component: FindId
+        component: FindId,
+        meta: {
+            title: '아이디 찾기'
+        }
     },
     {
         path: '/findPassword',
         name: 'FindPassword',
-        component: FindPassword
+        component: FindPassword,
+        meta: {
+            title: '비밀번호 찾기'
+        }
     },
     {
         path: '/mypage',
         name: 'MyPage',
         component: MyPage,
         beforeEnter: requireAuth,
+        meta: {
+            title: '마이페이지',
+            requiresAuth: true
+        },
         children: [
             {
                 path: 'orders',
                 name: 'MyPageOrders',
-                component: MyPageOrders
+                component: MyPageOrders,
+                meta: {
+                    title: '주문 내역'
+                }
             },
             {
                 path: 'profile',
                 name: 'MyPageProfile',
-                component: MyPageProfile
+                component: MyPageProfile,
+                meta: {
+                    title: '프로필 관리'
+                }
             },
             {
                 path: 'edit',
                 name: 'ProfileEdit',
                 component: UserEdit,
-                meta: { requiresAuth: true }
+                meta: {
+                    requiresAuth: true,
+                    title: '프로필 수정'
+                }
             },
             {
                 path: '',
@@ -101,23 +130,35 @@ const routes = [
     {
         path: '/category',
         name: 'Category',
-        component: Category
+        component: Category,
+        meta: {
+            title: '카테고리'
+        }
     },
     {
         path: '/category/:categoryId',
         name: 'CategoryDetail',
-        component: Category
+        component: Category,
+        meta: {
+            title: '카테고리 상품'
+        }
     },
     {
         path: '/broadcasts/category/:categoryId?',  // ? 는 선택적 매개변수
         name: 'BroadcastCategory',
         component: BroadcastList,
-        props: true
+        props: true,
+        meta: {
+            title: '라이브 방송'
+        }
     },
     {
         path: '/broadcasts/calendar',
         name: 'BroadcastCalendar',
-        component: BroadcastCalendar
+        component: BroadcastCalendar,
+        meta: {
+            title: '방송 일정'
+        }
     },
     {
         path: '/live/:broadcastId',
@@ -129,49 +170,152 @@ const routes = [
             requiresAuth: false // 로그인 없이도 시청 가능
         }
     },
-    // 개별 방송 페이지 (추가 필요)
-    // {
-    //     path: '/live/:broadcastId',
-    //     name: 'LiveBroadcast',
-    //     component: () => import('@/views/live/LiveBroadcastView.vue'),
-    //     props: true
-    // },
     {
         path: '/product/:id',
         name: 'ProductDetail',
-        component: ProductDetail
+        component: ProductDetail,
+        meta: {
+            title: '상품 상세'
+        }
     },
     {
         path: '/users/:userid',
         name: 'UserDetail',
-        component: UserDetail
+        component: UserDetail,
+        meta: {
+            title: '사용자 정보',
+            requiresAuth: true
+        }
     },
     {
         path: '/users/edit/:userid',
         name: 'UserEdit',
         component: UserEdit,
-        props: true
+        props: true,
+        meta: {
+            title: '사용자 정보 수정',
+            requiresAuth: true
+        }
     },
     {
         path: '/cart',
         name: 'Cart',
-        component: Cart
+        component: Cart,
+        meta: {
+            title: '장바구니'
+        }
     },
     {
         path: '/checkout',
         name: 'Checkout',
-        component: Checkout
+        component: Checkout,
+        meta: {
+            title: '주문서',
+            requiresAuth: true
+        }
     },
     {
         path: '/order-complete',
         name: 'OrderComplete',
-        component: OrderComplete
+        component: OrderComplete,
+        meta: {
+            title: '주문 완료',
+            requiresAuth: true
+        }
+    },
+
+    // 🔥 에러 페이지 라우트 추가
+    {
+        path: '/error/:code',
+        name: 'ErrorPage',
+        component: ErrorPage,
+        props: route => ({
+            errorCode: route.params.code,
+            errorMessage: route.query.message || '',
+            errorDetails: route.query.details || ''
+        }),
+        meta: {
+            title: '에러 페이지',
+            hideNavigation: true // 네비게이션 숨김 (선택사항)
+        }
+    },
+
+    // 🔥 404 캐치올 라우트 (반드시 맨 마지막에 추가)
+    {
+        path: '/:pathMatch(.*)*',
+        redirect: to => {
+            return {
+                name: 'ErrorPage',
+                params: { code: '404' },
+                query: {
+                    message: `페이지를 찾을 수 없습니다: ${to.path}`,
+                    details: JSON.stringify({
+                        requestedPath: to.path,
+                        requestedQuery: to.query,
+                        timestamp: new Date().toISOString(),
+                        referrer: document.referrer || 'direct'
+                    }, null, 2)
+                }
+            }
+        }
     }
 ]
 
 const router = createRouter({
     history: createWebHistory(),
-    routes
+    routes,
+    // 🔥 스크롤 동작 설정 (선택사항)
+    scrollBehavior(to, from, savedPosition) {
+        if (savedPosition) {
+            return savedPosition
+        } else {
+            return { top: 0 }
+        }
+    }
+})
+
+// 🔥 네비게이션 가드 추가 (선택사항)
+router.beforeEach((to, from, next) => {
+    // 페이지 타이틀 설정
+    if (to.meta.title) {
+        document.title = `${to.meta.title} - Your Site Name`
+    } else {
+        document.title = 'Your Site Name'
+    }
+
+    // 인증이 필요한 페이지 체크
+    if (to.meta.requiresAuth) {
+        const token = localStorage.getItem('token')
+        if (!token) {
+            // 로그인 페이지로 리다이렉트하되, 원래 가려던 페이지 정보 저장
+            next({
+                name: 'Login',
+                query: { redirect: to.fullPath }
+            })
+            return
+        }
+    }
+
+    next()
+})
+
+// 🔥 에러 처리 (선택사항)
+router.onError((error) => {
+    console.error('라우터 에러:', error)
+
+    // 라우터 에러도 에러 페이지로 처리
+    router.push({
+        name: 'ErrorPage',
+        params: { code: '500' },
+        query: {
+            message: '페이지 로딩 중 오류가 발생했습니다',
+            details: JSON.stringify({
+                error: error.message,
+                stack: error.stack,
+                timestamp: new Date().toISOString()
+            }, null, 2)
+        }
+    })
 })
 
 export default router

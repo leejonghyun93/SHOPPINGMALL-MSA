@@ -5,7 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.kosa.productservice.dto.ApiResponse;
 import org.kosa.productservice.dto.GuestCartItemDTO;
 import org.kosa.productservice.dto.ProductDetailDTO;
-import org.kosa.productservice.dto.ProductDto;
+import org.kosa.productservice.dto.ProductDTO;
 import org.kosa.productservice.service.EnhancedProductService;
 import org.kosa.productservice.service.ProductService;
 import org.springframework.http.ResponseEntity;
@@ -28,11 +28,11 @@ public class ProductApiController {
      * 상품 상세 조회 (기본 - 하위 호환성 유지)
      */
     @GetMapping("/{productId}")
-    public ResponseEntity<ProductDto> getProductDetail(@PathVariable String productId) {
+    public ResponseEntity<ProductDTO> getProductDetail(@PathVariable String productId) {
         try {
             log.info("상품 상세 조회 요청 - productId: {}", productId);
 
-            ProductDto product = productService.getProductById(productId);
+            ProductDTO product = productService.getProductById(productId);
             if (product == null) {
                 log.warn("상품을 찾을 수 없음 - productId: {}", productId);
                 return ResponseEntity.notFound().build();
@@ -53,11 +53,11 @@ public class ProductApiController {
      * 상품 상세 조회 (이미지 포함)
      */
     @GetMapping("/{productId}/with-images")
-    public ResponseEntity<ApiResponse<ProductDto>> getProductDetailWithImages(@PathVariable String productId) {
+    public ResponseEntity<ApiResponse<ProductDTO>> getProductDetailWithImages(@PathVariable String productId) {
         try {
             log.info("상품 상세 조회 (이미지 포함) 요청 - productId: {}", productId);
 
-            ProductDto product = enhancedProductService.getProductDetail(productId);
+            ProductDTO product = enhancedProductService.getProductDetail(productId);
             if (product == null) {
                 log.warn("상품을 찾을 수 없음 - productId: {}", productId);
                 return ResponseEntity.badRequest()
@@ -77,14 +77,14 @@ public class ProductApiController {
      * 전체 상품 조회
      */
     @GetMapping
-    public ResponseEntity<List<ProductDto>> getAllProducts(
+    public ResponseEntity<List<ProductDTO>> getAllProducts(
             @RequestParam(defaultValue = "20") int limit,
             @RequestParam(defaultValue = "false") boolean includeImages) {
 
         try {
             log.info("전체 상품 조회 요청 - limit: {}, includeImages: {}", limit, includeImages);
 
-            List<ProductDto> products;
+            List<ProductDTO> products;
             if (includeImages) {
                 products = enhancedProductService.getProductList(limit);
             } else {
@@ -103,13 +103,13 @@ public class ProductApiController {
      * 전체 상품 조회 (이미지 포함 - API Response 형태)
      */
     @GetMapping("/with-images")
-    public ResponseEntity<ApiResponse<List<ProductDto>>> getAllProductsWithImages(
+    public ResponseEntity<ApiResponse<List<ProductDTO>>> getAllProductsWithImages(
             @RequestParam(defaultValue = "20") int limit) {
 
         try {
             log.info("전체 상품 조회 (이미지 포함) 요청 - limit: {}", limit);
 
-            List<ProductDto> products = enhancedProductService.getProductList(limit);
+            List<ProductDTO> products = enhancedProductService.getProductList(limit);
 
             log.info("전체 상품 조회 (이미지 포함) 결과: {}개", products.size());
             return ResponseEntity.ok(ApiResponse.success(products));
@@ -124,7 +124,7 @@ public class ProductApiController {
      * Vue 프론트엔드용 - 카테고리별 상품 조회
      */
     @GetMapping("/filter")
-    public ResponseEntity<List<ProductDto>> getProductsByFilter(
+    public ResponseEntity<List<ProductDTO>> getProductsByFilter(
             @RequestParam(defaultValue = "ALL") String categoryId,
             @RequestParam(defaultValue = "10") Integer limit,
             @RequestParam(defaultValue = "false") boolean includeImages) {
@@ -132,7 +132,7 @@ public class ProductApiController {
         try {
             log.info("카테고리별 상품 조회 - categoryId: {}, limit: {}, includeImages: {}", categoryId, limit, includeImages);
 
-            List<ProductDto> products;
+            List<ProductDTO> products;
             if (includeImages) {
                 if ("ALL".equals(categoryId)) {
                     products = enhancedProductService.getProductList(limit);
@@ -159,7 +159,7 @@ public class ProductApiController {
      * 카테고리별 상품 조회 (RESTful 스타일)
      */
     @GetMapping("/category/{categoryId}")
-    public ResponseEntity<List<ProductDto>> getProductsByCategory(
+    public ResponseEntity<List<ProductDTO>> getProductsByCategory(
             @PathVariable String categoryId,
             @RequestParam(defaultValue = "20") int limit,
             @RequestParam(defaultValue = "false") boolean includeImages) {
@@ -167,7 +167,7 @@ public class ProductApiController {
         try {
             log.info("카테고리별 상품 조회 - categoryId: {}, limit: {}, includeImages: {}", categoryId, limit, includeImages);
 
-            List<ProductDto> products;
+            List<ProductDTO> products;
             if (includeImages) {
                 products = enhancedProductService.getProductsByCategory(categoryId, limit);
             } else {
@@ -186,14 +186,14 @@ public class ProductApiController {
      * 카테고리별 상품 조회 (이미지 포함 - API Response 형태)
      */
     @GetMapping("/category/{categoryId}/with-images")
-    public ResponseEntity<ApiResponse<List<ProductDto>>> getProductsByCategoryWithImages(
+    public ResponseEntity<ApiResponse<List<ProductDTO>>> getProductsByCategoryWithImages(
             @PathVariable String categoryId,
             @RequestParam(defaultValue = "20") int limit) {
 
         try {
             log.info("카테고리별 상품 조회 (이미지 포함) - categoryId: {}, limit: {}", categoryId, limit);
 
-            List<ProductDto> products = enhancedProductService.getProductsByCategory(categoryId, limit);
+            List<ProductDTO> products = enhancedProductService.getProductsByCategory(categoryId, limit);
 
             log.info("카테고리별 상품 조회 (이미지 포함) 결과: {}개", products.size());
             return ResponseEntity.ok(ApiResponse.success(products));
@@ -208,14 +208,14 @@ public class ProductApiController {
      * 연관 상품 조회 (같은 카테고리의 다른 상품들)
      */
     @GetMapping("/{productId}/related")
-    public ResponseEntity<List<ProductDto>> getRelatedProducts(
+    public ResponseEntity<List<ProductDTO>> getRelatedProducts(
             @PathVariable String productId,
             @RequestParam(defaultValue = "4") int limit,
             @RequestParam(defaultValue = "false") boolean includeImages) {
         try {
             log.info("연관 상품 조회 요청 - productId: {}, limit: {}, includeImages: {}", productId, limit, includeImages);
 
-            List<ProductDto> relatedProducts;
+            List<ProductDTO> relatedProducts;
             if (includeImages) {
                 relatedProducts = enhancedProductService.getRelatedProducts(productId, limit);
             } else {
@@ -234,13 +234,13 @@ public class ProductApiController {
      * 연관 상품 조회 (이미지 포함 - API Response 형태)
      */
     @GetMapping("/{productId}/related/with-images")
-    public ResponseEntity<ApiResponse<List<ProductDto>>> getRelatedProductsWithImages(
+    public ResponseEntity<ApiResponse<List<ProductDTO>>> getRelatedProductsWithImages(
             @PathVariable String productId,
             @RequestParam(defaultValue = "4") int limit) {
         try {
             log.info("연관 상품 조회 (이미지 포함) 요청 - productId: {}, limit: {}", productId, limit);
 
-            List<ProductDto> relatedProducts = enhancedProductService.getRelatedProducts(productId, limit);
+            List<ProductDTO> relatedProducts = enhancedProductService.getRelatedProducts(productId, limit);
 
             log.info("연관 상품 조회 (이미지 포함) 결과: {}개", relatedProducts.size());
             return ResponseEntity.ok(ApiResponse.success(relatedProducts));
@@ -255,14 +255,14 @@ public class ProductApiController {
      * 추천 상품 조회 (이미지 포함)
      */
     @GetMapping("/recommended")
-    public ResponseEntity<ApiResponse<List<ProductDto>>> getRecommendedProducts(
+    public ResponseEntity<ApiResponse<List<ProductDTO>>> getRecommendedProducts(
             @RequestParam(required = false) String userId,
             @RequestParam(defaultValue = "10") int limit) {
         try {
             log.info("추천 상품 조회 요청 - userId: {}, limit: {}", userId, limit);
 
             // 현재는 최신 상품으로 대체 (추천 로직은 별도 구현 필요)
-            List<ProductDto> products = enhancedProductService.getProductList(limit);
+            List<ProductDTO> products = enhancedProductService.getProductList(limit);
 
             log.info("추천 상품 조회 결과: {}개", products.size());
             return ResponseEntity.ok(ApiResponse.success(products));

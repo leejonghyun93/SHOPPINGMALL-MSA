@@ -4,12 +4,15 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.kosa.cartservice.dto.*;
 import org.kosa.cartservice.service.CartService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.servlet.http.HttpServletRequest;
+
+import java.util.Base64;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
@@ -338,5 +341,118 @@ public class CartApiController {
         String guestId = "guest_" + System.currentTimeMillis();
         log.info("✅ 게스트 사용자 ID 생성: {}", guestId);
         return guestId;
+    }
+
+    /**
+     * HTTP 요청에서 사용자 ID 추출 (JWT 토큰에서)
+     * @param request HTTP 요청
+     * @return 사용자 ID
+     */
+    private String getUserIdFromToken(HttpServletRequest request) {
+        try {
+            // Authorization 헤더에서 토큰 추출
+            String authHeader = request.getHeader("Authorization");
+            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                log.warn("Authorization 헤더가 없거나 형식이 잘못됨");
+                return null;
+            }
+
+            String token = authHeader.substring(7); // "Bearer " 제거
+
+            // JWT 토큰 파싱하여 사용자 ID 추출
+            String[] parts = token.split("\\.");
+            if (parts.length != 3) {
+                log.warn("JWT 토큰 형식이 잘못됨");
+                return null;
+            }
+
+            // Base64 디코딩
+            String payload = parts[1];
+            byte[] decodedBytes = Base64.getDecoder().decode(payload);
+            String decodedPayload = new String(decodedBytes);
+
+            // JSON 파싱하여 사용자 ID 추출 (간단한 방법)
+            if (decodedPayload.contains("\"sub\":")) {
+                int startIndex = decodedPayload.indexOf("\"sub\":\"") + 7;
+                int endIndex = decodedPayload.indexOf("\"", startIndex);
+                if (startIndex > 6 && endIndex > startIndex) {
+                    String userId = decodedPayload.substring(startIndex, endIndex);
+                    log.info("토큰에서 추출된 사용자 ID: {}", userId);
+                    return userId;
+                }
+            }
+
+            log.warn("토큰에서 사용자 ID를 찾을 수 없음");
+            return null;
+
+        } catch (Exception e) {
+            log.error("토큰에서 사용자 ID 추출 실패: {}", e.getMessage(), e);
+            return null;
+        }
+    }
+
+    /**
+     * 🔥 수정된 구매 완료 상품 제거 엔드포인트
+     */
+    @PostMapping("/remove-purchased-items")
+    public ResponseEntity<?> removePurchasedItems(
+            @RequestBody Map<String, List<Long>> request,
+            HttpServletRequest httpRequest,
+            @RequestHeader(value = "X-Username", required = false) String headerUsername,
+            @RequestHeader(value = "X-User-Id", required = false) String headerUserId) {
+        try {
+            List<Long> productIds = request.get("productIds");
+
+            if (productIds == null || productIds.isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("success", false, "message", "제거할 상품 ID가 없습니다"));
+            }
+
+            // 인증 정보 가져오기
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+            // 여러 방법으로 사용자 ID 확인
+            String userId = null;
+
+            // 1. 헤더에서 사용자 ID 확인
+            if (headerUsername != null && !headerUsername.trim().isEmpty()) {
+                userId = headerUsername;
+            } else if (headerUserId != null && !headerUserId.trim().isEmpty()) {
+                userId = headerUserId;
+            }
+            // 2. 인증 정보에서 확인
+            else if (authentication != null && authentication.isAuthenticated()
+                    && !"anonymousUser".equals(authentication.getName())) {
+                userId = authentication.getName();
+            }
+            // 3. 토큰에서 직접 추출
+            else {
+                userId = getUserIdFromToken(httpRequest);
+            }
+
+            if (userId == null || userId.trim().isEmpty()) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("success", false, "message", "사용자 인증이 필요합니다"));
+            }
+
+            log.info("구매 완료 상품 장바구니 제거 요청: userId={}, productIds={}", userId, productIds);
+
+            // 서비스 호출
+            cartService.removePurchasedItems(userId, productIds);
+
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "구매 상품이 장바구니에서 제거되었습니다",
+                    "removedCount", productIds.size()
+            ));
+
+        } catch (Exception e) {
+            log.error("구매 완료 상품 장바구니 제거 실패: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of(
+                            "success", false,
+                            "message", "장바구니 정리 중 오류가 발생했습니다: " + e.getMessage()
+                    ));
+        }
     }
 }

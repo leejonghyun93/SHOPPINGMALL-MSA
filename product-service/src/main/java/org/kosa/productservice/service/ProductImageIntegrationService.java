@@ -4,21 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.kosa.productservice.client.ImageServiceClient;
 import org.kosa.productservice.dto.ApiResponse;
-import org.kosa.productservice.dto.ProductDto;
-import org.kosa.productservice.dto.ProductImageDto;
-import org.springframework.stereotype.Service;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.kosa.productservice.client.ImageServiceClient;
-import org.kosa.productservice.dto.ApiResponse;
-import org.kosa.productservice.dto.ProductDto;
+import org.kosa.productservice.dto.ProductDTO;
 import org.kosa.productservice.dto.ProductImageDto;
 import org.springframework.stereotype.Service;
 
@@ -38,7 +24,7 @@ public class ProductImageIntegrationService {
     /**
      * 상품에 이미지 정보 추가
      */
-    public void attachImagesToProduct(ProductDto product) {
+    public void attachImagesToProduct(ProductDTO product) {
         try {
             // 상품 이미지 목록 조회
             ApiResponse<List<ProductImageDto>> imagesResponse = imageServiceClient.getProductImages(product.getProductId());
@@ -75,14 +61,14 @@ public class ProductImageIntegrationService {
     /**
      * 여러 상품에 대표 이미지만 추가 (목록 조회용)
      */
-    public void attachMainImagesToProducts(List<ProductDto> products) {
+    public void attachMainImagesToProducts(List<ProductDTO> products) {
         try {
             if (products == null || products.isEmpty()) {
                 return;
             }
 
             List<String> productIds = products.stream()
-                    .map(ProductDto::getProductId)
+                    .map(ProductDTO::getProductId)
                     .collect(Collectors.toList());
 
             ApiResponse<Map<String, ProductImageDto>> mainImagesResponse = imageServiceClient.getMainImages(productIds);
@@ -108,14 +94,14 @@ public class ProductImageIntegrationService {
     /**
      * 여러 상품에 모든 이미지 추가
      */
-    public void attachAllImagesToProducts(List<ProductDto> products) {
+    public void attachAllImagesToProducts(List<ProductDTO> products) {
         try {
             if (products == null || products.isEmpty()) {
                 return;
             }
 
             List<String> productIds = products.stream()
-                    .map(ProductDto::getProductId)
+                    .map(ProductDTO::getProductId)
                     .collect(Collectors.toList());
 
             // 모든 이미지 조회
@@ -159,7 +145,7 @@ public class ProductImageIntegrationService {
     /**
      * 단일 상품에 대표 이미지만 추가 (성능 최적화용)
      */
-    public void attachMainImageToProduct(ProductDto product) {
+    public void attachMainImageToProduct(ProductDTO product) {
         try {
             if (product == null) {
                 return;

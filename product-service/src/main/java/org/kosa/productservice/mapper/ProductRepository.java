@@ -1,6 +1,6 @@
 package org.kosa.productservice.mapper;
 
-import org.kosa.productservice.dto.Product;
+import org.kosa.productservice.entity.Product;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;

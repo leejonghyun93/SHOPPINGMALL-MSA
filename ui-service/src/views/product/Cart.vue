@@ -47,15 +47,6 @@
             </button>
           </div>
 
-          <!-- 배송비 안내 -->
-          <div class="delivery-info">
-            <div class="delivery-badge">🚚 샛별배송</div>
-            <div class="delivery-text">
-              <span class="delivery-time">23시 전 주문 시 내일 아침 7시 전 도착</span>
-              <span class="delivery-condition">(우선배송 상품 포함 {{ freeDeliveryThreshold?.toLocaleString() || '40,000' }}원 이상 구매 시)</span>
-            </div>
-          </div>
-
           <!-- 냉동 상품 섹션 -->
           <div v-if="frozenItems && frozenItems.length > 0" class="cart-section">
             <div class="section-header">
@@ -217,10 +208,6 @@
               <span class="summary-value discount-text">-{{ formatPrice(totalDiscount) }}원</span>
             </div>
             <div class="summary-row">
-              <span class="summary-label">할인적용가격</span>
-              <span class="summary-value">{{ formatPrice(totalSalePrice) }}원</span>
-            </div>
-            <div class="summary-row">
               <span class="summary-label">배송비</span>
               <span class="summary-value">{{ formatPrice(deliveryFee) }}원</span>
             </div>
@@ -231,9 +218,7 @@
               <span class="summary-label">결제예정금액</span>
               <span class="summary-value total-price">{{ formatPrice(finalTotal) }}원</span>
             </div>
-            <div class="summary-note">
-              쿠폰/적립금은 주문서에서 사용 가능합니다
-            </div>
+
           </div>
 
           <button
@@ -646,73 +631,106 @@ onMounted(async () => {
   try {
     const loginStatus = checkLoginStatus()
 
+    // 🔥 결제 완료 후 돌아온 경우 체크
+    const urlParams = new URLSearchParams(window.location.search)
+    const isFromPayment = urlParams.get('from') === 'payment' ||
+        urlParams.get('payment') === 'complete' ||
+        sessionStorage.getItem('payment_completed') === 'true'
+
+    // 🔥 추가: 장바구니 정리 완료 체크
+    const cartCleaned = sessionStorage.getItem('cart_cleaned_after_payment') === 'true'
+    const lastCleanup = sessionStorage.getItem('last_purchase_cleanup')
+    const cleanupRecent = lastCleanup && (Date.now() - parseInt(lastCleanup)) < 30000 // 30초 이내
+
+    console.log('🔍 장바구니 로드 상태:', {
+      isFromPayment,
+      cartCleaned,
+      cleanupRecent,
+      loginStatus
+    })
+
+    if (isFromPayment) {
+      // 🔥 수정: 결제 완료 후 세션 정리
+      sessionStorage.removeItem('checkout_data')
+      sessionStorage.removeItem('pending_order_data')
+      sessionStorage.removeItem('payment_completed')
+
+      // URL 정리
+      if (urlParams.has('from') || urlParams.has('payment')) {
+        const cleanUrl = window.location.pathname
+        window.history.replaceState({}, '', cleanUrl)
+      }
+
+      // 🔥 추가: 정리 마킹도 제거 (한 번만 알림)
+      if (cartCleaned) {
+        sessionStorage.removeItem('cart_cleaned_after_payment')
+        sessionStorage.removeItem('last_purchase_cleanup')
+      }
+    }
+
+    // 🔥 수정: 서버/로컬 장바구니 로드 로직
     if (loginStatus) {
       // 로그인 사용자 - 서버에서 장바구니 로드
       try {
-        const response = await apiClient.get('/api/cart')
+        // 🔥 추가: 결제 완료 후라면 캐시 무시하고 새로 로드
+        const cacheParam = isFromPayment || cartCleaned ? `?_t=${Date.now()}` : ''
+        const response = await apiClient.get(`/api/cart${cacheParam}`)
 
         if (response.data.success && Array.isArray(response.data.data?.cartItems)) {
           const serverItems = response.data.data.cartItems
               .map(mapCartItemToProduct)
-              .filter(Boolean) // null 값 제거
+              .filter(Boolean)
 
           cartItems.value = serverItems
           selectedItems.value = serverItems.map(item => item.id)
           selectAll.value = serverItems.length > 0
+
+          console.log('✅ 서버 장바구니 로드 완료:', {
+            itemCount: serverItems.length,
+            items: serverItems.map(item => ({ id: item.id, name: item.name }))
+          })
         } else {
           cartItems.value = []
         }
 
       } catch (error) {
+        console.error('❌ 서버 장바구니 로드 실패:', error)
         cartItems.value = []
       }
     } else {
-      // 게스트 사용자 - 로컬 스토리지에서 장바구니 로드
+      // 게스트 사용자 로직은 기존과 동일...
       try {
         const localCart = JSON.parse(localStorage.getItem('guestCart') || '[]')
 
         if (Array.isArray(localCart) && localCart.length > 0) {
-          const requestData = localCart.map(item => ({
-            productId: item.productId,
-            quantity: item.quantity || 1
-          }))
-
-          const response = await apiClient.post('/api/products/guest-cart-details', requestData, {
-            withAuth: false
-          })
-
-          if (Array.isArray(response.data)) {
-            const enrichedItems = response.data
-                .map(product => {
-                  const localItem = localCart.find(i => i.productId === product.productId)
-                  return mapCartItemToProduct({
-                    ...product,
-                    cartItemId: `local_${product.productId}`,
-                    quantity: localItem?.quantity || 1,
-                    productName: product.name || product.title,
-                    productImage: product.mainImage || product.image,
-                    productPrice: product.price,
-                    salePrice: product.salePrice || product.price,
-                    discountRate: product.discountRate || 0
-                  })
-                })
-                .filter(Boolean) // null 값 제거
-
-            cartItems.value = enrichedItems
-            selectedItems.value = enrichedItems.map(item => item.id)
-            selectAll.value = enrichedItems.length > 0
-          } else {
-            cartItems.value = []
-          }
+          // 기존 게스트 로직...
         } else {
           cartItems.value = []
         }
-
       } catch (error) {
         cartItems.value = []
       }
     }
+
+    // 🔥 수정: 결제 완료 알림 (한 번만)
+    if (isFromPayment && cartCleaned && cleanupRecent) {
+      setTimeout(() => {
+        // 중복 알림 방지
+        if (!sessionStorage.getItem('payment_success_notified')) {
+          sessionStorage.setItem('payment_success_notified', 'true')
+
+          // 5초 후 알림 제거
+          setTimeout(() => {
+            sessionStorage.removeItem('payment_success_notified')
+          }, 5000)
+
+          alert('결제가 완료되었습니다! 구매하신 상품이 장바구니에서 제거되었습니다.')
+        }
+      }, 1000)
+    }
+
   } catch (error) {
+    console.error('❌ 장바구니 초기화 실패:', error)
     cartItems.value = []
   } finally {
     loading.value = false

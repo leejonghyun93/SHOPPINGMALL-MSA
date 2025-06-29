@@ -144,7 +144,7 @@ public class UserApiController {
         return ResponseEntity.noContent().build();
     }
 
-    // 🔴 깨끗한 checkUserId 메서드 (CORS 헤더 수동 설정 제거)
+    // 깨끗한 checkUserId 메서드 (CORS 헤더 수동 설정 제거)
     @GetMapping("/checkUserId")
     public ResponseEntity<Map<String, Boolean>> checkUserId(@RequestParam String userId) {
         log.info("아이디 중복 확인 요청: {}", userId);

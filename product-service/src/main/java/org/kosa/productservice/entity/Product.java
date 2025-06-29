@@ -1,4 +1,4 @@
-package org.kosa.productservice.dto;
+package org.kosa.productservice.entity;
 
 import jakarta.persistence.*;
 import lombok.*;

@@ -1,7 +1,7 @@
 package org.kosa.orderservice.mapper;
 
 
-import org.kosa.orderservice.dto.OrderItem;
+import org.kosa.orderservice.entity.OrderItem;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;

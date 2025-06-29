@@ -95,14 +95,6 @@
           <h2 class="section-title">결제 수단</h2>
 
           <div class="payment-methods">
-            <div class="payment-option">
-              <label class="radio-container">
-                <input type="radio" name="payment" value="general" v-model="selectedPayment" checked>
-                <span class="radio-mark"></span>
-                <span class="payment-label">다른 결제수단</span>
-              </label>
-            </div>
-
             <!-- 다른 결제수단 상세 -->
             <div v-if="selectedPayment === 'general'" class="sub-payment-methods">
               <div class="sub-payment-group">
@@ -162,20 +154,10 @@
                 </label>
               </div>
 
-              <div class="sub-payment-group">
-                <label class="radio-container">
-                  <input type="radio" name="subPayment" value="toss" v-model="selectedSubPayment">
-                  <span class="radio-mark"></span>
-                  <span class="payment-label">토스</span>
-                </label>
-              </div>
 
               <div class="sub-payment-group">
                 <label class="radio-container">
                   <input type="radio" name="subPayment" value="payco" v-model="selectedSubPayment">
-                  <span class="radio-mark"></span>
-                  <span class="payment-label">페이코</span>
-                  <span class="event-badge">이벤트</span>
                 </label>
               </div>
             </div>
@@ -190,32 +172,6 @@
               <li>하나카드: 온라인 결제 시, 1.2만원 참여 학습 온라인 시개 안됨</li>
               <li v-if="cardPaymentType === 'phone'" class="phone-notice">휴대폰 결제는 월 30만원 한도가 있습니다</li>
             </ul>
-            <p class="details-link">자세히보기</p>
-          </div>
-        </div>
-
-        <!-- 적립금 -->
-        <div class="form-section">
-          <h2 class="section-title">적립금</h2>
-          <div class="points-section">
-            <div class="points-row">
-              <span class="points-label">적립금 </span>
-              <span class="points-value">사용</span>
-              <span class="points-amount">0 원</span>
-            </div>
-            <div class="points-row">
-              <span class="points-label">혜택금</span>
-              <span class="points-amount">0 원</span>
-            </div>
-
-            <div class="points-input-section">
-              <input type="number" placeholder="0" class="points-input" v-model="pointsToUse">
-              <button class="use-all-btn">전액사용</button>
-            </div>
-
-            <div class="points-info">
-              <p>적립금만 입력해주십시오 또는 사용이 안되시면.</p>
-            </div>
           </div>
         </div>
       </div>
@@ -235,24 +191,8 @@
               <span class="summary-value">{{ formatPrice(productAmount) }}원</span>
             </div>
             <div class="summary-row">
-              <span class="summary-label">상품할인금액</span>
-              <span class="summary-value">{{ formatPrice(discountAmount) }}원</span>
-            </div>
-            <div class="summary-row">
               <span class="summary-label">배송비</span>
-              <span class="summary-value">+ {{ formatPrice(deliveryFee) }}원</span>
-            </div>
-            <div class="summary-row">
-              <span class="summary-label">쿠폰할인</span>
-              <span class="summary-value">{{ formatPrice(couponDiscount) }}원</span>
-            </div>
-            <div class="summary-row">
-              <span class="summary-label">카드즉시할인</span>
-              <span class="summary-value">{{ formatPrice(cardDiscount) }}원</span>
-            </div>
-            <div class="summary-row">
-              <span class="summary-label">혜택금</span>
-              <span class="summary-value">{{ formatPrice(benefitAmount) }}원</span>
+              <span class="summary-value">{{ formatPrice(deliveryFee) }}원</span>
             </div>
 
             <div class="summary-divider"></div>
@@ -262,11 +202,6 @@
               <span class="summary-value">{{ formatPrice(finalAmount) }}원</span>
             </div>
           </div>
-
-          <div class="benefits-notice">
-            <p> 최종 결제 시 여시기 2,000원 더 받기 ></p>
-          </div>
-
           <button class="checkout-btn" @click="processPayment" :disabled="!canProceed || loading">
             <span v-if="loading">결제 처리 중...</span>
             <span v-else>{{ formatPrice(finalAmount) }}원 결제하기</span>
@@ -567,6 +502,7 @@ const loadUserInfo = async () => {
     return
   }
 
+  // 먼저 토큰에서 가져온 기본 정보로 설정
   userInfo.value = {
     name: user.name || '사용자',
     phone: user.phone || '',
@@ -574,29 +510,59 @@ const loadUserInfo = async () => {
   }
 
   try {
+    // 수정된 API 호출 - 응답 구조 변경
     const response = await apiClient.get('/api/users/profile')
 
-    if (response.data.success) {
-      const userData = response.data.data
+    console.log('Profile API 응답:', response.data) // 디버깅용
+
+    // 응답 구조에 맞게 수정 - response.data에 직접 사용자 정보가 있음
+    if (response.data) {
       userInfo.value = {
-        name: userData.name || user.name || '사용자',
-        phone: userData.phone || user.phone || '',
-        email: userData.email || user.email || ''
+        name: response.data.name || user.name || '사용자',
+        phone: response.data.phone || user.phone || '',
+        email: response.data.email || user.email || ''
       }
 
-      if (userData.zipcode || userData.address) {
+      // 배송 정보도 업데이트
+      if (response.data.zipcode || response.data.address) {
         deliveryInfo.value = {
-          address: userData.address || '',
-          detailAddress: userData.myaddress || '',
-          zipCode: userData.zipcode || '',
+          address: response.data.address || '',
+          detailAddress: '', // 상세주소는 별도 필드가 없으므로 빈 값
+          zipCode: response.data.zipcode || '',
           request: '문 앞에 놓아주세요',
-          recipientName: userData.name || user.name,
-          recipientPhone: userData.phone || user.phone || ''
+          recipientName: response.data.name || user.name,
+          recipientPhone: response.data.phone || user.phone || ''
+        }
+      } else {
+        // 기본 배송 정보 설정
+        deliveryInfo.value = {
+          address: '서울특별시 송파구 정현로 135',
+          detailAddress: '(어마덜랩터원) 7층 16층 한국스프트에이전시협의회',
+          zipCode: '05506',
+          request: '문 앞에 놓아주세요',
+          recipientName: response.data.name || user.name || '사용자',
+          recipientPhone: response.data.phone || user.phone || ''
         }
       }
+
+      console.log('사용자 정보 업데이트 완료:', userInfo.value)
     }
   } catch (error) {
-    // 에러 처리는 인터셉터에서 처리
+    console.error('사용자 정보 로드 실패:', error)
+
+    // 404 에러인 경우 API Gateway 라우팅 문제일 가능성
+    if (error.response?.status === 404) {
+      console.warn('Profile API 404 에러 - API Gateway 라우팅 확인 필요')
+      // 토큰의 기본 정보를 그대로 사용
+    } else if (error.response?.status === 401) {
+      // 인증 에러는 인터셉터에서 처리됨
+      console.warn('인증 에러 - 로그인 필요')
+    } else {
+      console.error('기타 에러:', error.message)
+    }
+
+    // 에러가 발생해도 토큰의 기본 정보는 유지
+    // (이미 위에서 설정했으므로 추가 작업 불필요)
   }
 }
 
@@ -665,6 +631,24 @@ const goBack = () => {
 
 const formatPrice = (price) => {
   return price?.toLocaleString() || '0'
+}
+
+// 주문명 생성 함수 추가
+const generateOrderName = () => {
+  if (!orderItems.value || orderItems.value.length === 0) {
+    return '주문상품'
+  }
+
+  const firstItem = orderItems.value[0]
+  const itemName = firstItem.name || firstItem.productName || '상품'
+
+  if (orderItems.value.length === 1) {
+    // 단일 상품인 경우: "상품명"
+    return itemName
+  } else {
+    // 여러 상품인 경우: "상품명 외 2건"
+    return `${itemName} 외 ${orderItems.value.length - 1}건`
+  }
 }
 
 const loadIamportScript = () => {
@@ -772,6 +756,8 @@ const initiatePayment = async (paymentData) => {
         paymentRequest.buyer_addr = deliveryInfo.value.address || ''
       }
 
+      console.log('결제 요청 데이터:', paymentRequest)
+
       IMP.request_pay(paymentRequest, async (response) => {
         try {
           if (response.success) {
@@ -790,16 +776,20 @@ const initiatePayment = async (paymentData) => {
             })
 
             if (orderResponse.data.success) {
+              console.log(' 주문 생성 성공, 장바구니 정리 시작...')
+
+              await clearPurchasedItemsFromCart(orderData.items)
+
               sessionStorage.removeItem('pending_order_data')
               sessionStorage.removeItem('checkout_data')
+
+              sessionStorage.setItem('payment_completed', 'true')
 
               const successMsg = getSuccessMessage(pgProvider, response.paid_amount)
               showFriendlyMessage(successMsg, 'success')
 
-              window.location.href = `/order-complete?orderId=${orderResponse.data.data.orderId}&paymentId=${response.imp_uid}&amount=${response.paid_amount}`
+              window.location.href = `/order-complete?orderId=${orderResponse.data.data.orderId}&paymentId=${response.imp_uid}&amount=${response.paid_amount}&from=checkout`
               resolve(response)
-            } else {
-              throw new Error(orderResponse.data.message || '주문 생성 실패')
             }
 
           } else {
@@ -841,6 +831,144 @@ const initiatePayment = async (paymentData) => {
   }
 }
 
+const clearPurchasedItemsFromCart = async (purchasedItems) => {
+  try {
+    const currentLoginStatus = checkLoginStatus()
+
+    console.log('🛒 장바구니 정리 시작:', {
+      loginStatus: currentLoginStatus,
+      purchasedItemsCount: purchasedItems?.length || 0,
+      purchasedItems: purchasedItems
+    })
+
+    if (currentLoginStatus) {
+      // 로그인 사용자: 서버 장바구니에서 제거
+      const productIds = purchasedItems
+          .map(item => {
+            // 🔥 수정: 다양한 필드명 처리 및 타입 변환
+            let productId = item.productId || item.id || item.product_id
+
+            // String to Number 변환 시도
+            if (typeof productId === 'string') {
+              const numericId = parseInt(productId, 10)
+              if (!isNaN(numericId)) {
+                productId = numericId
+              }
+            }
+
+            return productId
+          })
+          .filter(id => id !== null && id !== undefined)
+
+      console.log('🔍 추출된 상품 ID들:', productIds)
+
+      if (productIds.length > 0) {
+        try {
+          // 🔥 수정: 더 강력한 API 호출
+          const response = await apiClient.post('/api/cart/remove-purchased-items', {
+            productIds: productIds
+          }, {
+            headers: {
+              'Content-Type': 'application/json',
+              'X-User-Id': user.id || localStorage.getItem('userId'),
+              'X-Username': user.username || localStorage.getItem('username')
+            },
+            timeout: 10000 // 10초 타임아웃
+          })
+
+          console.log('✅ 서버 응답:', response.data)
+
+          if (response.data.success) {
+            console.log('✅ 서버 장바구니에서 구매 상품 제거 완료')
+          } else {
+            throw new Error(response.data.message || '서버 응답 실패')
+          }
+        } catch (error) {
+          console.error('❌ 서버 장바구니 정리 실패:', error)
+
+          // 🔥 수정: 서버 실패 시 개별 삭제 시도
+          if (error.response?.status !== 401) {
+            console.log('🔄 개별 삭제 시도 시작...')
+
+            try {
+              // 먼저 현재 장바구니 상태 확인
+              const cartResponse = await apiClient.get('/api/cart')
+
+              if (cartResponse.data.success && cartResponse.data.data?.cartItems) {
+                const currentCartItems = cartResponse.data.data.cartItems
+
+                // 구매한 상품과 일치하는 장바구니 아이템 찾기
+                for (const productId of productIds) {
+                  const itemToDelete = currentCartItems.find(
+                      cartItem => String(cartItem.productId) === String(productId)
+                  )
+
+                  if (itemToDelete) {
+                    try {
+                      await apiClient.delete(`/api/cart/items/${itemToDelete.cartItemId}`)
+                      console.log(`✅ 상품 ${productId} 개별 삭제 완료`)
+                    } catch (individualError) {
+                      console.error(`❌ 상품 ${productId} 개별 삭제 실패:`, individualError)
+                    }
+                  } else {
+                    console.log(`⚠️ 상품 ${productId}가 장바구니에 없음`)
+                  }
+                }
+              }
+            } catch (fallbackError) {
+              console.error('❌ 개별 삭제도 실패:', fallbackError)
+            }
+          }
+        }
+      } else {
+        console.log('⚠️ 제거할 상품 ID가 없음')
+      }
+    } else {
+      // 게스트 사용자: 로컬 스토리지에서 제거
+      const productIds = purchasedItems
+          .map(item => item.productId || item.id || item.product_id)
+          .filter(Boolean)
+
+      console.log('🔍 게스트 장바구니 정리:', { productIds })
+
+      if (productIds.length > 0) {
+        try {
+          const guestCart = JSON.parse(localStorage.getItem('guestCart') || '[]')
+
+          console.log('🔍 현재 게스트 장바구니:', guestCart)
+
+          const updatedCart = guestCart.filter(cartItem => {
+            const shouldKeep = !productIds.includes(String(cartItem.productId))
+            if (!shouldKeep) {
+              console.log(`🗑️ 게스트 장바구니에서 제거: ${cartItem.productId}`)
+            }
+            return shouldKeep
+          })
+
+          localStorage.setItem('guestCart', JSON.stringify(updatedCart))
+
+          console.log('✅ 게스트 장바구니 정리 완료:', {
+            원래개수: guestCart.length,
+            제거후개수: updatedCart.length,
+            제거된상품수: guestCart.length - updatedCart.length
+          })
+        } catch (error) {
+          console.error('❌ 게스트 장바구니 정리 실패:', error)
+        }
+      }
+    }
+
+    // 🔥 추가: 정리 완료 후 브라우저 스토리지에 마킹
+    sessionStorage.setItem('cart_cleaned_after_payment', 'true')
+    sessionStorage.setItem('last_purchase_cleanup', Date.now().toString())
+
+    console.log('✅ 장바구니 정리 완료')
+
+  } catch (error) {
+    console.error('❌ 장바구니 정리 중 전체 오류:', error)
+    // 장바구니 정리 실패해도 결제는 성공이므로 에러를 throw하지 않음
+  }
+}
 const getPaymentMethodName = (method) => {
   if (method === 'general' && selectedSubPayment.value === 'credit') {
     const typeNames = {
@@ -928,10 +1056,16 @@ const processPayment = async () => {
 
     sessionStorage.setItem('pending_order_data', JSON.stringify(orderData))
 
+    // 수정된 부분: 실제 상품명으로 주문명 생성
+    const orderName = generateOrderName()
+
+    console.log('생성된 주문명:', orderName)
+    console.log('주문 상품들:', orderItems.value)
+
     await initiatePayment({
       orderId: tempOrderId,
       amount: finalAmount.value,
-      orderName: `주문 ${tempOrderId}`,
+      orderName: orderName, // "주문 ORDER123..." 대신 실제 상품명
       userEmail: userInfo.value.email,
       userName: userInfo.value.name,
       userPhone: userInfo.value.phone,

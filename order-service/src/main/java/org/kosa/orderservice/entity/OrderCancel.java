@@ -1,4 +1,4 @@
-package org.kosa.orderservice.dto;
+package org.kosa.orderservice.entity;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "order_cancels")
+@Table(name = "tb_order_cancels")
 @Data
 @Builder
 @NoArgsConstructor

@@ -1,0 +1,11 @@
+spring:
+  cloud:
+    config:
+      server:
+        native:
+          search-locations: file:///C:/Users/fhohf/config-repo
+        # 개발환경에서는 native 사용
+
+logging:
+  level:
+    org.springframework.cloud.config: DEBUG

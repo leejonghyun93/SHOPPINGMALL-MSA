@@ -4,7 +4,6 @@
       <!-- 네비게이션 브레드크럼 -->
       <div class="breadcrumb">
         <button @click="goBack" class="breadcrumb-item">
-          <ArrowLeft class="breadcrumb-icon" />
           주문 내역
         </button>
         <span class="breadcrumb-separator">></span>
@@ -22,7 +21,6 @@
       <!-- 에러 상태 -->
       <div v-else-if="error" class="error-container">
         <div class="error-content">
-          <AlertCircle class="error-icon" />
           <p class="error-message">{{ error }}</p>
           <div class="error-actions">
             <button @click="loadOrderData(route.query.orderId)" class="error-button retry">다시 시도</button>
@@ -36,9 +34,6 @@
         <!-- 주문완료 헤더 -->
         <div class="order-header">
           <div class="success-section">
-            <div class="success-icon">
-              <CheckCircle class="icon" />
-            </div>
             <div class="success-content">
               <h1 class="title">주문 상세 정보</h1>
               <p class="subtitle">주문번호 {{ orderData.orderId }}의 상세 내역입니다.</p>
@@ -57,18 +52,16 @@
             <div class="info-row">
               <span class="label">주문상태</span>
               <span class="value">
-                <!-- 🔥 상태 유틸리티 적용 -->
                 <span class="status-badge" :class="getStatusClass(orderData.orderStatus)">
-                  {{ getStatusIcon(orderData.orderStatus) }} {{ getStatusDisplayName(orderData.orderStatus) }}
+                  {{ getStatusDisplayName(orderData.orderStatus) }}
                 </span>
               </span>
             </div>
           </div>
         </div>
 
-        <!-- 🔥 주문 취소 가능 여부 알림 -->
+        <!-- 주문 취소 가능 여부 알림 -->
         <div v-if="canCancelOrder(orderData.orderStatus)" class="cancel-notice">
-          <Info class="notice-icon" />
           <div class="notice-content">
             <h4 class="notice-title">주문 취소 가능</h4>
             <p class="notice-text">이 주문은 아직 취소할 수 있습니다. 취소 시 결제금액이 환불됩니다.</p>
@@ -78,13 +71,11 @@
         <!-- 주문 상품 -->
         <div class="section">
           <div class="section-header">
-            <Package class="section-icon" />
             <h2 class="section-title">주문상품 ({{ orderData.items?.length || 0 }}개)</h2>
           </div>
           <div class="section-content">
             <!-- 상품이 없을 때 -->
             <div v-if="!orderData.items || orderData.items.length === 0" class="no-items">
-              <Package class="no-items-icon" />
               <p class="no-items-text">주문 상품 정보가 없습니다.</p>
             </div>
 
@@ -118,14 +109,13 @@
         <!-- 주문자 정보 -->
         <div class="section">
           <div class="section-header">
-            <User class="section-icon" />
             <h2 class="section-title">주문자 정보</h2>
           </div>
           <div class="section-content">
             <div class="info-list">
               <div class="info-item">
                 <span class="info-label">주문자</span>
-                <span class="info-value">{{ orderData.userId || '주문자' }}</span>
+                <span class="info-value">{{ orderData.userName || orderData.recipientName || '주문자' }}</span>
               </div>
               <div class="info-item">
                 <span class="info-label">휴대폰</span>
@@ -142,7 +132,6 @@
         <!-- 결제 정보 -->
         <div class="section">
           <div class="section-header">
-            <CreditCard class="section-icon" />
             <h2 class="section-title">결제 정보</h2>
           </div>
           <div class="section-content">
@@ -173,7 +162,7 @@
                 <span class="payment-label">결제수단</span>
                 <span class="payment-value">{{ orderData.paymentMethodName || '카드결제' }}</span>
               </div>
-              <!-- 🔥 결제 ID 정보 (취소 시 필요) -->
+              <!-- 결제 ID 정보 (취소 시 필요) -->
               <div v-if="orderData.paymentId" class="payment-method">
                 <span class="payment-label">결제번호</span>
                 <span class="payment-value payment-id">{{ orderData.paymentId }}</span>
@@ -185,7 +174,6 @@
         <!-- 배송지 정보 -->
         <div class="section">
           <div class="section-header">
-            <MapPin class="section-icon" />
             <h2 class="section-title">배송지 정보</h2>
           </div>
           <div class="section-content">
@@ -216,17 +204,15 @@
         <!-- 액션 버튼 -->
         <div class="action-buttons">
           <button @click="goBack" class="btn btn-secondary">
-            <ArrowLeft class="btn-icon" />
             주문 내역으로
           </button>
 
-          <!-- 🔥 주문 취소 버튼 (조건부 표시) -->
+          <!-- 주문 취소 버튼 (조건부 표시) -->
           <button
               v-if="canCancelOrder(orderData.orderStatus)"
               @click="showCancelModal = true"
               class="btn btn-danger"
           >
-            <X class="btn-icon" />
             주문취소
           </button>
 
@@ -235,31 +221,28 @@
               @click="reorder"
               class="btn btn-primary"
           >
-            <RefreshCw class="btn-icon" />
             재주문하기
           </button>
 
           <button @click="goHome" class="btn btn-outline">
-            <Home class="btn-icon" />
             홈으로
           </button>
         </div>
       </div>
     </div>
 
-    <!-- 🔥 주문 취소 모달 -->
+    <!-- 주문 취소 모달 -->
     <div v-if="showCancelModal" class="modal-overlay" @click="showCancelModal = false">
       <div class="modal-content" @click.stop>
         <div class="modal-header">
           <h3 class="modal-title">주문 취소</h3>
           <button @click="showCancelModal = false" class="modal-close">
-            <X class="close-icon" />
+            ✕
           </button>
         </div>
 
         <div class="modal-body">
           <div class="cancel-warning">
-            <AlertTriangle class="warning-icon" />
             <div class="warning-content">
               <h4 class="warning-title">주문을 취소하시겠습니까?</h4>
               <p class="warning-text">
@@ -319,7 +302,6 @@
               :disabled="cancelLoading"
           >
             <div v-if="cancelLoading" class="btn-spinner"></div>
-            <X v-else class="btn-icon" />
             {{ cancelLoading ? '처리중...' : '주문취소' }}
           </button>
         </div>
@@ -330,25 +312,9 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import {
-  CheckCircle,
-  Package,
-  CreditCard,
-  MapPin,
-  Phone,
-  Calendar,
-  User,
-  ArrowLeft,
-  AlertCircle,
-  RefreshCw,
-  Home,
-  X,
-  Info,
-  AlertTriangle
-} from 'lucide-vue-next'
 import { useRoute, useRouter } from 'vue-router'
 
-// 🔥 상태 유틸리티 import
+// 상태 유틸리티 import
 import {
   getStatusDisplayName,
   getStatusClass,
@@ -367,7 +333,7 @@ const loading = ref(true)
 const error = ref('')
 const paymentId = ref('')
 
-// 🔥 주문 취소 관련 상태
+// 주문 취소 관련 상태
 const showCancelModal = ref(false)
 const cancelLoading = ref(false)
 const cancelReason = ref('')
@@ -408,7 +374,7 @@ const getAuthHeaders = () => {
   return headers
 }
 
-// 🔥 토큰 자동 갱신 함수
+// 토큰 자동 갱신 함수
 const refreshTokenIfNeeded = async () => {
   const token = localStorage.getItem('token')
   if (!token) return false
@@ -471,14 +437,16 @@ const loadOrderData = async (orderId) => {
     if (result.success) {
       orderData.value = result.data
 
-      // 🔥 디버깅: 상태 정보 확인
+      // 디버깅: 상태 정보 확인
       console.log('=== 주문 상세 상태 디버깅 ===')
       console.log(`주문 ${orderData.value.orderId}:`)
       console.log(`  - 원본 상태: "${orderData.value.orderStatus}"`)
       console.log(`  - 표시명: "${getStatusDisplayName(orderData.value.orderStatus)}"`)
       console.log(`  - CSS 클래스: "${getStatusClass(orderData.value.orderStatus)}"`)
       console.log(`  - 취소 가능: ${canCancelOrder(orderData.value.orderStatus)}`)
-      console.log(`  - 아이콘: ${getStatusIcon(orderData.value.orderStatus)}`)
+      console.log(`  - 주문자명: "${orderData.value.userName || orderData.value.recipientName || '정보없음'}"`)
+      console.log(`  - 주문자 휴대폰: "${orderData.value.phone || '정보없음'}"`)
+      console.log(`  - 주문자 이메일: "${orderData.value.email || '정보없음'}"`)
       console.log('===============================')
 
     } else {
@@ -492,7 +460,7 @@ const loadOrderData = async (orderId) => {
   }
 }
 
-// 🔥 주문 취소 실행 (토큰 자동 갱신 포함)
+// 주문 취소 실행 (토큰 자동 갱신 포함)
 const cancelOrderAction = async () => {
   if (!orderData.value) return
 
@@ -608,9 +576,25 @@ const calculateItemTotal = () => {
 
 // 네비게이션 함수들
 const goBack = () => {
-  if (window.history.length > 1) {
-    router.go(-1)
+  const fromPage = route.query.from
+  const wasPaymentComplete = sessionStorage.getItem('payment_completed') === 'true'
+
+  console.log('🔍 네비게이션 정보:', {
+    fromPage,
+    wasPaymentComplete,
+    routeQuery: route.query,
+    currentRoute: route.name
+  })
+
+  //  수정: checkout에서 온 경우 (결제 완료 후)와 mypage에서 온 경우 모두 마이페이지로
+  if (fromPage === 'checkout' || fromPage === 'payment' || fromPage === 'mypage' || wasPaymentComplete) {
+    sessionStorage.removeItem('payment_completed') // 정리
+    router.push({
+      name: 'MyPageOrders',
+      query: { from: 'order-complete' }
+    })
   } else {
+
     router.push({ name: 'MyPageOrders' })
   }
 }
@@ -620,6 +604,7 @@ const goHome = () => {
 }
 
 const goToOrderList = () => {
+  // 명확하게 MyPageOrders로 이동
   router.push({ name: 'MyPageOrders' })
 }
 
@@ -646,7 +631,13 @@ const reorder = () => {
 // 컴포넌트 마운트
 onMounted(async () => {
   const orderId = route.query.orderId
-  paymentId.value = route.query.paymentId || ''
+  const paymentId = route.query.paymentId || ''
+  const amount = route.query.amount || ''
+
+  // 🔥 결제 완료 후 직접 온 경우 마킹 (URL에 paymentId와 amount가 있으면 결제 완료 후)
+  if (paymentId && amount) {
+    sessionStorage.setItem('payment_completed', 'true')
+  }
 
   if (!orderId) {
     error.value = '주문번호가 제공되지 않았습니다.'
@@ -659,7 +650,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-/* 🔥 취소 알림 박스 */
+/* 취소 알림 박스 */
 .cancel-notice {
   display: flex;
   align-items: flex-start;
@@ -669,14 +660,6 @@ onMounted(async () => {
   border-radius: 8px;
   padding: 16px;
   margin-bottom: 1.5rem;
-}
-
-.notice-icon {
-  width: 24px;
-  height: 24px;
-  color: #856404;
-  flex-shrink: 0;
-  margin-top: 2px;
 }
 
 .notice-content {
@@ -697,7 +680,7 @@ onMounted(async () => {
   line-height: 1.4;
 }
 
-/* 🔥 결제 ID 스타일 */
+/* 결제 ID 스타일 */
 .payment-id {
   font-family: monospace;
   font-size: 12px;
@@ -706,7 +689,7 @@ onMounted(async () => {
   border-radius: 4px;
 }
 
-/* 🔥 취소 버튼 스타일 */
+/* 취소 버튼 스타일 */
 .btn-danger {
   background-color: #dc3545;
   color: white;
@@ -724,7 +707,7 @@ onMounted(async () => {
   cursor: not-allowed;
 }
 
-/* 🔥 모달 스타일 */
+/* 모달 스타일 */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -771,23 +754,19 @@ onMounted(async () => {
   padding: 4px;
   border-radius: 4px;
   transition: background-color 0.2s;
+  font-size: 18px;
+  color: #666;
 }
 
 .modal-close:hover {
   background-color: #f8f9fa;
 }
 
-.close-icon {
-  width: 20px;
-  height: 20px;
-  color: #666;
-}
-
 .modal-body {
   padding: 1.5rem;
 }
 
-/* 🔥 취소 경고 */
+/* 취소 경고 */
 .cancel-warning {
   display: flex;
   align-items: flex-start;
@@ -797,13 +776,6 @@ onMounted(async () => {
   border-radius: 8px;
   padding: 16px;
   margin-bottom: 1.5rem;
-}
-
-.warning-icon {
-  width: 24px;
-  height: 24px;
-  color: #856404;
-  flex-shrink: 0;
 }
 
 .warning-content {
@@ -824,7 +796,7 @@ onMounted(async () => {
   line-height: 1.4;
 }
 
-/* 🔥 취소 사유 */
+/* 취소 사유 */
 .cancel-reason {
   margin-bottom: 1.5rem;
 }
@@ -868,7 +840,7 @@ onMounted(async () => {
   font-family: inherit;
 }
 
-/* 🔥 환불 정보 */
+/* 환불 정보 */
 .refund-info {
   background-color: #f8f9fa;
   border-radius: 8px;
@@ -914,7 +886,7 @@ onMounted(async () => {
   justify-content: flex-end;
 }
 
-/* 🔥 버튼 스피너 */
+/* 버튼 스피너 */
 .btn-spinner {
   width: 16px;
   height: 16px;
@@ -960,11 +932,6 @@ onMounted(async () => {
 
 .breadcrumb-item:hover {
   color: #4a0066;
-}
-
-.breadcrumb-icon {
-  width: 16px;
-  height: 16px;
 }
 
 .breadcrumb-separator {
@@ -1013,13 +980,6 @@ onMounted(async () => {
 
 .error-content {
   text-align: center;
-}
-
-.error-icon {
-  width: 3rem;
-  height: 3rem;
-  color: #dc2626;
-  margin: 0 auto 1rem;
 }
 
 .error-message {
@@ -1081,12 +1041,6 @@ onMounted(async () => {
   align-items: center;
   gap: 1rem;
   margin-bottom: 1.5rem;
-}
-
-.success-icon .icon {
-  width: 3rem;
-  height: 3rem;
-  color: #22c55e;
 }
 
 .success-content {
@@ -1203,12 +1157,6 @@ onMounted(async () => {
   background-color: #f9fafb;
 }
 
-.section-icon {
-  width: 20px;
-  height: 20px;
-  color: #5f0080;
-}
-
 .section-title {
   font-size: 1.125rem;
   font-weight: bold;
@@ -1223,13 +1171,6 @@ onMounted(async () => {
 .no-items {
   text-align: center;
   padding: 2rem 0;
-}
-
-.no-items-icon {
-  width: 3rem;
-  height: 3rem;
-  color: #d1d5db;
-  margin: 0 auto 1rem;
 }
 
 .no-items-text {
@@ -1422,11 +1363,6 @@ onMounted(async () => {
   transition: all 0.2s;
   text-decoration: none;
   font-size: 14px;
-}
-
-.btn-icon {
-  width: 16px;
-  height: 16px;
 }
 
 .btn-primary {

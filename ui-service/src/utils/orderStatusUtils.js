@@ -85,34 +85,34 @@ export const canCancelOrder = (status) => {
 }
 
 /**
- * 상태별 아이콘 반환
+ * 상태별 텍스트 표시자 반환 (아이콘 대신)
  * @param {string} status - 상태 코드 (영문/한글)
- * @returns {string} 이모지 아이콘
+ * @returns {string} 상태 텍스트 표시자
  */
 export const getStatusIcon = (status) => {
-    const iconMap = {
-        'PENDING': '⏳',
-        'ORDER_COMPLETED': '✅',
-        'PREPARING': '📦',
-        'PAYMENT_COMPLETED': '💳',
-        'SHIPPING': '🚚',
-        'DELIVERED': '📋',
-        'CANCELLED': '❌',
-        'CANCELLED_BY_WITHDRAWAL': '❌',
-        'RETURNED': '↩️',
+    const textMap = {
+        'PENDING': '대기',
+        'ORDER_COMPLETED': '완료',
+        'PREPARING': '준비',
+        'PAYMENT_COMPLETED': '결제',
+        'SHIPPING': '배송',
+        'DELIVERED': '도착',
+        'CANCELLED': '취소',
+        'CANCELLED_BY_WITHDRAWAL': '취소',
+        'RETURNED': '반품',
 
         // 한글
-        '주문접수': '⏳',
-        '주문완료': '✅',
-        '결제완료': '💳',
-        '배송준비': '📦',
-        '배송중': '🚚',
-        '배송완료': '📋',
-        '주문취소': '❌',
-        '반품완료': '↩️'
+        '주문접수': '대기',
+        '주문완료': '완료',
+        '결제완료': '결제',
+        '배송준비': '준비',
+        '배송중': '배송',
+        '배송완료': '도착',
+        '주문취소': '취소',
+        '반품완료': '반품'
     }
 
-    return iconMap[status] || '📦'
+    return textMap[status] || '상태'
 }
 
 /**

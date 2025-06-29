@@ -1,4 +1,4 @@
-package org.kosa.categoryservice.dto;
+package org.kosa.categoryservice.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -19,7 +19,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString(exclude = {"parentCategory", "subCategories"}) // 순환 참조 방지
+@ToString(exclude = {"parentCategory", "subCategories"})
 public class Category {
 
     @Id
@@ -46,6 +46,9 @@ public class Category {
     @Column(name = "CATEGORY_USE_YN")
     @Builder.Default
     private String categoryUseYn = "Y";
+
+    @Column(name = "category_icon")
+    private String categoryIcon;
 
     @CreationTimestamp
     @Column(name = "CREATED_DATE")

@@ -1,4 +1,4 @@
-package org.kosa.cartservice.dto;
+package org.kosa.cartservice.entity;
 
 import jakarta.persistence.Column;
 

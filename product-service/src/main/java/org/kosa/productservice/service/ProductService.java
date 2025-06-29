@@ -5,10 +5,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.kosa.productservice.client.CategoryServiceClient;
 import org.kosa.productservice.client.ImageServiceClient;
 import org.kosa.productservice.dto.*;
+import org.kosa.productservice.entity.Product;
 import org.kosa.productservice.mapper.ProductRepository;
-import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -34,12 +33,12 @@ public class ProductService {
      * 🔥 상품 상세 조회 - Redis 캐시 적용
      */
     @Cacheable(value = "productDetail", key = "#productId", unless = "#result == null")
-    public ProductDto getProductById(String productId) {
+    public ProductDTO getProductById(String productId) {
         log.info("🔍 DB에서 상품 상세 조회: {}", productId);
 
         Optional<Product> productOpt = productRepository.findByProductIdAndProductStatus(productId, "ACTIVE");
         if (productOpt.isPresent()) {
-            ProductDto dto = convertToDto(productOpt.get());
+            ProductDTO dto = convertToDto(productOpt.get());
 
             // 🔥 try-catch로 이미지 서비스 오류 방지
             try {
@@ -60,7 +59,7 @@ public class ProductService {
      * 🔥 관련 상품 조회 - Redis 캐시 적용
      */
     @Cacheable(value = "relatedProducts", key = "#productId + ':' + #limit")
-    public List<ProductDto> getRelatedProducts(String productId, int limit) {
+    public List<ProductDTO> getRelatedProducts(String productId, int limit) {
         log.info("🔍 DB에서 관련 상품 조회: {}, limit: {}", productId, limit);
 
         Optional<Product> currentProductOpt = productRepository.findByProductIdAndProductStatus(productId, "ACTIVE");
@@ -75,7 +74,7 @@ public class ProductService {
         List<Product> relatedProducts = productRepository.findByCategoryIdAndProductStatusAndProductIdNot(
                 categoryId, "ACTIVE", productId, pageable);
 
-        List<ProductDto> result = relatedProducts.stream()
+        List<ProductDTO> result = relatedProducts.stream()
                 .map(this::convertToDto)
                 .collect(Collectors.toList());
 
@@ -87,14 +86,14 @@ public class ProductService {
      * 🔥 전체 상품 조회 - Redis 캐시 적용
      */
     @Cacheable(value = "productList", key = "'all:' + #limit")
-    public List<ProductDto> getAllProducts(int limit) {
+    public List<ProductDTO> getAllProducts(int limit) {
         try {
             log.info("🔍 DB에서 전체 상품 조회: limit {}", limit);
 
             Pageable pageable = PageRequest.of(0, limit);
             List<Product> products = productRepository.findAllActiveProducts(pageable);
 
-            List<ProductDto> result = convertToDtoList(products);
+            List<ProductDTO> result = convertToDtoList(products);
             log.info("✅ 전체 상품 조회 완료 (캐시 저장): {}개", result.size());
             return result;
         } catch (Exception e) {
@@ -107,7 +106,7 @@ public class ProductService {
      * 🔥 카테고리별 상품 조회 - Redis 캐시 적용 (핵심!)
      */
     @Cacheable(value = "productsByCategory", key = "#categoryId + ':' + #limit")
-    public List<ProductDto> getProductsByCategory(String categoryId, int limit) {
+    public List<ProductDTO> getProductsByCategory(String categoryId, int limit) {
         try {
             log.info("🔍 DB에서 카테고리별 상품 조회 - categoryId: {}, limit: {}", categoryId, limit);
 
@@ -148,7 +147,7 @@ public class ProductService {
                 products = productRepository.findByCategoryIdActive(categoryId, pageable);
             }
 
-            List<ProductDto> result = convertToDtoList(products);
+            List<ProductDTO> result = convertToDtoList(products);
             log.info("✅ 카테고리별 상품 조회 완료 (캐시 저장): {}개", result.size());
             return result;
 
@@ -162,12 +161,12 @@ public class ProductService {
      * 🔥 이미지 포함 전체 상품 조회 - Redis 캐시 적용
      */
     @Cacheable(value = "productList", key = "'withImages:' + #limit")
-    public List<ProductDto> getAllProductsWithImages(int limit) {
+    public List<ProductDTO> getAllProductsWithImages(int limit) {
         log.info("🔍 DB에서 이미지 포함 전체 상품 조회: limit {}", limit);
 
         Pageable pageable = PageRequest.of(0, limit);
         List<Product> products = productRepository.findAllActiveProducts(pageable);
-        List<ProductDto> result = convertToDtoListWithImages(products);
+        List<ProductDTO> result = convertToDtoListWithImages(products);
 
         log.info("✅ 이미지 포함 전체 상품 조회 완료 (캐시 저장): {}개", result.size());
         return result;
@@ -254,7 +253,7 @@ public class ProductService {
 
     // ===== 이미지 처리 메서드들 (변경 없음) =====
 
-    public void attachImagesToProduct(ProductDto product) {
+    public void attachImagesToProduct(ProductDTO product) {
         try {
             ApiResponse<List<ProductImageDto>> imagesResponse = imageServiceClient.getProductImages(product.getProductId());
             if (imagesResponse.isSuccess() && imagesResponse.getData() != null) {
@@ -280,11 +279,11 @@ public class ProductService {
         }
     }
 
-    public void attachMainImagesToProducts(List<ProductDto> products) {
+    public void attachMainImagesToProducts(List<ProductDTO> products) {
         if (products == null || products.isEmpty()) return;
 
         List<String> productIds = products.stream()
-                .map(ProductDto::getProductId)
+                .map(ProductDTO::getProductId)
                 .collect(Collectors.toList());
 
         ApiResponse<Map<String, ProductImageDto>> mainImagesResponse =
@@ -317,9 +316,9 @@ public class ProductService {
         return categoryId.length() == 1 && categoryId.matches("[1-9]");
     }
 
-    private ProductDto convertToDto(Product product) {
+    private ProductDTO convertToDto(Product product) {
         Integer discount = calculateDiscountRate(product.getPrice(), product.getSalePrice());
-        return ProductDto.builder()
+        return ProductDTO.builder()
                 .productId(product.getProductId())
                 .categoryId(product.getCategoryId())
                 .name(product.getName())
@@ -373,7 +372,7 @@ public class ProductService {
                 .build();
     }
 
-    private List<ProductDto> convertToDtoList(List<Product> products) {
+    private List<ProductDTO> convertToDtoList(List<Product> products) {
         return products == null ? new ArrayList<>() :
                 products.stream()
                         .map(this::convertToDto)
@@ -381,8 +380,8 @@ public class ProductService {
                         .collect(Collectors.toList());
     }
 
-    private List<ProductDto> convertToDtoListWithImages(List<Product> products) {
-        List<ProductDto> productDtos = convertToDtoList(products);
+    private List<ProductDTO> convertToDtoListWithImages(List<Product> products) {
+        List<ProductDTO> productDtos = convertToDtoList(products);
         attachMainImagesToProducts(productDtos);
         return productDtos;
     }
@@ -410,7 +409,7 @@ public class ProductService {
         return getDefaultImageUrl();
     }
 
-    private void setDefaultImage(ProductDto product) {
+    private void setDefaultImage(ProductDTO product) {
         String defaultImageUrl = getDefaultImageUrl();
         product.setMainImage(defaultImageUrl);
         product.setImage(defaultImageUrl);
@@ -470,11 +469,11 @@ public class ProductService {
         return Collections.singletonList(imageUrl);
     }
 
-    public void attachAllImagesToProducts(List<ProductDto> products) {
+    public void attachAllImagesToProducts(List<ProductDTO> products) {
         if (products == null || products.isEmpty()) return;
 
         List<String> productIds = products.stream()
-                .map(ProductDto::getProductId)
+                .map(ProductDTO::getProductId)
                 .collect(Collectors.toList());
 
         ApiResponse<Map<String, List<ProductImageDto>>> allImagesResponse =

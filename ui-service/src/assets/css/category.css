@@ -750,3 +750,186 @@
         padding: 15px 10px;
     }
 }
+/* 검색 결과 헤더 */
+.search-results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 2px solid #e9ecef;
+    margin-bottom: 30px;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 12px;
+}
+
+.search-info {
+    flex: 1;
+}
+
+.search-title {
+    margin: 0 0 8px 0;
+    font-size: 24px;
+    font-weight: 700;
+    color: #2c3e50;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.search-icon {
+    font-size: 26px;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+.search-stats {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: #6c757d;
+}
+
+.result-count {
+    font-weight: 600;
+    color: #007bff;
+    font-size: 16px;
+}
+
+.total-count {
+    color: #6c757d;
+}
+
+.search-actions {
+    display: flex;
+    gap: 12px;
+}
+
+/* 검색 결과가 없을 때 스타일 개선 */
+.no-products {
+    text-align: center;
+    padding: 60px 20px;
+    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+    border-radius: 12px;
+    margin: 20px 0;
+}
+
+.no-products-icon {
+    font-size: 64px;
+    margin-bottom: 20px;
+    opacity: 0.7;
+}
+
+.no-products h3 {
+    color: #495057;
+    margin-bottom: 12px;
+    font-size: 20px;
+}
+
+.no-products-details {
+    color: #6c757d;
+    margin-bottom: 24px;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.no-products-actions {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.action-btn {
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.action-btn.primary {
+    background-color: #007bff;
+    color: white;
+}
+
+.action-btn.primary:hover {
+    background-color: #0056b3;
+}
+
+.action-btn.secondary {
+    background-color: #6c757d;
+    color: white;
+}
+
+.action-btn.secondary:hover {
+    background-color: #545b62;
+}
+
+.action-btn.debug {
+    background-color: #28a745;
+    color: white;
+}
+
+.action-btn.debug:hover {
+    background-color: #1e7e34;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+    .search-results-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+    }
+
+    .search-title {
+        font-size: 20px;
+    }
+
+    .search-actions {
+        width: 100%;
+    }
+
+    .search-actions .btn {
+        width: 100%;
+    }
+
+    .no-products-actions {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .action-btn {
+        width: 200px;
+    }
+}
+
+@media (max-width: 576px) {
+    .search-title {
+        font-size: 18px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .search-stats {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+
+    .no-products {
+        padding: 40px 16px;
+    }
+
+    .no-products-icon {
+        font-size: 48px;
+    }
+}

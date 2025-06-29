@@ -1,65 +1,12 @@
 spring:
   application:
-    name: USER-SERVICE
+    name: user-service
+
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
 
   config:
     import: optional:configserver:http://localhost:8888
 
-  rabbitmq:
-    host: localhost
-    port: 5672
-    username: guest
-    password: guest
-
-  # Kafka 설정 추가
-  kafka:
-    bootstrap-servers: localhost:9092
-    producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-      acks: all
-      retries: 3
-      enable-idempotence: true
-    consumer:
-      group-id: user-service-group
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
-      auto-offset-reset: earliest
-      properties:
-        spring.json.trusted.packages: "org.kosa.userservice.dto"
-
-eureka:
-  client:
-    service-url:
-      defaultZone: http://localhost:8761/eureka
-
-management:
-  endpoints:
-    web:
-      exposure:
-        include: ["refresh", "busrefresh", "prometheus", "health", "info"]
-  endpoint:
-    prometheus:
-      enabled: true
-    health:
-      show-details: always
-    metrics:
-      export:
-        prometheus:
-          enabled: true
-      tags:
-        application: ${spring.application.name}
-  security:
-    enabled: false
-
-# 커스텀 Kafka 토픽 설정
-kafka:
-  topic:
-    user-withdrawal: user-withdrawal-topic
-
-# 로깅 설정 (선택사항)
-logging:
-  level:
-    org.kosa.userservice: DEBUG
-    org.springframework.kafka: INFO
-    org.apache.kafka: WARN
+server:
+  port: 8103
