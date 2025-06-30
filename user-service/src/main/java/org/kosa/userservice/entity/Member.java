@@ -44,7 +44,7 @@ public class Member {
 
     @Column(name = "GENDER", length = 1, columnDefinition = "CHAR(1)")
     @Builder.Default
-    private String gender = "U"; // 🔴 기본값 설정
+    private String gender = "U"; //  기본값 설정
 
     @Column(name = "SUCCESSION_YN", length = 1, columnDefinition = "CHAR(1)")
     @Builder.Default
@@ -57,6 +57,9 @@ public class Member {
     @CreationTimestamp
     @Column(name = "CREATED_DATE", nullable = false)
     private LocalDateTime createdDate;
+    @Column(name = "nickname")
+    private String nickname;  //  추가 필요
+
 
     @Column(name = "SESSION_DATE")
     private LocalDateTime sessionDate;
@@ -102,12 +105,12 @@ public class Member {
     @Column(name = "SOCIAL_TYPE", length = 50)
     private String socialType;
 
-    // 🔴 외래키 관계 - 기본 등급 설정 (BRONZE)
+    // 외래키 관계 - 기본 등급 설정 (BRONZE)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "GRADE_ID", foreignKey = @ForeignKey(name = "FK_MEMBER_GRADE"))
     private MemberGrade memberGrade;
 
-    // 🔴 JPA 생명주기 메서드로 기본값 설정
+    // JPA 생명주기 메서드로 기본값 설정
     @PrePersist
     public void prePersist() {
         if (this.createdDate == null) {
@@ -149,7 +152,7 @@ public class Member {
         return "Y".equals(secessionYn);
     }
 
-    // 🔴 기본 등급 설정 메서드
+    // 기본 등급 설정 메서드
     public void setDefaultGrade(MemberGrade defaultGrade) {
         if (this.memberGrade == null) {
             this.memberGrade = defaultGrade;

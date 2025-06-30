@@ -45,14 +45,6 @@ public class CategoryService {
 
         log.debug("메인 카테고리 {}개 조회 완료", result.size());
 
-        // 아이콘 URL 디버깅 로그
-        result.forEach(category -> {
-            log.debug("카테고리: {} | 아이콘: {} | URL: {}",
-                    category.getName(),
-                    category.getCategoryIcon(),
-                    category.getIcon());
-        });
-
         return result;
     }
 
@@ -60,7 +52,7 @@ public class CategoryService {
      * 특정 카테고리의 하위 카테고리 조회 - Redis 캐시 적용
      */
     @Cacheable(value = "categories", key = "'sub:' + #parentCategoryId")
-    public List<CategoryDto> getSubCategories(String parentCategoryId) {
+    public List<CategoryDto> getSubCategories(Integer parentCategoryId) {
 
         List<Category> subCategories = categoryRepository
                 .findByParentCategory_CategoryIdAndCategoryUseYnOrderByCategoryDisplayOrder(parentCategoryId, "Y");
@@ -76,9 +68,9 @@ public class CategoryService {
      * 특정 카테고리의 모든 하위 카테고리 ID 목록 조회 (재귀적) - Redis 캐시 적용
      */
     @Cacheable(value = "categories", key = "'children:' + #parentCategoryId")
-    public List<String> getAllChildrenIds(String parentCategoryId) {
+    public List<Integer> getAllChildrenIds(Integer parentCategoryId) {
 
-        List<String> allChildrenIds = new ArrayList<>();
+        List<Integer> allChildrenIds = new ArrayList<>();
         collectAllChildrenIds(parentCategoryId, allChildrenIds);
 
         return allChildrenIds;
@@ -87,7 +79,7 @@ public class CategoryService {
     /**
      * 재귀적으로 하위 카테고리 ID 수집
      */
-    private void collectAllChildrenIds(String parentCategoryId, List<String> result) {
+    private void collectAllChildrenIds(Integer parentCategoryId, List<Integer> result) {
         List<Category> directChildren = categoryRepository
                 .findByParentCategory_CategoryIdAndCategoryUseYnOrderByCategoryDisplayOrder(parentCategoryId, "Y");
 
@@ -100,7 +92,7 @@ public class CategoryService {
     /**
      * 카테고리 존재 여부 확인 (캐시 없음 - 빠른 조회)
      */
-    public boolean existsCategory(String categoryId) {
+    public boolean existsCategory(Integer categoryId) {
         return categoryRepository.existsById(categoryId);
     }
 
@@ -124,7 +116,7 @@ public class CategoryService {
      * 특정 카테고리 정보 조회 - Redis 캐시 적용
      */
     @Cacheable(value = "categories", key = "'detail:' + #categoryId")
-    public CategoryDto getCategory(String categoryId) {
+    public CategoryDto getCategory(Integer categoryId) {
 
         Category category = categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new IllegalArgumentException("카테고리를 찾을 수 없습니다: " + categoryId));
@@ -139,13 +131,13 @@ public class CategoryService {
     @CacheEvict(value = "categories", allEntries = true)
     @Transactional
     public void evictAllCategoryCache() {
-
+        log.info("모든 카테고리 캐시 무효화");
     }
 
     @CacheEvict(value = "categories", key = "'detail:' + #categoryId")
     @Transactional
-    public void evictCategoryCache(String categoryId) {
-
+    public void evictCategoryCache(Integer categoryId) {
+        log.info("카테고리 {} 캐시 무효화", categoryId);
     }
 
     /**
@@ -162,7 +154,7 @@ public class CategoryService {
         // DB의 categoryIcon 필드 활용
         dto.setCategoryIcon(category.getCategoryIcon());
 
-        // 🔥 수정된 아이콘 URL 생성 로직
+        // 아이콘 URL 생성 로직
         String iconUrl = buildIconUrl(category.getCategoryIcon());
         dto.setIcon(iconUrl);
 
@@ -194,7 +186,7 @@ public class CategoryService {
     }
 
     /**
-     * 🔥 수정된 아이콘 URL 생성 메서드
+     * 아이콘 URL 생성 메서드
      */
     private String buildIconUrl(String categoryIcon) {
         if (categoryIcon == null || categoryIcon.trim().isEmpty()) {

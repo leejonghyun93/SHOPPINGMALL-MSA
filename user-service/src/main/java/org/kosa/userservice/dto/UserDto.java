@@ -20,7 +20,7 @@ public class UserDto {
     private String email;           // EMAIL
     private String phone;           // PHONE
     private String zipcode;         // ZIPCODE
-    private String address;         // ADDRESS
+    private String address;
     private LocalDate birthDate;    // BIRTH_DATE
     private String gender;          // GENDER
     private String successionYn;    // SUCCESSION_YN
@@ -40,6 +40,7 @@ public class UserDto {
     private LocalDate secessionDate;      // SECESSION_DATE
     private String profileImg;            // PROFILE_IMG
     private String socialType;            // SOCIAL_TYPE
+    private String nickname;
 
     // 등급 정보 (조인된 정보)
     private UserGradeDto memberGrade;

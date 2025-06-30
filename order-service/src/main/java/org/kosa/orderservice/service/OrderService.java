@@ -468,13 +468,35 @@ public class OrderService {
         }
     }
 
+    // 🔥 추가된 메서드들 - OrderController에서 사용
+
+    /**
+     * 모든 주문 ID 목록 조회 (디버깅용)
+     */
+    @Transactional(readOnly = true)
     public List<String> getAllOrderIds() {
-        return orderRepository.findAllOrderIds();
+        try {
+            return orderRepository.findAllOrderIds();
+        } catch (Exception e) {
+            log.error("모든 주문 ID 조회 실패: {}", e.getMessage(), e);
+            return List.of(); // 빈 리스트 반환
+        }
     }
 
+    /**
+     * 주문 존재 여부 확인 (디버깅용)
+     */
+    @Transactional(readOnly = true)
     public boolean orderExists(String orderId) {
-        return orderRepository.existsById(orderId);
+        try {
+            return orderRepository.existsById(orderId);
+        } catch (Exception e) {
+            log.error("주문 존재 여부 확인 실패: orderId={}, error={}", orderId, e.getMessage());
+            return false;
+        }
     }
+
+    // 🔥 Helper Methods
 
     private String getDefaultValue(String value, String defaultValue) {
         return (value != null && !value.trim().isEmpty()) ? value : defaultValue;

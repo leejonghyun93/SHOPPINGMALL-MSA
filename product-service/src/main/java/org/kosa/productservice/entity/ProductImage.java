@@ -15,11 +15,12 @@ import java.time.LocalDateTime;
 public class ProductImage {
 
     @Id
-    @Column(name = "IMAGE_ID", length = 50)
-    private String imageId;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "IMAGE_ID")
+    private Integer imageId;  // int(11) AUTO_INCREMENT로 변경
 
-    @Column(name = "PRODUCT_ID", nullable = false, length = 50)
-    private String productId;
+    @Column(name = "PRODUCT_ID")
+    private Integer productId;  // int(11)로 변경
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "PRODUCT_ID", insertable = false, updatable = false)
@@ -55,5 +56,14 @@ public class ProductImage {
     @Column(name = "UPDATED_DATE")
     private LocalDateTime updatedDate;
 
+    @PrePersist
+    protected void onCreate() {
+        createdDate = LocalDateTime.now();
+        updatedDate = LocalDateTime.now();
+    }
 
+    @PreUpdate
+    protected void onUpdate() {
+        updatedDate = LocalDateTime.now();
+    }
 }

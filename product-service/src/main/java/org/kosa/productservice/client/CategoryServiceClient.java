@@ -23,33 +23,33 @@ public class CategoryServiceClient {
     }
 
     /**
-     * 🔥 메인 카테고리의 하위 카테고리 ID 목록 조회
+     * 메인 카테고리의 하위 카테고리 ID 목록 조회 (Integer 타입으로 변경)
      */
-    public List<String> getChildrenCategoryIds(String parentCategoryId) {
+    public List<Integer> getChildrenCategoryIds(Integer parentCategoryId) {
         try {
             String url = categoryServiceUrl + "/api/categories/" + parentCategoryId + "/children-ids";
-            log.info("🔍 카테고리 서비스 호출: {}", url);
+            log.info("카테고리 서비스 호출: {}", url);
 
-            ResponseEntity<List<String>> response = restTemplate.exchange(
+            ResponseEntity<List<Integer>> response = restTemplate.exchange(
                     url,
                     HttpMethod.GET,
                     null,
-                    new ParameterizedTypeReference<List<String>>() {}
+                    new ParameterizedTypeReference<List<Integer>>() {}
             );
 
-            List<String> childrenIds = response.getBody();
-            log.info("✅ 하위 카테고리 ID 목록: {}", childrenIds);
+            List<Integer> childrenIds = response.getBody();
+            log.info("하위 카테고리 ID 목록: {}", childrenIds);
             return childrenIds != null ? childrenIds : new ArrayList<>();
         } catch (Exception e) {
-            log.error("❌ 카테고리 서비스 호출 실패:", e);
+            log.error("카테고리 서비스 호출 실패:", e);
             return new ArrayList<>();
         }
     }
 
     /**
-     * 카테고리 존재 여부 확인
+     * 카테고리 존재 여부 확인 (Integer 타입으로 변경)
      */
-    public boolean categoryExists(String categoryId) {
+    public boolean categoryExists(Integer categoryId) {
         try {
             String url = categoryServiceUrl + "/api/categories/" + categoryId + "/exists";
             ResponseEntity<Boolean> response = restTemplate.getForEntity(url, Boolean.class);

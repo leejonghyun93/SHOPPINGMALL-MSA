@@ -14,15 +14,15 @@
             <div class="benefit-cards">
               <div class="benefit-card">
                 <div class="benefit-label">적립금</div>
-                <div class="benefit-value">{{ (points || 0).toLocaleString() }}<span class="unit">원</span></div>
+                <div class="benefit-value">{{ (availablePoints || 0).toLocaleString() }}<span class="unit">원</span></div>
               </div>
               <div class="benefit-card">
                 <div class="benefit-label">할인쿠폰</div>
-                <div class="benefit-value">{{ giftCards || 0 }}<span class="unit">원</span></div>
+                <div class="benefit-value">{{ availableCoupons || 0 }}<span class="unit">개</span></div>
               </div>
               <div class="benefit-card">
                 <div class="benefit-label">상품권</div>
-                <div class="benefit-value">{{ coupons || 0 }}<span class="unit">원</span></div>
+                <div class="benefit-value">{{ giftCards || 0 }}<span class="unit">원</span></div>
               </div>
             </div>
 
@@ -49,7 +49,7 @@
                 </div>
                 <div class="menu-info">
                   <div class="menu-name">주문 내역</div>
-                  <div class="menu-count">{{ orderCount || 0 }}</div>
+                  <div class="menu-count">{{ totalOrders || 0 }}</div>
                 </div>
               </div>
 
@@ -66,7 +66,7 @@
                 </div>
                 <div class="menu-info">
                   <div class="menu-name">쿠폰</div>
-                  <div class="menu-count">{{ coupons || 0 }}</div>
+                  <div class="menu-count">{{ availableCoupons || 0 }}</div>
                 </div>
               </div>
 
@@ -149,12 +149,11 @@
   </div>
 </template>
 
-// 수정된 마이페이지 스크립트 - 공통 apiClient 사용
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { user, setUserFromToken } from '@/stores/userStore'
-import apiClient from '@/api/axiosInstance' //  공통 apiClient 임포트
+import apiClient from '@/api/axiosInstance'
 
 const route = useRoute()
 const router = useRouter()
@@ -181,11 +180,11 @@ const activeTab = computed(() => {
   return tabNameMap[route.name] || 'orders'
 })
 
-// 사이드바에 표시할 정보
-const points = ref(0)
-const coupons = ref(0)
+// 🔥 사이드바에 표시할 정보 - 변수명 수정
+const availablePoints = ref(0)
+const availableCoupons = ref(0)
 const giftCards = ref(0)
-const orderCount = ref(0)
+const totalOrders = ref(0)
 
 // 탭 네비게이션
 const navigateToTab = (tabName) => {
@@ -194,7 +193,6 @@ const navigateToTab = (tabName) => {
     'profile': 'MyPageProfile',
     'coupons': 'MyPageCoupons',
     'wishlist': 'MyPageWishlist',
-    'frequent': 'MyPageFrequent',
     'returns': 'MyPageReturns',
     'reviews': 'MyPageReviews',
     'inquiries': 'MyPageInquiries',
@@ -209,48 +207,25 @@ const navigateToTab = (tabName) => {
 
 // 자식 컴포넌트에서 카운트 업데이트
 const updateCounts = (data) => {
-  if (data.orderCount !== undefined) orderCount.value = data.orderCount
-  if (data.coupons !== undefined) coupons.value = data.coupons
+  if (data.orderCount !== undefined) totalOrders.value = data.orderCount
+  if (data.coupons !== undefined) availableCoupons.value = data.coupons
   if (data.giftCards !== undefined) giftCards.value = data.giftCards
 }
 
-//  공통 apiClient를 사용한 사용자 추가 정보 가져오기
-//  사용자 추가 정보 로딩 (포인트, 쿠폰 등)
+// 🔥 사용자 추가 정보 로딩 함수 수정
 const fetchUserExtraInfo = async () => {
-
-  // 각 API를 개별적으로 호출하여 일부 실패해도 다른 정보는 로드되도록
   const apiCalls = [
-    {
-      name: '포인트 정보',
-      call: () => apiClient.get('/api/users/points'),
-      onSuccess: (response) => {
-        if (response.data.success) {
-          availablePoints.value = response.data.data || 0
-        }
-      }
-    },
-    {
-      name: '쿠폰 정보',
-      call: () => apiClient.get('/api/users/coupons'),
-      onSuccess: (response) => {
-        if (response.data.success) {
-          availableCoupons.value = response.data.data?.length || 0
-
-        }
-      }
-    },
     {
       name: '주문 개수',
       call: () => apiClient.get('/api/orders/count'),
       onSuccess: (response) => {
         if (response.data.success) {
-          totalOrders.value = response.data.data || 0
+          totalOrders.value = response.data.data?.count || 0
         }
       }
     }
   ]
 
-  // 각 API를 병렬로 호출하되 실패해도 다른 API는 계속 실행
   const results = await Promise.allSettled(
       apiCalls.map(async (api) => {
         try {
@@ -258,22 +233,22 @@ const fetchUserExtraInfo = async () => {
           api.onSuccess(response)
           return { name: api.name, success: true }
         } catch (error) {
+          console.warn(`${api.name} 로드 실패:`, error.message)
           return { name: api.name, success: false, error: error.message }
         }
       })
   )
 
-  // 로드 결과 요약
   const successCount = results.filter(r => r.value?.success).length
   const totalCount = results.length
 
-  // 일부 실패한 경우 사용자에게 알림 (선택적)
   if (successCount < totalCount) {
     const failedApis = results
         .filter(r => !r.value?.success)
         .map(r => r.value?.name)
         .join(', ')
 
+    console.warn(`일부 데이터 로드 실패: ${failedApis}`)
   }
 }
 
@@ -310,15 +285,19 @@ const isTokenValid = (token) => {
 
 // 마운트 시 처리
 onMounted(async () => {
+  console.log('🔍 MyPage 마운트 시작')
+  console.log('현재 라우트:', route.name, route.path)
 
   const token = localStorage.getItem('token')
 
   if (!token) {
+    console.warn('토큰이 없음 - 로그인 페이지로 이동')
     router.push('/login')
     return
   }
 
   if (!isTokenValid(token)) {
+    console.warn('토큰이 유효하지 않음 - 로그인 페이지로 이동')
     localStorage.removeItem('token')
     router.push('/login')
     return
@@ -327,339 +306,25 @@ onMounted(async () => {
   // userStore에서 사용자 정보 설정
   try {
     setUserFromToken(token)
+    console.log('✅ 사용자 정보 설정 완료')
   } catch (error) {
+    console.error('사용자 정보 설정 실패:', error)
     localStorage.removeItem('token')
     router.push('/login')
     return
   }
 
+  // 추가 사용자 정보 로드
   await fetchUserExtraInfo()
 
-  // 기본 라우트가 없으면 주문 내역으로 리다이렉트
-  if (route.name === 'mypage') {
-    router.replace({ name: 'MyPageOrders' })
-  }
+  // // 🔥 기본 라우트가 /mypage 인 경우 주문 내역으로 리다이렉트
+  // if (route.path === '/mypage') {
+  //   console.log('기본 경로 접근 - 주문 내역으로 리다이렉트')
+  //   router.replace('/mypage/orders')
+  // }
 
+  console.log('✅ MyPage 초기화 완료')
 })
 </script>
 
-<style scoped>
-/* 기본 컨테이너 */
-.mypage-container {
-  background-color: #f8f9fa;
-  padding: 20px 0;
-  min-height: 100vh;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Malgun Gothic', sans-serif;
-}
-
-.container-fluid {
-  height: 100%;
-}
-
-.row {
-  min-height: calc(100vh - 40px);
-}
-
-/* 사이드바 */
-.sidebar {
-  padding: 0;
-  padding-right: 15px;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-/* 사용자 정보 섹션 */
-.user-info-section {
-  background-color: white;
-  padding: 24px 20px;
-  border-radius: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
-
-.welcome-text {
-  font-size: 18px;
-  margin-bottom: 20px;
-  color: #333;
-  font-weight: 600;
-  line-height: 1.4;
-}
-
-.username {
-  color: #5d5fef;
-  font-weight: 700;
-}
-
-/* 혜택 카드들 */
-.benefit-cards {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 20px;
-}
-
-.benefit-card {
-  flex: 1;
-  background-color: #f8f9fc;
-  padding: 16px 12px;
-  border-radius: 12px;
-  text-align: center;
-  border: 1px solid #e9ecef;
-}
-
-.benefit-label {
-  font-size: 11px;
-  color: #6c757d;
-  margin-bottom: 8px;
-  font-weight: 500;
-}
-
-.benefit-value {
-  font-size: 18px;
-  font-weight: 700;
-  color: #212529;
-  line-height: 1;
-}
-
-.benefit-value .unit {
-  font-size: 12px;
-  font-weight: 500;
-  color: #6c757d;
-  margin-left: 2px;
-}
-
-/* 혜택 버튼 */
-.benefit-button {
-  width: 100%;
-  background: linear-gradient(135deg, #e3f2fd, #f3e5f5);
-  border: none;
-  border-radius: 12px;
-  padding: 16px;
-  font-size: 13px;
-  font-weight: 500;
-  color: #5d5fef;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.benefit-button:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(93, 95, 239, 0.15);
-}
-
-/* 메뉴 섹션 */
-.menu-section {
-  background-color: white;
-  border-radius: 16px;
-  padding: 24px 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  flex: 1;
-}
-
-.menu-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #212529;
-  margin-bottom: 20px;
-}
-
-/* 메뉴 아이템들 */
-.menu-items {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-bottom: 24px;
-}
-
-.menu-item {
-  display: flex;
-  align-items: center;
-  padding: 16px 12px;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.menu-item:hover {
-  background-color: #f8f9fa;
-}
-
-.menu-item.active {
-  background-color: #e3f2fd;
-}
-
-/* 메뉴 아이콘 스타일 */
-.menu-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-right: 12px;
-}
-
-.svg-icon {
-  width: 20px;
-  height: 20px;
-}
-
-/* 각 메뉴별 아이콘 배경색 */
-.orders-icon {
-  background-color: #e3f2fd;
-}
-
-.coupons-icon {
-  background-color: #f3e5f5;
-}
-
-.wishlist-icon {
-  background-color: #ffebee;
-}
-
-.frequent-icon {
-  background-color: #e8f5e8;
-}
-
-.menu-info {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.menu-name {
-  font-size: 14px;
-  font-weight: 500;
-  color: #212529;
-}
-
-.menu-count {
-  font-size: 16px;
-  font-weight: 700;
-  color: #212529;
-}
-
-/* 배너 섹션 */
-.banner-section {
-  margin-bottom: 24px;
-}
-
-.banner-content {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 16px;
-  padding: 20px;
-  position: relative;
-  overflow: hidden;
-}
-
-.banner-text {
-  color: white;
-  margin-bottom: 12px;
-}
-
-.banner-main {
-  font-size: 13px;
-  font-weight: 600;
-  margin-bottom: 4px;
-  line-height: 1.3;
-}
-
-.banner-sub {
-  font-size: 11px;
-  opacity: 0.9;
-  line-height: 1.3;
-}
-
-.banner-badge {
-  position: absolute;
-  top: 16px;
-  right: 60px;
-  background-color: white;
-  color: #667eea;
-  font-size: 14px;
-  font-weight: 700;
-  padding: 4px 8px;
-  border-radius: 6px;
-}
-
-.banner-discount {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  background-color: #ff4757;
-  color: white;
-  font-size: 12px;
-  font-weight: 700;
-  padding: 4px 6px;
-  border-radius: 4px;
-}
-
-/* 하단 링크 섹션 */
-.bottom-links {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.link-section {
-  border-bottom: 1px solid #f1f3f4;
-  padding-bottom: 16px;
-}
-
-.link-section:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.section-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: #6c757d;
-  margin-bottom: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.link-item {
-  padding: 8px 0;
-  font-size: 13px;
-  color: #495057;
-  cursor: pointer;
-  transition: color 0.2s;
-  line-height: 1.4;
-}
-
-.link-item:hover,
-.link-item.active {
-  color: #5d5fef;
-  font-weight: 500;
-}
-
-/* 메인 컨텐츠 */
-.main-content {
-  background-color: transparent;
-  padding: 0;
-  overflow: visible;
-  height: 100%;
-}
-
-/* 반응형 */
-@media (max-width: 768px) {
-  .sidebar {
-    margin-bottom: 20px;
-  }
-
-  .benefit-cards {
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .main-content {
-    margin-left: 0;
-  }
-}
-</style>
+<style scoped src="@/assets/css/myPage.css"></style>

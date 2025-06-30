@@ -7,7 +7,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CheckoutItemDTO {
-    private String productId;
+    private Integer  productId;
     private String productName;
     private Integer quantity;
     private Integer unitPrice;

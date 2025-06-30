@@ -18,38 +18,39 @@ import java.util.List;
 public class Product {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "PRODUCT_ID")
-    private String productId;
+    private Integer productId;  // int(11) AUTO_INCREMENT
 
-    @Column(name = "CATEGORY_ID", nullable = false)
-    private String categoryId;
+    @Column(name = "category_id")
+    private Integer categoryId;
 
-    @Column(name = "NAME", nullable = false)
+    @Column(name = "NAME", nullable = false, length = 200)
     private String name;
 
     @Column(name = "PRICE", nullable = false)
     private Integer price;
 
-    @Column(name = "SALE_PRICE")
+    @Column(name = "SALE_PRICE", nullable = false)
     private Integer salePrice;
 
-    @Column(name = "PRODUCT_DESCRIPTION")
+    @Column(name = "PRODUCT_DESCRIPTION", columnDefinition = "MEDIUMTEXT")
     private String productDescription;
 
-    @Column(name = "PRODUCT_SHORT_DESCRIPTION")
+    @Column(name = "PRODUCT_SHORT_DESCRIPTION", length = 500)
     private String productShortDescription;
 
-    @Column(name = "PRODUCT_STATUS")
-    private String productStatus;
+    @Column(name = "PRODUCT_STATUS", nullable = false, length = 20)
+    @Builder.Default
+    private String productStatus = "ACTIVE";
 
-    @Column(name = "PRODUCT_SALES_COUNT")
-    private Integer productSalesCount;
-
-    @Column(name = "PRODUCT_RATING")
-    private BigDecimal productRating;
+    @Column(name = "PRODUCT_RATING", precision = 3, scale = 2)
+    @Builder.Default
+    private BigDecimal productRating = BigDecimal.valueOf(0.00);
 
     @Column(name = "PRODUCT_REVIEW_COUNT")
-    private Integer productReviewCount;
+    @Builder.Default
+    private Integer productReviewCount = 0;
 
     @Column(name = "CREATED_DATE")
     private LocalDateTime createdDate;
@@ -57,19 +58,37 @@ public class Product {
     @Column(name = "UPDATED_DATE")
     private LocalDateTime updatedDate;
 
-    @Column(name = "START_DATE")
-    private LocalDateTime startDate;
-
-    @Column(name = "END_DATE")
-    private LocalDateTime endDate;
-
-    @Column(name = "MAIN_IMAGE")
+    @Column(name = "MAIN_IMAGE", length = 500)
     private String mainImage;
 
     @Column(name = "VIEW_COUNT")
-    private Integer viewCount;
+    @Builder.Default
+    private Integer viewCount = 0;
 
-    // 상품 이미지들
+    @Column(name = "STOCK")
+    @Builder.Default
+    private Integer stock = 0;
+
+    @Column(name = "HOST_ID", nullable = false)
+    private Long hostId;
+
+    @Column(name = "display_yn", nullable = false, length = 1, columnDefinition = "CHAR(1)")
+    @Builder.Default
+    private String displayYn = "Y";
+
+    // 상품 이미지들 (ProductImage 엔티티가 있는 경우)
     @OneToMany(mappedBy = "product", fetch = FetchType.LAZY)
+    @Builder.Default
     private List<ProductImage> productImages = new ArrayList<>();
+
+    @PrePersist
+    protected void onCreate() {
+        createdDate = LocalDateTime.now();
+        updatedDate = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedDate = LocalDateTime.now();
+    }
 }

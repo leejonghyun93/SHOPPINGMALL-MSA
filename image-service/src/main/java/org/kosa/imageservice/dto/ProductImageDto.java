@@ -13,8 +13,8 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ProductImageDto {
-    private String imageId;
-    private String productId;
+    private int imageId;
+    private Integer productId;
     private String imageUrl;
     private String fileName;
     private Long fileSize;

@@ -22,19 +22,19 @@ public class ProductImageController {
     }
 
     @GetMapping("/{productId}")
-    public ResponseEntity<List<ProductImage>> getImages(@PathVariable String productId) {
+    public ResponseEntity<List<ProductImage>> getImages(@PathVariable Integer productId) {
         return ResponseEntity.ok(imageService.getImagesByProductId(productId));
     }
 
     @GetMapping("/{productId}/main")
-    public ResponseEntity<ProductImage> getMainImage(@PathVariable String productId) {
+    public ResponseEntity<ProductImage> getMainImage(@PathVariable Integer productId) {
         return imageService.getMainImage(productId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @DeleteMapping("/{imageId}")
-    public ResponseEntity<Void> deleteImage(@PathVariable String imageId) {
+    public ResponseEntity<Void> deleteImage(@PathVariable Integer imageId) {
         imageService.deleteImage(imageId);
         return ResponseEntity.ok().build();
     }

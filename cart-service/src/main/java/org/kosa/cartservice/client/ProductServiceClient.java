@@ -9,5 +9,5 @@ import org.springframework.web.bind.annotation.PathVariable;
 public interface ProductServiceClient {
 
     @GetMapping("/api/products/{productId}")
-    ProductDTO getProduct(@PathVariable("productId") String productId);
+    ProductDTO getProduct(@PathVariable("productId") Integer productId);
 }

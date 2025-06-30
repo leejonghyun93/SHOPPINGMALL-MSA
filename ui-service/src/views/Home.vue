@@ -232,8 +232,8 @@
           <!-- 가격 정보 -->
           <div class="product-pricing">
             <div v-if="product.discountRate && product.discountRate > 0" class="discount-info">
-              <span class="discount-rate">{{ product.discountRate }}%</span>
-              <span class="original-price">{{ formatPrice(product.price) }}원</span>
+<!--              <span class="discount-rate">{{ product.discountRate }}%</span>-->
+<!--              <span class="original-price">{{ formatPrice(product.price) }}원</span>-->
             </div>
             <div class="final-price">
               {{ formatPrice(product.salePrice || product.price) }}원

@@ -1,6 +1,5 @@
 package org.kosa.orderservice.mapper;
 
-
 import org.kosa.orderservice.entity.OrderItem;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -19,12 +18,12 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, String> {
     @Query("SELECT oi FROM OrderItem oi WHERE oi.orderId = :orderId ORDER BY oi.createdDate")
     List<OrderItem> findByOrderIdOrderByCreatedDate(@Param("orderId") String orderId);
 
-    // 🔧 추가: 생성일 오름차순 정렬
+    // 생성일 오름차순 정렬
     @Query("SELECT oi FROM OrderItem oi WHERE oi.orderId = :orderId ORDER BY oi.createdDate ASC")
     List<OrderItem> findByOrderIdOrderByCreatedDateAsc(@Param("orderId") String orderId);
 
-    // 상품별 주문 상품 조회
-    List<OrderItem> findByProductId(String productId);
+    // 상품별 주문 상품 조회 - 타입 변경
+    List<OrderItem> findByProductId(Integer productId);  // String → Integer
 
     // 상태별 주문 상품 조회
     List<OrderItem> findByStatus(String status);

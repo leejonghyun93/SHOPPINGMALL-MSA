@@ -107,27 +107,33 @@
 
               <!-- 주문 상품들 -->
               <div class="order-content">
+                <!-- 🔥 안전한 상품 아이템 렌더링 -->
                 <div
-                    v-for="(item, index) in order.items"
-                    :key="item.productId"
+                    v-for="(item, index) in (order.items || [])"
+                    :key="`${item.productId || index}-${index}`"
                     class="product-item"
                     @click="viewOrderDetail(order.orderId)"
                 >
                   <img
-                      :src="item.imageUrl || '/api/placeholder/60/60'"
-                      :alt="item.productName"
+                      :src="getProductImage(item)"
+                      :alt="getProductName(item)"
                       class="product-image"
                   />
                   <div class="product-details">
-                    <div class="product-name">{{ item.productName }}</div>
+                    <div class="product-name">{{ getProductName(item) }}</div>
                     <div class="product-info">
-                      <span class="product-price">{{ formatPrice(item.totalPrice) }}원</span>
-                      <span class="product-quantity">{{ item.quantity }}개</span>
+                      <span class="product-price">{{ formatPrice(getProductPrice(item)) }}원</span>
+                      <span class="product-quantity">{{ getProductQuantity(item) }}개</span>
                     </div>
                   </div>
                   <div class="product-actions">
                     <span class="cart-icon">🛒</span>
                   </div>
+                </div>
+
+                <!-- 주문 상품이 없는 경우 -->
+                <div v-if="!order.items || order.items.length === 0" class="no-items">
+                  <p>주문 상품 정보가 없습니다.</p>
                 </div>
 
                 <!-- 주문 총액 표시 -->
@@ -148,6 +154,7 @@
                   <button
                       @click="reorder(order.items)"
                       class="action-button reorder-btn"
+                      :disabled="!order.items || order.items.length === 0"
                   >
                     <RefreshCw class="btn-icon" />
                     재주문
@@ -282,66 +289,14 @@ const getAuthHeaders = () => {
   return headers
 }
 
-// 토큰 자동 갱신 함수
-const refreshTokenIfNeeded = async () => {
-  const token = localStorage.getItem('token')
-  const userId = localStorage.getItem('userId')
-
-  if (!token || token === 'null' || token === 'undefined') {
-    return false
-  }
-
-  try {
-    // Bearer 접두사 확인 및 정리
-    const cleanToken = token.startsWith('Bearer ') ? token.substring(7) : token
-
-    const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${cleanToken}`
-      }
-    })
-
-    // 응답 본문 읽기
-    const responseText = await response.text()
-
-    if (response.ok) {
-      let result
-      try {
-        result = JSON.parse(responseText)
-      } catch (parseError) {
-        return false
-      }
-
-      if (result.success && result.token) {
-        // 새 토큰 저장
-        localStorage.setItem('token', result.token)
-
-        // 사용자 정보도 업데이트
-        if (result.userId) localStorage.setItem('userId', result.userId)
-        if (result.username) localStorage.setItem('username', result.username)
-
-        return true
-      } else {
-        return false
-      }
-    } else {
-      return false
-    }
-
-  } catch (error) {
-    return false
-  }
-}
-
-// 주문 목록 로드
+// 🔥 누락된 loadOrders 함수 추가
 const loadOrders = async () => {
   try {
     loading.value = true
     error.value = ''
 
     const userId = localStorage.getItem('userId') || 'guest'
+    console.log('🔍 주문 목록 조회 시작:', userId)
 
     const url = `${API_BASE_URL}/api/orders/list?userId=${userId}`
 
@@ -350,27 +305,46 @@ const loadOrders = async () => {
       headers: getAuthHeaders()
     })
 
+    console.log('📡 API 응답 상태:', response.status)
+
     if (!response.ok) {
       throw new Error(`주문 목록을 불러올 수 없습니다. (${response.status})`)
     }
 
     const result = await response.json()
+    console.log('📦 백엔드 응답 데이터:', result)
 
     if (result.success) {
-      // 백엔드에서 받은 데이터를 프론트엔드 형식에 맞게 변환
-      orders.value = (result.data || []).map(order => ({
-        orderId: order.orderId,
-        orderDate: order.orderDate,
-        orderStatus: order.orderStatus,
-        totalPrice: order.totalPrice,
-        // OrderDTO의 items 구조에 맞게 매핑
-        items: order.orderItems || order.items || []
-      }))
+      // 🔥 백엔드 데이터 구조에 맞게 정확한 매핑
+      orders.value = (result.data || []).map(order => {
+        console.log('🔧 주문 변환 중:', order.orderId)
+        console.log('📋 주문 아이템들:', order.items)
+
+        return {
+          orderId: order.orderId,
+          orderDate: order.orderDate,
+          orderStatus: order.orderStatus,
+          totalPrice: order.totalPrice,
+          paymentId: order.paymentId, // 취소 시 필요
+          // 🔥 OrderDTO의 items 필드 매핑
+          items: (order.items || []).map(item => ({
+            productId: item.productId,
+            // 🔥 백엔드에서 name 필드를 productName으로 매핑
+            productName: item.name || item.productName || '상품명 없음',
+            quantity: item.quantity || 1,
+            totalPrice: item.totalPrice || 0,
+            imageUrl: item.imageUrl || '/api/placeholder/60/60'
+          }))
+        }
+      })
+
+      console.log('✅ 변환된 주문 데이터:', orders.value)
 
     } else {
       throw new Error(result.message || '주문 목록을 불러오는데 실패했습니다.')
     }
   } catch (err) {
+    console.error('❌ 주문 목록 로드 실패:', err)
     error.value = err.message || '주문 목록을 불러오는 중 오류가 발생했습니다.'
   } finally {
     loading.value = false
@@ -394,12 +368,19 @@ const filteredOrders = computed(() => {
     })
   }
 
-  // 검색 필터링
+  // 🔥 검색 필터링 수정 (안전한 접근)
   if (searchQuery.value) {
+    const searchTerm = searchQuery.value.toLowerCase()
     filtered = filtered.filter(order => {
-      return order.items.some(item =>
-          item.productName.toLowerCase().includes(searchQuery.value.toLowerCase())
-      )
+      // items 배열이 존재하고 비어있지 않은지 확인
+      if (!order.items || !Array.isArray(order.items)) {
+        return false
+      }
+
+      return order.items.some(item => {
+        const productName = item.productName || item.name || ''
+        return productName.toLowerCase().includes(searchTerm)
+      })
     })
   }
 
@@ -426,6 +407,23 @@ const displayPages = computed(() => {
   }
   return pages
 })
+
+// 🔥 안전한 접근자 함수들
+const getProductName = (item) => {
+  return item.productName || item.name || '상품명 없음'
+}
+
+const getProductPrice = (item) => {
+  return item.totalPrice || item.price || 0
+}
+
+const getProductQuantity = (item) => {
+  return item.quantity || 1
+}
+
+const getProductImage = (item) => {
+  return item.imageUrl || item.image || '/api/placeholder/60/60'
+}
 
 // 페이지 이동 - 스크롤을 주문 목록 컨테이너 맨 위로
 const goToPage = (page) => {
@@ -516,7 +514,7 @@ const formatPrice = (price) => {
   return price.toLocaleString()
 }
 
-// 주문 취소 (토큰 자동 갱신 포함)
+// 주문 취소
 const cancelOrder = async (orderId) => {
   try {
     // 1. 기본 인증 확인
@@ -559,43 +557,17 @@ const cancelOrder = async (orderId) => {
       paymentId: order.paymentId || null
     }
 
-    // 6. 첫 번째 API 호출
-    let response = await fetch(`${API_BASE_URL}/api/orders/${orderId}/cancel`, {
+    // 6. API 호출
+    const response = await fetch(`${API_BASE_URL}/api/orders/${orderId}/cancel`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(cancelData)
     })
 
-    // 7. 401 오류시 토큰 갱신 후 재시도
-    if (response.status === 401) {
-      const refreshed = await refreshTokenIfNeeded()
-      if (refreshed) {
-        // 토큰 갱신 성공, 다시 요청
-        response = await fetch(`${API_BASE_URL}/api/orders/${orderId}/cancel`, {
-          method: 'POST',
-          headers: getAuthHeaders(), // 새로운 토큰으로 헤더 재생성
-          body: JSON.stringify(cancelData)
-        })
-      } else {
-        // 토큰 갱신 실패
-        alert('로그인이 만료되었습니다. 다시 로그인해주세요.')
-        localStorage.removeItem('token')
-        localStorage.removeItem('userId')
-        router.push('/login')
-        return
-      }
-    }
-
-    // 8. 다른 오류 처리
-    if (response.status === 403) {
-      alert('이 작업을 수행할 권한이 없습니다.')
-      return
-    }
-
-    // 9. 응답 본문 처리
+    // 7. 응답 처리
     const responseText = await response.text()
-
     let result
+
     if (responseText) {
       try {
         result = JSON.parse(responseText)
@@ -606,7 +578,6 @@ const cancelOrder = async (orderId) => {
       throw new Error(`서버에서 빈 응답: ${response.status}`)
     }
 
-    // 10. 성공 처리
     if (response.ok && result.success) {
       alert('주문이 성공적으로 취소되었습니다.\n환불은 영업일 기준 3-5일 소요됩니다.')
       await loadOrders() // 주문 목록 새로고침
@@ -621,7 +592,17 @@ const cancelOrder = async (orderId) => {
 
 // 재주문
 const reorder = (items) => {
-  const productIds = items.map(item => item.productId)
+  if (!items || items.length === 0) {
+    alert('재주문할 상품이 없습니다.')
+    return
+  }
+
+  const productIds = items.map(item => item.productId).filter(id => id)
+  if (productIds.length === 0) {
+    alert('유효한 상품이 없습니다.')
+    return
+  }
+
   router.push({
     path: '/cart',
     query: { reorder: productIds.join(',') }
@@ -639,578 +620,5 @@ onMounted(() => {
 })
 </script>
 
-<style scoped>
-/* 기본 컨테이너 */
-.orders-container {
-  padding: 20px;
-  background-color: #f8f9fa;
-  min-height: 100vh;
-}
+<style scoped src="@/assets/css/myPageOrder.css"></style>
 
-/* 상단 헤더 */
-.orders-header {
-  background-color: white;
-  padding: 24px;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  margin-bottom: 20px;
-}
-
-.orders-title {
-  font-size: 28px;
-  font-weight: 700;
-  color: #333;
-  margin-bottom: 20px;
-}
-
-.orders-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.control-group {
-  display: flex;
-  gap: 16px;
-  align-items: center;
-}
-
-.period-select {
-  padding: 10px 16px;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  font-size: 14px;
-  background-color: white;
-  cursor: pointer;
-}
-
-.search-container {
-  position: relative;
-  flex: 1;
-  max-width: 400px;
-}
-
-.search-input {
-  width: 100%;
-  padding: 10px 16px 10px 40px;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  font-size: 14px;
-}
-
-.search-icon {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 18px;
-  height: 18px;
-  color: #666;
-}
-
-/* 필터 상태 */
-.filter-status {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  background-color: #f8f9fa;
-  border-radius: 8px;
-  border: 1px solid #e9ecef;
-}
-
-.filter-tags {
-  display: flex;
-  gap: 8px;
-}
-
-.filter-tag {
-  background-color: #5f0080;
-  color: white;
-  padding: 4px 8px;
-  border-radius: 16px;
-  font-size: 12px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.filter-clear {
-  background: none;
-  border: none;
-  color: white;
-  cursor: pointer;
-  font-size: 16px;
-  padding: 0;
-  margin-left: 4px;
-}
-
-.clear-all-button {
-  background-color: #dc3545;
-  color: white;
-  border: none;
-  padding: 6px 12px;
-  border-radius: 6px;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-/* 주문 목록 래퍼 */
-.orders-wrapper {
-  background-color: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  overflow: hidden;
-}
-
-/* 로딩, 에러, 빈 상태 */
-.loading-container, .error-container, .empty-container {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 400px;
-  padding: 40px;
-}
-
-.loading-content, .error-container, .empty-container {
-  text-align: center;
-}
-
-.spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid #f3f3f3;
-  border-top: 3px solid #5f0080;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 16px;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-.loading-text {
-  color: #666;
-  font-size: 16px;
-}
-
-.error-message {
-  color: #dc3545;
-  font-size: 16px;
-  margin-bottom: 16px;
-}
-
-.retry-button {
-  background-color: #5f0080;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.empty-icon {
-  width: 60px;
-  height: 60px;
-  color: #ccc;
-  margin-bottom: 16px;
-}
-
-.empty-title {
-  font-size: 20px;
-  color: #333;
-  margin-bottom: 8px;
-}
-
-.empty-description {
-  color: #666;
-  margin-bottom: 24px;
-}
-
-.shopping-button {
-  background-color: #5f0080;
-  color: white;
-  border: none;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-size: 14px;
-  cursor: pointer;
-}
-
-/* 주문 목록 */
-.orders-content {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-
-.orders-list-container {
-  flex: 1;
-  overflow-y: auto;
-  max-height: 600px;
-}
-
-.orders-list {
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-/* 주문 카드 */
-.order-card {
-  border: 1px solid #e9ecef;
-  border-radius: 12px;
-  padding: 20px;
-  background-color: white;
-  transition: box-shadow 0.2s;
-}
-
-.order-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-/* 주문 헤더 */
-.order-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 16px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #f1f3f4;
-}
-
-.order-info {
-  flex: 1;
-}
-
-.order-date {
-  font-size: 18px;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 6px;
-}
-
-.order-number {
-  font-size: 14px;
-  color: #666;
-  margin-bottom: 8px;
-  font-family: monospace;
-}
-
-.order-status {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.status-badge {
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.status-pending { background-color: #fff3cd; color: #856404; }
-.status-paid { background-color: #d1ecf1; color: #0c5460; }
-.status-preparing { background-color: #cce5ff; color: #004085; }
-.status-shipping { background-color: #d4edda; color: #155724; }
-.status-delivered { background-color: #d1ecf1; color: #0c5460; }
-.status-cancelled { background-color: #f8d7da; color: #721c24; }
-.status-returned { background-color: #ffeaa7; color: #6c5500; }
-.status-default { background-color: #e9ecef; color: #495057; }
-
-.order-time {
-  font-size: 12px;
-  color: #999;
-}
-
-.detail-button {
-  background: none;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.detail-button:hover {
-  background-color: #5f0080;
-  border-color: #5f0080;
-  color: white;
-}
-
-.detail-icon {
-  width: 18px;
-  height: 18px;
-}
-
-/* 주문 내용 */
-.order-content {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.product-item {
-  display: flex;
-  align-items: center;
-  padding: 12px;
-  border: 1px solid #f1f3f4;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.product-item:hover {
-  background-color: #f8f9fa;
-}
-
-.product-image {
-  width: 60px;
-  height: 60px;
-  object-fit: cover;
-  border-radius: 6px;
-  margin-right: 12px;
-  border: 1px solid #e9ecef;
-}
-
-.product-details {
-  flex: 1;
-}
-
-.product-name {
-  font-size: 14px;
-  font-weight: 500;
-  color: #333;
-  margin-bottom: 4px;
-}
-
-.product-info {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-
-.product-price {
-  font-size: 14px;
-  font-weight: 600;
-  color: #5f0080;
-}
-
-.product-quantity {
-  font-size: 13px;
-  color: #666;
-}
-
-.product-actions {
-  display: flex;
-  align-items: center;
-}
-
-.cart-icon {
-  font-size: 20px;
-}
-
-/* 주문 총액 */
-.order-total {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  background-color: #f8f9fa;
-  border-radius: 8px;
-  margin-top: 8px;
-}
-
-.total-label {
-  font-size: 14px;
-  color: #666;
-}
-
-.total-amount {
-  font-size: 16px;
-  font-weight: 700;
-  color: #333;
-}
-
-/* 액션 버튼들 */
-.order-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid #f1f3f4;
-}
-
-.action-button {
-  flex: 1;
-  padding: 10px 16px;
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
-  background-color: white;
-  color: #666;
-  font-size: 13px;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-}
-
-.btn-icon {
-  width: 14px;
-  height: 14px;
-}
-
-.detail-btn:hover {
-  background-color: #5f0080;
-  border-color: #5f0080;
-  color: white;
-}
-
-.reorder-btn:hover {
-  background-color: #28a745;
-  border-color: #28a745;
-  color: white;
-}
-
-.cancel-btn:hover {
-  background-color: #dc3545;
-  border-color: #dc3545;
-  color: white;
-}
-
-.review-btn:hover {
-  background-color: #ffc107;
-  border-color: #ffc107;
-  color: #212529;
-}
-
-/* 페이지네이션 */
-.pagination-container {
-  padding: 24px;
-  border-top: 1px solid #e9ecef;
-  background-color: #f8f9fa;
-}
-
-.pagination {
-  display: flex;
-  justify-content: center;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-.page-button {
-  padding: 8px 12px;
-  border: 1px solid #e0e0e0;
-  background-color: white;
-  color: #666;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-size: 14px;
-}
-
-.page-button:hover {
-  background-color: #f8f9fa;
-  border-color: #5f0080;
-}
-
-.page-button.active {
-  background-color: #5f0080;
-  border-color: #5f0080;
-  color: white;
-}
-
-.nav-button {
-  font-weight: 500;
-}
-
-.page-info {
-  text-align: center;
-}
-
-.page-text {
-  font-size: 14px;
-  color: #666;
-}
-
-/* 반응형 디자인 */
-@media (max-width: 768px) {
-  .orders-container {
-    padding: 12px;
-  }
-
-  .orders-header {
-    padding: 16px;
-  }
-
-  .orders-title {
-    font-size: 24px;
-  }
-
-  .control-group {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .search-container {
-    max-width: none;
-  }
-
-  .filter-status {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-  }
-
-  .order-card {
-    padding: 16px;
-  }
-
-  .order-header {
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .detail-button {
-    align-self: flex-end;
-  }
-
-  .product-item {
-    padding: 8px;
-  }
-
-  .product-image {
-    width: 50px;
-    height: 50px;
-  }
-
-  .order-actions {
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .action-button {
-    padding: 12px 16px;
-    font-size: 14px;
-  }
-
-  .pagination {
-    flex-wrap: wrap;
-    gap: 4px;
-  }
-
-  .page-button {
-    padding: 6px 10px;
-    font-size: 12px;
-  }
-}
-</style>

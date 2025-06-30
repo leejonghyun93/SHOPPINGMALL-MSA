@@ -1,6 +1,7 @@
 package org.kosa.categoryservice.dto;
 
 import lombok.*;
+import org.kosa.categoryservice.entity.Category;
 
 import java.util.List;
 
@@ -9,15 +10,18 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CategoryDto {
-    private String categoryId;
-    private String parentCategoryId;
+    private Integer categoryId;
+    private Integer parentCategoryId;
     private String name;
     private Integer categoryLevel;
     private Integer categoryDisplayOrder;
     private String categoryUseYn;
     private List<CategoryDto> subCategories;
-    private String icon;
-    private String path;
-    private String iconUrl;
     private String categoryIcon;
+    private String iconUrl;
+    private Category.IconType iconType;
+
+    // 기존 호환성을 위한 필드들
+    private String icon;  // 프론트엔드에서 사용하는 아이콘 URL
+    private String path;  // 필요시 사용
 }

@@ -158,7 +158,9 @@
 
 <script setup>
 import { reactive, ref, computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 
+const router = useRouter();
 const form = reactive({
   userid: '',
   userPwd: '',
@@ -375,10 +377,12 @@ async function submitForm() {
       userId: form.userid,
       password: form.userPwd,
       name: form.userName,
+      nickname: form.nickname || null,  // 🔥 닉네임 추가
       email: `${form.emailId}@${form.emailDomain === 'custom' ? form.customDomain : form.emailDomain}`,
       phone: form.userPhone,
       zipcode: form.zipcode,
       address: form.userAddress + ' ' + (form.detailAddress || ''),
+      myaddress: form.detailAddress || null,
       birthDate: form.birthDate,
       gender: form.gender,
       marketingAgree: form.agreeMarketing ? 'Y' : 'N'

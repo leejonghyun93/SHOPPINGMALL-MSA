@@ -26,7 +26,7 @@ public class Order {
     @Column(name = "ORDER_DATE", nullable = false)
     private LocalDateTime orderDate;
 
-    // 🔥 ORDER_STATUS에 기본값 추가
+    //  ORDER_STATUS에 기본값 추가
     @Column(name = "ORDER_STATUS", length = 20, nullable = false)
     @Builder.Default
     private String orderStatus = "PENDING";
@@ -37,7 +37,7 @@ public class Order {
     @Column(name = "EMAIL", length = 100)
     private String email;
 
-    // 🔥 필수 배송 정보에 기본값 추가
+    //  필수 배송 정보에 기본값 추가
     @Column(name = "RECIPIENT_NAME", length = 100, nullable = false)
     @Builder.Default
     private String recipientName = "";
@@ -71,7 +71,7 @@ public class Order {
     @Builder.Default
     private Integer usedPoint = 0;
 
-    // 🔥 결제 방법에 기본값 추가
+    //  결제 방법에 기본값 추가
     @Column(name = "PAYMENT_METHOD", length = 20, nullable = false)
     @Builder.Default
     private String paymentMethod = "CARD";
@@ -93,7 +93,7 @@ public class Order {
     @Column(name = "TRACKING_NUMBER", length = 100)
     private String trackingNumber;
 
-    // 🔥 배송 회사에 기본값 추가
+    // 배송 회사에 기본값 추가
     @Column(name = "DELIVERY_COMPANY", length = 100)
     @Builder.Default
     private String deliveryCompany = "샛별배송";
@@ -115,7 +115,7 @@ public class Order {
         this.updatedDate = now;
         this.orderDate = now;
 
-        // 🔥 기본값들이 null인 경우 설정
+        //  기본값들이 null인 경우 설정
         if (this.orderStatus == null || this.orderStatus.trim().isEmpty()) {
             this.orderStatus = "PENDING";
         }
@@ -132,7 +132,7 @@ public class Order {
             this.deliveryCompany = "샛별배송";
         }
 
-        // 🔥 필수 필드들 기본값 설정
+        //  필수 필드들 기본값 설정
         if (this.recipientName == null) {
             this.recipientName = "";
         }
@@ -145,7 +145,7 @@ public class Order {
             this.orderAddressDetail = "";
         }
 
-        // 🔥 숫자 필드들 기본값 설정
+        //  숫자 필드들 기본값 설정
         if (this.deliveryFee == null) {
             this.deliveryFee = 0;
         }
@@ -168,7 +168,7 @@ public class Order {
                     (int)(Math.random() * 1000);
         }
 
-        // 🔥 예상 배송일 설정 (내일 오전 7시)
+        //  예상 배송일 설정 (내일 오전 7시)
         if (this.estimatedDate == null) {
             this.estimatedDate = now.plusDays(1).withHour(7).withMinute(0).withSecond(0).withNano(0);
         }

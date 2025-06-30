@@ -119,7 +119,9 @@ public class GatewaySecurityConfig {
 
                                 // 결제 관련 (게스트, 웹훅 제외)
                                 .pathMatchers("/api/payments/**").hasAnyRole("USER", "ADMIN")
-
+                                .pathMatchers(HttpMethod.GET, "/api/images/**").permitAll()
+                                .pathMatchers(HttpMethod.GET, "/images/**").permitAll()
+                                .pathMatchers(HttpMethod.GET, "/upload/**").permitAll()
                                 // 나머지 모든 경로는 인증 필요
                                 .anyExchange().authenticated()
                 )

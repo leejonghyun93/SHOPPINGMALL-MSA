@@ -28,7 +28,7 @@ public class OrderServiceKafkaConfig {
     private String bootstrapServers;
 
     /**
-     * 🔥 사용자 탈퇴 이벤트 Consumer Factory (MSA 환경 대응)
+     *  사용자 탈퇴 이벤트 Consumer Factory (MSA 환경 대응)
      */
     @Bean
     public ConsumerFactory<String, UserWithdrawalEvent> userWithdrawalConsumerFactory() {
@@ -40,7 +40,7 @@ public class OrderServiceKafkaConfig {
         configProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         configProps.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
 
-        // 🔥 에러 핸들링 역직렬화 설정
+        //  에러 핸들링 역직렬화 설정
         configProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
                 ErrorHandlingDeserializer.class);
         configProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
@@ -52,12 +52,12 @@ public class OrderServiceKafkaConfig {
         configProps.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS,
                 JsonDeserializer.class);
 
-        // 🔥 MSA 환경을 위한 JSON 역직렬화 설정
+        //  MSA 환경을 위한 JSON 역직렬화 설정
         configProps.put(JsonDeserializer.TRUSTED_PACKAGES, "*");
         configProps.put(JsonDeserializer.VALUE_DEFAULT_TYPE,
                 "org.kosa.orderservice.dto.UserWithdrawalEvent");
 
-        // 🔥 User Service → Order Service 클래스 매핑
+        //  User Service → Order Service 클래스 매핑
         configProps.put(JsonDeserializer.TYPE_MAPPINGS,
                 "org.kosa.userservice.dto.UserWithdrawalEvent:org.kosa.orderservice.dto.UserWithdrawalEvent");
 
@@ -65,7 +65,7 @@ public class OrderServiceKafkaConfig {
     }
 
     /**
-     * 🔥 Listener Container Factory (에러 처리 강화)
+     * Listener Container Factory (에러 처리 강화)
      */
     @Bean
     public ConcurrentKafkaListenerContainerFactory<String, UserWithdrawalEvent>
@@ -76,7 +76,7 @@ public class OrderServiceKafkaConfig {
 
         factory.setConsumerFactory(userWithdrawalConsumerFactory());
 
-        // 🔥 에러 핸들러 설정 (재시도 로직)
+        //  에러 핸들러 설정 (재시도 로직)
         DefaultErrorHandler errorHandler = new DefaultErrorHandler(
                 new FixedBackOff(1000L, 3L)  // 1초 간격으로 3번 재시도
         );
@@ -96,7 +96,7 @@ public class OrderServiceKafkaConfig {
     }
 
     /**
-     * 🔥 String 메시지용 Consumer Factory (디버깅/fallback용)
+     *  String 메시지용 Consumer Factory (디버깅/fallback용)
      */
     @Bean
     public ConsumerFactory<String, String> stringConsumerFactory() {

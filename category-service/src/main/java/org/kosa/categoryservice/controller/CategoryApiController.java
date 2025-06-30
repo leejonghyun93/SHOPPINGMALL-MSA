@@ -41,7 +41,7 @@ public class CategoryApiController {
      * 특정 카테고리의 하위 카테고리 목록 조회
      */
     @GetMapping("/{categoryId}/sub")
-    public ResponseEntity<List<CategoryDto>> getSubCategories(@PathVariable String categoryId) {
+    public ResponseEntity<List<CategoryDto>> getSubCategories(@PathVariable Integer categoryId) {
         log.debug("하위 카테고리 조회 요청: {}", categoryId);
 
         List<CategoryDto> subCategories = categoryService.getSubCategories(categoryId).stream()
@@ -54,41 +54,41 @@ public class CategoryApiController {
     }
 
     /**
-     * 🔥 NEW: 특정 카테고리의 모든 하위 카테고리 ID 목록 조회 (누락된 엔드포인트!)
+     * 특정 카테고리의 모든 하위 카테고리 ID 목록 조회
      */
     @GetMapping("/{categoryId}/children-ids")
-    public ResponseEntity<List<String>> getChildrenIds(@PathVariable String categoryId) {
+    public ResponseEntity<List<Integer>> getChildrenIds(@PathVariable Integer categoryId) {
         try {
-            log.info("📂 카테고리 {} 하위 ID 목록 조회 요청", categoryId);
+            log.debug("카테고리 {} 하위 ID 목록 조회 요청", categoryId);
 
-            List<String> childrenIds = categoryService.getAllChildrenIds(categoryId);
+            List<Integer> childrenIds = categoryService.getAllChildrenIds(categoryId);
 
-            log.info("✅ 카테고리 {} 하위 ID 목록: {}", categoryId, childrenIds);
+            log.debug("카테고리 {} 하위 ID 목록: {}", categoryId, childrenIds);
 
             return ResponseEntity.ok(childrenIds);
 
         } catch (Exception e) {
-            log.error("❌ 하위 카테고리 ID 조회 실패: {}", e.getMessage(), e);
+            log.error("하위 카테고리 ID 조회 실패: {}", e.getMessage(), e);
             return ResponseEntity.ok(Collections.emptyList());
         }
     }
 
     /**
-     * 🔥 NEW: 카테고리 존재 여부 확인
+     * 카테고리 존재 여부 확인
      */
     @GetMapping("/{categoryId}/exists")
-    public ResponseEntity<Boolean> existsCategory(@PathVariable String categoryId) {
+    public ResponseEntity<Boolean> existsCategory(@PathVariable Integer categoryId) {
         try {
-            log.debug("🔍 카테고리 {} 존재 여부 확인 요청", categoryId);
+            log.debug("카테고리 {} 존재 여부 확인 요청", categoryId);
 
             boolean exists = categoryService.existsCategory(categoryId);
 
-            log.debug("✅ 카테고리 {} 존재 여부: {}", categoryId, exists);
+            log.debug("카테고리 {} 존재 여부: {}", categoryId, exists);
 
             return ResponseEntity.ok(exists);
 
         } catch (Exception e) {
-            log.error("❌ 카테고리 존재 여부 확인 실패: {}", e.getMessage(), e);
+            log.error("카테고리 존재 여부 확인 실패: {}", e.getMessage(), e);
             return ResponseEntity.ok(false);
         }
     }
@@ -110,7 +110,7 @@ public class CategoryApiController {
      * 특정 카테고리 상세 조회
      */
     @GetMapping("/{categoryId}")
-    public ResponseEntity<CategoryDto> getCategory(@PathVariable String categoryId) {
+    public ResponseEntity<CategoryDto> getCategory(@PathVariable Integer categoryId) {
         log.debug("카테고리 상세 조회 요청: {}", categoryId);
 
         CategoryDto category = categoryService.getCategory(categoryId);

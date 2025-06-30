@@ -76,18 +76,35 @@ public class UserDto {
     }
 
     /**
-     * userId를 Long으로 변환 시도 (실패하면 null 반환)
-     * 문자열 userId인 경우 null을 반환하며, 이는 정상적인 동작임
+     * 숫자로 변환 가능한 userId를 String으로 반환
+     * 변환 불가능하면 null 반환 (JWT subject용)
      */
-    public Long getUserIdAsLong() {
+    public String getUserIdAsLong() {
         if (userId == null || userId.trim().isEmpty()) {
             return null;
         }
 
         try {
-            return Long.parseLong(userId.trim());
+            Long.parseLong(userId.trim());  // 숫자인지만 검증
+            return userId.trim();           // 문자열로 반환
         } catch (NumberFormatException e) {
             // 문자열 userId인 경우 null 반환 (정상 케이스)
+            return null;
+        }
+    }
+
+    /**
+     * 실제 Long 타입이 필요한 경우 사용
+     */
+    public Long getUserIdAsActualLong() {
+        if (userId == null || userId.trim().isEmpty()) {
+            return null;
+        }
+
+        try {
+            return Long.parseLong(userId.trim());  // Long 타입으로 반환
+        } catch (NumberFormatException e) {
+            // 문자열 userId인 경우 null 반환
             return null;
         }
     }
@@ -103,7 +120,7 @@ public class UserDto {
      * 사용자가 숫자 ID를 가지고 있는지 확인
      */
     public boolean hasNumericUserId() {
-        return getUserIdAsLong() != null;
+        return getUserIdAsActualLong() != null;
     }
 
     /**

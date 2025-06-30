@@ -21,8 +21,8 @@ public class OrderItem {
     @Column(name = "ORDER_ID", length = 50, nullable = false)
     private String orderId;
 
-    @Column(name = "PRODUCT_ID", length = 50, nullable = false)
-    private String productId;
+    @Column(name = "PRODUCT_ID", nullable = false)
+    private Integer productId;
 
     @Column(name = "NAME", length = 200, nullable = false)
     private String name;

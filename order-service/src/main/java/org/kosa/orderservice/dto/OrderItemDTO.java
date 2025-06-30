@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 public class OrderItemDTO {
     private String orderItemId;
     private String orderId;
-    private String productId;
+    private Integer productId;
     @JsonProperty("productName")
     private String name;
     private Integer quantity;

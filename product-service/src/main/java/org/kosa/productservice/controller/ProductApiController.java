@@ -28,7 +28,7 @@ public class ProductApiController {
      * 상품 상세 조회 (기본 - 하위 호환성 유지)
      */
     @GetMapping("/{productId}")
-    public ResponseEntity<ProductDTO> getProductDetail(@PathVariable String productId) {
+    public ResponseEntity<ProductDTO> getProductDetail(@PathVariable Integer productId) {
         try {
             log.info("상품 상세 조회 요청 - productId: {}", productId);
 
@@ -53,7 +53,7 @@ public class ProductApiController {
      * 상품 상세 조회 (이미지 포함)
      */
     @GetMapping("/{productId}/with-images")
-    public ResponseEntity<ApiResponse<ProductDTO>> getProductDetailWithImages(@PathVariable String productId) {
+    public ResponseEntity<ApiResponse<ProductDTO>> getProductDetailWithImages(@PathVariable Integer productId) {
         try {
             log.info("상품 상세 조회 (이미지 포함) 요청 - productId: {}", productId);
 
@@ -125,24 +125,26 @@ public class ProductApiController {
      */
     @GetMapping("/filter")
     public ResponseEntity<List<ProductDTO>> getProductsByFilter(
-            @RequestParam(defaultValue = "ALL") String categoryId,
+            @RequestParam(defaultValue = "ALL") String categoryIdStr,
             @RequestParam(defaultValue = "10") Integer limit,
             @RequestParam(defaultValue = "false") boolean includeImages) {
 
         try {
-            log.info("카테고리별 상품 조회 - categoryId: {}, limit: {}, includeImages: {}", categoryId, limit, includeImages);
+            log.info("카테고리별 상품 조회 - categoryId: {}, limit: {}, includeImages: {}", categoryIdStr, limit, includeImages);
 
             List<ProductDTO> products;
             if (includeImages) {
-                if ("ALL".equals(categoryId)) {
+                if ("ALL".equals(categoryIdStr)) {
                     products = enhancedProductService.getProductList(limit);
                 } else {
+                    Integer categoryId = Integer.parseInt(categoryIdStr);
                     products = enhancedProductService.getProductsByCategory(categoryId, limit);
                 }
             } else {
-                if ("ALL".equals(categoryId)) {
+                if ("ALL".equals(categoryIdStr)) {
                     products = productService.getAllProducts(limit);
                 } else {
+                    Integer categoryId = Integer.parseInt(categoryIdStr);
                     products = productService.getProductsByCategory(categoryId, limit);
                 }
             }
@@ -160,7 +162,7 @@ public class ProductApiController {
      */
     @GetMapping("/category/{categoryId}")
     public ResponseEntity<List<ProductDTO>> getProductsByCategory(
-            @PathVariable String categoryId,
+            @PathVariable Integer categoryId,
             @RequestParam(defaultValue = "20") int limit,
             @RequestParam(defaultValue = "false") boolean includeImages) {
 
@@ -187,7 +189,7 @@ public class ProductApiController {
      */
     @GetMapping("/category/{categoryId}/with-images")
     public ResponseEntity<ApiResponse<List<ProductDTO>>> getProductsByCategoryWithImages(
-            @PathVariable String categoryId,
+            @PathVariable Integer categoryId,
             @RequestParam(defaultValue = "20") int limit) {
 
         try {
@@ -209,7 +211,7 @@ public class ProductApiController {
      */
     @GetMapping("/{productId}/related")
     public ResponseEntity<List<ProductDTO>> getRelatedProducts(
-            @PathVariable String productId,
+            @PathVariable Integer productId,
             @RequestParam(defaultValue = "4") int limit,
             @RequestParam(defaultValue = "false") boolean includeImages) {
         try {
@@ -235,7 +237,7 @@ public class ProductApiController {
      */
     @GetMapping("/{productId}/related/with-images")
     public ResponseEntity<ApiResponse<List<ProductDTO>>> getRelatedProductsWithImages(
-            @PathVariable String productId,
+            @PathVariable Integer productId,
             @RequestParam(defaultValue = "4") int limit) {
         try {
             log.info("연관 상품 조회 (이미지 포함) 요청 - productId: {}, limit: {}", productId, limit);
@@ -273,6 +275,31 @@ public class ProductApiController {
         }
     }
 
+    /**
+     * HOST별 상품 조회
+     */
+    @GetMapping("/host/{hostId}")
+    public ResponseEntity<List<ProductDTO>> getProductsByHost(
+            @PathVariable Long hostId,
+            @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(defaultValue = "false") boolean includeImages) {
+        try {
+            log.info("HOST별 상품 조회 요청 - hostId: {}, limit: {}, includeImages: {}", hostId, limit, includeImages);
+
+            List<ProductDTO> products = productService.getProductsByHost(hostId, limit);
+
+            if (includeImages) {
+                enhancedProductService.attachMainImagesToProducts(products);
+            }
+
+            log.info("HOST별 상품 조회 결과: {}개", products.size());
+            return ResponseEntity.ok(products);
+        } catch (Exception e) {
+            log.error("HOST별 상품 조회 중 오류 - hostId: {}", hostId, e);
+            return ResponseEntity.ok(List.of());
+        }
+    }
+
     // ================== 통계 및 정보 API ==================
 
     /**
@@ -280,11 +307,12 @@ public class ProductApiController {
      */
     @GetMapping("/stats/count")
     public ResponseEntity<Map<String, Object>> getProductCount(
-            @RequestParam(required = false) String categoryId) {
+            @RequestParam(required = false) String categoryIdStr) {
 
         Map<String, Object> result = new HashMap<>();
         try {
-            if (categoryId != null && !"ALL".equals(categoryId)) {
+            if (categoryIdStr != null && !"ALL".equals(categoryIdStr)) {
+                Integer categoryId = Integer.parseInt(categoryIdStr);
                 Long count = productService.getProductCountByCategory(categoryId);
                 result.put("categoryId", categoryId);
                 result.put("productCount", count);
@@ -306,10 +334,10 @@ public class ProductApiController {
      * 전체 카테고리별 상품 개수 통계
      */
     @GetMapping("/stats/count-all")
-    public ResponseEntity<Map<String, Long>> getAllCategoryProductCounts() {
+    public ResponseEntity<Map<Integer, Long>> getAllCategoryProductCounts() {
         try {
             log.info("전체 카테고리별 상품 개수 통계 요청");
-            Map<String, Long> counts = productService.getProductCountsByAllCategories();
+            Map<Integer, Long> counts = productService.getProductCountsByAllCategories();
             log.info("카테고리별 상품 개수 통계 결과: {} 카테고리", counts.size());
             return ResponseEntity.ok(counts);
         } catch (Exception e) {
@@ -330,7 +358,7 @@ public class ProductApiController {
             result.put("totalActiveProducts", totalProducts);
 
             // 카테고리별 상품 개수
-            Map<String, Long> categoryStats = productService.getProductCountsByAllCategories();
+            Map<Integer, Long> categoryStats = productService.getProductCountsByAllCategories();
             result.put("categoryStats", categoryStats);
 
             log.info("데이터베이스 상태: 전체 {}개, 카테고리별 {}", totalProducts, categoryStats);
@@ -349,14 +377,14 @@ public class ProductApiController {
      */
     @PostMapping("/guest-cart-details")
     public ResponseEntity<List<ProductDetailDTO>> getGuestCartDetails(@RequestBody List<GuestCartItemDTO> cartItems) {
-        log.info("🔍 게스트 장바구니 상세 조회 요청: {}개 상품", cartItems.size());
+        log.info("게스트 장바구니 상세 조회 요청: {}개 상품", cartItems.size());
 
         try {
             List<ProductDetailDTO> result = productService.getProductsForGuestCart(cartItems);
-            log.info("🔍 게스트 장바구니 상세 조회 결과: {}개 상품", result.size());
+            log.info("게스트 장바구니 상세 조회 결과: {}개 상품", result.size());
             return ResponseEntity.ok(result);
         } catch (Exception e) {
-            log.error("🔥 게스트 장바구니 처리 실패: ", e);
+            log.error("게스트 장바구니 처리 실패: ", e);
             return ResponseEntity.internalServerError().build();
         }
     }
@@ -366,7 +394,7 @@ public class ProductApiController {
      */
     @PostMapping("/test-simple")
     public ResponseEntity<String> testSimple(@RequestBody String rawData) {
-        log.info("🔍 받은 데이터: {}", rawData);
+        log.info("받은 데이터: {}", rawData);
         return ResponseEntity.ok("OK");
     }
 }

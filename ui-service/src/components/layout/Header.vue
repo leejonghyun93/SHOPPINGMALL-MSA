@@ -45,7 +45,7 @@
           <router-link to="/mypage/orders" class="dropdown-item" @click="hideDropdown">
             마이페이지
           </router-link>
-          <router-link to="/profile" class="dropdown-item" @click="hideDropdown">
+          <router-link to="/mypage/profile" class="dropdown-item" @click="hideDropdown">
             회원정보관리
           </router-link>
           <div class="dropdown-divider"></div>

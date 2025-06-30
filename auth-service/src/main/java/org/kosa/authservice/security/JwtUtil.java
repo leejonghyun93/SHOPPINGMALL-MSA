@@ -42,21 +42,21 @@ public class JwtUtil {
     /**
      * 토큰 생성 -  문자열 userId 완벽 지원
      */
-    public String generateToken(Long userId, String username, String name, String email, String phone) {
+    public String generateToken(String userId, String username, String name,String email, String phone) {
         Date now = new Date();
         Date expireDate = new Date(now.getTime() + expiration);
 
-        String subject;
-        if (userId != null) {
-            subject = String.valueOf(userId);
-        } else if (username != null && !username.trim().isEmpty()) {
-            subject = username;
-        } else {
-            throw new IllegalArgumentException("userId와 username 모두 null일 수 없습니다");
-        }
+//        String subject;
+//        if (userId != null) {
+//            subject = String.valueOf(userId);
+//        } else if (username != null && !username.trim().isEmpty()) {
+//            subject = username;
+//        } else {
+//            throw new IllegalArgumentException("userId와 username 모두 null일 수 없습니다");
+//        }
 
         JwtBuilder builder = Jwts.builder()
-                .setSubject(subject)
+                .setSubject(userId)
                 .claim("username", username)
                 .claim("role", "USER")
                 .setIssuedAt(now)
@@ -115,14 +115,15 @@ public class JwtUtil {
     /**
      * 토큰에서 사용자 ID 추출 - 문자열도 지원하도록 수정
      */
-    public Long getUserIdFromToken(String token) {
+    public String getUserIdFromToken(String token) {
         try {
             Claims claims = parseToken(token);
             String subject = claims.getSubject();
 
             // 숫자로 변환 가능한지 확인
             try {
-                return Long.valueOf(subject);
+                Long.valueOf(subject);  // 숫자인지만 검증
+                return subject;         // String으로 반환
             } catch (NumberFormatException e) {
                 // 숫자가 아닌 경우 (예: "qweas") null 반환
                 log.debug("토큰의 subject가 숫자가 아님: '{}'. null 반환", subject);
@@ -133,7 +134,24 @@ public class JwtUtil {
             return null;
         }
     }
+    public Long getUserIdAsLongFromToken(String token) {
+        try {
+            Claims claims = parseToken(token);
+            String subject = claims.getSubject();
 
+            // 숫자로 변환 가능한지 확인
+            try {
+                return Long.valueOf(subject);  // Long 반환
+            } catch (NumberFormatException e) {
+                // 숫자가 아닌 경우 null 반환
+                log.debug("토큰의 subject가 숫자가 아님: '{}'. null 반환", subject);
+                return null;
+            }
+        } catch (Exception e) {
+            log.error("토큰에서 사용자 ID 추출 실패: {}", e.getMessage());
+            return null;
+        }
+    }
     /**
      * 토큰에서 사용자 식별자 추출 (숫자 또는 문자열)
      */
@@ -219,16 +237,17 @@ public class JwtUtil {
     /**
      * 만료된 토큰에서 사용자 ID 추출 (토큰 갱신용) -  문자열도 지원
      */
-    public Long getUserIdFromExpiredToken(String token) {
+    public String getUserIdFromExpiredToken(String token) {
         try {
             Claims claims = parseExpiredToken(token);
             String subject = claims.getSubject();
 
             // 숫자로 변환 가능한지 확인
             try {
-                return Long.valueOf(subject);
+                Long.valueOf(subject);  // 숫자인지만 검증
+                return subject;         // String으로 반환
             } catch (NumberFormatException e) {
-                // 숫자가 아닌 경우 (예: "qweas") null 반환
+                // 숫자가 아닌 경우 null 반환
                 log.debug("만료된 토큰의 subject가 숫자가 아님: '{}'. null 반환", subject);
                 return null;
             }
@@ -237,7 +256,27 @@ public class JwtUtil {
             return null;
         }
     }
+    /**
+     * 만료된 토큰에서 사용자 ID를 Long 타입으로 추출
+     */
+    public Long getUserIdAsLongFromExpiredToken(String token) {
+        try {
+            Claims claims = parseExpiredToken(token);
+            String subject = claims.getSubject();
 
+            // 숫자로 변환 가능한지 확인
+            try {
+                return Long.valueOf(subject);  // Long 반환
+            } catch (NumberFormatException e) {
+                // 숫자가 아닌 경우 null 반환
+                log.debug("만료된 토큰의 subject가 숫자가 아님: '{}'. null 반환", subject);
+                return null;
+            }
+        } catch (Exception e) {
+            log.error("만료된 토큰에서 사용자 ID 추출 실패: {}", e.getMessage());
+            return null;
+        }
+    }
     /**
      * 만료된 토큰에서 사용자 식별자 추출 (숫자 또는 문자열)
      */

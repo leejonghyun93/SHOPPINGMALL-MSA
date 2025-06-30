@@ -132,6 +132,7 @@ public class SimpleJwtFilter implements WebFilter {
                 path.startsWith("/api/payments/webhook") ||
                 path.startsWith("/api/images/") ||
                 path.startsWith("/images/") ||
+                path.startsWith("/upload/") ||
                 path.equals("/auth/findPassword") ||
                 path.equals("/auth/verifyResetCode") ||
                 path.equals("/auth/resetPassword") ||

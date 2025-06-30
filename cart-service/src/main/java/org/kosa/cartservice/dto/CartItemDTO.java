@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 public class CartItemDTO {
     private String cartItemId;
     private String cartId;
-    private String productId;
+    private Integer productId;
     @Builder.Default
     private String productOptionId = "defaultOptionId";
     private Integer quantity;
@@ -30,6 +30,4 @@ public class CartItemDTO {
     private String deliveryType;
     private Long itemTotalPrice;
     private Long itemTotalSalePrice;
-
-
 }

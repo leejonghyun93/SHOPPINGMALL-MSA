@@ -24,8 +24,9 @@ public class CartItem {
     @Column(name = "CART_ID", length = 50, nullable = false, insertable = false, updatable = false)
     private String cartId;
 
-    @Column(name = "PRODUCT_ID", length = 50, nullable = false)
-    private String productId;
+    // 🔥 String → Integer로 변경 (DB 타입과 일치)
+    @Column(name = "PRODUCT_ID", nullable = false)
+    private Integer productId;
 
     @Column(name = "PRODUCT_OPTION_ID", length = 50)
     private String productOptionId;
@@ -37,8 +38,6 @@ public class CartItem {
     @Column(name = "UPDATED_DATE")
     private LocalDateTime updatedDate;
 
-
-    // 수정된 부분: insertable, updatable 제거
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "CART_ID")
     private Cart cart;

@@ -10,33 +10,35 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
-@JsonIgnoreProperties(ignoreUnknown = true)  // 🔥 이거 추가!
+@JsonIgnoreProperties(ignoreUnknown = true)
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class ProductDTO {
-    // 기존 필드들
-    private String productId;
-    private String categoryId;
+    // 기본 상품 정보
+    private Integer productId;  // int(11) AUTO_INCREMENT
+    private Integer categoryId;
     private String name;
     private Integer price;
     private Integer salePrice;
     private String productDescription;
     private String productShortDescription;
     private String productStatus;
-    private Integer productSalesCount;
     private BigDecimal productRating;
     private Integer productReviewCount;
     private LocalDateTime createdDate;
     private LocalDateTime updatedDate;
-    private LocalDateTime startDate;
-    private LocalDateTime endDate;
     private String mainImage;
     private Integer viewCount;
+    private Integer stock;
+    private Long hostId;
+    private String displayYn;
+
+    // 이미지 관련
     private List<ProductImageDto> productImages;
 
-    // 프론트엔드용 추가 필드 (기존)
+    // 프론트엔드용 추가 필드 (기존 호환성)
     private String title; // name과 동일하지만 프론트엔드 호환성
     private Integer discount; // 할인율 계산
     private Integer originalPrice; // 원가 (할인 전 가격)
@@ -44,7 +46,7 @@ public class ProductDTO {
     private String viewers; // 시청자 수
     private String image; // 메인 이미지 (mainImage와 동일)
 
-    // 🔥 상품 상세보기용 추가 필드들
+    // 상품 상세보기용 추가 필드들
     private String subtitle; // 부제목
     private String brand; // 브랜드명
     private String origin; // 원산지
@@ -59,10 +61,9 @@ public class ProductDTO {
     private Integer discountPrice; // 할인가 (salePrice와 동일)
     private Double averageRating; // 평균 평점 (productRating을 Double로)
     private Integer reviewCount; // 리뷰 개수 (productReviewCount와 동일)
-    private Long stockQuantity; // 재고 수량
+    private Long stockQuantity; // 재고 수량 (stock을 Long으로)
     private String categoryName; // 카테고리명
     private String mainImageUrl;
-
 
     // 편의 메서드들
     public Integer getFinalPrice() {
@@ -97,5 +98,16 @@ public class ProductDTO {
     public Integer getReviewCount() {
         return reviewCount != null ? reviewCount :
                 (productReviewCount != null ? productReviewCount : 0);
+    }
+
+    public Long getStockQuantity() {
+        if (stockQuantity != null) {
+            return stockQuantity;
+        }
+        return stock != null ? stock.longValue() : 0L;
+    }
+
+    public boolean isDisplayed() {
+        return "Y".equals(displayYn);
     }
 }

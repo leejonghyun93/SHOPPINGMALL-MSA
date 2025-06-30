@@ -158,7 +158,7 @@
             <p v-if="product.productDescription">상품설명: {{ product.productDescription }}</p>
           </div>
 
-          <!-- 🔥 리뷰 탭 -->
+          <!-- 리뷰 탭 -->
           <div v-if="selectedTab === 'reviews'" class="reviews-content">
             <div class="review-summary">
               <div class="rating-overview">
@@ -260,7 +260,7 @@
             </div>
           </div>
 
-          <!-- 🔥 Q&A 문의 탭 - 새로 추가된 부분 -->
+          <!-- Q&A 문의 탭 -->
           <div v-if="selectedTab === 'inquiry'" class="inquiry-content">
             <div class="qna-summary">
               <div class="qna-overview">
@@ -434,14 +434,14 @@ const error = ref(null)
 const product = ref(null)
 const relatedProducts = ref([])
 const reviews = ref([])
-const qnas = ref([]) // 🔥 Q&A 목록 추가
+const qnas = ref([])
 const selectedTab = ref('details')
 const quantity = ref(1)
 const isWishlisted = ref(false)
 const showNotification = ref(false)
 const currentImageIndex = ref(0)
 
-// 🔥 리뷰 CRUD 관련 상태
+// 리뷰 CRUD 관련 상태
 const showReviewForm = ref(false)
 const isReviewEditMode = ref(false)
 const reviewForm = ref({
@@ -451,7 +451,7 @@ const reviewForm = ref({
 })
 const editingReviewId = ref(null)
 
-// 🔥 Q&A CRUD 관련 상태 추가
+// Q&A CRUD 관련 상태
 const showQnaForm = ref(false)
 const isQnaEditMode = ref(false)
 const qnaForm = ref({
@@ -461,13 +461,13 @@ const qnaForm = ref({
   isSecret: false
 })
 const editingQnaId = ref(null)
-const expandedQna = ref(null) // 펼쳐진 Q&A ID
+const expandedQna = ref(null)
 
 const tabs = computed(() => [
   { id: 'details', label: '상품설명' },
   { id: 'info', label: '상세정보' },
   { id: 'reviews', label: `후기 (${getReviewCount()})` },
-  { id: 'inquiry', label: `문의 (${getQnaCount()})` } // 🔥 Q&A 개수 표시
+  { id: 'inquiry', label: `문의 (${getQnaCount()})` }
 ])
 
 const getAuthToken = () => {
@@ -519,7 +519,7 @@ const isMyReview = (review) => {
       review.userId === currentUser.userId
 }
 
-// 🔥 Q&A 관련 유틸리티 함수들
+// Q&A 관련 유틸리티 함수들
 const getQnaCount = () => qnas.value.length
 
 const getQnaStatusText = (status) => {
@@ -535,10 +535,8 @@ const toggleQnaDetail = (qnaId) => {
   expandedQna.value = expandedQna.value === qnaId ? null : qnaId
 }
 
-// 🔥 Q&A CRUD 함수들
+// Q&A CRUD 함수들
 const submitQna = async () => {
-  console.log('🚀 Q&A 등록 시작...')
-
   if (!isAuthenticated()) {
     alert('로그인이 필요합니다.')
     router.push('/login')
@@ -559,14 +557,10 @@ const submitQna = async () => {
       isSecret: qnaForm.value.isSecret ? 'Y' : 'N'
     }
 
-    console.log('📝 Q&A 등록 요청 데이터:', qnaData)
-
     const response = await apiClient.post('/api/qna', qnaData, {
       withAuth: true,
       timeout: 10000
     })
-
-    console.log('✅ Q&A 등록 성공:', response.data)
 
     if (response.data.success) {
       alert('문의가 등록되었습니다.')
@@ -577,8 +571,6 @@ const submitQna = async () => {
     }
 
   } catch (error) {
-    console.error('🔥 Q&A 등록 실패:', error)
-
     if (error.response?.status === 401) {
       alert('로그인이 필요합니다.')
       localStorage.removeItem('token')
@@ -627,7 +619,6 @@ const updateQna = async () => {
     cancelQnaForm()
     await loadProductQnas(route.params.id)
   } catch (error) {
-    console.error('Q&A 수정 실패:', error)
     if (error.response?.status === 403) {
       alert('본인의 문의만 수정할 수 있습니다.')
     } else {
@@ -647,7 +638,6 @@ const deleteQna = async (qnaId) => {
     alert('문의가 삭제되었습니다.')
     await loadProductQnas(route.params.id)
   } catch (error) {
-    console.error('Q&A 삭제 실패:', error)
     if (error.response?.status === 403) {
       alert('본인의 문의만 삭제할 수 있습니다.')
     } else {
@@ -668,22 +658,18 @@ const cancelQnaForm = () => {
   }
 }
 
-// 🔥 Q&A 로딩 함수
+// Q&A 로딩 함수
 const loadProductQnas = async (productId) => {
   try {
-    console.log('🔍 Q&A 로딩 시작:', productId)
-
-    // 상품별 Q&A 조회
     const response = await apiClient.get(`/api/qna/product/${productId}`, {
       params: {
         page: 1,
         size: 10,
         sortBy: 'createdAt'
       },
-      withAuth: false
+      withAuth: false,
+      skipErrorRedirect: true // 에러 리다이렉트 방지
     })
-
-    console.log('✅ Q&A API 응답:', response.data)
 
     if (response.data && Array.isArray(response.data)) {
       qnas.value = response.data.map(qna => ({
@@ -694,23 +680,17 @@ const loadProductQnas = async (productId) => {
         userId: qna.userId || qna.authorId || qna.user_id,
         authorId: qna.authorId || qna.userId || qna.user_id
       }))
-
-      console.log('✅ Q&A 로딩 성공:', qnas.value.length, '건')
     } else {
       qnas.value = []
-      console.log('⚠️ Q&A 데이터 없음')
     }
 
   } catch (error) {
-    console.error('❌ Q&A 로딩 실패:', error)
     qnas.value = []
   }
 }
 
-// 🔥 리뷰 CRUD 함수들 (기존 코드 유지)
+// 리뷰 CRUD 함수들
 const submitReview = async () => {
-  console.log('🚀 리뷰 등록 시작...')
-
   if (!isAuthenticated()) {
     alert('로그인이 필요합니다.')
     router.push('/login')
@@ -730,14 +710,10 @@ const submitReview = async () => {
       rating: reviewForm.value.rating
     }
 
-    console.log('📝 리뷰 등록 요청 데이터:', reviewData)
-
     const response = await apiClient.post('/api/board/reviews', reviewData, {
       withAuth: true,
       timeout: 10000
     })
-
-    console.log('✅ 리뷰 등록 성공:', response.data)
 
     if (response.data.success) {
       alert('리뷰가 등록되었습니다.')
@@ -748,12 +724,12 @@ const submitReview = async () => {
     }
 
   } catch (error) {
-    console.error('🔥 리뷰 등록 실패:', error)
-
     if (error.response?.status === 401) {
       alert('로그인이 필요합니다.')
       localStorage.removeItem('token')
       router.push('/login')
+    } else if (error.response?.status === 403) {
+      alert('해당 상품을 구매하고 배송완료된 고객만 리뷰를 작성할 수 있습니다.')
     } else if (error.response?.status === 400) {
       const errorMsg = error.response?.data?.message || '입력 정보를 확인해주세요.'
       alert(`리뷰 등록 실패: ${errorMsg}`)
@@ -794,8 +770,11 @@ const updateReview = async () => {
     cancelReviewForm()
     await loadProductReviews(route.params.id)
   } catch (error) {
-    console.error('리뷰 수정 실패:', error)
-    alert('리뷰 수정에 실패했습니다.')
+    if (error.response?.status === 403) {
+      alert('본인의 리뷰만 수정할 수 있습니다.')
+    } else {
+      alert('리뷰 수정에 실패했습니다.')
+    }
   }
 }
 
@@ -810,8 +789,11 @@ const deleteReview = async (reviewId) => {
     alert('리뷰가 삭제되었습니다.')
     await loadProductReviews(route.params.id)
   } catch (error) {
-    console.error('리뷰 삭제 실패:', error)
-    alert('리뷰 삭제에 실패했습니다.')
+    if (error.response?.status === 403) {
+      alert('본인의 리뷰만 삭제할 수 있습니다.')
+    } else {
+      alert('리뷰 삭제에 실패했습니다.')
+    }
   }
 }
 
@@ -860,8 +842,7 @@ const getProductImage = (prod) => {
 
 const loadProductReviews = async (productId) => {
   try {
-    console.log('🔍 리뷰 로딩 시작:', productId);
-
+    // 먼저 상품별 리뷰 API 시도
     try {
       const productReviewResponse = await apiClient.get(`/api/board/product/${productId}`, {
         params: {
@@ -869,7 +850,8 @@ const loadProductReviews = async (productId) => {
           size: 10,
           sortBy: 'createdAt'
         },
-        withAuth: false
+        withAuth: false,
+        skipErrorRedirect: true // 에러 리다이렉트 방지
       });
 
       if (productReviewResponse.data && Array.isArray(productReviewResponse.data) && productReviewResponse.data.length > 0) {
@@ -881,14 +863,25 @@ const loadProductReviews = async (productId) => {
           userId: review.userId || review.authorId || review.user_id,
           authorId: review.authorId || review.userId || review.user_id
         }));
-
-        console.log('✅ 상품별 리뷰 API 성공:', reviews.value);
         return;
       }
     } catch (err) {
-      console.warn('❌ 상품별 리뷰 API 실패:', err.response?.status, err.message);
+      // 상품별 리뷰 API 실패시 조용히 넘어감
     }
 
+    // 백엔드 컨트롤러 확인을 위해 헬스체크 시도
+    try {
+      await apiClient.get('/api/board/health', {
+        withAuth: false,
+        skipErrorRedirect: true
+      });
+    } catch (healthErr) {
+      // 백엔드 서비스가 동작하지 않는 경우
+      reviews.value = [];
+      return;
+    }
+
+    // 전체 리뷰 목록에서 필터링 시도 (조심스럽게)
     try {
       const allReviewsResponse = await apiClient.get('/api/board/list', {
         params: {
@@ -897,7 +890,8 @@ const loadProductReviews = async (productId) => {
           sortBy: 'createdAt'
         },
         withAuth: false,
-        timeout: 10000
+        timeout: 5000,
+        skipErrorRedirect: true // 에러 리다이렉트 방지
       });
 
       if (allReviewsResponse.data) {
@@ -926,17 +920,16 @@ const loadProductReviews = async (productId) => {
           authorId: review.authorId || review.userId || review.user_id
         }));
 
-        console.log('✅ 전체 리뷰에서 필터링 성공:', reviews.value);
       } else {
         reviews.value = [];
       }
     } catch (err) {
-      console.error('❌ 전체 리뷰 API 실패:', err);
+      // 전체 리뷰 API도 실패하면 빈 배열로 설정
       reviews.value = [];
     }
 
   } catch (error) {
-    console.error('❌ 리뷰 로딩 전체 실패:', error);
+    // 모든 시도가 실패하면 빈 배열로 설정
     reviews.value = [];
   }
 };
@@ -980,9 +973,26 @@ const toggleWishlist = () => {
   isWishlisted.value = !isWishlisted.value
 }
 
+// ProductDetail.vue의 handleAddToCart 함수 수정
 const handleAddToCart = async () => {
   if (!product.value?.productId) {
     alert('상품 정보를 찾을 수 없습니다.');
+    return;
+  }
+
+  // 🔥 중요: 로그인 상태 먼저 확인
+  const token = localStorage.getItem('token');
+  if (!token) {
+    alert('로그인이 필요합니다.');
+    router.push('/login');
+    return;
+  }
+
+  // 🔥 토큰 유효성 검증
+  if (!isAuthenticated()) {
+    alert('로그인이 만료되었습니다. 다시 로그인해주세요.');
+    localStorage.removeItem('token');
+    router.push('/login');
     return;
   }
 
@@ -992,33 +1002,24 @@ const handleAddToCart = async () => {
     productOptionId: 'defaultOptionId'
   };
 
-  const token = localStorage.getItem('token');
-  const isLoggedIn = !!token && isAuthenticated();
-
-  if (!isLoggedIn) {
-    const localCart = JSON.parse(localStorage.getItem('guestCart') || '[]')
-
-    const existingIndex = localCart.findIndex(item => item.productId === cartItem.productId)
-
-    if (existingIndex >= 0) {
-      localCart[existingIndex].quantity += cartItem.quantity
-    } else {
-      localCart.push(cartItem)
-    }
-
-    localStorage.setItem('guestCart', JSON.stringify(localCart))
-
-    const goToCart = confirm('장바구니에 추가되었습니다! 장바구니로 이동하시겠습니까?')
-    if (goToCart) {
-      router.push('/cart')
-    }
-
-    return
-  }
-
   try {
+    // 🔥 사용자 프로필 확인으로 인증 상태 재검증
+    await apiClient.get('/api/users/profile');
+
+    console.log('🔍 장바구니 추가 요청:', {
+      cartItem,
+      token: token ? 'exists' : 'null',
+      headers: {
+        'Authorization': token ? `Bearer ${token.substring(0, 20)}...` : 'none'
+      }
+    });
+
     const response = await apiClient.post('/api/cart', cartItem, {
-      withAuth: true
+      withAuth: true,
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
     });
 
     if (response.data.success) {
@@ -1031,15 +1032,23 @@ const handleAddToCart = async () => {
     }
 
   } catch (error) {
+    console.error('❌ 장바구니 추가 실패:', error);
+
     if (error.response) {
-      if (error.response.status === 401) {
+      const status = error.response.status;
+      const message = error.response.data?.message || error.message;
+
+      if (status === 401) {
         alert('인증이 만료되었습니다. 다시 로그인해주세요.');
         localStorage.removeItem('token');
         router.push('/login');
         return;
+      } else if (status === 403) {
+        alert('권한이 없습니다.');
+        return;
+      } else {
+        alert(`장바구니 추가 실패: ${message}`);
       }
-
-      alert(`요청 실패: ${error.response.status} ${error.response.statusText}`);
     } else if (error.request) {
       alert('네트워크 오류가 발생했습니다.');
     } else {
@@ -1103,7 +1112,7 @@ onMounted(async () => {
   const productId = route.params.id;
   if (productId) {
     await loadProductReviews(productId);
-    await loadProductQnas(productId); // 🔥 Q&A도 로딩
+    await loadProductQnas(productId);
   }
 });
 
@@ -1111,7 +1120,7 @@ watch(() => route.params.id, async (newId) => {
   if (newId) {
     await loadProduct();
     await loadProductReviews(newId);
-    await loadProductQnas(newId); // 🔥 Q&A도 로딩
+    await loadProductQnas(newId);
   }
 });
 </script>

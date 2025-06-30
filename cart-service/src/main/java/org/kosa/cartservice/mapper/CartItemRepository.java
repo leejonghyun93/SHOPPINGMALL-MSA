@@ -1,6 +1,5 @@
 package org.kosa.cartservice.mapper;
 
-
 import org.kosa.cartservice.entity.CartItem;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -11,11 +10,9 @@ import java.util.Optional;
 
 public interface CartItemRepository extends JpaRepository<CartItem, String> {
 
-    Optional<CartItem> findByCartIdAndProductIdAndProductOptionId(String cartId, String productId, String productOptionId);
+    Optional<CartItem> findByCartIdAndProductIdAndProductOptionId(String cartId, Integer productId, String productOptionId);
 
-    Optional<CartItem> findByCartIdAndProductId(String cartId, String productId);
-
-
+    Optional<CartItem> findByCartIdAndProductId(String cartId, Integer productId);
 
     @Query("SELECT COUNT(ci) FROM CartItem ci WHERE ci.cartId = :cartId")
     Long countByCartId(@Param("cartId") String cartId);
@@ -33,11 +30,12 @@ public interface CartItemRepository extends JpaRepository<CartItem, String> {
     @Query("SELECT ci FROM CartItem ci WHERE ci.cartId = :userId AND ci.cartItemId = :cartItemId")
     Optional<CartItem> findByUserIdAndCartItemId(@Param("userId") String userId, @Param("cartItemId") String cartItemId);
 
+    // String → Integer로 변경
     @Query("SELECT ci FROM CartItem ci WHERE ci.cartId = :cartId AND ci.productId = :productId AND " +
             "(ci.productOptionId = :productOptionId OR (ci.productOptionId IS NULL AND :productOptionId IS NULL))")
     Optional<CartItem> findByCartIdAndProductIdAndProductOptionIdNullSafe(
             @Param("cartId") String cartId,
-            @Param("productId") String productId,
+            @Param("productId") Integer productId,
             @Param("productOptionId") String productOptionId
     );
 

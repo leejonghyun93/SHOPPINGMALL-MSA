@@ -62,7 +62,7 @@ public class OrderCancel {
             cancelDate = LocalDateTime.now();
         }
         if (refundStatus == null) {
-            refundStatus = "PENDING";
+            refundStatus = "PENDING";  // 🔥 이 줄을 올바르게 수정
         }
     }
 

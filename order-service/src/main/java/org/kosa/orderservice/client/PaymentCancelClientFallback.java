@@ -11,7 +11,7 @@ public class PaymentCancelClientFallback implements PaymentCancelClient {
 
     @Override
     public PaymentCancelResponseDTO cancelPayment(PaymentCancelRequestDTO request) {
-        log.warn("⚠️ Payment Service 호출 실패 - Fallback 실행: paymentId={}", request.getPaymentId());
+        log.warn(" Payment Service 호출 실패 - Fallback 실행: paymentId={}", request.getPaymentId());
 
         return PaymentCancelResponseDTO.builder()
                 .success(false)

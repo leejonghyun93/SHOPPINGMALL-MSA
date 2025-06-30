@@ -23,7 +23,7 @@ public class OrderWithdrawalService {
     private final NotificationService notificationService;
 
     /**
-     * 🔥 현실적인 사용자 탈퇴 시 주문 데이터 처리
+     * 현실적인 사용자 탈퇴 시 주문 데이터 처리
      */
     public void processUserWithdrawalOrders(UserWithdrawalEvent event) {
         String userId = event.getUserId();
@@ -57,41 +57,41 @@ public class OrderWithdrawalService {
             // 5. 고객센터 알림 (중요한 주문이 있는 경우)
             notifyCustomerServiceIfNeeded(activeOrders, event);
 
-            log.info("✅ 사용자 탈퇴 주문 처리 완료: userId={}, 총 처리 주문 수={}",
+            log.info(" 사용자 탈퇴 주문 처리 완료: userId={}, 총 처리 주문 수={}",
                     userId, activeOrders.size());
 
         } catch (Exception e) {
-            log.error("❌ 사용자 탈퇴 주문 처리 실패: userId={}, error={}", userId, e.getMessage(), e);
+            log.error(" 사용자 탈퇴 주문 처리 실패: userId={}, error={}", userId, e.getMessage(), e);
             throw new RuntimeException("탈퇴 주문 처리 중 오류: " + e.getMessage(), e);
         }
     }
 
     /**
-     * 🔥 결제 대기 주문 처리 (즉시 취소)
+     *  결제 대기 주문 처리 (즉시 취소)
      */
     private void processPendingOrders(List<OrderDTO> orders, String userId) {
         if (orders == null || orders.isEmpty()) return;
 
-        log.info("💳 결제 대기 주문 처리: {}건", orders.size());
+        log.info("결제 대기 주문 처리: {}건", orders.size());
 
         for (OrderDTO order : orders) {
             try {
                 orderService.updateOrderStatus(order.getOrderId(), "CANCELLED_BY_WITHDRAWAL");
-                log.info("✅ 결제 대기 주문 취소: orderId={}", order.getOrderId());
+                log.info(" 결제 대기 주문 취소: orderId={}", order.getOrderId());
             } catch (Exception e) {
-                log.error("❌ 결제 대기 주문 취소 실패: orderId={}, error={}",
+                log.error(" 결제 대기 주문 취소 실패: orderId={}, error={}",
                         order.getOrderId(), e.getMessage());
             }
         }
     }
 
     /**
-     * 🔥 준비 중 주문 처리 (취소 + 환불 처리)
+     * 준비 중 주문 처리 (취소 + 환불 처리)
      */
     private void processPreparingOrders(List<OrderDTO> orders, String userId) {
         if (orders == null || orders.isEmpty()) return;
 
-        log.info("📦 준비 중 주문 처리: {}건", orders.size());
+        log.info(" 준비 중 주문 처리: {}건", orders.size());
 
         for (OrderDTO order : orders) {
             try {
@@ -107,11 +107,11 @@ public class OrderWithdrawalService {
                     );
                 }
 
-                log.info("✅ 준비 중 주문 취소 및 환불: orderId={}, amount={}",
+                log.info(" 준비 중 주문 취소 및 환불: orderId={}, amount={}",
                         order.getOrderId(), order.getTotalPrice());
 
             } catch (Exception e) {
-                log.error("❌ 준비 중 주문 처리 실패: orderId={}, error={}",
+                log.error("준비 중 주문 처리 실패: orderId={}, error={}",
                         order.getOrderId(), e.getMessage());
             }
         }

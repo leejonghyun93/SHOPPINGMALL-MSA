@@ -27,5 +27,4 @@ public class SecurityConfig {
         return http.build();
     }
 
-    // corsConfigurationSource() 메서드 전체 삭제!
 }

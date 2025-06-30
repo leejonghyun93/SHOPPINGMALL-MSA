@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface ProductRepository extends JpaRepository<Product, String> {
+public interface ProductRepository extends JpaRepository<Product, Integer> {
 
     // ================== 메인 상품 조회 메서드들 ==================
 
@@ -19,16 +19,16 @@ public interface ProductRepository extends JpaRepository<Product, String> {
      * 상품 ID와 상태로 단일 상품 조회
      */
     @Query("SELECT p FROM Product p WHERE p.productId = :productId AND p.productStatus = :productStatus")
-    Optional<Product> findByProductIdAndProductStatus(@Param("productId") String productId, @Param("productStatus") String productStatus);
+    Optional<Product> findByProductIdAndProductStatus(@Param("productId") Integer productId, @Param("productStatus") String productStatus);
 
     /**
      * 카테고리별 상품 조회 (특정 상품 제외) - 연관 상품용
      */
     @Query("SELECT p FROM Product p WHERE p.categoryId = :categoryId AND p.productStatus = :productStatus AND p.productId != :excludeProductId ORDER BY p.createdDate DESC")
     List<Product> findByCategoryIdAndProductStatusAndProductIdNot(
-            @Param("categoryId") String categoryId,
+            @Param("categoryId") Integer categoryId,
             @Param("productStatus") String productStatus,
-            @Param("excludeProductId") String excludeProductId,
+            @Param("excludeProductId") Integer excludeProductId,
             Pageable pageable
     );
 
@@ -36,12 +36,12 @@ public interface ProductRepository extends JpaRepository<Product, String> {
      * 상품 존재 여부 확인
      */
     @Query("SELECT COUNT(p) > 0 FROM Product p WHERE p.productId = :productId AND p.productStatus = :productStatus")
-    boolean existsByProductIdAndProductStatus(@Param("productId") String productId, @Param("productStatus") String productStatus);
+    boolean existsByProductIdAndProductStatus(@Param("productId") Integer productId, @Param("productStatus") String productStatus);
 
     /**
      * 최신 상품 조회
      */
-    @Query("SELECT p FROM Product p WHERE p.productStatus = :productStatus ORDER BY p.createdDate DESC")
+    @Query("SELECT p FROM Product p WHERE p.productStatus = :productStatus AND p.displayYn = 'Y' ORDER BY p.createdDate DESC")
     List<Product> findByProductStatusOrderByCreatedDateDesc(@Param("productStatus") String productStatus, Pageable pageable);
 
     // ================== 카테고리별 상품 조회 ==================
@@ -49,7 +49,7 @@ public interface ProductRepository extends JpaRepository<Product, String> {
     /**
      * 전체 상품 조회 (최신순)
      */
-    @Query(value = "SELECT * FROM tb_product WHERE PRODUCT_STATUS = 'ACTIVE' " +
+    @Query(value = "SELECT * FROM tb_product WHERE PRODUCT_STATUS = '판매중' AND display_yn = 'Y' " +
             "ORDER BY CREATED_DATE DESC",
             nativeQuery = true)
     List<Product> findAllActiveProducts(Pageable pageable);
@@ -57,75 +57,89 @@ public interface ProductRepository extends JpaRepository<Product, String> {
     /**
      * 정확한 카테고리 ID로 상품 조회
      */
-    @Query(value = "SELECT * FROM tb_product WHERE CATEGORY_ID = :categoryId AND PRODUCT_STATUS = 'ACTIVE' " +
+    @Query(value = "SELECT * FROM tb_product WHERE category_id = :categoryId AND PRODUCT_STATUS = '판매중' AND display_yn = 'Y' " +
             "ORDER BY CREATED_DATE DESC",
             nativeQuery = true)
-    List<Product> findByCategoryIdActive(@Param("categoryId") String categoryId, Pageable pageable);
-
-    /**
-     * 메인 카테고리로 하위 카테고리 포함 조회
-     */
-    @Query(value = "SELECT * FROM tb_product WHERE " +
-            "CATEGORY_ID LIKE CONCAT(:parentCategoryId, '%') AND " +
-            "PRODUCT_STATUS = 'ACTIVE' " +
-            "ORDER BY CREATED_DATE DESC",
-            nativeQuery = true)
-    List<Product> findByParentCategoryActive(@Param("parentCategoryId") String parentCategoryId, Pageable pageable);
+    List<Product> findByCategoryIdActive(@Param("categoryId") Integer categoryId, Pageable pageable);
 
     /**
      * 다중 카테고리 상품 조회 - MSA 환경에서 카테고리 서비스로부터 받은 ID 목록으로 조회
      */
-    @Query(value = "SELECT * FROM tb_product WHERE CATEGORY_ID IN (:categoryIds) AND PRODUCT_STATUS = 'ACTIVE' " +
+    @Query(value = "SELECT * FROM tb_product WHERE category_id IN (:categoryIds) AND PRODUCT_STATUS = '판매중' AND display_yn = 'Y' " +
             "ORDER BY CREATED_DATE DESC",
             nativeQuery = true)
-    List<Product> findByMultipleCategoriesActive(@Param("categoryIds") List<String> categoryIds, Pageable pageable);
+    List<Product> findByMultipleCategoriesActive(@Param("categoryIds") List<Integer> categoryIds, Pageable pageable);
+
+    /**
+     * HOST ID로 상품 조회
+     */
+    @Query("SELECT p FROM Product p WHERE p.hostId = :hostId AND p.productStatus = :productStatus AND p.displayYn = 'Y' ORDER BY p.createdDate DESC")
+    List<Product> findByHostIdAndProductStatus(@Param("hostId") Long hostId, @Param("productStatus") String productStatus, Pageable pageable);
 
     // ================== 카운팅 메서드들 ==================
 
     /**
      * 전체 활성 상품 개수
      */
-    @Query(value = "SELECT COUNT(*) FROM tb_product WHERE PRODUCT_STATUS = 'ACTIVE'", nativeQuery = true)
+    @Query(value = "SELECT COUNT(*) FROM tb_product WHERE PRODUCT_STATUS = '판매중' AND display_yn = 'Y'", nativeQuery = true)
     Long countAllActiveProducts();
 
     /**
      * 카테고리별 상품 개수
      */
-    @Query(value = "SELECT COUNT(*) FROM tb_product WHERE CATEGORY_ID = :categoryId AND PRODUCT_STATUS = 'ACTIVE'",
+    @Query(value = "SELECT COUNT(*) FROM tb_product WHERE category_id = :categoryId AND PRODUCT_STATUS = '판매중' AND display_yn = 'Y'",
             nativeQuery = true)
-    Long countByCategoryActive(@Param("categoryId") String categoryId);
-
-    /**
-     * 메인 카테고리의 하위 카테고리 포함 개수 조회
-     */
-    @Query(value = "SELECT COUNT(*) FROM tb_product WHERE " +
-            "CATEGORY_ID LIKE CONCAT(:parentCategoryId, '%') AND " +
-            "PRODUCT_STATUS = 'ACTIVE'",
-            nativeQuery = true)
-    Long countByParentCategoryActive(@Param("parentCategoryId") String parentCategoryId);
+    Long countByCategoryActive(@Param("categoryId") Integer categoryId);
 
     /**
      * 다중 카테고리별 상품 개수
      */
-    @Query(value = "SELECT COUNT(*) FROM tb_product WHERE CATEGORY_ID IN (:categoryIds) AND PRODUCT_STATUS = 'ACTIVE'",
+    @Query(value = "SELECT COUNT(*) FROM tb_product WHERE category_id IN (:categoryIds) AND PRODUCT_STATUS = '판매중' AND display_yn = 'Y'",
             nativeQuery = true)
-    Long countByMultipleCategoriesActive(@Param("categoryIds") List<String> categoryIds);
+    Long countByMultipleCategoriesActive(@Param("categoryIds") List<Integer> categoryIds);
+
+    /**
+     * HOST별 상품 개수
+     */
+    @Query(value = "SELECT COUNT(*) FROM tb_product WHERE HOST_ID = :hostId AND PRODUCT_STATUS = '판매중' AND display_yn = 'Y'",
+            nativeQuery = true)
+    Long countByHostIdActive(@Param("hostId") Long hostId);
 
     /**
      * 카테고리별 상품 개수 통계
      */
-    @Query(value = "SELECT CATEGORY_ID, COUNT(*) FROM tb_product WHERE PRODUCT_STATUS = 'ACTIVE' GROUP BY CATEGORY_ID",
+    @Query(value = "SELECT category_id, COUNT(*) FROM tb_product WHERE PRODUCT_STATUS = '판매중' AND display_yn = 'Y' GROUP BY category_id",
             nativeQuery = true)
     List<Object[]> getProductCountsByCategory();
 
     /**
      * 상품에 존재하는 카테고리 ID 목록 조회
      */
-    @Query(value = "SELECT DISTINCT CATEGORY_ID FROM tb_product WHERE PRODUCT_STATUS = 'ACTIVE' ORDER BY CATEGORY_ID",
+    @Query(value = "SELECT DISTINCT category_id FROM tb_product WHERE PRODUCT_STATUS = '판매중' AND display_yn = 'Y' ORDER BY category_id",
             nativeQuery = true)
-    List<String> findAllActiveCategoryIds();
+    List<Integer> findAllActiveCategoryIds();
 
-    @Query("SELECT p FROM Product p WHERE p.productId IN :productIds AND p.productStatus = :productStatus")
-    List<Product> findByProductIdInAndProductStatus(@Param("productIds") List<String> productIds, @Param("productStatus") String productStatus);
+    /**
+     * 상품 ID 목록으로 상품 조회
+     */
+    @Query("SELECT p FROM Product p WHERE p.productId IN :productIds AND p.productStatus = :productStatus AND p.displayYn = 'Y'")
+    List<Product> findByProductIdInAndProductStatus(@Param("productIds") List<Integer> productIds, @Param("productStatus") String productStatus);
 
+    /**
+     * 재고가 있는 상품만 조회
+     */
+    @Query("SELECT p FROM Product p WHERE p.stock > 0 AND p.productStatus = :productStatus AND p.displayYn = 'Y' ORDER BY p.createdDate DESC")
+    List<Product> findByStockGreaterThanZeroAndProductStatus(@Param("productStatus") String productStatus, Pageable pageable);
+
+    /**
+     * 할인 상품 조회 (판매가 < 정가)
+     */
+    @Query("SELECT p FROM Product p WHERE p.salePrice < p.price AND p.productStatus = :productStatus AND p.displayYn = 'Y' ORDER BY ((p.price - p.salePrice) * 100 / p.price) DESC")
+    List<Product> findDiscountedProducts(@Param("productStatus") String productStatus, Pageable pageable);
+
+    /**
+     * 인기 상품 조회 (조회수 기준)
+     */
+    @Query("SELECT p FROM Product p WHERE p.productStatus = :productStatus AND p.displayYn = 'Y' ORDER BY p.viewCount DESC, p.createdDate DESC")
+    List<Product> findPopularProducts(@Param("productStatus") String productStatus, Pageable pageable);
 }

@@ -86,23 +86,22 @@ const routes = [
             title: '비밀번호 찾기'
         }
     },
+    // 🔥 마이페이지 라우트 수정
     {
         path: '/mypage',
         name: 'MyPage',
         component: MyPage,
-        beforeEnter: requireAuth,
-        meta: {
-            title: '마이페이지',
-            requiresAuth: true
-        },
+        redirect: '/mypage/orders',
         children: [
+            {
+                path: '',
+                name: 'MyPageDefault',
+                redirect: '/mypage/orders'
+            },
             {
                 path: 'orders',
                 name: 'MyPageOrders',
-                component: MyPageOrders,
-                meta: {
-                    title: '주문 내역'
-                }
+                component: MyPageOrders
             },
             {
                 path: 'profile',
@@ -120,10 +119,6 @@ const routes = [
                     requiresAuth: true,
                     title: '프로필 수정'
                 }
-            },
-            {
-                path: '',
-                redirect: 'orders'
             }
         ]
     },
@@ -240,7 +235,7 @@ const routes = [
         }
     },
 
-    // 🔥 404 캐치올 라우트 (반드시 맨 마지막에 추가)
+
     {
         path: '/:pathMatch(.*)*',
         redirect: to => {

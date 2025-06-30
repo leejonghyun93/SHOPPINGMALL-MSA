@@ -78,20 +78,20 @@ public class AuthService {
             }
 
             try {
-                Long userIdLong = user.getUserIdAsLong(); // 숫자 변환 시도 (실패하면 null)
-                String username = user.getUsername();     // userId와 동일
+                String userIdString = user.getUserIdAsLong(); // String 반환 (메서드명은 기존 유지)
+                String username = user.getUsername();         // userId와 동일
                 String name = user.getName();
                 String email = user.getEmail();
                 String phone = user.getPhone();
 
-                // 토큰 생성: userIdLong이 null이면 username을 subject로 사용
-                String token = jwtUtil.generateToken(userIdLong, username, name, email, phone);
+                // 토큰 생성: userIdString이 null이면 username을 subject로 사용
+                String token = jwtUtil.generateToken(userIdString, username, name, email, phone);
 
                 return AuthResponse.builder()
                         .success(true)
                         .message("로그인 성공")
                         .token(token)
-                        .userId(userIdLong)
+                        .userId(userIdString)  // String으로 반환
                         .username(username)
                         .name(name)
                         .email(email)
@@ -120,7 +120,7 @@ public class AuthService {
 
         String username = jwtUtil.getUsernameFromToken(token);
         String subject = jwtUtil.getSubjectFromToken(token);
-        Long userId = jwtUtil.getUserIdFromToken(token);
+        String userId = jwtUtil.getUserIdFromToken(token);  // String 반환
 
         try {
             UserDto user = userClient.getUserByUserId(username);
@@ -133,7 +133,7 @@ public class AuthService {
             return AuthResponse.builder()
                     .success(true)
                     .message("토큰이 유효합니다")
-                    .userId(userId)
+                    .userId(userId)    // String 타입
                     .username(username)
                     .build();
 
@@ -150,7 +150,7 @@ public class AuthService {
 
             String username = null;
             String subject = null;
-            Long userId = null;
+            String userId = null;    // String 타입으로 변경
             String name = null;
             String email = null;
             String phone = null;
@@ -160,14 +160,14 @@ public class AuthService {
                 if (!jwtUtil.isTokenExpired(token)) {
                     username = jwtUtil.getUsernameFromToken(token);
                     subject = jwtUtil.getSubjectFromToken(token);
-                    userId = jwtUtil.getUserIdFromToken(token);
+                    userId = jwtUtil.getUserIdFromToken(token);      // String 반환
                     name = jwtUtil.getNameFromToken(token);
                     email = jwtUtil.getEmailFromToken(token);
                     phone = jwtUtil.getPhoneFromToken(token);
                 } else {
                     username = jwtUtil.getUsernameFromExpiredToken(token);
                     subject = jwtUtil.getSubjectFromExpiredToken(token);
-                    userId = jwtUtil.getUserIdFromExpiredToken(token);
+                    userId = jwtUtil.getUserIdFromExpiredToken(token); // String 반환
                     name = jwtUtil.getNameFromExpiredToken(token);
                     email = jwtUtil.getEmailFromExpiredToken(token);
                     phone = jwtUtil.getPhoneFromExpiredToken(token);
@@ -186,10 +186,10 @@ public class AuthService {
                     throw new IllegalArgumentException("유효하지 않은 사용자입니다");
                 }
 
-                Long actualUserId = user.getUserIdAsLong();
+                String actualUserId = user.getUserIdAsLong(); // String 반환
 
                 String newToken = jwtUtil.generateToken(
-                        actualUserId,
+                        actualUserId,  // String 타입
                         username,
                         name != null ? name : user.getName(),
                         email != null ? email : user.getEmail(),
@@ -200,7 +200,7 @@ public class AuthService {
                         .success(true)
                         .message("토큰이 갱신되었습니다")
                         .token(newToken)
-                        .userId(actualUserId)
+                        .userId(actualUserId)  // String 타입
                         .username(username)
                         .name(name != null ? name : user.getName())
                         .email(email != null ? email : user.getEmail())
@@ -269,7 +269,6 @@ public class AuthService {
             return AuthResponse.builder()
                     .success(true)
                     .message("인증번호가 이메일로 발송되었습니다. 10분 내에 입력해주세요.")
-//                    .data(maskEmail(user.getEmail())) // 마스킹된 이메일 주소 반환
                     .build();
 
         } catch (Exception e) {
@@ -370,25 +369,6 @@ public class AuthService {
     }
 
     /**
-     * 이메일 주소 마스킹 (앞 2자리와 @ 이후만 표시)
-     */
-    private String maskEmail(String email) {
-        if (email == null || !email.contains("@")) {
-            return email;
-        }
-
-        String[] parts = email.split("@");
-        String localPart = parts[0];
-        String domain = parts[1];
-
-        if (localPart.length() <= 2) {
-            return localPart + "*@" + domain;
-        }
-
-        return localPart.substring(0, 2) + "***@" + domain;
-    }
-
-    /**
      * 인증번호 검증
      */
     public AuthResponse verifyResetCode(VerifyResetCodeRequest request) {
@@ -471,8 +451,6 @@ public class AuthService {
         }
     }
 
-    // 🔥 빠진 메서드들 추가
-
     /**
      * User Service에 비밀번호 업데이트 요청
      */
@@ -482,7 +460,7 @@ public class AuthService {
 
             // 비밀번호 업데이트 요청 DTO
             UpdatePasswordRequest updateRequest = new UpdatePasswordRequest();
-            updateRequest.setNewPassword(passwordEncoder.encode(newPassword)); // 🔥 암호화해서 전송
+            updateRequest.setNewPassword(passwordEncoder.encode(newPassword)); // 암호화해서 전송
 
             ResponseEntity<String> response = restTemplate.postForEntity(url, updateRequest, String.class);
 

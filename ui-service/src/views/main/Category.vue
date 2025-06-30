@@ -29,7 +29,7 @@
             v-for="category in categories"
             :key="category.categoryId"
             class="category-item"
-            :class="{ active: selectedCategory === category.categoryId }"
+            :class="{ active: String(selectedCategory) === String(category.categoryId) }"
             @click="selectCategory(category.categoryId)"
         >
           <div class="category-icon">
@@ -149,9 +149,9 @@
               @mousemove="drag"
               @mouseup="endDrag"
               @mouseleave="endDrag"
-              @wheel="handleWheel"
-              @touchstart.prevent="startTouch"
-              @touchmove.prevent="touchMove"
+              @wheel.passive="handleWheelPassive"
+              @touchstart.passive="startTouchPassive"
+              @touchmove.passive="touchMovePassive"
               @touchend="endTouch"
           >
             <div
@@ -319,11 +319,10 @@ const router = useRouter()
 const route = useRoute()
 const subCategories = ref([])
 const loading = ref(false)
-const showDebug = ref(false)
 
 // 검색 관련 변수
 const searchKeyword = ref('')
-const allProducts = ref([]) // 전체 상품 (검색 전)
+const allProducts = ref([])
 
 // 초기 데이터
 const categories = ref([
@@ -339,23 +338,16 @@ const products = ref([])
 // 상수 및 유틸리티
 const defaultImage = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg=='
 
-// Vue 컴포넌트에서 아이콘 처리 로직 개선
+// 아이콘 처리 로직
 const getIconForCategory = (category) => {
-  console.log('🔍 카테고리 아이콘 처리:', category); // 디버깅용
-
-  // 1. 서버에서 제공하는 iconUrl 우선 사용
   if (category.iconUrl && category.iconUrl.trim() !== '') {
-    console.log('✅ iconUrl 사용:', category.iconUrl);
     return category.iconUrl.trim();
   }
 
-  // 2. icon 필드 사용
   if (category.icon && category.icon.trim() !== '') {
-    console.log('✅ icon 사용:', category.icon);
     return category.icon.trim();
   }
 
-  // 3. categoryIcon으로 로컬 경로 생성
   if (category.categoryIcon && category.categoryIcon.trim() !== '') {
     const iconMap = {
       'vegetables': 'vegetables.svg',
@@ -370,18 +362,13 @@ const getIconForCategory = (category) => {
     };
 
     const iconFile = iconMap[category.categoryIcon] || category.categoryIcon + '.svg';
-    const iconUrl = `/icons/${iconFile}`;
-    console.log('✅ categoryIcon 매핑:', category.categoryIcon, '->', iconUrl);
-    return iconUrl;
+    return `/icons/${iconFile}`;
   }
 
-  console.log('❌ 아이콘을 찾을 수 없음:', category);
   return null;
 };
 
 // 검색 관련 계산된 속성들
-
-// 검색 필터링된 상품들
 const filteredProducts = computed(() => {
   if (!searchKeyword.value) {
     return products.value
@@ -394,7 +381,6 @@ const filteredProducts = computed(() => {
   })
 })
 
-// 표시할 상품들 (검색 중이면 필터링된 것, 아니면 일반 상품)
 const displayProducts = computed(() => {
   return searchKeyword.value ? filteredProducts.value : products.value
 })
@@ -413,7 +399,6 @@ const highlightSearchKeyword = (text) => {
 // 검색 해제 함수
 const clearSearch = () => {
   searchKeyword.value = ''
-  // URL에서 search 파라미터 제거
   router.push({ path: route.path })
 }
 
@@ -439,7 +424,6 @@ const sortedProducts = computed(() => {
     case 'name':
       return sorted.sort((a, b) => a.title.localeCompare(b.title))
     case 'relevance':
-      // 검색 관련도순 (검색어가 제목 시작 부분에 있을수록 우선)
       if (searchKeyword.value) {
         return sorted.sort((a, b) => {
           const aTitle = a.title?.toLowerCase() || ''
@@ -529,7 +513,7 @@ const fetchProducts = async () => {
     })
 
     products.value = convertedProducts
-    allProducts.value = convertedProducts // 검색을 위해 전체 상품도 저장
+    allProducts.value = convertedProducts
 
   } catch (error) {
     products.value = []
@@ -580,32 +564,30 @@ const getImageUrl = (product) => {
 const fetchMainCategories = async () => {
   try {
     const res = await apiClient.get('/api/categories/main', {withAuth: false})
-    console.log('🔍 메인 카테고리 API 응답:', res.data); // 디버깅용
 
     if (res.data && res.data.length > 0) {
-      const allCategory = {categoryId: 'ALL', name: '전체', icon: null, categoryDisplayOrder: 0}
+      const allCategory = {
+        categoryId: 'ALL',
+        name: '전체',
+        icon: null,
+        categoryDisplayOrder: 0
+      }
 
       const serverCategories = res.data
           .filter(cat => cat.categoryUseYn === 'Y' && cat.categoryLevel === 1)
           .sort((a, b) => a.categoryDisplayOrder - b.categoryDisplayOrder)
-          .map(cat => {
-            const processedCategory = {
-              categoryId: cat.categoryId,
-              name: cat.name,
-              icon: getIconForCategory(cat), // 🔥 수정된 함수 사용
-              categoryDisplayOrder: cat.categoryDisplayOrder,
-              categoryIcon: cat.categoryIcon,
-              iconUrl: cat.iconUrl
-            };
-            console.log('🔍 처리된 카테고리:', processedCategory); // 디버깅용
-            return processedCategory;
-          })
+          .map(cat => ({
+            categoryId: String(cat.categoryId),
+            name: cat.name,
+            icon: getIconForCategory(cat),
+            categoryDisplayOrder: cat.categoryDisplayOrder,
+            categoryIcon: cat.categoryIcon,
+            iconUrl: cat.iconUrl
+          }))
 
       categories.value = [allCategory, ...serverCategories]
-      console.log('최종 카테고리 목록:', categories.value); // 디버깅용
     }
   } catch (error) {
-    console.error('메인 카테고리 조회 실패:', error);
     categories.value = [{categoryId: 'ALL', name: '전체', icon: null, categoryDisplayOrder: 0}]
   }
 }
@@ -655,23 +637,26 @@ const loadMore = () => {
  * 메인 카테고리 선택
  */
 const selectCategory = async (categoryId) => {
-  if (selectedCategory.value === categoryId) return
+  const normalizedCategoryId = String(categoryId);
 
-  // 검색 모드 해제
   searchKeyword.value = ''
 
-  selectedCategory.value = categoryId
+  selectedCategory.value = normalizedCategoryId
   selectedSubCategory.value = ''
   currentPage.value = 1
   selectedSort.value = 'default'
 
-  await fetchSubCategories(categoryId)
-  await fetchProducts()
+  try {
+    await fetchSubCategories(normalizedCategoryId)
+    await fetchProducts()
+  } catch (error) {
+    // 에러 처리
+  }
 
-  if (categoryId === 'ALL') {
+  if (normalizedCategoryId === 'ALL') {
     router.push('/category/')
   } else {
-    router.push(`/category/${categoryId}`)
+    router.push(`/category/${normalizedCategoryId}`)
   }
 }
 
@@ -762,19 +747,19 @@ const endDrag = () => {
   slider.value.style.userSelect = 'auto'
 }
 
-const handleWheel = (e) => {
-  e.preventDefault()
+// Passive 이벤트 핸들러들
+const handleWheelPassive = (e) => {
   const scrollAmount = e.deltaY * 0.5
   slider.value.scrollLeft += scrollAmount
 }
 
-const startTouch = (e) => {
+const startTouchPassive = (e) => {
   isDragging.value = true
   startX.value = e.touches[0].pageX
   scrollLeft.value = slider.value.scrollLeft
 }
 
-const touchMove = (e) => {
+const touchMovePassive = (e) => {
   if (!isDragging.value) return
   const x = e.touches[0].pageX
   const walk = (x - startX.value) * 1.5
@@ -811,7 +796,7 @@ watch(() => route.query.search, (newSearch) => {
   if (newSearch && newSearch !== searchKeyword.value) {
     searchKeyword.value = newSearch
     currentPage.value = 1
-    selectedSort.value = 'relevance' // 검색 시 관련도순으로 변경
+    selectedSort.value = 'relevance'
   } else if (!newSearch && searchKeyword.value) {
     searchKeyword.value = ''
   }
@@ -825,7 +810,6 @@ watch(() => route.params, async (newParams, oldParams) => {
   let needsSubCategoryRefresh = false
 
   if (newParams.categoryId && newParams.categoryId !== selectedCategory.value) {
-    // URL로 카테고리 이동 시 검색 모드 해제
     searchKeyword.value = ''
 
     selectedCategory.value = newParams.categoryId
@@ -850,12 +834,10 @@ onMounted(async () => {
   try {
     await fetchMainCategories()
 
-    // URL에서 검색어 확인
     if (route.query.search) {
       searchKeyword.value = route.query.search
     }
 
-    // 카테고리 파라미터 처리 (검색 모드가 아닐 때만)
     if (!searchKeyword.value && route.params.categoryId) {
       selectedCategory.value = route.params.categoryId
       await fetchSubCategories(route.params.categoryId)
