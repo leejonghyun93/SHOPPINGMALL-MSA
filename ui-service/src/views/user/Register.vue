@@ -188,7 +188,6 @@ const show = reactive({
   marketing: false,
 });
 
-// 상태 관리
 const userIdMessage = ref('');
 const userIdMessageType = ref('');
 const userIdChecked = ref(false);
@@ -199,7 +198,6 @@ const authMessage = ref('');
 const authMessageType = ref('');
 const isPhoneVerified = ref(false);
 
-// 계산된 속성
 const passwordMismatch = computed(() => {
   return form.confirmPwd && form.userPwd !== form.confirmPwd;
 });
@@ -219,7 +217,6 @@ const isFormValid = computed(() => {
       form.agreePrivacy;
 });
 
-// 카카오 주소 API 로드
 onMounted(() => {
   loadDaumPostcodeScript();
 });
@@ -231,16 +228,11 @@ function loadDaumPostcodeScript() {
 
   const script = document.createElement('script');
   script.src = '//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js';
-  script.onload = () => {
-    console.log('Daum Postcode API loaded');
-  };
   document.head.appendChild(script);
 }
 
-// API 기본 URL 설정
 const API_BASE_URL = 'http://localhost:8080';
 
-// 아이디 중복 확인
 async function checkUserIdAvailability() {
   if (!form.userid) {
     userIdMessage.value = '아이디를 입력해주세요.';
@@ -256,7 +248,6 @@ async function checkUserIdAvailability() {
   }
 
   try {
-    // API Gateway를 통한 호출
     const response = await fetch(`${API_BASE_URL}/api/users/checkUserId?userId=${form.userid}`);
 
     if (!response.ok) {
@@ -281,7 +272,6 @@ async function checkUserIdAvailability() {
   }
 }
 
-// 인증번호 발송
 function sendAuthCode() {
   if (!form.userPhone) {
     authMessage.value = '전화번호를 입력해주세요.';
@@ -289,22 +279,19 @@ function sendAuthCode() {
     return;
   }
 
-  // 실제 API 호출 로직
   authCodeSent.value = true;
   authMessage.value = '인증번호가 발송되었습니다.';
   authMessageType.value = 'success';
 
-  // 5분 타이머 시작 (선택사항)
   setTimeout(() => {
     if (!isPhoneVerified.value) {
       authCodeSent.value = false;
       authMessage.value = '인증번호가 만료되었습니다. 다시 발송해주세요.';
       authMessageType.value = 'error';
     }
-  }, 300000); // 5분
+  }, 300000);
 }
 
-// 인증번호 확인
 function verifyAuthCode() {
   if (!authCodeInput.value) {
     authMessage.value = '인증번호를 입력해주세요.';
@@ -312,7 +299,6 @@ function verifyAuthCode() {
     return;
   }
 
-  // 실제 인증 로직 (예시: 123456이 정답)
   if (authCodeInput.value === '123456') {
     isPhoneVerified.value = true;
     authMessage.value = '인증이 완료되었습니다.';
@@ -323,7 +309,6 @@ function verifyAuthCode() {
   }
 }
 
-// 카카오 주소 검색
 function execDaumPostcode() {
   if (!window.daum || !window.daum.Postcode) {
     alert('주소 검색 서비스를 로딩 중입니다. 잠시 후 다시 시도해주세요.');
@@ -332,27 +317,22 @@ function execDaumPostcode() {
 
   new window.daum.Postcode({
     oncomplete: function(data) {
-      // 팝업에서 검색결과 항목을 클릭했을때 실행할 코드를 작성하는 부분.
-      let addr = ''; // 주소 변수
+      let addr = '';
 
-      // 사용자가 선택한 주소 타입에 따라 해당 주소 값을 가져온다.
-      if (data.userSelectedType === 'R') { // 사용자가 도로명 주소를 선택했을 경우
+      if (data.userSelectedType === 'R') {
         addr = data.roadAddress;
-      } else { // 사용자가 지번 주소를 선택했을 경우(J)
+      } else {
         addr = data.jibunAddress;
       }
 
-      // 우편번호와 주소 정보를 해당 필드에 넣는다.
       form.zipcode = data.zonecode;
       form.userAddress = addr;
 
-      // 상세주소 입력 칸으로 커서를 이동한다.
       document.querySelector('input[v-model="form.detailAddress"]')?.focus();
     }
   }).open();
 }
 
-// 전체 동의 토글
 function toggleAllAgreements() {
   const checked = form.agreeAll;
   form.agreeTermsRequired = checked;
@@ -360,12 +340,10 @@ function toggleAllAgreements() {
   form.agreeMarketing = checked;
 }
 
-// 약관 보기 토글
 function toggleTerms(type) {
   show[type] = !show[type];
 }
 
-// 폼 제출
 async function submitForm() {
   if (!isFormValid.value) {
     alert('필수 정보를 모두 입력해주세요.');
@@ -377,7 +355,7 @@ async function submitForm() {
       userId: form.userid,
       password: form.userPwd,
       name: form.userName,
-      nickname: form.nickname || null,  // 🔥 닉네임 추가
+      nickname: form.nickname || null,
       email: `${form.emailId}@${form.emailDomain === 'custom' ? form.customDomain : form.emailDomain}`,
       phone: form.userPhone,
       zipcode: form.zipcode,
@@ -388,9 +366,6 @@ async function submitForm() {
       marketingAgree: form.agreeMarketing ? 'Y' : 'N'
     };
 
-    console.log('회원가입 요청 데이터:', submitData); // 디버깅용 로그
-
-    // API Gateway를 통한 회원가입 호출
     const response = await fetch(`${API_BASE_URL}/api/users/register`, {
       method: 'POST',
       headers: {
@@ -399,22 +374,15 @@ async function submitForm() {
       body: JSON.stringify(submitData)
     });
 
-    console.log('서버 응답 상태:', response.status); // 디버깅용 로그
-
     if (response.ok) {
       const result = await response.json();
-      console.log('회원가입 성공:', result); //  디버깅용 로그
 
-      // 성공 메시지 표시
       alert('회원가입이 완료되었습니다!\n홈페이지로 이동합니다.');
 
-      // 홈페이지로 리다이렉트
       await router.push('/');
 
     } else {
-      // 서버 에러 응답 처리
       const errorData = await response.text();
-      console.error('서버 오류 응답:', errorData);
 
       if (response.status === 409) {
         alert('이미 가입된 아이디 또는 이메일입니다.');
@@ -425,8 +393,6 @@ async function submitForm() {
       }
     }
   } catch (error) {
-    console.error('회원가입 오류:', error);
-
     if (error.name === 'TypeError' && error.message.includes('fetch')) {
       alert('서버에 연결할 수 없습니다. 네트워크 연결을 확인해주세요.');
     } else {
@@ -434,7 +400,6 @@ async function submitForm() {
     }
   }
 }
-
 
 function goToLogin() {
   router.push('/login');

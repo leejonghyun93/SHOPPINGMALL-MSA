@@ -631,26 +631,19 @@ onMounted(async () => {
   try {
     const loginStatus = checkLoginStatus()
 
-    // 🔥 결제 완료 후 돌아온 경우 체크
+    // 결제 완료 후 돌아온 경우 체크
     const urlParams = new URLSearchParams(window.location.search)
     const isFromPayment = urlParams.get('from') === 'payment' ||
         urlParams.get('payment') === 'complete' ||
         sessionStorage.getItem('payment_completed') === 'true'
 
-    // 🔥 추가: 장바구니 정리 완료 체크
+    // 장바구니 정리 완료 체크
     const cartCleaned = sessionStorage.getItem('cart_cleaned_after_payment') === 'true'
     const lastCleanup = sessionStorage.getItem('last_purchase_cleanup')
     const cleanupRecent = lastCleanup && (Date.now() - parseInt(lastCleanup)) < 30000 // 30초 이내
 
-    console.log('🔍 장바구니 로드 상태:', {
-      isFromPayment,
-      cartCleaned,
-      cleanupRecent,
-      loginStatus
-    })
-
     if (isFromPayment) {
-      // 🔥 수정: 결제 완료 후 세션 정리
+      // 결제 완료 후 세션 정리
       sessionStorage.removeItem('checkout_data')
       sessionStorage.removeItem('pending_order_data')
       sessionStorage.removeItem('payment_completed')
@@ -661,18 +654,18 @@ onMounted(async () => {
         window.history.replaceState({}, '', cleanUrl)
       }
 
-      // 🔥 추가: 정리 마킹도 제거 (한 번만 알림)
+      // 정리 마킹도 제거 (한 번만 알림)
       if (cartCleaned) {
         sessionStorage.removeItem('cart_cleaned_after_payment')
         sessionStorage.removeItem('last_purchase_cleanup')
       }
     }
 
-    // 🔥 수정: 서버/로컬 장바구니 로드 로직
+    // 서버/로컬 장바구니 로드 로직
     if (loginStatus) {
       // 로그인 사용자 - 서버에서 장바구니 로드
       try {
-        // 🔥 추가: 결제 완료 후라면 캐시 무시하고 새로 로드
+        // 결제 완료 후라면 캐시 무시하고 새로 로드
         const cacheParam = isFromPayment || cartCleaned ? `?_t=${Date.now()}` : ''
         const response = await apiClient.get(`/api/cart${cacheParam}`)
 
@@ -685,25 +678,23 @@ onMounted(async () => {
           selectedItems.value = serverItems.map(item => item.id)
           selectAll.value = serverItems.length > 0
 
-          console.log('✅ 서버 장바구니 로드 완료:', {
-            itemCount: serverItems.length,
-            items: serverItems.map(item => ({ id: item.id, name: item.name }))
-          })
         } else {
           cartItems.value = []
         }
 
       } catch (error) {
-        console.error('❌ 서버 장바구니 로드 실패:', error)
         cartItems.value = []
       }
     } else {
-      // 게스트 사용자 로직은 기존과 동일...
+      // 게스트 사용자 - 로컬 스토리지에서 장바구니 로드
       try {
         const localCart = JSON.parse(localStorage.getItem('guestCart') || '[]')
 
         if (Array.isArray(localCart) && localCart.length > 0) {
-          // 기존 게스트 로직...
+          // 게스트 장바구니 처리 로직
+          cartItems.value = localCart.map(mapCartItemToProduct).filter(Boolean)
+          selectedItems.value = cartItems.value.map(item => item.id)
+          selectAll.value = cartItems.value.length > 0
         } else {
           cartItems.value = []
         }
@@ -712,7 +703,7 @@ onMounted(async () => {
       }
     }
 
-    // 🔥 수정: 결제 완료 알림 (한 번만)
+    // 결제 완료 알림 (한 번만)
     if (isFromPayment && cartCleaned && cleanupRecent) {
       setTimeout(() => {
         // 중복 알림 방지
@@ -730,7 +721,6 @@ onMounted(async () => {
     }
 
   } catch (error) {
-    console.error('❌ 장바구니 초기화 실패:', error)
     cartItems.value = []
   } finally {
     loading.value = false

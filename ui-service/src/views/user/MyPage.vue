@@ -180,7 +180,7 @@ const activeTab = computed(() => {
   return tabNameMap[route.name] || 'orders'
 })
 
-// 🔥 사이드바에 표시할 정보 - 변수명 수정
+// 사이드바에 표시할 정보
 const availablePoints = ref(0)
 const availableCoupons = ref(0)
 const giftCards = ref(0)
@@ -212,7 +212,7 @@ const updateCounts = (data) => {
   if (data.giftCards !== undefined) giftCards.value = data.giftCards
 }
 
-// 🔥 사용자 추가 정보 로딩 함수 수정
+// 사용자 추가 정보 로딩 함수
 const fetchUserExtraInfo = async () => {
   const apiCalls = [
     {
@@ -233,7 +233,7 @@ const fetchUserExtraInfo = async () => {
           api.onSuccess(response)
           return { name: api.name, success: true }
         } catch (error) {
-          console.warn(`${api.name} 로드 실패:`, error.message)
+          // API 호출 실패시 조용히 처리
           return { name: api.name, success: false, error: error.message }
         }
       })
@@ -242,13 +242,9 @@ const fetchUserExtraInfo = async () => {
   const successCount = results.filter(r => r.value?.success).length
   const totalCount = results.length
 
+  // 실패한 API가 있어도 에러로 처리하지 않고 조용히 넘어감
   if (successCount < totalCount) {
-    const failedApis = results
-        .filter(r => !r.value?.success)
-        .map(r => r.value?.name)
-        .join(', ')
-
-    console.warn(`일부 데이터 로드 실패: ${failedApis}`)
+    // 필요시 에러 로깅을 위한 처리를 여기에 추가할 수 있음
   }
 }
 
@@ -285,19 +281,14 @@ const isTokenValid = (token) => {
 
 // 마운트 시 처리
 onMounted(async () => {
-  console.log('🔍 MyPage 마운트 시작')
-  console.log('현재 라우트:', route.name, route.path)
-
   const token = localStorage.getItem('token')
 
   if (!token) {
-    console.warn('토큰이 없음 - 로그인 페이지로 이동')
     router.push('/login')
     return
   }
 
   if (!isTokenValid(token)) {
-    console.warn('토큰이 유효하지 않음 - 로그인 페이지로 이동')
     localStorage.removeItem('token')
     router.push('/login')
     return
@@ -306,9 +297,7 @@ onMounted(async () => {
   // userStore에서 사용자 정보 설정
   try {
     setUserFromToken(token)
-    console.log('✅ 사용자 정보 설정 완료')
   } catch (error) {
-    console.error('사용자 정보 설정 실패:', error)
     localStorage.removeItem('token')
     router.push('/login')
     return
@@ -316,14 +305,6 @@ onMounted(async () => {
 
   // 추가 사용자 정보 로드
   await fetchUserExtraInfo()
-
-  // // 🔥 기본 라우트가 /mypage 인 경우 주문 내역으로 리다이렉트
-  // if (route.path === '/mypage') {
-  //   console.log('기본 경로 접근 - 주문 내역으로 리다이렉트')
-  //   router.replace('/mypage/orders')
-  // }
-
-  console.log('✅ MyPage 초기화 완료')
 })
 </script>
 

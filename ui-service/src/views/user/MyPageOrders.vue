@@ -107,7 +107,7 @@
 
               <!-- 주문 상품들 -->
               <div class="order-content">
-                <!-- 🔥 안전한 상품 아이템 렌더링 -->
+                <!-- 안전한 상품 아이템 렌더링 -->
                 <div
                     v-for="(item, index) in (order.items || [])"
                     :key="`${item.productId || index}-${index}`"
@@ -289,14 +289,13 @@ const getAuthHeaders = () => {
   return headers
 }
 
-// 🔥 누락된 loadOrders 함수 추가
+// loadOrders 함수
 const loadOrders = async () => {
   try {
     loading.value = true
     error.value = ''
 
     const userId = localStorage.getItem('userId') || 'guest'
-    console.log('🔍 주문 목록 조회 시작:', userId)
 
     const url = `${API_BASE_URL}/api/orders/list?userId=${userId}`
 
@@ -305,31 +304,25 @@ const loadOrders = async () => {
       headers: getAuthHeaders()
     })
 
-    console.log('📡 API 응답 상태:', response.status)
-
     if (!response.ok) {
       throw new Error(`주문 목록을 불러올 수 없습니다. (${response.status})`)
     }
 
     const result = await response.json()
-    console.log('📦 백엔드 응답 데이터:', result)
 
     if (result.success) {
-      // 🔥 백엔드 데이터 구조에 맞게 정확한 매핑
+      // 백엔드 데이터 구조에 맞게 정확한 매핑
       orders.value = (result.data || []).map(order => {
-        console.log('🔧 주문 변환 중:', order.orderId)
-        console.log('📋 주문 아이템들:', order.items)
-
         return {
           orderId: order.orderId,
           orderDate: order.orderDate,
           orderStatus: order.orderStatus,
           totalPrice: order.totalPrice,
           paymentId: order.paymentId, // 취소 시 필요
-          // 🔥 OrderDTO의 items 필드 매핑
+          // OrderDTO의 items 필드 매핑
           items: (order.items || []).map(item => ({
             productId: item.productId,
-            // 🔥 백엔드에서 name 필드를 productName으로 매핑
+            // 백엔드에서 name 필드를 productName으로 매핑
             productName: item.name || item.productName || '상품명 없음',
             quantity: item.quantity || 1,
             totalPrice: item.totalPrice || 0,
@@ -338,13 +331,10 @@ const loadOrders = async () => {
         }
       })
 
-      console.log('✅ 변환된 주문 데이터:', orders.value)
-
     } else {
       throw new Error(result.message || '주문 목록을 불러오는데 실패했습니다.')
     }
   } catch (err) {
-    console.error('❌ 주문 목록 로드 실패:', err)
     error.value = err.message || '주문 목록을 불러오는 중 오류가 발생했습니다.'
   } finally {
     loading.value = false
@@ -368,7 +358,7 @@ const filteredOrders = computed(() => {
     })
   }
 
-  // 🔥 검색 필터링 수정 (안전한 접근)
+  // 검색 필터링 수정 (안전한 접근)
   if (searchQuery.value) {
     const searchTerm = searchQuery.value.toLowerCase()
     filtered = filtered.filter(order => {
@@ -408,7 +398,7 @@ const displayPages = computed(() => {
   return pages
 })
 
-// 🔥 안전한 접근자 함수들
+// 안전한 접근자 함수들
 const getProductName = (item) => {
   return item.productName || item.name || '상품명 없음'
 }
@@ -621,4 +611,3 @@ onMounted(() => {
 </script>
 
 <style scoped src="@/assets/css/myPageOrder.css"></style>
-

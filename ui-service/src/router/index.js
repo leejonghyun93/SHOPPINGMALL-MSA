@@ -14,7 +14,6 @@ import Category from '../views/main/Category.vue'
 import MyPage from '@/views/user/MyPage.vue'
 import MyPageOrders from '@/views/user/MyPageOrders.vue'
 import MyPageProfile from '@/views/user/MyPageProfile.vue'
-import UserDetail from '@/views/user/UserDetail.vue'
 import UserEdit from '@/views/user/UserEdit.vue'
 
 // Product 관련 컴포넌트
@@ -171,15 +170,6 @@ const routes = [
         component: ProductDetail,
         meta: {
             title: '상품 상세'
-        }
-    },
-    {
-        path: '/users/:userid',
-        name: 'UserDetail',
-        component: UserDetail,
-        meta: {
-            title: '사용자 정보',
-            requiresAuth: true
         }
     },
     {

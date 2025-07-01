@@ -668,7 +668,7 @@ const loadProductQnas = async (productId) => {
         sortBy: 'createdAt'
       },
       withAuth: false,
-      skipErrorRedirect: true // 에러 리다이렉트 방지
+      skipErrorRedirect: true
     })
 
     if (response.data && Array.isArray(response.data)) {
@@ -851,7 +851,7 @@ const loadProductReviews = async (productId) => {
           sortBy: 'createdAt'
         },
         withAuth: false,
-        skipErrorRedirect: true // 에러 리다이렉트 방지
+        skipErrorRedirect: true
       });
 
       if (productReviewResponse.data && Array.isArray(productReviewResponse.data) && productReviewResponse.data.length > 0) {
@@ -891,7 +891,7 @@ const loadProductReviews = async (productId) => {
         },
         withAuth: false,
         timeout: 5000,
-        skipErrorRedirect: true // 에러 리다이렉트 방지
+        skipErrorRedirect: true
       });
 
       if (allReviewsResponse.data) {
@@ -973,14 +973,13 @@ const toggleWishlist = () => {
   isWishlisted.value = !isWishlisted.value
 }
 
-// ProductDetail.vue의 handleAddToCart 함수 수정
 const handleAddToCart = async () => {
   if (!product.value?.productId) {
     alert('상품 정보를 찾을 수 없습니다.');
     return;
   }
 
-  // 🔥 중요: 로그인 상태 먼저 확인
+  // 로그인 상태 먼저 확인
   const token = localStorage.getItem('token');
   if (!token) {
     alert('로그인이 필요합니다.');
@@ -988,7 +987,7 @@ const handleAddToCart = async () => {
     return;
   }
 
-  // 🔥 토큰 유효성 검증
+  // 토큰 유효성 검증
   if (!isAuthenticated()) {
     alert('로그인이 만료되었습니다. 다시 로그인해주세요.');
     localStorage.removeItem('token');
@@ -1003,16 +1002,8 @@ const handleAddToCart = async () => {
   };
 
   try {
-    // 🔥 사용자 프로필 확인으로 인증 상태 재검증
+    // 사용자 프로필 확인으로 인증 상태 재검증
     await apiClient.get('/api/users/profile');
-
-    console.log('🔍 장바구니 추가 요청:', {
-      cartItem,
-      token: token ? 'exists' : 'null',
-      headers: {
-        'Authorization': token ? `Bearer ${token.substring(0, 20)}...` : 'none'
-      }
-    });
 
     const response = await apiClient.post('/api/cart', cartItem, {
       withAuth: true,
@@ -1032,8 +1023,6 @@ const handleAddToCart = async () => {
     }
 
   } catch (error) {
-    console.error('❌ 장바구니 추가 실패:', error);
-
     if (error.response) {
       const status = error.response.status;
       const message = error.response.data?.message || error.message;

@@ -107,15 +107,11 @@ const handleLogin = async () => {
   errorMessage.value = "";
 
   try {
-    console.log('로그인 시도:', { userid: form.userid });
-
     // 백엔드 DTO 필드명에 맞게 수정
     const response = await axios.post("/auth/login", {
       userid: form.userid,      // username → userid
       passwd: form.password     // password → passwd
     });
-
-    console.log('로그인 응답:', response.data);
 
     // AuthResponse 구조에 맞게 처리
     if (response.data.success && response.data.token) {
@@ -133,7 +129,6 @@ const handleLogin = async () => {
       errorMessage.value = response.data.message || "로그인 실패";
     }
   } catch (error) {
-
     if (error.response) {
       const status = error.response.status;
       const data = error.response.data;
@@ -170,45 +165,6 @@ const handleLogin = async () => {
   }
 };
 </script>
+<style scoped src="@/assets/css/login.css"></style>
 
-<style scoped>
-.error {
-  color: #dc3545;
-  font-size: 0.875rem;
-  font-weight: 500;
-  text-align: center;
-  padding: 8px;
-  background-color: #f8d7da;
-  border: 1px solid #f5c6cb;
-  border-radius: 4px;
-}
 
-.btn:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
-.card {
-  animation: fadeIn 0.3s ease-in;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.form-control:focus {
-  border-color: #0d6efd;
-  box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
-}
-
-.small:hover {
-  text-decoration: underline !important;
-}
-</style>

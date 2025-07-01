@@ -4,23 +4,16 @@ server:
 spring:
   application:
     name: config-service
-
   profiles:
-    active: ${SPRING_PROFILES_ACTIVE:native}
-
+    active: ${SPRING_PROFILES_ACTIVE:native}  # native로 변경
   cloud:
     config:
       server:
         native:
           search-locations: ${CONFIG_REPO_PATH:file:///C:/Users/fhohf/config-repo}
-        # Git 사용하는 경우 (운영환경 권장)
-        git:
-          uri: ${CONFIG_REPO_GIT_URI:https://github.com/your-username/config-repo.git}
-          default-label: main
-          clone-on-start: true
-          force-pull: true
+        # git 설정 완전히 제거 (빈 문자열이 문제 원인)
 
-# 암호화 설정 (기존 유지)
+# 암호화 설정
 encrypt:
   key-store:
     location: ${ENCRYPT_KEYSTORE_LOCATION:file:/apiEncryptionKey.jks}
@@ -31,18 +24,13 @@ management:
   endpoints:
     web:
       exposure:
-        include: ["refresh", "busrefresh", "prometheus", "health", "info", "env"]
+        include: ["refresh", "busrefresh", "health", "info", "env"]
   endpoint:
-    prometheus:
-      enabled: true
     health:
       show-details: always
-    metrics:
-      export:
-        prometheus:
-          enabled: true
-      tags:
-        application: ${spring.application.name}
+  metrics:
+    tags:
+      application: ${spring.application.name}
 
 logging:
   level:

@@ -17,14 +17,15 @@
         <module>auth-service</module>
         <module>config-service</module>
         <module>board-service</module>
+        <module>product-catalog-service</module>
         <module>eureka-service</module>
         <module>user-service</module>
-        <module>product-service</module>
+<!--        <module>product-service</module>-->
         <module>order-service</module>
         <module>cart-service</module>
-        <module>image-service</module>
+<!--        <module>image-service</module>-->
         <module>payment-service</module>
-        <module>category-service</module>
+<!--        <module>category-service</module>-->
         <module>live-streaming-service</module>
         <module>live-chat-service</module>
         <module>notification-service</module>

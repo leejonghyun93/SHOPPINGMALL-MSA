@@ -483,23 +483,3 @@ onUnmounted(() => {
 
 <style scoped src="@/assets/css/header.css"></style>
 
-<!-- 🔥 검색 버튼 스타일 -->
-<style scoped>
-.search-btn {
-  background-color: #007bff;
-  color: white;
-  border: none;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.search-btn:hover:not(:disabled) {
-  background-color: #0056b3;
-}
-
-.search-btn:disabled {
-  background-color: #6c757d;
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-</style>

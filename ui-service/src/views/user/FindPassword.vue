@@ -4,7 +4,6 @@
       <!-- 헤더 섹션 -->
       <div class="header-section text-center mb-4">
         <div class="icon-wrapper mb-3">
-          <!-- 🔥 FontAwesome 대신 CSS 아이콘 사용 -->
           <div class="key-icon">🔑</div>
         </div>
         <h3 class="title">비밀번호 찾기</h3>
@@ -16,7 +15,6 @@
         <form @submit.prevent="handleFindPassword">
           <div class="mb-3">
             <label for="userid" class="form-label">
-              <!-- 🔥 CSS 아이콘으로 변경 -->
               <span class="icon-emoji">👤</span>아이디
             </label>
             <input
@@ -32,7 +30,6 @@
 
           <div class="mb-3">
             <label for="email" class="form-label">
-              <!-- 🔥 CSS 아이콘으로 변경 -->
               <span class="icon-emoji">📧</span>가입 시 사용한 이메일
             </label>
             <input
@@ -51,7 +48,6 @@
               class="btn btn-primary custom-btn w-100"
               :disabled="loading"
           >
-            <!-- 🔥 로딩 스피너도 CSS로 변경 -->
             <span v-if="loading" class="loading-spinner"></span>
             <span v-else class="icon-emoji">✉️</span>
             {{ loading ? '처리 중...' : '비밀번호 초기화 요청' }}
@@ -133,7 +129,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, watch } from "vue";
 import { useRoute, useRouter } from 'vue-router';
 import apiClient from '@/api/axiosInstance';
 import '@/assets/css/findIdPassword.css';
@@ -148,7 +144,7 @@ const error = ref("");
 const loading = ref(false);
 const isSuccess = ref(false);
 
-// 🔥 아이디 찾기에서 전달받은 정보로 자동 입력
+// 아이디 찾기에서 전달받은 정보로 자동 입력
 onMounted(() => {
   if (route.query.userId) {
     userid.value = route.query.userId;
@@ -182,8 +178,6 @@ const showInfoMessage = (message) => {
   }, 3000);
 };
 
-// FindPassword.vue의 handleFindPassword에서 테스트 엔드포인트 먼저 호출
-
 const handleFindPassword = async () => {
   // 폼 검증
   if (!userid.value.trim() || !email.value.trim()) {
@@ -197,12 +191,7 @@ const handleFindPassword = async () => {
   isSuccess.value = false;
 
   try {
-    console.log('🔍 실제 비밀번호 찾기 요청:', {
-      userid: userid.value,
-      email: email.value
-    });
-
-    // 🔥 실제 findPassword API 호출
+    // 실제 findPassword API 호출
     const response = await apiClient.post("/auth/findPassword", {
       userid: userid.value.trim(),
       email: email.value.trim(),
@@ -210,8 +199,6 @@ const handleFindPassword = async () => {
       withAuth: false,
       timeout: 15000
     });
-
-    console.log('✅ 비밀번호 찾기 성공:', response.data);
 
     if (response.data.success !== false) {
       result.value = response.data.message || "비밀번호 재설정 이메일이 발송되었습니다.";
@@ -227,8 +214,6 @@ const handleFindPassword = async () => {
     }
 
   } catch (err) {
-    console.error('❌ 비밀번호 찾기 실패:', err);
-
     if (err.response) {
       switch (err.response.status) {
         case 400:
@@ -255,371 +240,16 @@ const handleFindPassword = async () => {
     loading.value = false;
   }
 };
-// 🔥 입력 필드 변경 시 메시지 초기화
+
+// 입력 필드 변경 시 메시지 초기화
 const clearMessages = () => {
   error.value = "";
   result.value = "";
   isSuccess.value = false;
 };
 
-import { watch } from 'vue';
 watch([userid, email], clearMessages);
 </script>
+<style scoped src="@/assets/css/findPassword.css"></style>
 
-<style scoped>
-.find-password-container {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 20px 0;
-}
 
-.container {
-  position: relative;
-}
-
-/* 🔥 이모지 아이콘 스타일 */
-.icon-emoji {
-  margin-right: 8px;
-  font-size: 1.1em;
-  display: inline-block;
-  vertical-align: middle;
-}
-
-.key-icon {
-  font-size: 2.5rem;
-  line-height: 1;
-}
-
-.nav-icon {
-  font-size: 1.5rem;
-  margin-bottom: 4px;
-  display: block;
-}
-
-/* 🔥 로딩 스피너 CSS로 구현 */
-.loading-spinner {
-  display: inline-block;
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-radius: 50%;
-  border-top-color: white;
-  animation: spin 1s ease-in-out infinite;
-  margin-right: 8px;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-/* 헤더 섹션 */
-.header-section {
-  color: white;
-  margin-bottom: 2rem;
-}
-
-.icon-wrapper {
-  width: 80px;
-  height: 80px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-}
-
-.title {
-  font-size: 2rem;
-  font-weight: 700;
-  margin-bottom: 0.5rem;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-}
-
-.subtitle {
-  font-size: 1rem;
-  opacity: 0.9;
-  margin-bottom: 0;
-  line-height: 1.5;
-}
-
-/* 폼 카드 */
-.form-card {
-  background: white;
-  border-radius: 20px;
-  padding: 2rem;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  animation: slideInUp 0.6s ease-out;
-}
-
-.form-label {
-  font-weight: 600;
-  color: #495057;
-  margin-bottom: 0.5rem;
-  display: flex;
-  align-items: center;
-}
-
-.custom-input {
-  border: 2px solid #e9ecef;
-  border-radius: 12px;
-  padding: 12px 16px;
-  font-size: 1rem;
-  transition: all 0.3s ease;
-  background: #f8f9fa;
-  width: 100%;
-}
-
-.custom-input:focus {
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-  background: white;
-  transform: translateY(-1px);
-  outline: none;
-}
-
-.custom-input:disabled {
-  background-color: #e9ecef;
-  opacity: 0.7;
-}
-
-/* 🔥 버튼 위치 및 스타일 수정 */
-.custom-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border: none;
-  border-radius: 12px;
-  padding: 14px 24px;
-  font-weight: 600;
-  font-size: 1rem;
-  transition: all 0.3s ease;
-  text-transform: none;
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-top: 8px; /* 🔥 버튼과 입력 필드 간격 조정 */
-}
-
-.custom-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
-  background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
-}
-
-.custom-btn:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-  transform: none;
-}
-
-/* 알림 메시지 */
-.custom-alert {
-  border: none;
-  border-radius: 12px;
-  padding: 16px 20px;
-  font-weight: 500;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  display: flex;
-  align-items: center;
-}
-
-.alert-success {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  color: white;
-}
-
-.alert-danger {
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-  color: white;
-}
-
-.alert-info {
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-  color: white;
-}
-
-/* 성공 액션 */
-.success-actions {
-  animation: fadeInUp 0.5s ease;
-}
-
-.success-text {
-  color: rgba(255, 255, 255, 0.9);
-  font-weight: 500;
-}
-
-.success-btn {
-  background: rgba(255, 255, 255, 0.1);
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  color: white;
-  border-radius: 12px;
-  padding: 12px 20px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-decoration: none;
-  transition: all 0.3s ease;
-}
-
-.success-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.5);
-  color: white;
-  transform: translateY(-2px);
-}
-
-/* 하단 네비게이션 */
-.bottom-navigation {
-  margin-top: 2rem;
-}
-
-.nav-card {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
-  padding: 1rem;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.nav-link-custom {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-decoration: none;
-  color: white;
-  padding: 12px 8px;
-  border-radius: 12px;
-  transition: all 0.3s ease;
-}
-
-.nav-link-custom:hover {
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
-  transform: translateY(-2px);
-}
-
-.nav-link-custom span:last-child {
-  font-size: 0.8rem;
-  font-weight: 500;
-}
-
-/* 도움말 섹션 */
-.help-section {
-  margin-top: 2rem;
-}
-
-.help-details {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.help-summary {
-  padding: 16px 20px;
-  color: white;
-  cursor: pointer;
-  font-weight: 500;
-  border-radius: 12px;
-  transition: all 0.3s ease;
-  list-style: none;
-  display: flex;
-  align-items: center;
-}
-
-.help-summary:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.help-content {
-  padding: 0 20px 20px;
-  color: white;
-}
-
-.help-list {
-  margin: 0;
-  padding-left: 1.5rem;
-  opacity: 0.9;
-}
-
-.help-list li {
-  margin-bottom: 8px;
-  line-height: 1.5;
-  font-size: 0.9rem;
-}
-
-/* 애니메이션 */
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes fadeInOut {
-  0%, 100% { opacity: 0; }
-  20%, 80% { opacity: 1; }
-}
-
-@keyframes slideInUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* 반응형 디자인 */
-@media (max-width: 576px) {
-  .find-password-container {
-    padding: 10px;
-  }
-
-  .container {
-    max-width: 95% !important;
-  }
-
-  .form-card {
-    padding: 1.5rem;
-    margin: 0 10px;
-  }
-
-  .title {
-    font-size: 1.5rem;
-  }
-
-  .subtitle {
-    font-size: 0.9rem;
-  }
-
-  .icon-wrapper {
-    width: 60px;
-    height: 60px;
-  }
-
-  .key-icon {
-    font-size: 2rem;
-  }
-
-  .nav-link-custom span:last-child {
-    font-size: 0.7rem;
-  }
-
-  .custom-btn {
-    padding: 12px 20px;
-    font-size: 0.9rem;
-  }
-}
-</style>
