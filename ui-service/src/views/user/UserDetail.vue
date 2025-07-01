@@ -1,4 +1,4 @@
-<template>
+template>
   <div class="container mt-5">
     <div class="member-detail">
       <h2>{{ member.name }} 님 정보</h2>
@@ -79,7 +79,6 @@
 import axios from 'axios';
 import {jwtDecode} from 'jwt-decode';
 import '@/assets/css/userDetail.css';
-import '@fortawesome/fontawesome-free/css/all.css'
 export default {
   data() {
     return {
@@ -109,7 +108,6 @@ export default {
                 this.isLogin = true;
                 this.isOwner = String(currentUserId) === String(this.member.userid);
               } catch (error) {
-                console.error('JWT decoding error:', error);
                 this.isLogin = false;
                 this.isOwner = false;
               }
@@ -119,7 +117,6 @@ export default {
             }
           })
           .catch(error => {
-            console.error('Failed to fetch member:', error);
             alert('사용자 정보를 불러올 수 없습니다.');
           })
           .finally(() => {
@@ -158,22 +155,18 @@ export default {
           .then(() => {
             alert('회원 탈퇴가 완료되었습니다.');
 
-            // 🔽 토큰 삭제 + 전역 상태 초기화
             localStorage.removeItem('token');
 
-            // 🔽 전역 상태도 초기화
-            this.$store?.member && (this.$store.member = { id: null, name: null, role: null }); // (store 방식에 따라 다름)
+            this.$store?.member && (this.$store.member = { id: null, name: null, role: null });
             import("@/stores/userStore").then(({ member }) => {
               member.id = null;
               member.name = null;
               member.role = null;
             });
 
-            // 🔽 홈으로 이동
             this.$router.push('/');
           })
           .catch(error => {
-            console.error('회원 탈퇴 실패:', error);
             alert('회원 탈퇴에 실패했습니다.');
           });
     }
@@ -181,4 +174,3 @@ export default {
 
 }
 </script>
-

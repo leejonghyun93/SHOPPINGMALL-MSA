@@ -1,0 +1,12 @@
+server:
+  port: 8093  # ??? ?? ?? (?? 8094, 8095, 8096? ??? ???)
+
+spring:
+  application:
+    name: streaming-service
+
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+
+  config:
+    import: optional:configserver:http://localhost:8888

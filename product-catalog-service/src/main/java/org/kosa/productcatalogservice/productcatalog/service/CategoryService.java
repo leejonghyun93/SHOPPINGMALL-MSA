@@ -1,16 +1,16 @@
-package org.kosa.categoryservice.service;
+package org.kosa.productcatalogservice.productcatalog.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.kosa.categoryservice.entity.Category;
-import org.kosa.categoryservice.dto.CategoryDto;
-import org.kosa.categoryservice.repository.CategoryRepository;
+
+import org.kosa.productcatalogservice.productcatalog.dto.CategoryDto;
+import org.kosa.productcatalogservice.productcatalog.entity.Category;
+import org.kosa.productcatalogservice.productcatalog.repository.CategoryRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -27,12 +27,9 @@ public class CategoryService {
     @Value("${app.icon.base-url:/icons}")
     private String iconBaseUrl;
 
-    @Value("${server.port:8085}")
+    @Value("${server.port:8080}")
     private String serverPort;
 
-    /**
-     * 최상위 카테고리 목록 조회 - Redis 캐시 적용
-     */
     @Cacheable(value = "categories", key = "'main'")
     public List<CategoryDto> getMainCategories() {
         log.debug("메인 카테고리 조회 시작");
@@ -44,16 +41,11 @@ public class CategoryService {
                 .collect(Collectors.toList());
 
         log.debug("메인 카테고리 {}개 조회 완료", result.size());
-
         return result;
     }
 
-    /**
-     * 특정 카테고리의 하위 카테고리 조회 - Redis 캐시 적용
-     */
     @Cacheable(value = "categories", key = "'sub:' + #parentCategoryId")
     public List<CategoryDto> getSubCategories(Integer parentCategoryId) {
-
         List<Category> subCategories = categoryRepository
                 .findByParentCategory_CategoryIdAndCategoryUseYnOrderByCategoryDisplayOrder(parentCategoryId, "Y");
 
@@ -64,21 +56,13 @@ public class CategoryService {
         return result;
     }
 
-    /**
-     * 특정 카테고리의 모든 하위 카테고리 ID 목록 조회 (재귀적) - Redis 캐시 적용
-     */
     @Cacheable(value = "categories", key = "'children:' + #parentCategoryId")
     public List<Integer> getAllChildrenIds(Integer parentCategoryId) {
-
         List<Integer> allChildrenIds = new ArrayList<>();
         collectAllChildrenIds(parentCategoryId, allChildrenIds);
-
         return allChildrenIds;
     }
 
-    /**
-     * 재귀적으로 하위 카테고리 ID 수집
-     */
     private void collectAllChildrenIds(Integer parentCategoryId, List<Integer> result) {
         List<Category> directChildren = categoryRepository
                 .findByParentCategory_CategoryIdAndCategoryUseYnOrderByCategoryDisplayOrder(parentCategoryId, "Y");
@@ -89,19 +73,12 @@ public class CategoryService {
         }
     }
 
-    /**
-     * 카테고리 존재 여부 확인 (캐시 없음 - 빠른 조회)
-     */
     public boolean existsCategory(Integer categoryId) {
         return categoryRepository.existsById(categoryId);
     }
 
-    /**
-     * 카테고리 계층 구조로 조회 - Redis 캐시 적용
-     */
     @Cacheable(value = "categories", key = "'hierarchy'")
     public List<CategoryDto> getCategoriesWithHierarchy() {
-
         List<Category> mainCategories = categoryRepository
                 .findByParentCategoryIsNullAndCategoryUseYnOrderByCategoryDisplayOrder("Y");
 
@@ -112,12 +89,8 @@ public class CategoryService {
         return result;
     }
 
-    /**
-     * 특정 카테고리 정보 조회 - Redis 캐시 적용
-     */
     @Cacheable(value = "categories", key = "'detail:' + #categoryId")
     public CategoryDto getCategory(Integer categoryId) {
-
         Category category = categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new IllegalArgumentException("카테고리를 찾을 수 없습니다: " + categoryId));
 
@@ -125,9 +98,6 @@ public class CategoryService {
         return result;
     }
 
-    /**
-     * 카테고리 캐시 무효화 (관리용)
-     */
     @CacheEvict(value = "categories", allEntries = true)
     @Transactional
     public void evictAllCategoryCache() {
@@ -140,9 +110,6 @@ public class CategoryService {
         log.info("카테고리 {} 캐시 무효화", categoryId);
     }
 
-    /**
-     * Entity를 DTO로 변환
-     */
     private CategoryDto convertToDto(Category category) {
         CategoryDto dto = new CategoryDto();
         dto.setCategoryId(category.getCategoryId());
@@ -150,18 +117,12 @@ public class CategoryService {
         dto.setCategoryLevel(category.getCategoryLevel());
         dto.setCategoryDisplayOrder(category.getCategoryDisplayOrder());
         dto.setCategoryUseYn(category.getCategoryUseYn());
-
-        // DB의 categoryIcon 필드 활용
         dto.setCategoryIcon(category.getCategoryIcon());
 
-        // 아이콘 URL 생성 로직
         String iconUrl = buildIconUrl(category.getCategoryIcon());
         dto.setIcon(iconUrl);
-
-        // iconUrl 필드도 설정 (프론트엔드 호환성)
         dto.setIconUrl(iconUrl);
 
-        // 부모 카테고리 ID 설정
         if (category.getParentCategory() != null) {
             dto.setParentCategoryId(category.getParentCategory().getCategoryId());
         }
@@ -169,9 +130,6 @@ public class CategoryService {
         return dto;
     }
 
-    /**
-     * 하위 카테고리까지 포함해서 DTO로 변환
-     */
     private CategoryDto convertToDtoWithSubCategories(Category category) {
         List<Category> subCategories = categoryRepository
                 .findByParentCategory_CategoryIdAndCategoryUseYnOrderByCategoryDisplayOrder(category.getCategoryId(), "Y");
@@ -185,16 +143,12 @@ public class CategoryService {
         return dto;
     }
 
-    /**
-     * 아이콘 URL 생성 메서드
-     */
     private String buildIconUrl(String categoryIcon) {
         if (categoryIcon == null || categoryIcon.trim().isEmpty()) {
             log.debug("카테고리 아이콘이 null이거나 비어있음");
             return null;
         }
 
-        // 아이콘명 → 파일명 매핑
         Map<String, String> iconFileMap = Map.of(
                 "vegetables", "vegetables.svg",
                 "canned", "canned-food.svg",
@@ -207,19 +161,10 @@ public class CategoryService {
                 "baby", "baby-bottle.svg"
         );
 
-        // 매핑된 파일명이 있으면 사용, 없으면 원본명에 .svg 추가
         String iconFile = iconFileMap.getOrDefault(categoryIcon, categoryIcon + ".svg");
-
-        // 🔥 프론트엔드에서 접근 가능한 절대 URL 생성
-        // 옵션 1: 백엔드 서버를 통한 정적 파일 서빙
-        String backendIconUrl = "http://localhost:" + serverPort + iconBaseUrl + "/" + iconFile;
-
-        // 옵션 2: 프론트엔드 public 폴더의 파일 (권장)
         String frontendIconUrl = "/icons/" + iconFile;
 
         log.debug("카테고리 아이콘: {} -> 파일: {} -> URL: {}", categoryIcon, iconFile, frontendIconUrl);
-
-        // 프론트엔드 경로 반환 (public/icons/ 폴더에서 직접 서빙)
         return frontendIconUrl;
     }
 }

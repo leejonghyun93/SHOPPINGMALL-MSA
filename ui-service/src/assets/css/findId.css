@@ -1,0 +1,121 @@
+.container {
+    padding: 20px;
+}
+
+.form-control:disabled {
+    background-color: #f8f9fa;
+}
+
+.btn:disabled {
+    cursor: not-allowed;
+}
+
+.alert {
+    word-break: break-word;
+}
+
+/* 로딩 상태 시각적 피드백 */
+.btn:disabled {
+    opacity: 0.7;
+}
+
+/* 성공/에러 메시지 스타일 개선 */
+.alert-success {
+    border-color: #d4edda;
+    background-color: #d1ecf1;
+    color: #0c5460;
+}
+
+.alert-danger {
+    border-color: #f5c6cb;
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+/* 액션 버튼들 스타일 */
+.action-buttons {
+    animation: fadeIn 0.5s ease-in;
+}
+
+.action-buttons .btn {
+    transition: all 0.3s ease;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-weight: 500;
+}
+
+.action-buttons .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.action-buttons .btn-primary {
+    background: linear-gradient(135deg, #007bff, #0056b3);
+    border: none;
+}
+
+.action-buttons .btn-outline-secondary {
+    border-color: #6c757d;
+    color: #6c757d;
+}
+
+.action-buttons .btn-outline-secondary:hover {
+    background-color: #6c757d;
+    border-color: #6c757d;
+    color: white;
+}
+
+.action-buttons .btn-outline-info {
+    border-color: #17a2b8;
+    color: #17a2b8;
+}
+
+.action-buttons .btn-outline-info:hover {
+    background-color: #17a2b8;
+    border-color: #17a2b8;
+    color: white;
+}
+
+/* 하단 링크들 스타일 */
+.bottom-links {
+    border-top: 1px solid #e9ecef;
+    padding-top: 15px;
+}
+
+.bottom-links a {
+    color: #6c757d;
+    transition: color 0.3s ease;
+}
+
+.bottom-links a:hover {
+    color: #007bff;
+}
+
+/* 애니메이션 */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 반응형 디자인 */
+@media (max-width: 576px) {
+    .container {
+        padding: 15px;
+        margin-top: 20px !important;
+    }
+
+    .action-buttons .btn {
+        padding: 10px 15px;
+        font-size: 14px;
+    }
+
+    .bottom-links {
+        font-size: 12px;
+    }
+}
