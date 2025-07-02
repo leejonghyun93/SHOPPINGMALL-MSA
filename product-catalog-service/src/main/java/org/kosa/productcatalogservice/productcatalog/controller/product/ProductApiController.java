@@ -12,6 +12,7 @@ import org.kosa.productcatalogservice.productcatalog.service.ProductService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/products")
@@ -88,33 +89,90 @@ public class ProductApiController {
 
     @GetMapping("/filter")
     public ResponseEntity<List<ProductDTO>> getProductsByFilter(
-            @RequestParam(defaultValue = "ALL") String categoryIdStr,
-            @RequestParam(defaultValue = "10") Integer limit,
-            @RequestParam(defaultValue = "false") boolean includeImages) {
+            @RequestParam(name = "categoryId", defaultValue = "ALL") String categoryIdStr,
+            @RequestParam(name = "limit", defaultValue = "10") Integer limit,
+            @RequestParam(name = "includeImages", defaultValue = "false") boolean includeImages) {
         try {
-            log.info("카테고리별 상품 조회 - categoryId: {}, limit: {}, includeImages: {}", categoryIdStr, limit, includeImages);
+            // 🔥 디버깅: 실제 받은 파라미터들 로깅
+            log.info("🔍 실제 받은 파라미터들:");
+            log.info("  - categoryIdStr: '{}'", categoryIdStr);
+            log.info("  - limit: {}", limit);
+            log.info("  - includeImages: {}", includeImages);
 
-            List<ProductDTO> products;
+            log.info("🔍 카테고리별 상품 조회 - categoryId: {}, limit: {}, includeImages: {}", categoryIdStr, limit, includeImages);
+
+            List<ProductDTO> products = new ArrayList<>();
+
             if (includeImages) {
                 if ("ALL".equals(categoryIdStr)) {
                     products = enhancedProductService.getProductList(limit);
+                    log.info("✅ 전체 상품 조회 (이미지 포함): {}개", products.size());
                 } else {
-                    Integer categoryId = Integer.parseInt(categoryIdStr);
-                    products = enhancedProductService.getProductsByCategory(categoryId, limit);
+                    try {
+                        Integer categoryId = Integer.parseInt(categoryIdStr);
+                        log.info("🎯 파싱된 카테고리 ID: {}", categoryId);
+                        products = enhancedProductService.getProductsByCategory(categoryId, limit);
+                        log.info("✅ 카테고리 {} 상품 조회 (이미지 포함): {}개", categoryId, products.size());
+                    } catch (NumberFormatException e) {
+                        log.error("❌ 잘못된 카테고리 ID 형식: '{}', 에러: {}", categoryIdStr, e.getMessage());
+                        return ResponseEntity.ok(List.of());
+                    }
                 }
             } else {
                 if ("ALL".equals(categoryIdStr)) {
+                    log.info("🌍 전체 상품 조회 실행");
                     products = productService.getAllProducts(limit);
+                    log.info("✅ 전체 상품 조회: {}개", products.size());
                 } else {
-                    Integer categoryId = Integer.parseInt(categoryIdStr);
-                    products = productService.getProductsByCategory(categoryId, limit);
+                    try {
+                        Integer categoryId = Integer.parseInt(categoryIdStr);
+                        log.info("🎯 파싱된 카테고리 ID: {} (원본: '{}')", categoryId, categoryIdStr);
+                        products = productService.getProductsByCategory(categoryId, limit);
+                        log.info("✅ 카테고리 {} 상품 조회: {}개", categoryId, products.size());
+
+                        // 🔥 디버깅: 실제 반환된 상품들의 카테고리 확인
+                        if (products.size() > 0) {
+                            log.info("📊 반환된 상품들의 카테고리 분포:");
+                            Map<Integer, Long> categoryDistribution = products.stream()
+                                    .collect(Collectors.groupingBy(
+                                            ProductDTO::getCategoryId,
+                                            Collectors.counting()
+                                    ));
+                            categoryDistribution.forEach((catId, count) ->
+                                    log.info("  - 카테고리 {}: {}개", catId, count)
+                            );
+
+                            // 🔥 요청한 카테고리와 일치하지 않는 상품이 있는지 확인
+                            long mismatchCount = products.stream()
+                                    .filter(p -> !p.getCategoryId().equals(categoryId))
+                                    .count();
+
+                            if (mismatchCount > 0) {
+                                log.warn("⚠️ 요청한 카테고리 {}와 다른 카테고리 상품 {}개 발견!", categoryId, mismatchCount);
+
+                                // 처음 5개의 잘못된 상품 로깅
+                                products.stream()
+                                        .filter(p -> !p.getCategoryId().equals(categoryId))
+                                        .limit(5)
+                                        .forEach(p -> log.warn("  - 잘못된 상품: ID={}, 이름={}, 카테고리={}",
+                                                p.getProductId(), p.getName(), p.getCategoryId()));
+                            } else {
+                                log.info("✅ 모든 상품이 요청한 카테고리 {}와 일치합니다", categoryId);
+                            }
+                        }
+
+                    } catch (NumberFormatException e) {
+                        log.error("❌ 잘못된 카테고리 ID 형식: '{}', 에러: {}", categoryIdStr, e.getMessage());
+                        return ResponseEntity.ok(List.of());
+                    }
                 }
             }
 
-            log.info("카테고리별 상품 조회 결과: {}개", products.size());
+            log.info("🎯 최종 카테고리별 상품 조회 결과: {}개", products.size());
             return ResponseEntity.ok(products);
+
         } catch (Exception e) {
-            log.error("카테고리별 상품 조회 중 오류:", e);
+            log.error("❌ 카테고리별 상품 조회 중 오류:", e);
             return ResponseEntity.ok(List.of());
         }
     }
@@ -141,7 +199,14 @@ public class ProductApiController {
             return ResponseEntity.ok(List.of());
         }
     }
-
+    private boolean isMainCategory(Integer categoryId) {
+        if (categoryId == null) {
+            return false;
+        }
+        // 메인 카테고리는 보통 1~9 또는 100단위
+        // 실제 데이터에 맞게 조정 필요
+        return categoryId < 100; // 100 미만은 메인 카테고리로 간주
+    }
     @GetMapping("/category/{categoryId}/with-images")
     public ResponseEntity<ApiResponse<List<ProductDTO>>> getProductsByCategoryWithImages(
             @PathVariable Integer categoryId,

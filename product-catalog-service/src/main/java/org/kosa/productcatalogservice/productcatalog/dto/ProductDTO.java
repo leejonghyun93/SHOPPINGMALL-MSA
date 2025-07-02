@@ -34,7 +34,7 @@ public class ProductDTO {
     private List<ProductImageDto> productImages;
 
     // 프론트엔드용 추가 필드
-    private String title;
+//    private String title;
     private Integer discount;
     private Integer originalPrice;
     private Boolean isLive;

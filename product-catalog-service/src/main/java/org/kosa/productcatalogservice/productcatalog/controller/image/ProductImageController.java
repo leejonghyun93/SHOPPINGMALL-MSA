@@ -26,12 +26,17 @@ public class ProductImageController {
         return ResponseEntity.ok(imageService.saveImage(image));
     }
 
-    @GetMapping("/{productId}")
+    // 🔥 이 매핑을 제거하거나 변경 (파일 서빙과 충돌)
+    // @GetMapping("/{productId}")
+
+    // 🔥 대신 더 구체적인 매핑 사용
+    @GetMapping("/metadata/{productId}")
     public ResponseEntity<List<ProductImage>> getImages(@PathVariable Integer productId) {
         return ResponseEntity.ok(imageService.getImagesByProductId(productId));
     }
 
-    @GetMapping("/{productId}/main")
+    // 🔥 이것도 변경
+    @GetMapping("/metadata/{productId}/main")
     public ResponseEntity<ProductImage> getMainImage(@PathVariable Integer productId) {
         return imageService.getMainImage(productId)
                 .map(ResponseEntity::ok)
@@ -44,7 +49,7 @@ public class ProductImageController {
         return ResponseEntity.ok().build();
     }
 
-    // API 호환성을 위한 추가 엔드포인트들 (기존 MSA 호환)
+    // 나머지 기존 매핑들은 그대로 유지 (이미 /products/로 시작하므로 괜찮음)
     @GetMapping("/products/{productId}")
     public ResponseEntity<ApiResponse<List<ProductImageDto>>> getProductImages(@PathVariable String productId) {
         try {

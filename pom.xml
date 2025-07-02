@@ -20,18 +20,14 @@
         <module>product-catalog-service</module>
         <module>eureka-service</module>
         <module>user-service</module>
-<!--        <module>product-service</module>-->
         <module>order-service</module>
-        <module>cart-service</module>
-<!--        <module>image-service</module>-->
-        <module>payment-service</module>
-<!--        <module>category-service</module>-->
+<!--        <module>cart-service</module>-->
+<!--        <module>payment-service</module>-->
         <module>live-streaming-service</module>
-        <module>live-chat-service</module>
         <module>notification-service</module>
     </modules>
-    <name>toy-board-msa</name>
-    <description>toy-board-msa</description>
+    <name>shoppingmall-msa</name>
+    <description>shoppingmall-msa</description>
     <url/>
     <licenses>
         <license/>
@@ -56,10 +52,6 @@
             <scope>test</scope>
         </dependency>
 
-        <dependency>
-            <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-starter-bootstrap</artifactId>
-        </dependency>
     </dependencies>
     <dependencyManagement>
         <dependencies>

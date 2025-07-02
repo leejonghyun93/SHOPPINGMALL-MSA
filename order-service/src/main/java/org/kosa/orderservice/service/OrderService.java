@@ -2,14 +2,15 @@ package org.kosa.orderservice.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.kosa.orderservice.client.PaymentCancelClient;
 import org.kosa.orderservice.dto.*;
 import org.kosa.orderservice.entity.Order;
 import org.kosa.orderservice.entity.OrderCancel;
 import org.kosa.orderservice.entity.OrderItem;
-import org.kosa.orderservice.mapper.OrderCancelRepository;
-import org.kosa.orderservice.mapper.OrderItemRepository;
-import org.kosa.orderservice.mapper.OrderRepository;
+
+import org.kosa.orderservice.repository.OrderCancelRepository;
+import org.kosa.orderservice.repository.OrderItemRepository;
+import org.kosa.orderservice.repository.OrderRepository;
+import org.springframework.context.ApplicationContext;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -31,7 +32,7 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
     private final OrderCancelRepository orderCancelRepository;
-    private final PaymentCancelClient paymentCancelClient;
+    private final ApplicationContext applicationContext; // 🔥 PaymentService 순환 참조 해결
 
     private static final List<String> CANCELLABLE_STATUSES = Arrays.asList(
             "PENDING", "ORDER_COMPLETED", "PREPARING", "PAYMENT_COMPLETED"
@@ -109,7 +110,7 @@ public class OrderService {
     }
 
     /**
-     * 주문 취소 처리 (결제 취소 포함)
+     * 주문 취소 처리 (🔥 ApplicationContext를 통한 지연 로딩으로 순환 참조 해결)
      */
     @Transactional
     public OrderCancelResponseDTO cancelOrder(OrderCancelRequestDTO request) {
@@ -131,14 +132,20 @@ public class OrderService {
             String refundStatus = "PENDING";
             String paymentCancelId = null;
 
+            // 🔥 PaymentService를 ApplicationContext를 통해 지연 로딩하여 결제 취소 처리
             if (request.getPaymentId() != null && !request.getPaymentId().isEmpty()) {
                 try {
-                    String cancelReason = getDefaultValue(request.getReason(), "사용자 요청");
-                    PaymentCancelResult cancelResult = cancelPayment(
-                            request.getPaymentId(),
-                            request.getRefundAmount(),
-                            cancelReason
-                    );
+                    PaymentCancelRequestDTO paymentCancelRequest = PaymentCancelRequestDTO.builder()
+                            .paymentId(request.getPaymentId())
+                            .refundAmount(request.getRefundAmount())
+                            .cancelReason(getDefaultValue(request.getReason(), "사용자 요청"))
+                            .orderId(request.getOrderId())
+                            .userId(request.getUserId())
+                            .build();
+
+                    // 🔥 ApplicationContext를 통한 지연 로딩으로 순환 참조 해결
+                    PaymentService paymentService = applicationContext.getBean(PaymentService.class);
+                    PaymentCancelResponseDTO cancelResult = paymentService.cancelPayment(paymentCancelRequest);
 
                     if (cancelResult.isSuccess()) {
                         refundStatus = "COMPLETED";
@@ -211,49 +218,6 @@ public class OrderService {
         } catch (Exception e) {
             log.error("간단 주문 취소 실패: {}", e.getMessage(), e);
             throw new RuntimeException("주문 취소 중 오류가 발생했습니다.");
-        }
-    }
-
-    /**
-     * 결제 취소 처리 (Payment Service 호출)
-     */
-    private PaymentCancelResult cancelPayment(String paymentId, Integer refundAmount, String cancelReason) {
-        try {
-            log.info("결제 취소 요청: paymentId={}", paymentId);
-
-            PaymentCancelRequestDTO request = PaymentCancelRequestDTO.builder()
-                    .paymentId(paymentId)
-                    .refundAmount(refundAmount)
-                    .cancelReason(cancelReason)
-                    .build();
-
-            PaymentCancelResponseDTO response = paymentCancelClient.cancelPayment(request);
-
-            if (response.isSuccess()) {
-                log.info("결제 취소 성공: cancelId={}", response.getCancelId());
-                return PaymentCancelResult.builder()
-                        .success(true)
-                        .cancelId(response.getCancelId())
-                        .message(response.getMessage())
-                        .build();
-            } else {
-                log.error("결제 취소 실패: {}", response.getMessage());
-                return PaymentCancelResult.builder()
-                        .success(false)
-                        .cancelId(null)
-                        .message(response.getMessage())
-                        .errorCode(response.getErrorCode())
-                        .build();
-            }
-
-        } catch (Exception e) {
-            log.error("Payment Service 호출 오류", e);
-            return PaymentCancelResult.builder()
-                    .success(false)
-                    .cancelId(null)
-                    .message("Payment Service 연동 오류: " + e.getMessage())
-                    .errorCode("SERVICE_ERROR")
-                    .build();
         }
     }
 
@@ -467,8 +431,6 @@ public class OrderService {
             throw new RuntimeException("취소 주문 목록 조회 중 오류가 발생했습니다.");
         }
     }
-
-    // 🔥 추가된 메서드들 - OrderController에서 사용
 
     /**
      * 모든 주문 ID 목록 조회 (디버깅용)

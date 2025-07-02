@@ -1,6 +1,5 @@
 package org.kosa.productcatalogservice.productcatalog.repository;
 
-
 import org.kosa.productcatalogservice.productcatalog.entity.Product;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -24,24 +23,30 @@ public interface ProductRepository extends JpaRepository<Product, Integer> {
             Pageable pageable
     );
 
+    // 🔥 상태를 '판매중'으로 통일
     @Query(value = "SELECT * FROM tb_product WHERE PRODUCT_STATUS = '판매중' AND display_yn = 'Y' ORDER BY CREATED_DATE DESC", nativeQuery = true)
     List<Product> findAllActiveProducts(Pageable pageable);
 
+    // 🔥 상태를 '판매중'으로 통일
     @Query(value = "SELECT * FROM tb_product WHERE category_id = :categoryId AND PRODUCT_STATUS = '판매중' AND display_yn = 'Y' ORDER BY CREATED_DATE DESC", nativeQuery = true)
     List<Product> findByCategoryIdActive(@Param("categoryId") Integer categoryId, Pageable pageable);
 
+    // 🔥 상태를 '판매중'으로 통일
     @Query(value = "SELECT * FROM tb_product WHERE category_id IN (:categoryIds) AND PRODUCT_STATUS = '판매중' AND display_yn = 'Y' ORDER BY CREATED_DATE DESC", nativeQuery = true)
     List<Product> findByMultipleCategoriesActive(@Param("categoryIds") List<Integer> categoryIds, Pageable pageable);
 
     @Query("SELECT p FROM Product p WHERE p.hostId = :hostId AND p.productStatus = :productStatus AND p.displayYn = 'Y' ORDER BY p.createdDate DESC")
     List<Product> findByHostIdAndProductStatus(@Param("hostId") Long hostId, @Param("productStatus") String productStatus, Pageable pageable);
 
+    // 🔥 상태를 '판매중'으로 통일
     @Query(value = "SELECT COUNT(*) FROM tb_product WHERE PRODUCT_STATUS = '판매중' AND display_yn = 'Y'", nativeQuery = true)
     Long countAllActiveProducts();
 
+    // 🔥 상태를 '판매중'으로 통일
     @Query(value = "SELECT COUNT(*) FROM tb_product WHERE category_id = :categoryId AND PRODUCT_STATUS = '판매중' AND display_yn = 'Y'", nativeQuery = true)
     Long countByCategoryActive(@Param("categoryId") Integer categoryId);
 
+    // 🔥 상태를 '판매중'으로 통일
     @Query(value = "SELECT category_id, COUNT(*) FROM tb_product WHERE PRODUCT_STATUS = '판매중' AND display_yn = 'Y' GROUP BY category_id", nativeQuery = true)
     List<Object[]> getProductCountsByCategory();
 

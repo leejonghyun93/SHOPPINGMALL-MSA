@@ -60,7 +60,13 @@ public class GatewaySecurityConfig {
                                 .pathMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
                                 .pathMatchers(HttpMethod.GET, "/api/products/**").permitAll()
                                 .pathMatchers(HttpMethod.POST, "/api/products/guest-cart-details").permitAll()
-
+                                .pathMatchers(HttpMethod.GET, "/api/images/**").permitAll()
+                                .pathMatchers(HttpMethod.GET, "/images/**").permitAll()
+                                .pathMatchers(HttpMethod.GET, "/upload/**").permitAll()
+                                .pathMatchers(HttpMethod.GET, "/uploads/**").permitAll()
+                                .pathMatchers(HttpMethod.GET, "/static/**").permitAll()
+                                .pathMatchers(HttpMethod.GET, "/resources/**").permitAll()
+                                .pathMatchers(HttpMethod.GET, "/icons/**").permitAll()
                                 // 아이디 비밀번호 찾기
                                 .pathMatchers(HttpMethod.GET,"/api/users/findId").permitAll()
                                 .pathMatchers(HttpMethod.POST, "/auth/findPassword").permitAll()
@@ -112,7 +118,12 @@ public class GatewaySecurityConfig {
                                 .pathMatchers(HttpMethod.DELETE, "/api/users/addresses/**").hasAnyRole("USER", "ADMIN")
 
                                 // 장바구니 (로그인 사용자)
-                                .pathMatchers("/api/cart/**").hasAnyRole("USER", "ADMIN")
+                                .pathMatchers("/api/cart/guest/**").permitAll()  // 게스트 장바구니는 공개
+                                .pathMatchers(HttpMethod.POST, "/api/cart").hasAnyRole("USER", "ADMIN")  // 장바구니 추가는 인증 필요
+                                .pathMatchers(HttpMethod.GET, "/api/cart").hasAnyRole("USER", "ADMIN")   // 장바구니 조회는 인증 필요
+                                .pathMatchers(HttpMethod.PUT, "/api/cart/**").hasAnyRole("USER", "ADMIN") // 장바구니 수정은 인증 필요
+                                .pathMatchers(HttpMethod.DELETE, "/api/cart/**").hasAnyRole("USER", "ADMIN") // 장바구니 삭제는 인증 필요
+                                .pathMatchers("/api/cart/**").hasAnyRole("USER", "ADMIN")  // 나머지 장바구니 API는 인증 필요
 
                                 // 주문 관련
                                 .pathMatchers("/api/orders/**").hasAnyRole("USER", "ADMIN")

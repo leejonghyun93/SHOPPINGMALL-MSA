@@ -181,7 +181,7 @@
               <div class="product-image">
                 <img
                     :src="product.image || defaultImage"
-                    :alt="product.title || '상품명 없음'"
+                    :alt="product.name || '상품명 없음'"
                     @error="handleImageError"
                     @load="handleImageLoad"
                     loading="lazy"
@@ -194,7 +194,7 @@
 
               <!-- 상품 정보 -->
               <div class="product-info">
-                <h3 class="product-title" v-html="highlightSearchKeyword(product.title)"></h3>
+                <h3 class="product-title" v-html="highlightSearchKeyword(product.name)"></h3>
                 <div class="product-pricing">
                   <span class="price">{{ formatPrice(product.price) }}원</span>
                   <span v-if="product.originalPrice && product.originalPrice !== product.price" class="original-price">
@@ -256,7 +256,7 @@
           <div class="product-image">
             <img
                 :src="product.image || defaultImage"
-                :alt="product.title || '상품명 없음'"
+                :alt="product.name || '상품명 없음'"
                 @error="handleImageError"
                 @load="handleImageLoad"
                 loading="lazy"
@@ -269,7 +269,7 @@
 
           <!-- 상품 정보 -->
           <div class="product-info">
-            <h3 class="product-title" v-html="highlightSearchKeyword(product.title)"></h3>
+            <h3 class="product-title" v-html="highlightSearchKeyword(product.name)"></h3>
             <div class="product-pricing">
               <span class="price">{{ formatPrice(product.price) }}원</span>
               <span v-if="product.originalPrice && product.originalPrice !== product.price" class="original-price">
@@ -368,7 +368,7 @@ const getIconForCategory = (category) => {
   return null;
 };
 
-// 검색 관련 계산된 속성들
+// 검색 관련 계산된 속성들 - name 필드 사용
 const filteredProducts = computed(() => {
   if (!searchKeyword.value) {
     return products.value
@@ -376,8 +376,8 @@ const filteredProducts = computed(() => {
 
   const keyword = searchKeyword.value.toLowerCase().trim()
   return allProducts.value.filter(product => {
-    const title = product.title?.toLowerCase() || ''
-    return title.includes(keyword)
+    const name = product.name?.toLowerCase() || ''
+    return name.includes(keyword)
   })
 })
 
@@ -385,7 +385,7 @@ const displayProducts = computed(() => {
   return searchKeyword.value ? filteredProducts.value : products.value
 })
 
-// 검색어 하이라이트 함수
+// 검색어 하이라이트 함수 - name 필드 사용
 const highlightSearchKeyword = (text) => {
   if (!searchKeyword.value || !text) {
     return text
@@ -408,7 +408,7 @@ const currentCategoryName = computed(() => {
   return category ? category.name : selectedCategory.value
 })
 
-// 정렬된 상품 목록
+// 정렬된 상품 목록 - name 필드 사용
 const sortedProducts = computed(() => {
   if (!displayProducts.value || displayProducts.value.length === 0) return []
 
@@ -422,18 +422,18 @@ const sortedProducts = computed(() => {
     case 'discount':
       return sorted.sort((a, b) => (b.discount || 0) - (a.discount || 0))
     case 'name':
-      return sorted.sort((a, b) => a.title.localeCompare(b.title))
+      return sorted.sort((a, b) => a.name.localeCompare(b.name))
     case 'relevance':
       if (searchKeyword.value) {
         return sorted.sort((a, b) => {
-          const aTitle = a.title?.toLowerCase() || ''
-          const bTitle = b.title?.toLowerCase() || ''
+          const aName = a.name?.toLowerCase() || ''
+          const bName = b.name?.toLowerCase() || ''
           const keyword = searchKeyword.value.toLowerCase()
 
-          const aStartsWith = aTitle.startsWith(keyword) ? 2 : 0
-          const bStartsWith = bTitle.startsWith(keyword) ? 2 : 0
-          const aIncludes = aTitle.includes(keyword) ? 1 : 0
-          const bIncludes = bTitle.includes(keyword) ? 1 : 0
+          const aStartsWith = aName.startsWith(keyword) ? 2 : 0
+          const bStartsWith = bName.startsWith(keyword) ? 2 : 0
+          const aIncludes = aName.includes(keyword) ? 1 : 0
+          const bIncludes = bName.includes(keyword) ? 1 : 0
 
           return (bStartsWith + bIncludes) - (aStartsWith + aIncludes)
         })
@@ -452,7 +452,7 @@ const paginatedProducts = computed(() => {
 })
 
 /**
- * fetchProducts 함수
+ * fetchProducts 함수 - 정리된 버전
  */
 const fetchProducts = async () => {
   try {
@@ -488,12 +488,12 @@ const fetchProducts = async () => {
       return
     }
 
-    // 상품 데이터 변환
+    // 상품 데이터 변환 - name 필드 사용
     const convertedProducts = productData.map((product, index) => {
-      const convertedProduct = {
+      return {
         id: product.productId || `product_${index}`,
-        title: product.name || product.title || '상품명 없음',
-        price: product.price || product.salePrice || product.finalPrice || 0,
+        name: product.name || '상품명 없음',
+        price: product.price || product.salePrice || 0,
         originalPrice: product.originalPrice || product.price || 0,
         discount: product.discount || product.discountRate || null,
         image: getImageUrl(product),
@@ -508,8 +508,6 @@ const fetchProducts = async () => {
           mainImageUrl: product.mainImageUrl
         }
       }
-
-      return convertedProduct
     })
 
     products.value = convertedProducts

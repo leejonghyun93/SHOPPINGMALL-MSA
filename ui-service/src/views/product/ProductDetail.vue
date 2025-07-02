@@ -424,7 +424,7 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ChevronLeft, Share2, Heart, Bell, Star, Plus, ChevronDown } from 'lucide-vue-next'
-import apiClient from '@/api/axiosInstance'
+import apiClient from '@/api/axiosInstance.js'
 
 const router = useRouter()
 const route = useRoute()
@@ -973,6 +973,8 @@ const toggleWishlist = () => {
   isWishlisted.value = !isWishlisted.value
 }
 
+// ProductDetail.vue의 handleAddToCart 함수를 다음과 같이 수정하세요:
+
 const handleAddToCart = async () => {
   if (!product.value?.productId) {
     alert('상품 정보를 찾을 수 없습니다.');
@@ -999,19 +1001,23 @@ const handleAddToCart = async () => {
     productId: product.value.productId,
     quantity: quantity.value,
     productOptionId: 'defaultOptionId'
+    // 🔥 userId 제거 - 백엔드에서 Authentication에서 추출
   };
 
   try {
-    // 사용자 프로필 확인으로 인증 상태 재검증
-    await apiClient.get('/api/users/profile');
+    console.log('장바구니 추가 요청:', cartItem);
 
     const response = await apiClient.post('/api/cart', cartItem, {
       withAuth: true,
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
-      }
+        // 🔥 X-User-Id, X-Username 등 모든 사용자 헤더 제거
+      },
+      timeout: 10000
     });
+
+    console.log('장바구니 응답:', response.data);
 
     if (response.data.success) {
       const goToCart = confirm('장바구니에 추가되었습니다! 장바구니로 이동하시겠습니까?');
@@ -1023,9 +1029,14 @@ const handleAddToCart = async () => {
     }
 
   } catch (error) {
+    console.error('장바구니 추가 에러:', error);
+
     if (error.response) {
       const status = error.response.status;
       const message = error.response.data?.message || error.message;
+
+      console.error('응답 상태:', status);
+      console.error('응답 데이터:', error.response.data);
 
       if (status === 401) {
         alert('인증이 만료되었습니다. 다시 로그인해주세요.');
@@ -1035,17 +1046,19 @@ const handleAddToCart = async () => {
       } else if (status === 403) {
         alert('권한이 없습니다.');
         return;
+      } else if (status === 400) {
+        alert(`잘못된 요청입니다: ${message}`);
+        return;
       } else {
         alert(`장바구니 추가 실패: ${message}`);
       }
     } else if (error.request) {
-      alert('네트워크 오류가 발생했습니다.');
+      alert('네트워크 오류가 발생했습니다. 인터넷 연결을 확인해주세요.');
     } else {
       alert('장바구니 추가 중 오류가 발생했습니다.');
     }
   }
 };
-
 const getCurrentImage = () => {
   if (product.value?.images?.length > 0)
     return product.value.images[currentImageIndex.value] || product.value.images[0]

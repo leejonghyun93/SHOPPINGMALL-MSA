@@ -9,10 +9,11 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class PaymentCancelRequestDTO {
+public class PaymentVerifyResponse {
+    private boolean success;
     private String paymentId;
-    private Integer refundAmount;
-    private String cancelReason;
     private String orderId;
-    private String userId;
+    private Integer amount;
+    private PaymentStatus status;
+    private String message;
 }

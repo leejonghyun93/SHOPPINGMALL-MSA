@@ -241,7 +241,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { ChevronLeft, Minus, Plus, X } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
-import apiClient from '@/api/axiosInstance'
+import apiClient from '@/api/axiosInstance.js'
 
 const router = useRouter()
 
