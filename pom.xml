@@ -13,18 +13,14 @@
     <version>1.0</version>
     <packaging>pom</packaging>
     <modules>
-        <module>apigateway-service</module>
-        <module>auth-service</module>
-        <module>config-service</module>
-        <module>board-service</module>
-        <module>product-catalog-service</module>
-        <module>eureka-service</module>
+        <module>apigateway-service</module> <!--필수 -->
+        <module>auth-service</module>       <!--필수 -->
+        <module>config-service</module>     <!--필수 -->
+        <module>product-catalog-service</module>  <!--필수 -->
+        <module>eureka-service</module>     <!--필수 -->
         <module>user-service</module>
-        <module>order-service</module>
-<!--        <module>cart-service</module>-->
-<!--        <module>payment-service</module>-->
+        <module>order-service</module>      <!--필수 -->
         <module>live-streaming-service</module>
-        <module>notification-service</module>
     </modules>
     <name>shoppingmall-msa</name>
     <description>shoppingmall-msa</description>

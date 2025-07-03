@@ -233,6 +233,7 @@ const isTokenValid = (token) => {
 }
 
 // 사용자 정보 검증 함수
+// 사용자 정보 검증 함수 수정
 const validateUserInfo = async () => {
   const token = localStorage.getItem("token")
   if (!token || !isTokenValid(token)) {
@@ -242,16 +243,29 @@ const validateUserInfo = async () => {
   try {
     const response = await apiClient.get('/api/users/profile')
 
-    if (response.data.success && response.data.data) {
-      const userData = response.data.data
-      user.id = userData.id || userData.userId
+    console.log('프로필 응답:', response.data) // 디버깅용
+
+    // ✅ UserApiController의 실제 응답 구조에 맞게 수정
+    if (response.data && response.data.userId) {
+      const userData = response.data  // data.data가 아닌 data 직접 사용
+
+      user.id = userData.userId || userData.id
       user.name = userData.name
       user.email = userData.email
       user.role = userData.role || 'USER'
 
+      console.log('사용자 정보 설정됨:', {
+        id: user.id,
+        name: user.name,
+        email: user.email
+      })
+
       return true
+    } else {
+      console.warn('프로필 응답에서 사용자 정보를 찾을 수 없음:', response.data)
     }
   } catch (error) {
+    console.error('프로필 조회 실패:', error)
     return false
   }
 

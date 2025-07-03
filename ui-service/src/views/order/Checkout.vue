@@ -450,122 +450,125 @@ const editDeliveryRequest = () => {
 }
 
 const isTokenValid = (token) => {
-  if (!token) return false
+  if (!token || typeof token !== 'string') return false
+
   try {
     const parts = token.split('.')
     if (parts.length !== 3) return false
+
+    // Base64 디코딩
     let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
     while (base64.length % 4) {
       base64 += '='
     }
+
     const payloadStr = atob(base64)
     const payload = JSON.parse(payloadStr)
+
+    // 만료 시간 확인
     const currentTime = Math.floor(Date.now() / 1000)
     if (payload.exp && payload.exp < currentTime) {
+      console.warn('토큰 만료:', new Date(payload.exp * 1000))
       return false
     }
+
+    // 필수 필드 확인
+    if (!payload.sub && !payload.username) {
+      console.warn('토큰에 사용자 정보 없음')
+      return false
+    }
+
     return true
   } catch (error) {
+    console.error('토큰 검증 실패:', error)
     return false
   }
 }
 
 const checkLoginStatus = () => {
   const token = localStorage.getItem('token')
-  if (token && isTokenValid(token)) {
+
+  if (!token) {
+    isLoggedIn.value = false
+    return false
+  }
+
+  if (!isTokenValid(token)) {
+    console.warn('유효하지 않은 토큰 - 제거')
+    localStorage.removeItem('token')
+    localStorage.removeItem('userId')
+    isLoggedIn.value = false
+    return false
+  }
+
+  // 토큰에서 사용자 정보 설정
+  try {
     setUserFromToken(token)
     isLoggedIn.value = !!user.id
-  } else {
+    console.log('로그인 상태 확인:', { userId: user.id, isLoggedIn: isLoggedIn.value })
+    return isLoggedIn.value
+  } catch (error) {
+    console.error('사용자 정보 설정 실패:', error)
     isLoggedIn.value = false
-    if (token && !isTokenValid(token)) {
-      localStorage.removeItem('token')
-    }
+    return false
   }
-  return isLoggedIn.value
 }
 
 const loadUserInfo = async () => {
-  if (!isLoggedIn.value) {
-    userInfo.value = {
-      name: '게스트 사용자',
-      phone: '',
-      email: ''
-    }
-    deliveryInfo.value = {
-      address: '서울특별시 송파구 정현로 135',
-      detailAddress: '(어마덜랩터원) 7층 16층 한국스프트에이전시협의회',
-      zipCode: '05506',
-      request: '문 앞에 놓아주세요',
-      recipientName: '게스트 사용자',
-      recipientPhone: ''
-    }
-    return
-  }
-
-  // 먼저 토큰에서 가져온 기본 정보로 설정
-  userInfo.value = {
-    name: user.name || '사용자',
-    phone: user.phone || '',
-    email: user.email || ''
-  }
-
   try {
-    // 수정된 API 호출 - 응답 구조 변경
-    const response = await apiClient.get('/api/users/profile')
-
-    console.log('Profile API 응답:', response.data) // 디버깅용
-
-    // 응답 구조에 맞게 수정 - response.data에 직접 사용자 정보가 있음
-    if (response.data) {
+    // 비로그인 사용자 처리
+    if (!isLoggedIn.value) {
       userInfo.value = {
-        name: response.data.name || user.name || '사용자',
-        phone: response.data.phone || user.phone || '',
-        email: response.data.email || user.email || ''
+        name: '게스트 사용자',
+        phone: '',
+        email: ''
       }
-
-      // 배송 정보도 업데이트
-      if (response.data.zipcode || response.data.address) {
-        deliveryInfo.value = {
-          address: response.data.address || '',
-          detailAddress: '', // 상세주소는 별도 필드가 없으므로 빈 값
-          zipCode: response.data.zipcode || '',
-          request: '문 앞에 놓아주세요',
-          recipientName: response.data.name || user.name,
-          recipientPhone: response.data.phone || user.phone || ''
-        }
-      } else {
-        // 기본 배송 정보 설정
-        deliveryInfo.value = {
-          address: '서울특별시 송파구 정현로 135',
-          detailAddress: '(어마덜랩터원) 7층 16층 한국스프트에이전시협의회',
-          zipCode: '05506',
-          request: '문 앞에 놓아주세요',
-          recipientName: response.data.name || user.name || '사용자',
-          recipientPhone: response.data.phone || user.phone || ''
-        }
-      }
-
-      console.log('사용자 정보 업데이트 완료:', userInfo.value)
+      setDefaultDeliveryInfo('게스트 사용자', '')
+      return
     }
+
+    // 🔥 API 호출 완전 제거 - 토큰 정보만 사용
+    console.log('✅ 토큰 기반 사용자 정보 사용 (API 호출 제거)')
+
+    userInfo.value = {
+      name: user.name || '사용자',
+      phone: user.phone || '',
+      email: user.email || ''
+    }
+
+    // 기본 배송지 설정
+    setDefaultDeliveryInfo(user.name || '사용자', user.phone || '')
+
+    console.log('✅ 사용자 정보 설정 완료:', {
+      name: userInfo.value.name,
+      phone: userInfo.value.phone ? '***' : '없음',
+      email: userInfo.value.email ? '***' : '없음'
+    })
+
   } catch (error) {
-    console.error('사용자 정보 로드 실패:', error)
+    console.error('사용자 정보 설정 실패:', error)
 
-    // 404 에러인 경우 API Gateway 라우팅 문제일 가능성
-    if (error.response?.status === 404) {
-      console.warn('Profile API 404 에러 - API Gateway 라우팅 확인 필요')
-      // 토큰의 기본 정보를 그대로 사용
-    } else if (error.response?.status === 401) {
-      // 인증 에러는 인터셉터에서 처리됨
-      console.warn('인증 에러 - 로그인 필요')
-    } else {
-      console.error('기타 에러:', error.message)
+    // 최종 fallback: 기본값 설정
+    userInfo.value = {
+      name: user.name || '사용자',
+      phone: user.phone || '',
+      email: user.email || ''
     }
-
-    // 에러가 발생해도 토큰의 기본 정보는 유지
-    // (이미 위에서 설정했으므로 추가 작업 불필요)
+    setDefaultDeliveryInfo(user.name || '사용자', user.phone || '')
   }
 }
 
+
+const setDefaultDeliveryInfo = (name, phone) => {
+  deliveryInfo.value = {
+    address: '서울특별시 송파구 정현로 135',
+    detailAddress: '(어마덜랩터원) 7층 16층 한국스프트에이전시협의회',
+    zipCode: '05506',
+    request: '문 앞에 놓아주세요',
+    recipientName: name || '수령인',
+    recipientPhone: phone || ''
+  }
+}
 const loadDeliveryInfo = async () => {
   if (!isLoggedIn.value) {
     return
@@ -696,6 +699,7 @@ const initiatePayment = async (paymentData) => {
     return new Promise((resolve, reject) => {
       IMP.init('imp19424728')
 
+      // PG 설정 로직 (기존과 동일)
       let pgProvider = 'kakaopay.TC0ONETIME'
       let payMethod = 'card'
 
@@ -750,17 +754,13 @@ const initiatePayment = async (paymentData) => {
         }
       }
 
-      if (payMethod === 'phone') {
-        paymentRequest.digital = false
-        paymentRequest.buyer_postcode = deliveryInfo.value.zipCode || ''
-        paymentRequest.buyer_addr = deliveryInfo.value.address || ''
-      }
-
       console.log('결제 요청 데이터:', paymentRequest)
 
       IMP.request_pay(paymentRequest, async (response) => {
         try {
           if (response.success) {
+            console.log('✅ 결제 성공:', response)
+
             const pendingOrderData = sessionStorage.getItem('pending_order_data')
             if (!pendingOrderData) {
               throw new Error('임시 주문 데이터를 찾을 수 없습니다')
@@ -768,28 +768,70 @@ const initiatePayment = async (paymentData) => {
 
             const orderData = JSON.parse(pendingOrderData)
 
-            const orderResponse = await apiClient.post('/api/payments/orders/checkout', {
-              ...orderData,
-              paymentId: response.imp_uid,
-              paidAmount: response.paid_amount,
-              pgProvider: pgProvider
-            })
+            try {
+              const orderResponse = await apiClient.post('/api/payments/orders/checkout', {
+                ...orderData,
+                paymentId: response.imp_uid,
+                paidAmount: response.paid_amount,
+                pgProvider: pgProvider
+              })
 
-            if (orderResponse.data.success) {
-              console.log(' 주문 생성 성공, 장바구니 정리 시작...')
+              if (orderResponse.data.success) {
+                console.log('✅ 주문 생성 성공, 장바구니 정리 시작...')
 
-              await clearPurchasedItemsFromCart(orderData.items)
+                // 🔥 장바구니 정리 시 에러 무시
+                try {
+                  await clearPurchasedItemsFromCart(orderData.items)
+                } catch (cartError) {
+                  console.log('⚠️ 장바구니 정리 실패했지만 결제는 성공 - 무시하고 진행')
+                }
 
-              sessionStorage.removeItem('pending_order_data')
-              sessionStorage.removeItem('checkout_data')
+                // 🔥 세션 정리
+                sessionStorage.removeItem('pending_order_data')
+                sessionStorage.removeItem('checkout_data')
+                sessionStorage.setItem('payment_completed', 'true')
 
-              sessionStorage.setItem('payment_completed', 'true')
+                const successMsg = getSuccessMessage(pgProvider, response.paid_amount)
+                showFriendlyMessage(successMsg, 'success')
 
-              const successMsg = getSuccessMessage(pgProvider, response.paid_amount)
-              showFriendlyMessage(successMsg, 'success')
+                // 🔥 주문 완료 페이지로 이동 시 토큰 상태 확인
+                const currentToken = localStorage.getItem('token')
+                console.log('🔍 주문 완료 페이지 이동 전 토큰 상태:', {
+                  hasToken: !!currentToken,
+                  tokenValid: currentToken ? isTokenValid(currentToken) : false
+                })
 
-              window.location.href = `/order-complete?orderId=${orderResponse.data.data.orderId}&paymentId=${response.imp_uid}&amount=${response.paid_amount}&from=checkout`
-              resolve(response)
+                // 🔥 토큰이 만료된 경우 갱신 시도
+                if (currentToken && !isTokenValid(currentToken)) {
+                  console.log('🔄 토큰 만료됨, 주문 완료 페이지로 바로 이동')
+                  // 토큰을 삭제하지 말고 주문 완료 페이지에서 처리하도록 함
+                }
+
+                window.location.href = `/order-complete?orderId=${orderResponse.data.data.orderId}&paymentId=${response.imp_uid}&amount=${response.paid_amount}&from=checkout`
+                resolve(response)
+              } else {
+                throw new Error(orderResponse.data.message || '주문 생성 실패')
+              }
+
+            } catch (orderError) {
+              console.error('❌ 주문 생성 실패:', orderError)
+
+              // 🔥 결제는 성공했으나 주문 생성 실패 시 처리
+              if (orderError.response?.status === 401) {
+                console.log('🔄 주문 생성 중 인증 만료 - 주문 완료 페이지로 이동')
+                sessionStorage.setItem('payment_completed', 'true')
+                sessionStorage.setItem('pending_payment_verification', JSON.stringify({
+                  paymentId: response.imp_uid,
+                  orderId: paymentData.orderId,
+                  amount: response.paid_amount
+                }))
+
+                window.location.href = `/order-complete?orderId=${paymentData.orderId}&paymentId=${response.imp_uid}&amount=${response.paid_amount}&from=checkout&verify=true`
+                resolve(response)
+                return
+              }
+
+              throw orderError
             }
 
           } else {
@@ -803,7 +845,9 @@ const initiatePayment = async (paymentData) => {
           }
 
         } catch (error) {
+          console.error('❌ 결제 처리 중 오류:', error)
           sessionStorage.removeItem('pending_order_data')
+
           if (!error.alreadyHandled) {
             if (response.success && response.imp_uid) {
               try {
@@ -812,7 +856,7 @@ const initiatePayment = async (paymentData) => {
                   refund_amount: response.paid_amount
                 })
               } catch (cancelError) {
-                // 취소 실패는 조용히 처리
+                console.error('결제 취소 실패:', cancelError)
               }
             }
             const errorMsg = getFailureReason('SYSTEM_ERROR', '결제 처리 중 오류가 발생했습니다')
@@ -830,6 +874,7 @@ const initiatePayment = async (paymentData) => {
     throw error
   }
 }
+// 🔥 Checkout.vue - clearPurchasedItemsFromCart 함수 개선 버전
 
 const clearPurchasedItemsFromCart = async (purchasedItems) => {
   try {
@@ -837,25 +882,20 @@ const clearPurchasedItemsFromCart = async (purchasedItems) => {
 
     console.log('🛒 장바구니 정리 시작:', {
       loginStatus: currentLoginStatus,
-      purchasedItemsCount: purchasedItems?.length || 0,
-      purchasedItems: purchasedItems
+      purchasedItemsCount: purchasedItems?.length || 0
     })
 
     if (currentLoginStatus) {
       // 로그인 사용자: 서버 장바구니에서 제거
       const productIds = purchasedItems
           .map(item => {
-            // 🔥 수정: 다양한 필드명 처리 및 타입 변환
             let productId = item.productId || item.id || item.product_id
-
-            // String to Number 변환 시도
             if (typeof productId === 'string') {
               const numericId = parseInt(productId, 10)
               if (!isNaN(numericId)) {
                 productId = numericId
               }
             }
-
             return productId
           })
           .filter(id => id !== null && id !== undefined)
@@ -864,109 +904,57 @@ const clearPurchasedItemsFromCart = async (purchasedItems) => {
 
       if (productIds.length > 0) {
         try {
-          // 🔥 수정: 더 강력한 API 호출
+          // 🔥 장바구니 정리 시 에러를 무시하도록 설정
           const response = await apiClient.post('/api/cart/remove-purchased-items', {
             productIds: productIds
           }, {
-            headers: {
-              'Content-Type': 'application/json',
-              'X-User-Id': user.id || localStorage.getItem('userId'),
-              'X-Username': user.username || localStorage.getItem('username')
-            },
-            timeout: 10000 // 10초 타임아웃
+            timeout: 3000,  // 타임아웃 단축
+            // 🔥 401 에러도 정상으로 처리
+            validateStatus: function (status) {
+              return status < 500; // 500 미만은 모두 성공으로 처리
+            }
           })
 
-          console.log('✅ 서버 응답:', response.data)
-
-          if (response.data.success) {
+          if (response.status === 401) {
+            console.log('🔇 장바구니 정리 중 401 에러 - 무시하고 진행')
+          } else if (response.data?.success) {
             console.log('✅ 서버 장바구니에서 구매 상품 제거 완료')
           } else {
-            throw new Error(response.data.message || '서버 응답 실패')
+            console.log('⚠️ 서버 장바구니 정리 실패 - 무시하고 진행')
           }
         } catch (error) {
-          console.error('❌ 서버 장바구니 정리 실패:', error)
-
-          // 🔥 수정: 서버 실패 시 개별 삭제 시도
-          if (error.response?.status !== 401) {
-            console.log('🔄 개별 삭제 시도 시작...')
-
-            try {
-              // 먼저 현재 장바구니 상태 확인
-              const cartResponse = await apiClient.get('/api/cart')
-
-              if (cartResponse.data.success && cartResponse.data.data?.cartItems) {
-                const currentCartItems = cartResponse.data.data.cartItems
-
-                // 구매한 상품과 일치하는 장바구니 아이템 찾기
-                for (const productId of productIds) {
-                  const itemToDelete = currentCartItems.find(
-                      cartItem => String(cartItem.productId) === String(productId)
-                  )
-
-                  if (itemToDelete) {
-                    try {
-                      await apiClient.delete(`/api/cart/items/${itemToDelete.cartItemId}`)
-                      console.log(`✅ 상품 ${productId} 개별 삭제 완료`)
-                    } catch (individualError) {
-                      console.error(`❌ 상품 ${productId} 개별 삭제 실패:`, individualError)
-                    }
-                  } else {
-                    console.log(`⚠️ 상품 ${productId}가 장바구니에 없음`)
-                  }
-                }
-              }
-            } catch (fallbackError) {
-              console.error('❌ 개별 삭제도 실패:', fallbackError)
-            }
-          }
+          console.log('🔇 장바구니 정리 실패 - 결제는 성공했으므로 무시:', error.message)
+          // 에러를 던지지 않고 조용히 처리
         }
-      } else {
-        console.log('⚠️ 제거할 상품 ID가 없음')
       }
     } else {
-      // 게스트 사용자: 로컬 스토리지에서 제거
+      // 게스트 사용자: 로컬 스토리지에서 제거 (기존 로직 유지)
       const productIds = purchasedItems
           .map(item => item.productId || item.id || item.product_id)
           .filter(Boolean)
 
-      console.log('🔍 게스트 장바구니 정리:', { productIds })
-
       if (productIds.length > 0) {
         try {
           const guestCart = JSON.parse(localStorage.getItem('guestCart') || '[]')
-
-          console.log('🔍 현재 게스트 장바구니:', guestCart)
-
           const updatedCart = guestCart.filter(cartItem => {
-            const shouldKeep = !productIds.includes(String(cartItem.productId))
-            if (!shouldKeep) {
-              console.log(`🗑️ 게스트 장바구니에서 제거: ${cartItem.productId}`)
-            }
-            return shouldKeep
+            return !productIds.includes(String(cartItem.productId))
           })
-
           localStorage.setItem('guestCart', JSON.stringify(updatedCart))
-
-          console.log('✅ 게스트 장바구니 정리 완료:', {
-            원래개수: guestCart.length,
-            제거후개수: updatedCart.length,
-            제거된상품수: guestCart.length - updatedCart.length
-          })
+          console.log('✅ 게스트 장바구니 정리 완료')
         } catch (error) {
           console.error('❌ 게스트 장바구니 정리 실패:', error)
         }
       }
     }
 
-    // 🔥 추가: 정리 완료 후 브라우저 스토리지에 마킹
+    // 🔥 정리 완료 마킹
     sessionStorage.setItem('cart_cleaned_after_payment', 'true')
     sessionStorage.setItem('last_purchase_cleanup', Date.now().toString())
-
     console.log('✅ 장바구니 정리 완료')
 
   } catch (error) {
-    console.error('❌ 장바구니 정리 중 전체 오류:', error)
-    // 장바구니 정리 실패해도 결제는 성공이므로 에러를 throw하지 않음
+    console.log('🔇 장바구니 정리 중 전체 오류 - 결제 성공 후이므로 무시:', error.message)
+    // 결제 성공 후이므로 에러를 던지지 않음
   }
 }
 const getPaymentMethodName = (method) => {
@@ -1004,21 +992,10 @@ const processPayment = async () => {
   try {
     loading.value = true
 
+    // 로그인 상태 재확인
     const currentLoginStatus = checkLoginStatus()
 
-    if (currentLoginStatus) {
-      try {
-        await apiClient.get('/api/users/profile')
-      } catch (authError) {
-        const message = authError.friendlyMessage || '로그인이 필요합니다.'
-        showFriendlyMessage(message, 'warning')
-
-        setTimeout(() => {
-          window.location.href = '/login'
-        }, 1500)
-        return
-      }
-    } else {
+    if (!currentLoginStatus) {
       showFriendlyMessage('결제를 위해 로그인이 필요합니다.', 'info')
       setTimeout(() => {
         window.location.href = '/login'
@@ -1026,17 +1003,29 @@ const processPayment = async () => {
       return
     }
 
+    // 필수 정보 검증
+    if (!userInfo.value.name || userInfo.value.name.trim() === '') {
+      showFriendlyMessage('주문자 이름이 필요합니다.', 'warning')
+      return
+    }
+
+    if (!deliveryInfo.value.address || deliveryInfo.value.address.trim() === '') {
+      showFriendlyMessage('배송 주소를 입력해주세요.', 'warning')
+      return
+    }
+
+    // 주문 데이터 생성
     const tempOrderId = `ORDER${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
     const orderData = {
       userId: user.id && user.id !== 'null' ? user.id : undefined,
       items: orderItems.value.map(item => ({
         productId: item.productId || item.id,
-        productName: item.name,
+        productName: item.name || item.productName,
         quantity: item.quantity,
-        unitPrice: item.salePrice,
-        totalPrice: item.salePrice * item.quantity,
-        imageUrl: item.image || ''
+        unitPrice: item.salePrice || item.price,
+        totalPrice: (item.salePrice || item.price) * item.quantity,
+        imageUrl: item.image || item.imageUrl || ''
       })),
       phone: userInfo.value.phone || '',
       email: userInfo.value.email || '',
@@ -1044,8 +1033,8 @@ const processPayment = async () => {
       recipientPhone: deliveryInfo.value.recipientPhone || userInfo.value.phone || '',
       orderZipcode: deliveryInfo.value.zipCode || '',
       orderAddressDetail: deliveryInfo.value.address ?
-          (deliveryInfo.value.address + ' ' + deliveryInfo.value.detailAddress).trim() : '',
-      deliveryMemo: deliveryInfo.value.request || '',
+          (deliveryInfo.value.address + ' ' + (deliveryInfo.value.detailAddress || '')).trim() : '',
+      deliveryMemo: deliveryInfo.value.request || '문 앞에 놓아주세요',
       paymentMethod: selectedPayment.value,
       paymentMethodName: getPaymentMethodName(selectedPayment.value),
       usedPoint: pointsUsed.value || 0,
@@ -1054,18 +1043,35 @@ const processPayment = async () => {
       tempOrderId: tempOrderId
     }
 
+    // 주문 데이터 검증
+    if (!orderData.items || orderData.items.length === 0) {
+      showFriendlyMessage('주문할 상품이 없습니다.', 'warning')
+      return
+    }
+
+    if (orderData.totalAmount <= 0) {
+      showFriendlyMessage('결제 금액이 올바르지 않습니다.', 'warning')
+      return
+    }
+
+    // 임시 주문 데이터 저장
     sessionStorage.setItem('pending_order_data', JSON.stringify(orderData))
 
-    // 수정된 부분: 실제 상품명으로 주문명 생성
+    // 실제 상품명으로 주문명 생성
     const orderName = generateOrderName()
 
-    console.log('생성된 주문명:', orderName)
-    console.log('주문 상품들:', orderItems.value)
+    console.log('🛒 결제 시작:', {
+      orderId: tempOrderId,
+      amount: finalAmount.value,
+      orderName: orderName,
+      itemCount: orderData.items.length
+    })
 
+    // 결제 진행
     await initiatePayment({
       orderId: tempOrderId,
       amount: finalAmount.value,
-      orderName: orderName, // "주문 ORDER123..." 대신 실제 상품명
+      orderName: orderName,
       userEmail: userInfo.value.email,
       userName: userInfo.value.name,
       userPhone: userInfo.value.phone,
@@ -1073,8 +1079,12 @@ const processPayment = async () => {
     })
 
   } catch (error) {
+    console.error('결제 처리 중 오류:', error)
+
     if (!error.alreadyHandled) {
-      const friendlyError = error.friendlyMessage || getFailureReason(null, error.message)
+      const friendlyError = error.friendlyMessage ||
+          getFailureReason(null, error.message) ||
+          '결제 처리 중 오류가 발생했습니다.'
       showFriendlyMessage(friendlyError, 'error')
     }
   } finally {

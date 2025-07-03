@@ -342,35 +342,17 @@ const cancelDetail = ref('')
 // 인증 헤더 생성
 const getAuthHeaders = () => {
   const token = localStorage.getItem('token')
-  const userId = localStorage.getItem('userId')
-
-  console.log('🔍 인증 정보 확인:', {
-    tokenExists: !!token,
-    tokenLength: token ? token.length : 0,
-    userId: userId,
-    tokenStart: token ? token.substring(0, 20) + '...' : 'none'
-  })
 
   const headers = {
     'Content-Type': 'application/json'
   }
 
-  // 토큰이 있고 유효할 때만 Authorization 헤더 추가
   if (token && token.trim() && token !== 'null' && token !== 'undefined') {
-    // Bearer 접두사가 없다면 추가
     const authToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`
     headers.Authorization = authToken
-    console.log('✅ Authorization 헤더 추가됨')
-  } else {
-    console.log('⚠️ 토큰이 없거나 유효하지 않음')
   }
 
-  // userId 헤더도 추가 (백엔드에서 요구할 수 있음)
-  if (userId && userId !== 'null' && userId !== 'undefined') {
-    headers['X-User-Id'] = userId
-  }
-
-  console.log('📤 최종 헤더:', headers)
+  // X-User-Id 헤더 제거
   return headers
 }
 

@@ -328,7 +328,7 @@ services:
   # 15. Notification Service (알림)
   notification-service:
     build:
-      context: ./notification-service
+      context: live-streaming-service
       dockerfile: Dockerfile
     container_name: notification-service
     ports:

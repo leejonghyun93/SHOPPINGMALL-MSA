@@ -555,33 +555,39 @@ const updateGuestCartQuantity = (productId, newQuantity) => {
   }
 }
 
-// 주문하기 함수
+// Cart.vue의 goToCheckout 함수 - 즉시 수정하여 주문 진행하게 하기
+
 const goToCheckout = async () => {
   try {
     checkoutLoading.value = true;
 
+    console.log('🚀 === 주문하기 시작 (수정 버전) ===')
+
+    // 1. 로그인 상태 확인
     const currentLoginStatus = checkLoginStatus()
+    console.log('1️⃣ 로그인 상태:', currentLoginStatus)
+
     if (!currentLoginStatus) {
       alert('주문하려면 로그인이 필요합니다.')
       router.push('/login')
       return
     }
 
-    if (!Array.isArray(selectedItems.value) || selectedItems.value.length === 0) {
+    // 🔥 프로필 API 호출 완전 제거 - 바로 주문 진행
+    console.log('⚠️ 프로필 체크 건너뛰고 주문 진행 (임시 조치)')
+
+    // 2. 선택된 상품 확인
+    const selectedProducts = cartItems.value.filter(item =>
+        item && selectedItems.value.includes(item.id)
+    )
+    console.log('2️⃣ 선택된 상품 수:', selectedProducts.length)
+
+    if (selectedProducts.length === 0) {
       alert('주문할 상품을 선택해주세요.')
       return
     }
 
-    try {
-      await apiClient.get('/api/users/profile')
-    } catch (authError) {
-      return
-    }
-
-    const selectedProducts = cartItems.value.filter(item =>
-        item && selectedItems.value.includes(item.id)
-    )
-
+    // 3. 주문 데이터 생성
     const checkoutData = {
       items: selectedProducts,
       totalPrice: finalTotal.value,
@@ -590,10 +596,19 @@ const goToCheckout = async () => {
       deliveryFee: deliveryFee.value
     }
 
+    console.log('3️⃣ 주문 데이터:', checkoutData)
+
+    // 4. 세션 저장
     sessionStorage.setItem('checkout_data', JSON.stringify(checkoutData))
+    console.log('4️⃣ 세션 저장 완료')
+
+    // 5. 주문서로 이동
+    console.log('5️⃣ 주문서로 이동...')
     router.push('/checkout')
+    console.log('✅ === 주문하기 완료 ===')
 
   } catch (error) {
+    console.error('💥 주문 오류:', error)
     alert('주문 페이지로 이동 중 오류가 발생했습니다.')
   } finally {
     checkoutLoading.value = false;

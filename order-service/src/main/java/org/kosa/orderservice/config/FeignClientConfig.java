@@ -17,38 +17,37 @@ public class FeignClientConfig {
             // 공통 헤더 설정
             requestTemplate.header("Content-Type", "application/json");
 
-            // 현재 요청에서 사용자 정보 헤더들을 복사
+            // 현재 요청에서 표준 헤더들을 복사
             ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
             if (attributes != null) {
                 HttpServletRequest request = attributes.getRequest();
 
-                // API Gateway에서 설정한 사용자 정보 헤더들을 그대로 전달
-                String userId = request.getHeader("X-User-Id");
-                String userRole = request.getHeader("X-User-Role");
-                String userName = request.getHeader("X-User-Name");
-                String userEmail = request.getHeader("X-User-Email");
-                String userPhone = request.getHeader("X-User-Phone");
-
-                if (userId != null) {
-                    requestTemplate.header("X-User-Id", userId);
-                }
-                if (userRole != null) {
-                    requestTemplate.header("X-User-Role", userRole);
-                }
-                if (userName != null) {
-                    requestTemplate.header("X-User-Name", userName);
-                }
-                if (userEmail != null) {
-                    requestTemplate.header("X-User-Email", userEmail);
-                }
-                if (userPhone != null) {
-                    requestTemplate.header("X-User-Phone", userPhone);
-                }
-
-                // Authorization 헤더도 전달 (있는 경우)
+                // 🔥 표준 Authorization 헤더만 전달
                 String authHeader = request.getHeader("Authorization");
                 if (authHeader != null) {
                     requestTemplate.header("Authorization", authHeader);
+                }
+
+                // 🔥 표준 HTTP 헤더들 전달 (필요시)
+                String userAgent = request.getHeader("User-Agent");
+                if (userAgent != null) {
+                    requestTemplate.header("User-Agent", userAgent);
+                }
+
+                String acceptLanguage = request.getHeader("Accept-Language");
+                if (acceptLanguage != null) {
+                    requestTemplate.header("Accept-Language", acceptLanguage);
+                }
+
+                // 🔥 요청 추적을 위한 표준 헤더
+                String requestId = request.getHeader("Request-ID");
+                if (requestId != null) {
+                    requestTemplate.header("Request-ID", requestId);
+                }
+
+                String traceId = request.getHeader("Trace-ID");
+                if (traceId != null) {
+                    requestTemplate.header("Trace-ID", traceId);
                 }
             }
         };

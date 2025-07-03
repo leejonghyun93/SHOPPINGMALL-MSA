@@ -3,14 +3,20 @@ package org.kosa.userservice.userController;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.kosa.userservice.JwtUtil;
+import org.kosa.userservice.dto.ApiResponse;
+import org.kosa.userservice.dto.AuthResponse;
 import org.kosa.userservice.dto.UserDto;
+import org.kosa.userservice.dto.UserSessionDto;
 import org.kosa.userservice.entity.Member;
+import org.kosa.userservice.userService.TokenValidationService;
+import org.kosa.userservice.userService.UserCacheService;
 import org.kosa.userservice.userService.UserService;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -21,7 +27,9 @@ import java.util.*;
 public class UserApiController {
 
     private final UserService userService;
-    private final JwtUtil jwtUtil;
+    private final TokenValidationService tokenValidationService;
+    private final UserCacheService userCacheService;
+    private final RedisTemplate<String, Object> redisTemplate;
 
     @GetMapping("/findId")
     public ResponseEntity<?> findId(
@@ -32,63 +40,147 @@ public class UserApiController {
                 email.length() > 3 ? email.substring(0, 3) : email);
 
         try {
-            // 입력 검증
             if (name == null || name.trim().isEmpty()) {
-                Map<String, Object> errorResponse = new HashMap<>();
-                errorResponse.put("success", false);
-                errorResponse.put("message", "이름을 입력해주세요.");
-                return ResponseEntity.badRequest().body(errorResponse);
+                return ResponseEntity.badRequest().body(Map.of(
+                        "success", false,
+                        "message", "이름을 입력해주세요."
+                ));
             }
 
             if (email == null || email.trim().isEmpty()) {
-                Map<String, Object> errorResponse = new HashMap<>();
-                errorResponse.put("success", false);
-                errorResponse.put("message", "이메일을 입력해주세요.");
-                return ResponseEntity.badRequest().body(errorResponse);
+                return ResponseEntity.badRequest().body(Map.of(
+                        "success", false,
+                        "message", "이메일을 입력해주세요."
+                ));
             }
 
-            // 이름과 이메일로 사용자 찾기
             Optional<UserDto> userOpt = userService.getMemberByNameAndEmail(name.trim(), email.trim());
 
             if (userOpt.isPresent()) {
                 UserDto user = userOpt.get();
+                log.info("아이디 찾기 성공 - userId: {}", user.getUserId());
 
-                log.info("아이디 찾기 성공 - name: {}, email: {}***, userId: {}",
-                        name, email.substring(0, Math.min(3, email.length())), user.getUserId());
-
-                // 성공 응답
-                Map<String, Object> response = new HashMap<>();
-                response.put("success", true);
-                response.put("message", "아이디 찾기 성공");
-                response.put("userId", user.getUserId());
-                response.put("timestamp", LocalDateTime.now());
-
-                return ResponseEntity.ok(response);
-
+                return ResponseEntity.ok(Map.of(
+                        "success", true,
+                        "message", "아이디 찾기 성공",
+                        "userId", user.getUserId(),
+                        "timestamp", LocalDateTime.now()
+                ));
             } else {
-                log.warn("아이디 찾기 실패 - 일치하는 사용자 없음: name={}, email={}***",
-                        name, email.length() > 3 ? email.substring(0, 3) : email);
-
-                // 404 응답
-                Map<String, Object> response = new HashMap<>();
-                response.put("success", false);
-                response.put("message", "입력하신 정보와 일치하는 계정을 찾을 수 없습니다.");
-                response.put("timestamp", LocalDateTime.now());
-
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                        "success", false,
+                        "message", "입력하신 정보와 일치하는 계정을 찾을 수 없습니다.",
+                        "timestamp", LocalDateTime.now()
+                ));
             }
 
         } catch (Exception e) {
-            log.error("아이디 찾기 중 오류 발생 - name: {}, email: {}***, error: {}",
-                    name, email.length() > 3 ? email.substring(0, 3) : email, e.getMessage(), e);
+            log.error("아이디 찾기 중 오류 발생", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                    "success", false,
+                    "message", "서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
+                    "timestamp", LocalDateTime.now()
+            ));
+        }
+    }
+    @GetMapping("/profile/{userId}")
+    public ResponseEntity<?> getUserFromCache(@PathVariable String userId) {
+        try {
+            log.debug("🔍 캐시에서 사용자 정보 조회: userId={}", userId);
 
-            // 500 응답
-            Map<String, Object> response = new HashMap<>();
-            response.put("success", false);
-            response.put("message", "서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
-            response.put("timestamp", LocalDateTime.now());
+            // 캐시에서 조회 (없으면 DB에서 조회 후 캐시 저장)
+            Optional<UserSessionDto> sessionOpt = userCacheService.getUserSessionWithFallback(userId);
 
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+            if (sessionOpt.isPresent()) {
+                UserSessionDto session = sessionOpt.get();
+
+                // UserDto로 변환
+                UserDto userDto = UserDto.builder()
+                        .userId(session.getUserId())
+                        .name(session.getName())
+                        .email(session.getEmail())
+                        .phone(session.getPhone())
+                        .gradeId(session.getGradeId())
+                        .status(session.getStatus())
+                        .build();
+
+                return ResponseEntity.ok(ApiResponse.builder()
+                        .success(true)
+                        .message("사용자 정보 조회 성공")
+                        .data(userDto)
+                        .build());
+            } else {
+                log.warn("⚠️ 사용자 정보를 찾을 수 없음: userId={}", userId);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(ApiResponse.builder()
+                                .success(false)
+                                .message("사용자 정보를 찾을 수 없습니다")
+                                .build());
+            }
+
+        } catch (Exception e) {
+            log.error("❌ 사용자 정보 조회 실패: userId={}, error={}", userId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.builder()
+                            .success(false)
+                            .message("사용자 정보 조회 실패")
+                            .build());
+        }
+    }
+    /**
+     * 사용자 세션 캐시 저장 (Auth-Service에서 호출)
+     */
+    @PostMapping("/cache/{userId}")
+    public ResponseEntity<?> cacheUserSession(@PathVariable String userId) {
+        try {
+            log.info("🔍 사용자 세션 캐시 저장 요청: userId={}", userId);
+
+            userCacheService.cacheUserSession(userId);
+
+            return ResponseEntity.ok(ApiResponse.builder()
+                    .success(true)
+                    .message("사용자 세션 캐시 저장 완료")
+                    .build());
+
+        } catch (Exception e) {
+            log.error("❌ 사용자 세션 캐시 저장 실패: userId={}, error={}", userId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.builder()
+                            .success(false)
+                            .message("캐시 저장 실패")
+                            .build());
+        }
+    }
+    /**
+     * 사용자 세션 정보 조회 (Redis 우선, DB fallback)
+     */
+    @GetMapping("/session/{userId}")
+    public ResponseEntity<?> getUserSession(@PathVariable String userId) {
+        try {
+            log.info("📋 사용자 세션 정보 조회 요청: userId={}", userId);
+
+            Optional<UserSessionDto> sessionOpt = userCacheService.getUserSessionWithFallback(userId);
+
+            if (sessionOpt.isPresent()) {
+                return ResponseEntity.ok(Map.of(
+                        "success", true,
+                        "message", "사용자 세션 정보 조회 성공",
+                        "data", sessionOpt.get()
+                ));
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of(
+                                "success", false,
+                                "message", "사용자 세션 정보를 찾을 수 없습니다"
+                        ));
+            }
+        } catch (Exception e) {
+            log.error("❌ 사용자 세션 정보 조회 실패: userId={}, error={}", userId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of(
+                            "success", false,
+                            "message", "사용자 세션 정보 조회 실패"
+                    ));
         }
     }
 
@@ -109,29 +201,19 @@ public class UserApiController {
     public ResponseEntity<Void> deleteUser(@PathVariable String userId, HttpServletRequest request) {
         log.info("Delete request for userId: {}", userId);
 
-        String authHeader = request.getHeader("Authorization");
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            log.warn("Missing or invalid Authorization header");
+        // 토큰 검증
+        String authenticatedUserId = tokenValidationService.validateAndExtractUserId(
+                request.getHeader("Authorization")
+        );
+
+        if (authenticatedUserId == null) {
+            log.warn("토큰 검증 실패");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        String token = authHeader.substring(7);
-
-        try {
-            if (!jwtUtil.validateToken(token)) {
-                log.error("Invalid JWT token");
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-            }
-
-            String tokenUserId = jwtUtil.getUsernameFromToken(token);
-            if (tokenUserId == null || !tokenUserId.equals(userId)) {
-                log.warn("User ID mismatch - URL: {}, Token: {}", userId, tokenUserId);
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-            }
-
-        } catch (Exception e) {
-            log.error("JWT parsing error: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        if (!authenticatedUserId.equals(userId)) {
+            log.warn("User ID mismatch - URL: {}, Token: {}", userId, authenticatedUserId);
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
         if (!userService.isMemberExists(userId)) {
@@ -144,7 +226,6 @@ public class UserApiController {
         return ResponseEntity.noContent().build();
     }
 
-    // 깨끗한 checkUserId 메서드 (CORS 헤더 수동 설정 제거)
     @GetMapping("/checkUserId")
     public ResponseEntity<Map<String, Boolean>> checkUserId(@RequestParam String userId) {
         log.info("아이디 중복 확인 요청: {}", userId);
@@ -154,7 +235,6 @@ public class UserApiController {
         response.put("available", !exists);
 
         log.info("아이디 중복 확인 결과 - userId: {}, available: {}", userId, !exists);
-
         return ResponseEntity.ok(response);
     }
 
@@ -172,7 +252,23 @@ public class UserApiController {
     @PutMapping("/edit/{userId}")
     public ResponseEntity<?> updateUser(
             @PathVariable String userId,
-            @RequestBody UserDto userDto) {
+            @RequestBody UserDto userDto,
+            HttpServletRequest request) {
+
+        // 토큰 검증
+        String authenticatedUserId = tokenValidationService.validateAndExtractUserId(
+                request.getHeader("Authorization")
+        );
+
+        if (authenticatedUserId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body("인증이 필요합니다.");
+        }
+
+        if (!authenticatedUserId.equals(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body("본인만 수정할 수 있습니다.");
+        }
 
         if (!userId.equals(userDto.getUserId())) {
             return ResponseEntity.badRequest().body("User ID mismatch");
@@ -182,19 +278,9 @@ public class UserApiController {
             userService.updateMember(userDto);
             return ResponseEntity.ok("User updated successfully");
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Update failed");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Update failed");
         }
-    }
-
-    @GetMapping("/search")
-    public ResponseEntity<?> getUserByNameAndEmail(
-            @RequestParam("name") String name,
-            @RequestParam("email") String email) {
-
-        return userService.getMemberByNameAndEmail(name, email)
-                .<ResponseEntity<?>>map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body("해당하는 사용자를 찾을 수 없습니다."));
     }
 
     @PostMapping("/verify-password")
@@ -209,23 +295,18 @@ public class UserApiController {
                         .body(Map.of("message", "비밀번호를 입력해주세요."));
             }
 
-            // JWT 토큰 추출
-            String authHeader = httpRequest.getHeader("Authorization");
-            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            // 토큰 검증
+            String userId = tokenValidationService.validateAndExtractUserId(
+                    httpRequest.getHeader("Authorization")
+            );
+
+            if (userId == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(Map.of("message", "인증이 필요합니다."));
             }
 
-            String token = authHeader.substring(7);
-            if (!jwtUtil.validateToken(token)) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(Map.of("message", "유효하지 않은 토큰입니다."));
-            }
-
-            String userId = jwtUtil.getUsernameFromToken(token);
             log.info("비밀번호 검증 요청 - userId: {}", userId);
 
-            // 실제 DB에서 사용자 조회
             Optional<UserDto> userOpt = userService.getMemberDetail(userId);
             if (userOpt.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -233,8 +314,6 @@ public class UserApiController {
             }
 
             UserDto user = userOpt.get();
-
-            // 실제 비밀번호 검증 (DB 암호화된 비밀번호와 비교)
             boolean isValid = userService.matchesPassword(password, user.getPassword());
 
             log.info("비밀번호 검증 결과 - userId: {}, 결과: {}", userId, isValid ? "성공" : "실패");
@@ -256,23 +335,18 @@ public class UserApiController {
     @GetMapping("/profile")
     public ResponseEntity<?> getUserProfile(HttpServletRequest httpRequest) {
         try {
-            // JWT 토큰 추출
-            String authHeader = httpRequest.getHeader("Authorization");
-            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            // 토큰 검증
+            String userId = tokenValidationService.validateAndExtractUserId(
+                    httpRequest.getHeader("Authorization")
+            );
+
+            if (userId == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(Map.of("message", "인증이 필요합니다."));
             }
 
-            String token = authHeader.substring(7);
-            if (!jwtUtil.validateToken(token)) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(Map.of("message", "유효하지 않은 토큰입니다."));
-            }
-
-            String userId = jwtUtil.getUsernameFromToken(token);
             log.info("프로필 조회 요청 - userId: {}", userId);
 
-            // 실제 DB에서 사용자 상세 정보 조회
             Optional<UserDto> userOpt = userService.getMemberDetail(userId);
             if (userOpt.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -281,7 +355,6 @@ public class UserApiController {
 
             UserDto user = userOpt.get();
 
-            // 응답용 데이터 (비밀번호 제외)
             Map<String, Object> response = new HashMap<>();
             response.put("userId", user.getUserId());
             response.put("name", user.getName());
@@ -308,23 +381,18 @@ public class UserApiController {
             HttpServletRequest httpRequest) {
 
         try {
-            // JWT 토큰 추출
-            String authHeader = httpRequest.getHeader("Authorization");
-            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            // 토큰 검증
+            String userId = tokenValidationService.validateAndExtractUserId(
+                    httpRequest.getHeader("Authorization")
+            );
+
+            if (userId == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(Map.of("message", "인증이 필요합니다."));
             }
 
-            String token = authHeader.substring(7);
-            if (!jwtUtil.validateToken(token)) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(Map.of("message", "유효하지 않은 토큰입니다."));
-            }
-
-            String userId = jwtUtil.getUsernameFromToken(token);
             log.info("프로필 수정 요청 - userId: {}", userId);
 
-            // 필수 필드 검증
             if (userDto.getName() == null || userDto.getName().trim().isEmpty()) {
                 return ResponseEntity.badRequest()
                         .body(Map.of("message", "이름은 필수 항목입니다."));
@@ -335,13 +403,13 @@ public class UserApiController {
                         .body(Map.of("message", "이메일은 필수 항목입니다."));
             }
 
-            // UserDto에 userId 설정
             userDto.setUserId(userId);
-
-            // 실제 DB 업데이트 (기존 updateMember 메서드 사용)
             userService.updateMember(userDto);
 
-            log.info("프로필 수정 완료 - userId: {}", userId);
+            // 🔥 사용자 정보 변경 시 캐시 갱신
+            userCacheService.refreshUserSession(userId);
+
+            log.info("프로필 수정 및 캐시 갱신 완료 - userId: {}", userId);
             return ResponseEntity.ok(Map.of("message", "프로필이 성공적으로 수정되었습니다."));
 
         } catch (Exception e) {
@@ -356,49 +424,63 @@ public class UserApiController {
         try {
             log.info("사용자 이메일 조회 요청: userId={}", userId);
 
-            // UserService에서 이메일 조회
             String email = userService.getUserEmailByUserId(userId);
 
             if (email != null && !email.isEmpty()) {
-                log.info("사용자 이메일 조회 성공: userId={}, email={}***", userId,
-                        email.substring(0, Math.min(2, email.length())));
+                log.info("사용자 이메일 조회 성공: userId={}", userId);
 
-                // 성공 응답
-                Map<String, Object> response = new HashMap<>();
-                response.put("success", true);
-                response.put("message", "사용자 이메일 조회 성공");
-
-                Map<String, String> data = new HashMap<>();
-                data.put("email", email);
-                response.put("data", data);
-
-                return ResponseEntity.ok(response);
-
+                return ResponseEntity.ok(Map.of(
+                        "success", true,
+                        "message", "사용자 이메일 조회 성공",
+                        "data", Map.of("email", email)
+                ));
             } else {
-                log.warn("사용자 이메일 조회 실패 - 사용자 없음: userId={}", userId);
-
-                // 404 응답
-                Map<String, Object> response = new HashMap<>();
-                response.put("success", false);
-                response.put("message", "사용자를 찾을 수 없습니다");
-                response.put("timestamp", LocalDateTime.now());
-                response.put("status", 404);
-
-                return ResponseEntity.status(404).body(response);
+                return ResponseEntity.status(404).body(Map.of(
+                        "success", false,
+                        "message", "사용자를 찾을 수 없습니다",
+                        "timestamp", LocalDateTime.now(),
+                        "status", 404
+                ));
             }
 
         } catch (Exception e) {
             log.error("사용자 이메일 조회 중 오류 발생: userId={}, error={}", userId, e.getMessage(), e);
 
-            // 500 응답
-            Map<String, Object> response = new HashMap<>();
-            response.put("success", false);
-            response.put("error", "INTERNAL_SERVER_ERROR");
-            response.put("message", "서버 내부 오류가 발생했습니다: " + e.getMessage());
-            response.put("timestamp", LocalDateTime.now());
-            response.put("status", 500);
+            return ResponseEntity.status(500).body(Map.of(
+                    "success", false,
+                    "error", "INTERNAL_SERVER_ERROR",
+                    "message", "서버 내부 오류가 발생했습니다: " + e.getMessage(),
+                    "timestamp", LocalDateTime.now(),
+                    "status", 500
+            ));
+        }
+    }
+    // UserApiController.java에 추가
+    @GetMapping("/redis/health")
+    public ResponseEntity<?> checkRedisHealth() {
+        try {
+            // Redis 연결 테스트
+            redisTemplate.opsForValue().set("health:check", "OK", Duration.ofSeconds(10));
+            String result = (String) redisTemplate.opsForValue().get("health:check");
 
-            return ResponseEntity.status(500).body(response);
+            if ("OK".equals(result)) {
+                return ResponseEntity.ok(Map.of(
+                        "redis", "Connected",
+                        "status", "OK",
+                        "timestamp", LocalDateTime.now()
+                ));
+            } else {
+                return ResponseEntity.status(500).body(Map.of(
+                        "redis", "Disconnected",
+                        "status", "ERROR"
+                ));
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of(
+                    "redis", "Error",
+                    "status", "ERROR",
+                    "error", e.getMessage()
+            ));
         }
     }
 }

@@ -973,8 +973,6 @@ const toggleWishlist = () => {
   isWishlisted.value = !isWishlisted.value
 }
 
-// ProductDetail.vue의 handleAddToCart 함수를 다음과 같이 수정하세요:
-
 const handleAddToCart = async () => {
   if (!product.value?.productId) {
     alert('상품 정보를 찾을 수 없습니다.');
@@ -1001,20 +999,17 @@ const handleAddToCart = async () => {
     productId: product.value.productId,
     quantity: quantity.value,
     productOptionId: 'defaultOptionId'
-    // 🔥 userId 제거 - 백엔드에서 Authentication에서 추출
+    // 🔥 userId 제거 - JWT 토큰에서 백엔드가 추출
   };
 
   try {
     console.log('장바구니 추가 요청:', cartItem);
 
+    // 🔥 순수 JWT Bearer 토큰만 사용 (X-*** 헤더 완전 제거)
     const response = await apiClient.post('/api/cart', cartItem, {
       withAuth: true,
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-        // 🔥 X-User-Id, X-Username 등 모든 사용자 헤더 제거
-      },
       timeout: 10000
+      // headers 설정 제거 - axiosInstance에서 자동으로 Authorization 헤더 추가
     });
 
     console.log('장바구니 응답:', response.data);

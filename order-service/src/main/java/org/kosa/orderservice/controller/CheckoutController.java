@@ -1,11 +1,12 @@
 package org.kosa.orderservice.controller;
 
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.kosa.orderservice.dto.*;
 import org.kosa.orderservice.service.OrderService;
+import org.kosa.orderservice.util.JwtTokenParser;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -15,22 +16,29 @@ import org.springframework.web.bind.annotation.*;
 public class CheckoutController {
 
     private final OrderService orderService;
+    private final JwtTokenParser jwtTokenParser;
 
     /**
      * 체크아웃 페이지 정보 조회 (장바구니 정보 기반)
      */
     @PostMapping("/prepare")
     public ResponseEntity<ApiResponse<CheckoutPrepareResponseDTO>> prepareCheckout(
-            Authentication authentication,
             @RequestBody CheckoutPrepareRequestDTO request,
-            @RequestHeader(value = "X-User-Id", required = false) String headerUserId) {
+            HttpServletRequest httpRequest) {
         try {
-            String userId = getUserId(authentication, headerUserId, request.getUserId());
+            String authHeader = httpRequest.getHeader("Authorization");
+            String userId = jwtTokenParser.extractUserIdFromAuthHeader(authHeader);
+
+            // 게스트 처리
+            if (userId == null) {
+                userId = "guest_" + System.currentTimeMillis();
+            }
+
             log.info("체크아웃 준비: userId={}, itemCount={}", userId, request.getItems().size());
 
             // 총 상품 금액 계산
             Integer totalItemPrice = request.getItems().stream()
-                    .mapToInt(item -> item.getTotalPrice())  // unitPrice * quantity 대신 totalPrice 사용
+                    .mapToInt(item -> item.getTotalPrice())
                     .sum();
 
             // 배송비 계산
@@ -70,14 +78,19 @@ public class CheckoutController {
     @GetMapping("/result/{orderId}")
     public ResponseEntity<ApiResponse<OrderDTO>> getCheckoutResult(
             @PathVariable String orderId,
-            Authentication authentication,
-            @RequestHeader(value = "X-User-Id", required = false) String headerUserId,
-            @RequestParam(value = "userId", required = false) String paramUserId) {
+            HttpServletRequest httpRequest) {
         try {
-            String userId = getUserId(authentication, headerUserId, paramUserId);
+            String authHeader = httpRequest.getHeader("Authorization");
+            String userId = jwtTokenParser.extractUserIdFromAuthHeader(authHeader);
+
             log.info("주문 결과 조회: orderId={}, userId={}", orderId, userId);
 
-            OrderDTO order = orderService.getOrderDetail(orderId, userId);
+            OrderDTO order;
+            if (userId != null) {
+                order = orderService.getOrderDetail(orderId, userId);
+            } else {
+                order = orderService.getOrderDetailByOrderId(orderId);
+            }
 
             return ResponseEntity.ok(ApiResponse.success("주문 결과 조회 성공", order));
 
@@ -86,24 +99,5 @@ public class CheckoutController {
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error("주문 결과 조회 중 오류가 발생했습니다: " + e.getMessage()));
         }
-    }
-
-    /**
-     * 사용자 ID 결정 로직
-     */
-    private String getUserId(Authentication authentication, String headerUserId, String requestUserId) {
-        if (authentication != null && authentication.isAuthenticated()) {
-            return authentication.getName();
-        }
-
-        if (headerUserId != null && !headerUserId.trim().isEmpty()) {
-            return headerUserId;
-        }
-
-        if (requestUserId != null && !requestUserId.trim().isEmpty()) {
-            return requestUserId;
-        }
-
-        return "guest_" + System.currentTimeMillis();
     }
 }

@@ -7,9 +7,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.kosa.orderservice.dto.*;
 import org.kosa.orderservice.service.OrderService;
+import org.kosa.orderservice.util.JwtTokenParser;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -24,17 +24,24 @@ import java.util.stream.Collectors;
 public class OrderController {
 
     private final OrderService orderService;
+    private final JwtTokenParser jwtTokenParser;
 
     /**
-     * 주문 개수 조회 - {orderId} 매핑보다 먼저 배치
+     * 주문 개수 조회
      */
     @GetMapping("/count")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getOrderCount(
-            Authentication authentication,
-            @RequestHeader(value = "X-User-Id", required = false) String headerUserId,
-            @RequestParam(value = "userId", required = false) String paramUserId) {
+            HttpServletRequest httpRequest) {
         try {
-            String userId = getUserId(authentication, headerUserId, paramUserId);
+            String authHeader = httpRequest.getHeader("Authorization");
+            String userId = jwtTokenParser.extractUserIdFromAuthHeader(authHeader);
+
+            if (userId == null) {
+                Map<String, Object> result = new HashMap<>();
+                result.put("count", 0);
+                return ResponseEntity.ok(ApiResponse.success("주문 개수 조회 (비로그인)", result));
+            }
+
             log.info("주문 개수 조회: userId={}", userId);
 
             List<OrderDTO> orders = orderService.getUserOrders(userId);
@@ -49,7 +56,6 @@ public class OrderController {
         } catch (Exception e) {
             log.error("주문 개수 조회 실패: {}", e.getMessage(), e);
 
-            // 오류 시에도 기본값 반환
             Map<String, Object> result = new HashMap<>();
             result.put("count", 0);
 
@@ -58,7 +64,7 @@ public class OrderController {
     }
 
     /**
-     * 헬스체크 - {orderId} 매핑보다 먼저 배치
+     * 헬스체크
      */
     @GetMapping("/health")
     public ResponseEntity<String> healthCheck() {
@@ -66,13 +72,21 @@ public class OrderController {
     }
 
     /**
-     * 사용자 취소 주문 목록 조회 - {orderId} 매핑보다 먼저 배치
+     * 사용자 취소 주문 목록 조회
      */
     @GetMapping("/cancelled")
     public ResponseEntity<ApiResponse<List<OrderCancelResponseDTO>>> getCancelledOrders(
-            @RequestParam String userId) {
+            HttpServletRequest httpRequest) {
 
         try {
+            String authHeader = httpRequest.getHeader("Authorization");
+            String userId = jwtTokenParser.extractUserIdFromAuthHeader(authHeader);
+
+            if (userId == null) {
+                return ResponseEntity.status(401)
+                        .body(ApiResponse.error("로그인이 필요합니다."));
+            }
+
             List<OrderCancelResponseDTO> cancelledOrders = orderService.getUserCancelledOrders(userId);
             return ResponseEntity.ok(ApiResponse.success(cancelledOrders));
 
@@ -84,15 +98,20 @@ public class OrderController {
     }
 
     /**
-     * 🔥 사용자별 주문 목록 조회 - {orderId} 매핑보다 먼저 배치
+     * 🔥 사용자별 주문 목록 조회
      */
     @GetMapping("/list")
     public ResponseEntity<ApiResponse<List<OrderDTO>>> getOrderList(
-            Authentication authentication,
-            @RequestHeader(value = "X-User-Id", required = false) String headerUserId,
-            @RequestParam(value = "userId", required = false) String paramUserId) {
+            HttpServletRequest httpRequest) {
         try {
-            String userId = getUserId(authentication, headerUserId, paramUserId);
+            String authHeader = httpRequest.getHeader("Authorization");
+            String userId = jwtTokenParser.extractUserIdFromAuthHeader(authHeader);
+
+            if (userId == null) {
+                return ResponseEntity.status(401)
+                        .body(ApiResponse.error("로그인이 필요합니다."));
+            }
+
             log.info("주문 목록 조회: userId={}", userId);
 
             List<OrderDTO> orders = orderService.getUserOrders(userId);
@@ -107,17 +126,22 @@ public class OrderController {
     }
 
     /**
-     * 🔥 주문 목록 페이징 조회 - {orderId} 매핑보다 먼저 배치
+     * 🔥 주문 목록 페이징 조회
      */
     @GetMapping("/list/paged")
     public ResponseEntity<ApiResponse<Page<OrderDTO>>> getOrderListPaged(
-            Authentication authentication,
-            @RequestHeader(value = "X-User-Id", required = false) String headerUserId,
-            @RequestParam(value = "userId", required = false) String paramUserId,
+            HttpServletRequest httpRequest,
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "10") int size) {
         try {
-            String userId = getUserId(authentication, headerUserId, paramUserId);
+            String authHeader = httpRequest.getHeader("Authorization");
+            String userId = jwtTokenParser.extractUserIdFromAuthHeader(authHeader);
+
+            if (userId == null) {
+                return ResponseEntity.status(401)
+                        .body(ApiResponse.error("로그인이 필요합니다."));
+            }
+
             log.info("주문 목록 페이징 조회: userId={}, page={}, size={}", userId, page, size);
 
             Page<OrderDTO> orderPage = orderService.getUserOrdersPaged(userId, page, size);
@@ -132,7 +156,7 @@ public class OrderController {
     }
 
     /**
-     * 🔥 디버그용 엔드포인트들 - {orderId} 매핑보다 먼저 배치
+     * 🔥 디버그용 엔드포인트들
      */
     @GetMapping("/debug/list")
     public ResponseEntity<?> debugOrderList() {
@@ -192,21 +216,21 @@ public class OrderController {
      */
     @PostMapping("/checkout")
     public ResponseEntity<ApiResponse<OrderResponseDTO>> checkout(
-            Authentication authentication,
             @RequestBody CheckoutRequestDTO request,
-            @RequestHeader(value = "X-User-Id", required = false) String headerUserId,
-            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+            HttpServletRequest httpRequest) {
         try {
-            String userId = getUserId(authentication, headerUserId, request.getUserId());
-            request.setUserId(userId);
+            String authHeader = httpRequest.getHeader("Authorization");
+            String userId = jwtTokenParser.extractUserIdFromAuthHeader(authHeader);
 
-            if (authentication != null && authentication.isAuthenticated()) {
-                log.info("인증된 사용자 체크아웃: userId={}, itemCount={}", userId, request.getItems().size());
-            } else if (headerUserId != null) {
-                log.info("헤더 기반 사용자 체크아웃: userId={}, itemCount={}", userId, request.getItems().size());
+            // 게스트 처리
+            if (userId == null) {
+                userId = "guest_" + System.currentTimeMillis();
+                log.info("게스트 사용자 체크아웃: userId={}", userId);
             } else {
-                log.info("게스트 사용자 체크아웃: userId={}, itemCount={}", userId, request.getItems().size());
+                log.info("인증된 사용자 체크아웃: userId={}", userId);
             }
+
+            request.setUserId(userId);
 
             OrderResponseDTO result = orderService.createOrder(request);
 
@@ -220,21 +244,21 @@ public class OrderController {
     }
 
     /**
-     * 🔥 주문 상세 조회 - 모든 구체적인 매핑 이후에 배치
+     * 🔥 주문 상세 조회
      */
     @GetMapping("/{orderId}")
     public ResponseEntity<ApiResponse<OrderDTO>> getOrderDetail(
             @PathVariable String orderId,
-            Authentication authentication,
-            @RequestHeader(value = "X-User-Id", required = false) String headerUserId,
-            @RequestParam(value = "userId", required = false) String paramUserId) {
+            HttpServletRequest httpRequest) {
         try {
             log.info("주문 상세 조회: orderId={}", orderId);
 
+            String authHeader = httpRequest.getHeader("Authorization");
+            String userId = jwtTokenParser.extractUserIdFromAuthHeader(authHeader);
+
             OrderDTO order;
 
-            if (hasUserId(authentication, headerUserId, paramUserId)) {
-                String userId = getUserId(authentication, headerUserId, paramUserId);
+            if (userId != null) {
                 log.info("사용자별 주문 상세 조회: orderId={}, userId={}", orderId, userId);
                 order = orderService.getOrderDetail(orderId, userId);
             } else {
@@ -257,9 +281,17 @@ public class OrderController {
     @GetMapping("/{orderId}/cancel")
     public ResponseEntity<ApiResponse<OrderCancelResponseDTO>> getCancelInfo(
             @PathVariable String orderId,
-            @RequestParam String userId) {
+            HttpServletRequest httpRequest) {
 
         try {
+            String authHeader = httpRequest.getHeader("Authorization");
+            String userId = jwtTokenParser.extractUserIdFromAuthHeader(authHeader);
+
+            if (userId == null) {
+                return ResponseEntity.status(401)
+                        .body(ApiResponse.error("로그인이 필요합니다."));
+            }
+
             OrderCancelResponseDTO response = orderService.getCancelInfo(orderId, userId);
             return ResponseEntity.ok(ApiResponse.success(response));
 
@@ -281,14 +313,13 @@ public class OrderController {
     public ResponseEntity<ApiResponse<OrderCancelResponseDTO>> cancelOrder(
             @PathVariable String orderId,
             @Valid @RequestBody OrderCancelRequestDTO request,
-            @RequestHeader(value = "X-User-Id", required = false) String headerUserId,
-            @RequestHeader(value = "Authorization", required = false) String authHeader,
             HttpServletRequest httpRequest) {
 
         try {
             log.info("주문 취소 요청 - orderId: {}, userId: {}", orderId, request.getUserId());
 
-            String authenticatedUserId = getAuthenticatedUserId(headerUserId, authHeader);
+            String authHeader = httpRequest.getHeader("Authorization");
+            String authenticatedUserId = jwtTokenParser.extractUserIdFromAuthHeader(authHeader);
 
             if (authenticatedUserId == null) {
                 log.warn("인증되지 않은 주문 취소 시도: orderId={}", orderId);
@@ -296,7 +327,7 @@ public class OrderController {
                         .body(ApiResponse.error("인증이 필요합니다. 로그인 후 다시 시도해주세요."));
             }
 
-            if (!authenticatedUserId.equals(request.getUserId()) && !"TEMP_AUTHENTICATED".equals(authenticatedUserId)) {
+            if (!authenticatedUserId.equals(request.getUserId())) {
                 log.warn("권한 없는 주문 취소 시도: orderId={}, 인증된사용자={}, 요청사용자={}",
                         orderId, authenticatedUserId, request.getUserId());
                 return ResponseEntity.status(403)
@@ -338,9 +369,17 @@ public class OrderController {
     public ResponseEntity<ApiResponse<Void>> updateOrderStatus(
             @PathVariable String orderId,
             @RequestParam String status,
-            Authentication authentication) {
+            HttpServletRequest httpRequest) {
         try {
-            log.info("주문 상태 변경: orderId={}, status={}", orderId, status);
+            String authHeader = httpRequest.getHeader("Authorization");
+            String userId = jwtTokenParser.extractUserIdFromAuthHeader(authHeader);
+
+            if (userId == null) {
+                return ResponseEntity.status(401)
+                        .body(ApiResponse.error("로그인이 필요합니다."));
+            }
+
+            log.info("주문 상태 변경: orderId={}, status={}, userId={}", orderId, status, userId);
 
             orderService.updateOrderStatus(orderId, status);
 
@@ -356,9 +395,17 @@ public class OrderController {
     @GetMapping("/{orderId}/cancelable")
     public ResponseEntity<ApiResponse<Boolean>> checkCancelable(
             @PathVariable String orderId,
-            @RequestParam String userId) {
+            HttpServletRequest httpRequest) {
 
         try {
+            String authHeader = httpRequest.getHeader("Authorization");
+            String userId = jwtTokenParser.extractUserIdFromAuthHeader(authHeader);
+
+            if (userId == null) {
+                return ResponseEntity.status(401)
+                        .body(ApiResponse.error("로그인이 필요합니다."));
+            }
+
             boolean canCancel = orderService.canCancelOrder(orderId, userId);
             return ResponseEntity.ok(ApiResponse.success(canCancel));
 
@@ -375,9 +422,17 @@ public class OrderController {
     @PutMapping("/{orderId}/simple-cancel")
     public ResponseEntity<ApiResponse<String>> simpleCancelOrder(
             @PathVariable String orderId,
-            @RequestParam String userId) {
+            HttpServletRequest httpRequest) {
 
         try {
+            String authHeader = httpRequest.getHeader("Authorization");
+            String userId = jwtTokenParser.extractUserIdFromAuthHeader(authHeader);
+
+            if (userId == null) {
+                return ResponseEntity.status(401)
+                        .body(ApiResponse.error("로그인이 필요합니다."));
+            }
+
             orderService.cancelOrder(orderId, userId);
             return ResponseEntity.ok(ApiResponse.success("주문이 취소되었습니다."));
 
@@ -386,68 +441,5 @@ public class OrderController {
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error(e.getMessage()));
         }
-    }
-
-    // ==================== Helper Methods ====================
-
-    private String getAuthenticatedUserId(String headerUserId, String authHeader) {
-        if (headerUserId != null && !headerUserId.trim().isEmpty() &&
-                !"null".equals(headerUserId) && !headerUserId.startsWith("guest_")) {
-            log.debug("X-User-Id 헤더에서 인증된 사용자: {}", headerUserId);
-            return headerUserId;
-        }
-
-        if (authHeader != null && authHeader.startsWith("Bearer ") && authHeader.length() > 100) {
-            log.warn("X-User-Id가 null이지만 Authorization 헤더가 유효함 - AUTH-SERVICE userId null 문제");
-            log.debug("Authorization 헤더 기반 임시 인증 허용");
-            return "TEMP_AUTHENTICATED";
-        }
-
-        log.debug("인증 정보 없음");
-        return null;
-    }
-
-    private boolean hasUserId(Authentication authentication, String headerUserId, String paramUserId) {
-        if (authentication != null && authentication.isAuthenticated() &&
-                !"anonymousUser".equals(authentication.getName())) {
-            return true;
-        }
-
-        return (headerUserId != null && !headerUserId.trim().isEmpty()) ||
-                (paramUserId != null && !paramUserId.trim().isEmpty());
-    }
-
-    private String getUserId(Authentication authentication, String headerUserId, String requestUserId) {
-        if (requestUserId != null && !requestUserId.trim().isEmpty() &&
-                !"null".equals(requestUserId) && !requestUserId.startsWith("guest_")) {
-            log.debug("요청 바디 사용자 ID 사용: {}", requestUserId);
-            return requestUserId;
-        }
-
-        if (authentication != null && authentication.isAuthenticated() &&
-                !"anonymousUser".equals(authentication.getName())) {
-            log.debug("JWT 인증 사용자: {}", authentication.getName());
-            return authentication.getName();
-        }
-
-        if (headerUserId != null && !headerUserId.trim().isEmpty() &&
-                !headerUserId.startsWith("guest_")) {
-            log.debug("헤더 사용자 ID 사용: {}", headerUserId);
-            return headerUserId;
-        }
-
-        if (headerUserId != null && headerUserId.startsWith("guest_")) {
-            log.debug("기존 게스트 ID 재사용: {}", headerUserId);
-            return headerUserId;
-        }
-
-        if (requestUserId != null && requestUserId.startsWith("guest_")) {
-            log.debug("기존 게스트 ID 재사용: {}", requestUserId);
-            return requestUserId;
-        }
-
-        String guestId = "guest_" + System.currentTimeMillis() + "_" + (int) (Math.random() * 1000);
-        log.debug("새 게스트 ID 생성: {}", guestId);
-        return guestId;
     }
 }

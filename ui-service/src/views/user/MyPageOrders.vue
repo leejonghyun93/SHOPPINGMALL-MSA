@@ -268,22 +268,14 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080'
 // 인증 헤더 생성
 const getAuthHeaders = () => {
   const token = localStorage.getItem('token')
-  const userId = localStorage.getItem('userId')
 
   const headers = {
     'Content-Type': 'application/json'
   }
 
-  // 토큰이 있고 유효할 때만 Authorization 헤더 추가
   if (token && token.trim() && token !== 'null' && token !== 'undefined') {
-    // Bearer 접두사가 없다면 추가
     const authToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`
     headers.Authorization = authToken
-  }
-
-  // userId 헤더도 추가 (백엔드에서 요구할 수 있음)
-  if (userId && userId !== 'null' && userId !== 'undefined') {
-    headers['X-User-Id'] = userId
   }
 
   return headers

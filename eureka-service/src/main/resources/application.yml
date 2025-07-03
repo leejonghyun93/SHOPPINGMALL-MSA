@@ -16,3 +16,5 @@ eureka:
   client:
     register-with-eureka: false
     fetch-registry: false
+    tls:
+      enabled: false

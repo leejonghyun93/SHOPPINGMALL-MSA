@@ -7,11 +7,11 @@
             v-for="category in categories"
             :key="category.categoryId"
             class="category-item"
-            :class="{ active: selectedCategory === category.categoryId }"
+            :class="{ active: String(selectedCategory) === String(category.categoryId) }"
             @click="selectCategory(category.categoryId)"
         >
           <div class="category-icon">
-            <span class="icon-content" v-if="category.icon">{{ category.icon }}</span>
+            <img v-if="category.icon" :src="category.icon" :alt="category.name" class="icon-image" />
             <span v-else class="all-icon">전체</span>
           </div>
           <span class="category-name">{{ category.name }}</span>
@@ -44,14 +44,14 @@
       </div>
     </div>
 
-    <!-- 🎥 라이브 방송 목록 섹션 -->
+    <!-- 라이브 방송 목록 섹션 -->
     <div class="live-broadcast-container">
       <div class="section-header">
         <h2 class="section-title">
-          🔴 {{ selectedCategoryName }} 라이브 방송
+          {{ selectedCategoryName }} 라이브 방송
         </h2>
         <div class="live-count">
-          <span class="count-badge">{{ liveBroadcasts.length }}개 방송 진행중</span>
+          <span class="count-badge">{{ filteredBroadcasts.length }}개 방송 진행중</span>
         </div>
       </div>
 
@@ -62,10 +62,10 @@
       </div>
 
       <!-- 라이브 방송 카드 리스트 (가로 스크롤) -->
-      <div v-else-if="liveBroadcasts.length > 0" class="broadcast-scroll-container">
+      <div v-else-if="filteredBroadcasts.length > 0" class="broadcast-scroll-container">
         <div class="broadcast-list">
           <div
-              v-for="broadcast in liveBroadcasts.slice(0, 10)"
+              v-for="broadcast in filteredBroadcasts.slice(0, 10)"
               :key="broadcast.broadcast_id"
               class="broadcast-card"
               @click="goToBroadcast(broadcast.broadcast_id)"
@@ -144,17 +144,18 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import apiClient from '@/api/axiosInstance.js'
 
 const router = useRouter()
+const route = useRoute()
 
 // 상태 관리
 const selectedCategory = ref('ALL')
 const selectedSubCategory = ref('')
 const subCategories = ref([])
-const liveBroadcasts = ref([])
+const allBroadcasts = ref([]) // 전체 방송 데이터
 const loading = ref(false)
 
 // 초기 카테고리 데이터
@@ -164,48 +165,95 @@ const categories = ref([
 
 // 계산된 속성
 const selectedCategoryName = computed(() => {
-  const category = categories.value.find(cat => cat.categoryId === selectedCategory.value)
+  if (selectedSubCategory.value) {
+    const subCategory = subCategories.value.find(cat => cat.categoryId === selectedSubCategory.value)
+    if (subCategory) return subCategory.name
+  }
+
+  const category = categories.value.find(cat => String(cat.categoryId) === String(selectedCategory.value))
   return category ? category.name : '전체'
 })
 
-// 카테고리 아이콘 매핑
-const getIconForCategory = (categoryId) => {
-  const iconMap = {
-    '1': '🥬', '2': '🥫', '3': '🍱',
-    '4': '🍞', '5': '🥛', '6': '💊',
-    '7': '🍳', '8': '🧻', '9': '🍼'
+// 카테고리별 방송 필터링
+const filteredBroadcasts = computed(() => {
+  if (!allBroadcasts.value || allBroadcasts.value.length === 0) {
+    return []
   }
-  return iconMap[categoryId] || '📦'
+
+  // 전체 카테고리인 경우 모든 방송 반환
+  if (selectedCategory.value === 'ALL') {
+    return allBroadcasts.value
+  }
+
+  let targetCategoryId = selectedCategory.value
+
+  // 서브 카테고리가 선택된 경우
+  if (selectedSubCategory.value && selectedSubCategory.value !== '') {
+    targetCategoryId = selectedSubCategory.value
+  }
+
+  // 카테고리 ID로 필터링
+  return allBroadcasts.value.filter(broadcast => {
+    return String(broadcast.category_id) === String(targetCategoryId) ||
+        String(broadcast.categoryId) === String(targetCategoryId)
+  })
+})
+
+// 아이콘 처리 로직 (Category.vue와 동일)
+const getIconForCategory = (category) => {
+  if (category.iconUrl && category.iconUrl.trim() !== '') {
+    return category.iconUrl.trim();
+  }
+
+  if (category.icon && category.icon.trim() !== '') {
+    return category.icon.trim();
+  }
+
+  if (category.categoryIcon && category.categoryIcon.trim() !== '') {
+    const iconMap = {
+      'vegetables': 'vegetables.svg',
+      'canned': 'canned-food.svg',
+      'meal': 'meal-box.svg',
+      'bread': 'bread.svg',
+      'milk': 'milk.svg',
+      'medicine': 'medicine.svg',
+      'cooking': 'cooking.svg',
+      'tissue': 'tissue.svg',
+      'baby': 'baby-bottle.svg'
+    };
+
+    const iconFile = iconMap[category.categoryIcon] || category.categoryIcon + '.svg';
+    return `/icons/${iconFile}`;
+  }
+
+  return null;
 }
 
 /**
- * 목업 방송 데이터 생성
+ * 목업 방송 데이터 생성 (카테고리별 필터링 지원)
  */
-const generateMockBroadcasts = (categoryId) => {
-  const categoryNames = {
-    'ALL': '전체',
-    '1': '신선식품',
-    '2': '가공식품',
-    '3': '간편식',
-    '4': '베이커리',
-    '5': '유제품',
-    '6': '건강식품',
-    '7': '생활용품',
-    '8': '화장품',
-    '9': '유아용품'
-  }
-
-  const currentCategoryName = categoryNames[categoryId] || '카테고리'
+const generateMockBroadcasts = () => {
+  const categoryData = [
+    { id: '1', name: '신선식품' },
+    { id: '2', name: '가공식품' },
+    { id: '3', name: '간편식' },
+    { id: '4', name: '베이커리' },
+    { id: '5', name: '유제품' },
+    { id: '6', name: '건강식품' },
+    { id: '7', name: '생활용품' },
+    { id: '8', name: '화장품' },
+    { id: '9', name: '유아용품' }
+  ]
 
   const mockTitles = [
-    `🔥 ${currentCategoryName} 특가 라이브!`,
-    `${currentCategoryName} 신상품 소개방송`,
-    `오늘만! ${currentCategoryName} 할인쇼`,
-    `${currentCategoryName} 베스트 상품 추천`,
-    `실시간 ${currentCategoryName} 쇼핑`,
-    `${currentCategoryName} 인기템 모음전`,
-    `깜짝! ${currentCategoryName} 타임세일`,
-    `${currentCategoryName} 브랜드데이 특집`
+    '🔥 특가 라이브!',
+    '신상품 소개방송',
+    '오늘만! 할인쇼',
+    '베스트 상품 추천',
+    '실시간 쇼핑',
+    '인기템 모음전',
+    '깜짝! 타임세일',
+    '브랜드데이 특집'
   ]
 
   const mockDescriptions = [
@@ -223,68 +271,69 @@ const generateMockBroadcasts = (categoryId) => {
     '김쇼핑', '이라이브', '박특가', '최할인', '정세일', '홍브랜드', '윤딜러', '장마켓'
   ]
 
-  // 카테고리별로 다른 수의 방송 생성
-  const broadcastCount = categoryId === 'ALL' ? 8 : Math.floor(Math.random() * 6) + 2
+  const allMockBroadcasts = []
 
-  return Array.from({ length: broadcastCount }, (_, index) => ({
-    broadcast_id: `${categoryId}_${index + 1}`,
-    broadcaster_id: index + 1,
-    broadcaster_name: broadcasterNames[index % broadcasterNames.length],
-    title: mockTitles[index % mockTitles.length],
-    description: mockDescriptions[index % mockDescriptions.length],
-    broadcast_status: 'live',
-    actual_start_time: new Date(Date.now() - Math.random() * 3600000).toISOString(), // 최근 1시간 내
-    current_viewers: Math.floor(Math.random() * 2000) + 50,
-    like_count: Math.floor(Math.random() * 500) + 10,
-    category_name: currentCategoryName,
-    tags: `${currentCategoryName},할인,특가,라이브`,
-    thumbnail_url: null // picsum 이미지 사용
-  }))
+  // 각 카테고리별로 방송 생성
+  categoryData.forEach(category => {
+    const broadcastCount = Math.floor(Math.random() * 4) + 2; // 2-5개 방송
+
+    for (let i = 0; i < broadcastCount; i++) {
+      allMockBroadcasts.push({
+        broadcast_id: `${category.id}_${i + 1}`,
+        broadcaster_id: i + 1,
+        broadcaster_name: broadcasterNames[Math.floor(Math.random() * broadcasterNames.length)],
+        title: `${category.name} ${mockTitles[Math.floor(Math.random() * mockTitles.length)]}`,
+        description: mockDescriptions[Math.floor(Math.random() * mockDescriptions.length)],
+        broadcast_status: 'live',
+        actual_start_time: new Date(Date.now() - Math.random() * 3600000).toISOString(),
+        current_viewers: Math.floor(Math.random() * 2000) + 50,
+        like_count: Math.floor(Math.random() * 500) + 10,
+        category_id: category.id,
+        category_name: category.name,
+        categoryId: category.id, // 호환성을 위해 추가
+        tags: `${category.name},할인,특가,라이브`,
+        thumbnail_url: null
+      })
+    }
+  })
+
+  return allMockBroadcasts
 }
 
 /**
- * 카테고리별 라이브 방송 조회 (목업 데이터 사용)
+ * 전체 라이브 방송 조회 (목업 데이터 사용)
  */
-const fetchLiveBroadcasts = async (categoryId) => {
+const fetchAllLiveBroadcasts = async () => {
   try {
     loading.value = true
 
-    // 🚧 임시: 목업 데이터 사용 (실제 방송 서비스 구현 전까지)
-    console.log('🎭 목업 방송 데이터 로딩 중...')
+    console.log('전체 방송 데이터 로딩 중...')
 
     // 잠시 로딩 시뮬레이션
     await new Promise(resolve => setTimeout(resolve, 800))
 
-    let requestCategoryId = categoryId
-    if (selectedSubCategory.value && selectedSubCategory.value !== '') {
-      requestCategoryId = selectedSubCategory.value
-    }
-
     // 목업 방송 데이터 생성
-    const mockBroadcasts = generateMockBroadcasts(requestCategoryId)
-    liveBroadcasts.value = mockBroadcasts
+    const mockBroadcasts = generateMockBroadcasts()
+    allBroadcasts.value = mockBroadcasts
 
-    console.log(`🎬 ${selectedCategoryName.value} 카테고리 라이브 방송:`, liveBroadcasts.value.length, '개 (목업)')
+    console.log(`전체 라이브 방송: ${allBroadcasts.value.length}개 (목업)`)
 
     /* 🔥 실제 API 호출 (방송 서비스 구현 후 사용)
-    const params = {
-      category_id: requestCategoryId === 'ALL' ? null : requestCategoryId,
-      broadcast_status: 'live',
-      limit: 20
-    }
-
     const response = await apiClient.get('/api/broadcasts/live', {
-      params: params,
+      params: {
+        broadcast_status: 'live',
+        limit: 100 // 전체 방송을 가져와서 클라이언트에서 필터링
+      },
       withAuth: false
     })
 
     const broadcastData = response.data
     if (!Array.isArray(broadcastData)) {
-      liveBroadcasts.value = []
+      allBroadcasts.value = []
       return
     }
 
-    liveBroadcasts.value = broadcastData.map((broadcast, index) => ({
+    allBroadcasts.value = broadcastData.map((broadcast, index) => ({
       broadcast_id: broadcast.broadcast_id || broadcast.broadcastId,
       broadcaster_id: broadcast.broadcaster_id || broadcast.broadcasterId,
       broadcaster_name: broadcast.broadcaster_name || broadcast.broadcasterName || '방송자',
@@ -294,6 +343,7 @@ const fetchLiveBroadcasts = async (categoryId) => {
       actual_start_time: broadcast.actual_start_time || broadcast.actualStartTime,
       current_viewers: broadcast.current_viewers || broadcast.currentViewers || 0,
       like_count: broadcast.like_count || broadcast.likeCount || 0,
+      category_id: broadcast.category_id || broadcast.categoryId,
       category_name: broadcast.category_name || broadcast.categoryName || '카테고리',
       tags: broadcast.tags || '',
       thumbnail_url: broadcast.thumbnail_url || broadcast.thumbnailUrl
@@ -301,31 +351,38 @@ const fetchLiveBroadcasts = async (categoryId) => {
     */
 
   } catch (error) {
-    console.error('❌ 라이브 방송 조회 실패:', error)
-    liveBroadcasts.value = []
+    console.error('라이브 방송 조회 실패:', error)
+    allBroadcasts.value = []
   } finally {
     loading.value = false
   }
 }
 
 /**
- * 메인 카테고리 조회
+ * 메인 카테고리 조회 (Category.vue와 동일)
  */
 const fetchMainCategories = async () => {
   try {
     const res = await apiClient.get('/api/categories/main', { withAuth: false })
 
     if (res.data && res.data.length > 0) {
-      const allCategory = { categoryId: 'ALL', name: '전체', icon: null, categoryDisplayOrder: 0 }
+      const allCategory = {
+        categoryId: 'ALL',
+        name: '전체',
+        icon: null,
+        categoryDisplayOrder: 0
+      }
 
       const serverCategories = res.data
           .filter(cat => cat.categoryUseYn === 'Y' && cat.categoryLevel === 1)
           .sort((a, b) => a.categoryDisplayOrder - b.categoryDisplayOrder)
           .map(cat => ({
-            categoryId: cat.categoryId,
+            categoryId: String(cat.categoryId),
             name: cat.name,
-            icon: getIconForCategory(cat.categoryId),
-            categoryDisplayOrder: cat.categoryDisplayOrder
+            icon: getIconForCategory(cat),
+            categoryDisplayOrder: cat.categoryDisplayOrder,
+            categoryIcon: cat.categoryIcon,
+            iconUrl: cat.iconUrl
           }))
 
       categories.value = [allCategory, ...serverCategories]
@@ -337,7 +394,7 @@ const fetchMainCategories = async () => {
 }
 
 /**
- * 하위 카테고리 조회
+ * 하위 카테고리 조회 (Category.vue와 동일)
  */
 const fetchSubCategories = async (parentCategoryId) => {
   try {
@@ -368,21 +425,23 @@ const fetchSubCategories = async (parentCategoryId) => {
  * 메인 카테고리 선택
  */
 const selectCategory = async (categoryId) => {
-  if (selectedCategory.value === categoryId) return
+  const normalizedCategoryId = String(categoryId)
 
-  selectedCategory.value = categoryId
+  if (String(selectedCategory.value) === normalizedCategoryId) return
+
+  selectedCategory.value = normalizedCategoryId
   selectedSubCategory.value = ''
 
-  await fetchSubCategories(categoryId)
-  await fetchLiveBroadcasts(categoryId)  // 방송 목록 조회 추가
+  await fetchSubCategories(normalizedCategoryId)
 
-  console.log('📂 카테고리 선택:', categoryId)
+  console.log('카테고리 선택:', normalizedCategoryId)
+  console.log('필터링된 방송 수:', filteredBroadcasts.value.length)
 
-  // 필요시 라우터 이동
-  if (categoryId === 'ALL') {
+  // 라우터 이동
+  if (normalizedCategoryId === 'ALL') {
     router.push('/broadcasts/category/')
   } else {
-    router.push(`/broadcasts/category/${categoryId}`)
+    router.push(`/broadcasts/category/${normalizedCategoryId}`)
   }
 }
 
@@ -395,8 +454,8 @@ const selectSubCategory = async (subCategoryId) => {
   }
 
   selectedSubCategory.value = subCategoryId
-  await fetchLiveBroadcasts(selectedCategory.value)  // 방송 목록 재조회
-  console.log('📂 서브 카테고리 선택:', subCategoryId)
+  console.log('서브 카테고리 선택:', subCategoryId)
+  console.log('필터링된 방송 수:', filteredBroadcasts.value.length)
 }
 
 // 유틸리티 함수들
@@ -434,31 +493,48 @@ const getBroadcastDuration = (startTime) => {
  * 방송 페이지로 이동
  */
 const goToBroadcast = (broadcastId) => {
-  console.log('🎬 라이브 방송 시청 페이지로 이동:', broadcastId)
+  console.log('라이브 방송 시청 페이지로 이동:', broadcastId)
 
-  // 실제 라이브 방송 시청 페이지로 라우팅
   router.push({
     name: 'LiveBroadcastViewer',
     params: { broadcastId: broadcastId }
   })
+}
 
-  // 또는 path를 직접 사용할 수도 있음
-  // router.push(`/live/${broadcastId}`)
-}
-const goToBroadcastNewTab = (broadcastId) => {
-  const routeData = router.resolve({
-    name: 'LiveBroadcastViewer',
-    params: { broadcastId: broadcastId }
-  })
-  window.open(routeData.href, '_blank')
-}
+/**
+ * URL 파라미터 변화 감지 (카테고리)
+ */
+watch(() => route.params, async (newParams) => {
+  if (newParams.categoryId && String(newParams.categoryId) !== String(selectedCategory.value)) {
+    selectedCategory.value = String(newParams.categoryId)
+    selectedSubCategory.value = ''
+    await fetchSubCategories(selectedCategory.value)
+
+    console.log('URL 변경으로 카테고리 선택:', selectedCategory.value)
+    console.log('필터링된 방송 수:', filteredBroadcasts.value.length)
+  }
+}, { immediate: false })
+
 // 컴포넌트 마운트 시 초기화
 onMounted(async () => {
-  console.log('🚀 라이브 방송 목록 페이지 로딩...')
+  console.log('라이브 방송 목록 페이지 로딩...')
+
+  // 카테고리 로드
   await fetchMainCategories()
-  await fetchLiveBroadcasts('ALL')  // 초기 전체 방송 목록 로드
+
+  // URL 파라미터에서 카테고리 설정
+  if (route.params.categoryId) {
+    selectedCategory.value = String(route.params.categoryId)
+    await fetchSubCategories(selectedCategory.value)
+  }
+
+  // 전체 방송 데이터 로드 (한 번만 로드하고 클라이언트에서 필터링)
+  await fetchAllLiveBroadcasts()
+
+  console.log('초기 로딩 완료')
+  console.log('선택된 카테고리:', selectedCategory.value)
+  console.log('필터링된 방송 수:', filteredBroadcasts.value.length)
 })
 </script>
+
 <style scoped src="@/assets/css/boardcastList.css"></style>
-
-

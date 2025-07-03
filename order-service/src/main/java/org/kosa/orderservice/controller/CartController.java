@@ -1,12 +1,13 @@
 package org.kosa.orderservice.controller;
 
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.kosa.orderservice.dto.*;
 import org.kosa.orderservice.service.CartService;
+import org.kosa.orderservice.util.JwtTokenParser;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,23 +20,25 @@ import java.util.Map;
 public class CartController {
 
     private final CartService cartService;
+    private final JwtTokenParser jwtTokenParser;
 
     @PostMapping
     public ResponseEntity<ApiResponse<CartItemDTO>> addToCart(
             @RequestBody CartRequestDTO request,
-            Authentication authentication) {
+            HttpServletRequest httpRequest) {
 
         try {
-            // 🔥 Spring Security Authentication에서 사용자 ID 추출
-            if (authentication == null || !authentication.isAuthenticated()) {
+            // 🔥 순수 JWT 방식: Authorization 헤더에서만 사용자 ID 추출
+            String authHeader = httpRequest.getHeader("Authorization");
+            String userId = jwtTokenParser.extractUserIdFromAuthHeader(authHeader);
+
+            if (userId == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(ApiResponse.<CartItemDTO>builder()
                                 .success(false)
                                 .message("로그인이 필요합니다.")
                                 .build());
             }
-
-            String userId = authentication.getName();  // JWT의 subject 값
 
             log.info("장바구니 추가 - userId: {}, productId: {}", userId, request.getProductId());
 
@@ -58,9 +61,12 @@ public class CartController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<CartDTO>> getCart(Authentication authentication) {
+    public ResponseEntity<ApiResponse<CartDTO>> getCart(HttpServletRequest httpRequest) {
         try {
-            if (authentication == null || !authentication.isAuthenticated()) {
+            String authHeader = httpRequest.getHeader("Authorization");
+            String userId = jwtTokenParser.extractUserIdFromAuthHeader(authHeader);
+
+            if (userId == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(ApiResponse.<CartDTO>builder()
                                 .success(false)
@@ -68,7 +74,6 @@ public class CartController {
                                 .build());
             }
 
-            String userId = authentication.getName();
             CartDTO cart = cartService.getCart(userId);
 
             return ResponseEntity.ok(ApiResponse.<CartDTO>builder()
@@ -90,9 +95,12 @@ public class CartController {
     @PutMapping("/items")
     public ResponseEntity<ApiResponse<CartItemDTO>> updateCartItemQuantity(
             @RequestBody CartUpdateRequestDTO request,
-            Authentication authentication) {
+            HttpServletRequest httpRequest) {
         try {
-            if (authentication == null || !authentication.isAuthenticated()) {
+            String authHeader = httpRequest.getHeader("Authorization");
+            String userId = jwtTokenParser.extractUserIdFromAuthHeader(authHeader);
+
+            if (userId == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(ApiResponse.<CartItemDTO>builder()
                                 .success(false)
@@ -100,10 +108,7 @@ public class CartController {
                                 .build());
             }
 
-            String userId = authentication.getName();
-
             CartItemDTO result = cartService.updateCartItemQuantity(userId, request);
-
             String message = result != null ? "수량이 변경되었습니다." : "상품이 삭제되었습니다.";
 
             return ResponseEntity.ok(ApiResponse.<CartItemDTO>builder()
@@ -125,27 +130,17 @@ public class CartController {
     @DeleteMapping("/items/{cartItemId}")
     public ResponseEntity<ApiResponse<Void>> removeCartItem(
             @PathVariable String cartItemId,
-            Authentication authentication) {
+            HttpServletRequest httpRequest) {
 
         try {
-            if (authentication == null || !authentication.isAuthenticated()) {
+            String authHeader = httpRequest.getHeader("Authorization");
+            String userId = jwtTokenParser.extractUserIdFromAuthHeader(authHeader);
+
+            if (userId == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(ApiResponse.<Void>builder()
                                 .success(false)
                                 .message("로그인이 필요합니다.")
-                                .build());
-            }
-
-            String userId = authentication.getName();
-
-            // 추가 권한 체크 (선택사항)
-            if (authentication.getAuthorities().stream()
-                    .noneMatch(auth -> auth.getAuthority().equals("ROLE_USER") ||
-                            auth.getAuthority().equals("ROLE_ADMIN"))) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body(ApiResponse.<Void>builder()
-                                .success(false)
-                                .message("권한이 없습니다.")
                                 .build());
             }
 
@@ -169,9 +164,12 @@ public class CartController {
     @DeleteMapping("/items")
     public ResponseEntity<ApiResponse<Void>> removeCartItems(
             @RequestBody Map<String, Object> request,
-            Authentication authentication) {
+            HttpServletRequest httpRequest) {
         try {
-            if (authentication == null || !authentication.isAuthenticated()) {
+            String authHeader = httpRequest.getHeader("Authorization");
+            String userId = jwtTokenParser.extractUserIdFromAuthHeader(authHeader);
+
+            if (userId == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(ApiResponse.<Void>builder()
                                 .success(false)
@@ -181,7 +179,6 @@ public class CartController {
 
             @SuppressWarnings("unchecked")
             List<String> cartItemIds = (List<String>) request.get("cartItemIds");
-            String userId = authentication.getName();
 
             cartService.removeCartItems(userId, cartItemIds);
 
@@ -201,17 +198,18 @@ public class CartController {
     }
 
     @DeleteMapping
-    public ResponseEntity<ApiResponse<Void>> clearCart(Authentication authentication) {
+    public ResponseEntity<ApiResponse<Void>> clearCart(HttpServletRequest httpRequest) {
         try {
-            if (authentication == null || !authentication.isAuthenticated()) {
+            String authHeader = httpRequest.getHeader("Authorization");
+            String userId = jwtTokenParser.extractUserIdFromAuthHeader(authHeader);
+
+            if (userId == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(ApiResponse.<Void>builder()
                                 .success(false)
                                 .message("로그인이 필요합니다.")
                                 .build());
             }
-
-            String userId = authentication.getName();
 
             cartService.clearCart(userId);
 
@@ -231,9 +229,12 @@ public class CartController {
     }
 
     @GetMapping("/count")
-    public ResponseEntity<ApiResponse<Integer>> getCartItemCount(Authentication authentication) {
+    public ResponseEntity<ApiResponse<Integer>> getCartItemCount(HttpServletRequest httpRequest) {
         try {
-            if (authentication == null || !authentication.isAuthenticated()) {
+            String authHeader = httpRequest.getHeader("Authorization");
+            String userId = jwtTokenParser.extractUserIdFromAuthHeader(authHeader);
+
+            if (userId == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(ApiResponse.<Integer>builder()
                                 .success(false)
@@ -242,7 +243,6 @@ public class CartController {
                                 .build());
             }
 
-            String userId = authentication.getName();
             CartDTO cart = cartService.getCart(userId);
             Integer count = cart.getTotalItems();
 
@@ -271,7 +271,7 @@ public class CartController {
     @PostMapping("/remove-purchased-items")
     public ResponseEntity<?> removePurchasedItems(
             @RequestBody Map<String, List<Long>> request,
-            Authentication authentication) {
+            HttpServletRequest httpRequest) {
         try {
             List<Long> productIds = request.get("productIds");
 
@@ -280,12 +280,13 @@ public class CartController {
                         .body(Map.of("success", false, "message", "제거할 상품 ID가 없습니다"));
             }
 
-            if (authentication == null || !authentication.isAuthenticated()) {
+            String authHeader = httpRequest.getHeader("Authorization");
+            String userId = jwtTokenParser.extractUserIdFromAuthHeader(authHeader);
+
+            if (userId == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(Map.of("success", false, "message", "사용자 인증이 필요합니다"));
             }
-
-            String userId = authentication.getName();
 
             cartService.removePurchasedItems(userId, productIds);
 
