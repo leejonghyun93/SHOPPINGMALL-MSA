@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class UserServiceWithdrawalMonitor {
 
-    @KafkaListener(topics = "${kafka.topic.user-withdrawal}", groupId = "user-service-monitor-group")
+    @KafkaListener(topics = "${kafka.topic.user-withdrawal:user-withdrawal-topic}", groupId = "user-service-monitor-group")
     public void monitorUserWithdrawal(UserWithdrawalEvent event) {
         try {
             log.info("=== 탈퇴 이벤트 모니터링 ===");

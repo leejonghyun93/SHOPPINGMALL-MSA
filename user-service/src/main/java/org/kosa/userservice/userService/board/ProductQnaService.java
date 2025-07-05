@@ -54,14 +54,14 @@ public class ProductQnaService {
     }
 
     // 상품별 Q&A 조회
-    public List<ProductQnaDto> getProductQnas(String productId, int page, int size, String sortBy) {
+    public List<ProductQnaDto> getProductQnas(Integer productId, int page, int size, String sortBy) {
         log.info("서비스: getProductQnas 호출됨 - productId: {}, page: {}, size: {}", productId, page, size);
 
         try {
             int startRow = (page - 1) * size;
             log.info("서비스: 계산된 startRow: {}", startRow);
 
-            List<ProductQnaDto> result = productQnaMapper.selectProductQnasByStringId(
+            List<ProductQnaDto> result = productQnaMapper.selectProductQnasByIntId(
                     productId, startRow, size, sortBy);
 
             log.info("서비스: 상품 {} Q&A DB 조회 결과 {} 건", productId, result.size());
@@ -214,7 +214,7 @@ public class ProductQnaService {
     }
 
     // 🔥 구매 인증 확인
-    public boolean verifyPurchase(String userId, String productId) {
+    public boolean verifyPurchase(String userId, Integer productId) {
         log.info("서비스: verifyPurchase 호출됨 - userId: {}, productId: {}", userId, productId);
 
         try {
@@ -232,9 +232,9 @@ public class ProductQnaService {
     }
 
     // 상품별 Q&A 개수 조회
-    public int getProductQnaCount(String productId) {
+    public int getProductQnaCount(Integer productId) {
         try {
-            int count = productQnaMapper.getProductQnaCountByStringId(productId);
+            int count = productQnaMapper.getProductQnaCountByIntId(productId);
             log.info("서비스: 상품 {} Q&A 개수: {}", productId, count);
             return count;
         } catch (Exception e) {

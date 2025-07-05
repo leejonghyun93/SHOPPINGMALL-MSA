@@ -30,18 +30,14 @@ public class ProductReviewApiController {
     @Value("${jwt.secret:verySecretKeyThatIsAtLeast32BytesLong1234}")
     private String jwtSecret;
 
-    // 🔥 JWT 토큰에서 사용자 ID 추출 메서드
     private String extractUserIdFromJWT(HttpServletRequest request) {
         try {
             String authHeader = request.getHeader("Authorization");
             if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                log.warn("❌ Authorization 헤더가 없거나 Bearer 형식이 아님");
                 return null;
             }
 
-            String token = authHeader.substring(7); // "Bearer " 제거
-            log.info("🔍 JWT 토큰 파싱 시도: {}", token.substring(0, Math.min(20, token.length())) + "...");
-
+            String token = authHeader.substring(7);
             SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
             Claims claims = Jwts.parserBuilder()
                     .setSigningKey(key)
@@ -49,24 +45,17 @@ public class ProductReviewApiController {
                     .parseClaimsJws(token)
                     .getBody();
 
-            String userId = claims.getSubject(); // JWT의 sub 클레임에서 사용자 ID 추출
-            log.info("✅ JWT에서 추출된 사용자 ID: {}", userId);
-
-            return userId;
+            return claims.getSubject();
         } catch (Exception e) {
-            log.error("❌ JWT 토큰 파싱 실패: {}", e.getMessage());
             return null;
         }
     }
 
-    // 헬스 체크 엔드포인트
     @GetMapping("/health")
     public ResponseEntity<String> health() {
-        log.info("🏥 Board Service Health Check 호출됨");
         return ResponseEntity.ok("Board Service is running");
     }
 
-    // 🔥 게시글 리스트 조회 - 강화된 로깅 및 디버깅
     @GetMapping("/list")
     public ResponseEntity<List<ProductReviewDto>> list(
             @RequestParam(defaultValue = "1") int page,
@@ -74,114 +63,65 @@ public class ProductReviewApiController {
             @RequestParam(required = false) String searchValue,
             @RequestParam(required = false) String sortBy
     ) {
-        log.info("🚀 === Board API 호출 시작 ===");
-        log.info("📋 요청 파라미터 - page: {}, size: {}, searchValue: {}, sortBy: {}",
-                page, size, searchValue, sortBy);
-
         try {
             List<ProductReviewDto> reviews = productReviewService.getPagedBoards(page, size, searchValue, sortBy);
-            log.info("✅ 조회된 리뷰 개수: {}", reviews.size());
-
-            // 첫 번째 리뷰 데이터 로깅 (있다면)
-            if (!reviews.isEmpty()) {
-                ProductReviewDto firstReview = reviews.get(0);
-                log.info("📄 첫 번째 리뷰 샘플: ID={}, ProductID={}, Title={}",
-                        firstReview.getReviewId(), firstReview.getProductId(), firstReview.getTitle());
-            }
-
-            log.info("🏁 === Board API 호출 완료 ===");
             return ResponseEntity.ok(reviews);
         } catch (Exception e) {
-            log.error("❌ Board API 호출 중 에러 발생: ", e);
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
-    // 🔥 상품별 리뷰 조회 - 강화된 로깅
     @GetMapping("/product/{productId}")
     public ResponseEntity<List<ProductReviewDto>> getProductReviews(
-            @PathVariable String productId,
+            @PathVariable Integer productId,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy
     ) {
-        log.info("🚀 === 상품별 리뷰 API 호출 시작 ===");
-        log.info("🛍️ 상품 ID: {}, page: {}, size: {}, sortBy: {}", productId, page, size, sortBy);
-
         try {
             List<ProductReviewDto> reviews = productReviewService.getProductReviews(productId, page, size, sortBy);
-            log.info("✅ 상품 {}의 리뷰 개수: {}", productId, reviews.size());
-
-            // 첫 번째 리뷰 데이터 로깅 (있다면)
-            if (!reviews.isEmpty()) {
-                ProductReviewDto firstReview = reviews.get(0);
-                log.info("📄 첫 번째 리뷰 샘플: ID={}, Title={}",
-                        firstReview.getReviewId(), firstReview.getTitle());
-            }
-
-            log.info("🏁 === 상품별 리뷰 API 호출 완료 ===");
             return ResponseEntity.ok(reviews);
         } catch (Exception e) {
-            log.error("❌ 상품별 리뷰 API 호출 중 에러 발생: ", e);
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
-    // 🔥 리뷰 상세 조회
     @GetMapping("/reviews/{reviewId}")
     public ResponseEntity<ProductReviewDto> getReview(@PathVariable String reviewId) {
-        log.info("🔍 === 리뷰 상세 조회 API 호출 ===");
-        log.info("📋 리뷰 ID: {}", reviewId);
-
         try {
             ProductReviewDto review = productReviewService.getReviewById(reviewId);
 
             if (review == null) {
-                log.warn("⚠️ 리뷰를 찾을 수 없음: ID={}", reviewId);
                 return new ResponseEntity<>(HttpStatus.NOT_FOUND);
             }
 
-            log.info("✅ 리뷰 조회 성공: ID={}, Title={}", review.getReviewId(), review.getTitle());
             return ResponseEntity.ok(review);
-
         } catch (Exception e) {
-            log.error("❌ 리뷰 조회 중 에러 발생: ", e);
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
-    // 🔥 리뷰 등록 (표준 JWT 방식으로 수정)
     @PostMapping("/reviews")
     public ResponseEntity<Map<String, Object>> createReview(
             @RequestBody ProductReviewDto reviewDto,
             HttpServletRequest request) {
 
-        log.info("📝 === 리뷰 등록 API 호출 시작 ===");
-        log.info("📋 등록할 리뷰: productId={}, title={}, rating={}",
-                reviewDto.getProductId(), reviewDto.getTitle(), reviewDto.getRating());
-
-        // 🔥 표준 JWT에서 사용자 ID 추출
         String userId = extractUserIdFromJWT(request);
-        log.info("🔑 JWT에서 추출된 사용자 ID: {}", userId);
-
         Map<String, Object> response = new HashMap<>();
 
         try {
-            // 🔥 JWT 인증 확인
             if (userId == null || userId.trim().isEmpty()) {
                 response.put("success", false);
                 response.put("message", "인증이 필요합니다. 로그인 후 다시 시도해주세요.");
                 return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
             }
 
-            // 필수 필드 검증
-            if (reviewDto.getProductId() == null || reviewDto.getProductId().trim().isEmpty()) {
+            if (reviewDto.getProductId() == null) {
                 response.put("success", false);
                 response.put("message", "상품 ID는 필수입니다.");
                 return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
             }
 
-            // 🔥 구매 인증 확인 - 핵심!
             boolean isPurchased = productReviewService.verifyPurchase(userId, reviewDto.getProductId());
             if (!isPurchased) {
                 response.put("success", false);
@@ -189,9 +129,6 @@ public class ProductReviewApiController {
                 return new ResponseEntity<>(response, HttpStatus.FORBIDDEN);
             }
 
-            log.info("✅ 구매 인증 통과 - userId: {}, productId: {}", userId, reviewDto.getProductId());
-
-            // 제목, 내용, 평점 검증
             if (reviewDto.getTitle() == null || reviewDto.getTitle().trim().isEmpty()) {
                 response.put("success", false);
                 response.put("message", "리뷰 제목은 필수입니다.");
@@ -204,7 +141,6 @@ public class ProductReviewApiController {
                 return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
             }
 
-            // 🔥 실제 회원 테이블에서 사용자 이름 조회
             String memberName = productReviewService.getMemberNameByUserId(userId);
             if (memberName == null || memberName.trim().isEmpty()) {
                 response.put("success", false);
@@ -212,11 +148,8 @@ public class ProductReviewApiController {
                 return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
             }
 
-            // 사용자 정보 설정
             reviewDto.setUserId(userId);
             reviewDto.setAuthorName(memberName);
-
-            log.info("✅ 회원 정보 설정 완료 - userId: {}, memberName: {}", userId, memberName);
 
             String reviewId = productReviewService.createReview(reviewDto);
 
@@ -224,40 +157,31 @@ public class ProductReviewApiController {
             response.put("message", "리뷰가 성공적으로 등록되었습니다.");
             response.put("reviewId", reviewId);
 
-            log.info("✅ 리뷰 등록 성공: ID={}, 작성자: {}", reviewId, memberName);
-            log.info("🏁 === 리뷰 등록 API 호출 완료 ===");
-
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
-            log.error("❌ 리뷰 등록 중 에러 발생: ", e);
             response.put("success", false);
             response.put("message", "리뷰 등록 중 오류가 발생했습니다: " + e.getMessage());
             return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
-    // 🔥 리뷰 수정 (표준 JWT 방식으로 수정)
     @PutMapping("/reviews/{reviewId}")
     public ResponseEntity<Map<String, Object>> updateReview(
             @PathVariable String reviewId,
             @RequestBody ProductReviewDto reviewDto,
             HttpServletRequest request) {
 
-        log.info("✏️ === 리뷰 수정 API 호출 시작 ===");
-
         String userId = extractUserIdFromJWT(request);
         Map<String, Object> response = new HashMap<>();
 
         try {
-            // 인증 확인
             if (userId == null || userId.trim().isEmpty()) {
                 response.put("success", false);
                 response.put("message", "인증이 필요합니다.");
                 return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
             }
 
-            // 🔥 기존 리뷰 조회하여 상품 ID 확인
             ProductReviewDto existingReview = productReviewService.getReviewById(reviewId);
             if (existingReview == null) {
                 response.put("success", false);
@@ -265,14 +189,12 @@ public class ProductReviewApiController {
                 return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
             }
 
-            // 🔥 본인 리뷰인지 확인
             if (!userId.equals(existingReview.getUserId())) {
                 response.put("success", false);
                 response.put("message", "본인의 리뷰만 수정할 수 있습니다.");
                 return new ResponseEntity<>(response, HttpStatus.FORBIDDEN);
             }
 
-            // 🔥 구매 인증 재확인 (혹시 모를 상황 대비)
             boolean isPurchased = productReviewService.verifyPurchase(userId, existingReview.getProductId());
             if (!isPurchased) {
                 response.put("success", false);
@@ -280,10 +202,8 @@ public class ProductReviewApiController {
                 return new ResponseEntity<>(response, HttpStatus.FORBIDDEN);
             }
 
-            // 나머지 수정 로직 진행...
             reviewDto.setReviewId(reviewId);
 
-            // 필수 필드 검증 및 업데이트
             if (reviewDto.getTitle() == null || reviewDto.getTitle().trim().isEmpty()) {
                 response.put("success", false);
                 response.put("message", "리뷰 제목은 필수입니다.");
@@ -301,7 +221,6 @@ public class ProductReviewApiController {
             if (success) {
                 response.put("success", true);
                 response.put("message", "리뷰가 성공적으로 수정되었습니다.");
-                log.info("✅ 리뷰 수정 성공: ID={}", reviewId);
             } else {
                 response.put("success", false);
                 response.put("message", "리뷰 수정에 실패했습니다.");
@@ -311,33 +230,27 @@ public class ProductReviewApiController {
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
-            log.error("❌ 리뷰 수정 중 에러 발생: ", e);
             response.put("success", false);
             response.put("message", "리뷰 수정 중 오류가 발생했습니다.");
             return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
-    // 🔥 리뷰 삭제 (표준 JWT 방식으로 수정)
     @DeleteMapping("/reviews/{reviewId}")
     public ResponseEntity<Map<String, Object>> deleteReview(
             @PathVariable String reviewId,
             HttpServletRequest request) {
 
-        log.info("🗑️ === 리뷰 삭제 API 호출 시작 ===");
-
         String userId = extractUserIdFromJWT(request);
         Map<String, Object> response = new HashMap<>();
 
         try {
-            // 인증 확인
             if (userId == null || userId.trim().isEmpty()) {
                 response.put("success", false);
                 response.put("message", "인증이 필요합니다.");
                 return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
             }
 
-            // 🔥 기존 리뷰 조회
             ProductReviewDto existingReview = productReviewService.getReviewById(reviewId);
             if (existingReview == null) {
                 response.put("success", false);
@@ -345,14 +258,12 @@ public class ProductReviewApiController {
                 return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
             }
 
-            // 🔥 본인 리뷰인지 확인
             if (!userId.equals(existingReview.getUserId())) {
                 response.put("success", false);
                 response.put("message", "본인의 리뷰만 삭제할 수 있습니다.");
                 return new ResponseEntity<>(response, HttpStatus.FORBIDDEN);
             }
 
-            // 🔥 구매 인증 재확인
             boolean isPurchased = productReviewService.verifyPurchase(userId, existingReview.getProductId());
             if (!isPurchased) {
                 response.put("success", false);
@@ -365,7 +276,6 @@ public class ProductReviewApiController {
             if (success) {
                 response.put("success", true);
                 response.put("message", "리뷰가 성공적으로 삭제되었습니다.");
-                log.info("✅ 리뷰 삭제 성공: ID={}", reviewId);
             } else {
                 response.put("success", false);
                 response.put("message", "리뷰 삭제에 실패했습니다.");
@@ -375,43 +285,24 @@ public class ProductReviewApiController {
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
-            log.error("❌ 리뷰 삭제 중 에러 발생: ", e);
             response.put("success", false);
             response.put("message", "리뷰 삭제 중 오류가 발생했습니다.");
             return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
-    // 🔥 디버깅용 전체 리뷰 조회 (페이징 없음)
     @GetMapping("/debug/all")
     public ResponseEntity<List<ProductReviewDto>> getAllReviewsDebug() {
-        log.info("🔍 === 디버깅용 전체 리뷰 조회 ===");
-
         try {
             List<ProductReviewDto> allReviews = productReviewService.getPagedBoards(1, 100, null, "createdAt");
-            log.info("📊 전체 리뷰 개수: {}", allReviews.size());
-
-            // 각 상품별 리뷰 개수 로깅
-            allReviews.stream()
-                    .collect(java.util.stream.Collectors.groupingBy(
-                            ProductReviewDto::getProductId,
-                            java.util.stream.Collectors.counting()
-                    ))
-                    .forEach((productId, count) ->
-                            log.info("🛍️ 상품 {}: {}개 리뷰", productId, count)
-                    );
-
             return ResponseEntity.ok(allReviews);
         } catch (Exception e) {
-            log.error("❌ 디버깅 조회 실패: ", e);
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
-    // 디버깅용 테스트 엔드포인트
     @GetMapping("/test")
     public ResponseEntity<String> test() {
-        log.info("🧪 Board Service 테스트 엔드포인트 호출됨");
         return ResponseEntity.ok("Board Service Test OK - " + System.currentTimeMillis());
     }
 }

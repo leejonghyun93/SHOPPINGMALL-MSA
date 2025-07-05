@@ -91,8 +91,9 @@ public class UserWithdrawalService {
         Member member = userRepository.findByUserId(userId)
                 .orElseThrow(() -> new UserNotFoundException("존재하지 않는 회원입니다."));
 
-        if (!"ACTIVE".equals(member.getStatus())) {
-            throw new InvalidUserStatusException("탈퇴 처리할 수 없는 회원 상태입니다.");
+        if (!"Y".equals(member.getStatus())) {
+            log.warn("회원 상태 확인 - userId: {}, status: {}", userId, member.getStatus());
+            throw new InvalidUserStatusException("탈퇴 처리할 수 없는 회원 상태입니다. 현재 상태: " + member.getStatus());
         }
 
         if (!"N".equals(member.getSecessionYn())) {

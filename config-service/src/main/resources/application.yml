@@ -5,20 +5,14 @@ spring:
   application:
     name: config-service
   profiles:
-    active: ${SPRING_PROFILES_ACTIVE:native}  # native로 변경
+    active: native  # 개발환경 기본값
   cloud:
     config:
       server:
         native:
-          search-locations: ${CONFIG_REPO_PATH:file:///C:/Users/fhohf/config-repo}
-        # git 설정 완전히 제거 (빈 문자열이 문제 원인)
-
-# 암호화 설정
-encrypt:
-  key-store:
-    location: ${ENCRYPT_KEYSTORE_LOCATION:file:/apiEncryptionKey.jks}
-    password: ${ENCRYPT_KEYSTORE_PASSWORD:test1234}
-    alias: ${ENCRYPT_KEYSTORE_ALIAS:apiEncryptionKey}
+          search-locations: file:///C:/Users/fhohf/config-repo
+        encrypt:
+          enabled: false  # 암호화 비활성화
 
 management:
   endpoints:
@@ -28,11 +22,41 @@ management:
   endpoint:
     health:
       show-details: always
-  metrics:
-    tags:
-      application: ${spring.application.name}
 
 logging:
   level:
     org.springframework.cloud.config: DEBUG
     org.kosa.configservice: DEBUG
+
+---
+# 운영환경 설정
+spring:
+  config:
+    activate:
+      on-profile: prod
+  cloud:
+    config:
+      server:
+        git:
+          uri: ${CONFIG_REPO_GIT_URI}
+          username: ${GIT_USERNAME}
+          password: ${GIT_PASSWORD}
+          default-label: main
+          clone-on-start: true
+
+security:
+  user:
+    name: ${CONFIG_SERVER_USERNAME:config}
+    password: ${CONFIG_SERVER_PASSWORD}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: ["health", "info"]
+  security:
+    enabled: true
+
+logging:
+  level:
+    org.springframework.cloud.config: INFO

@@ -14,7 +14,7 @@ import java.util.List;
 @AllArgsConstructor
 public class ProductQnaDto {
     private String qnaId;
-    private String productId;
+    private Integer productId;
     private String userId;
     private String qnaType;
     private String title;

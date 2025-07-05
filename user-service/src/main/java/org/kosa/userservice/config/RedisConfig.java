@@ -21,7 +21,7 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 import java.time.Duration;
 
-@Configuration
+@Configuration(proxyBeanMethods = false)
 @EnableCaching
 @Slf4j
 public class RedisConfig {
@@ -41,12 +41,13 @@ public class RedisConfig {
     }
 
     @Bean
-    public RedisTemplate<String, Object> redisTemplate() {
+    public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory) {  // 🔧 파라미터로 주입
         RedisTemplate<String, Object> template = new RedisTemplate<>();
-        template.setConnectionFactory(redisConnectionFactory());
+        template.setConnectionFactory(connectionFactory);
 
-        // 🔧 타입 정보 없는 JSON 직렬화 사용
-        Jackson2JsonRedisSerializer<Object> serializer = new Jackson2JsonRedisSerializer<>(redisObjectMapper(), Object.class);
+        // ObjectMapper를 직접 생성 (Bean 메서드 호출 제거)
+        ObjectMapper mapper = createObjectMapper();
+        Jackson2JsonRedisSerializer<Object> serializer = new Jackson2JsonRedisSerializer<>(mapper, Object.class);
 
         template.setKeySerializer(new StringRedisSerializer());
         template.setValueSerializer(serializer);
@@ -60,25 +61,22 @@ public class RedisConfig {
 
     @Bean
     public ObjectMapper redisObjectMapper() {
+        return createObjectMapper();
+    }
+
+    private ObjectMapper createObjectMapper() {
         ObjectMapper mapper = new ObjectMapper();
-
-        // Java 8 시간 모듈 등록
         mapper.registerModule(new JavaTimeModule());
-
-        // 모든 속성과 필드에 대한 가시성 설정
         mapper.setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY);
-
-        // 🔧 타입 정보 비활성화 (오류 방지)
-        // mapper.activateDefaultTyping() 제거
-
         log.info("Redis ObjectMapper 설정 완료 (타입 정보 없음)");
         return mapper;
     }
 
     @Bean
-    public CacheManager cacheManager() {
+    public CacheManager cacheManager(RedisConnectionFactory connectionFactory) {
+        ObjectMapper mapper = createObjectMapper();
         Jackson2JsonRedisSerializer<Object> jsonSerializer =
-                new Jackson2JsonRedisSerializer<>(redisObjectMapper(), Object.class);
+                new Jackson2JsonRedisSerializer<>(mapper, Object.class);
 
         RedisCacheConfiguration cacheConfig = RedisCacheConfiguration.defaultCacheConfig()
                 .entryTtl(Duration.ofHours(2))
@@ -87,7 +85,7 @@ public class RedisConfig {
                 .serializeValuesWith(RedisSerializationContext.SerializationPair
                         .fromSerializer(jsonSerializer));
 
-        return RedisCacheManager.builder(redisConnectionFactory())
+        return RedisCacheManager.builder(connectionFactory)
                 .cacheDefaults(cacheConfig)
                 .build();
     }

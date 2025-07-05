@@ -20,26 +20,22 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final WithdrawnUserRepository withdrawnUserRepository;
-    private final UserGradeRepository userGradeRepository; //  이름 변경
+    private final UserGradeRepository userGradeRepository;
 
-    // 회원 저장 - DB에서 최소 금액 등급 자동 설정
     @Transactional
     public Member saveMember(Member member) {
         log.info("회원 등록 시작 - userId: {}", member.getUserId());
 
-        // 비밀번호 암호화
         member.setPassword(passwordEncoder.encode(member.getPassword()));
 
-        // DB에서 최소 금액(0원) 등급을 기본 등급으로 설정
         if (member.getMemberGrade() == null) {
             MemberGrade defaultGrade = getLowestGrade();
             member.setMemberGrade(defaultGrade);
             log.info("기본 등급({}) 설정 완료", defaultGrade.getGradeName());
         }
 
-        // 기본값 설정 (테이블 기본값 사용)
         if (member.getStatus() == null) {
-            member.setStatus("ACTIVE");
+            member.setStatus("Y");
         }
         if (member.getLoginFailCnt() == null) {
             member.setLoginFailCnt(0);
@@ -68,13 +64,11 @@ public class UserService {
         return savedMember;
     }
 
-    // DB에서 최소 금액 등급 찾기 (GRADE_MIN_AMOUNT가 가장 낮은 등급)
     private MemberGrade getLowestGrade() {
         return userGradeRepository.findTopByOrderByGradeMinAmountAsc()
                 .orElseThrow(() -> new RuntimeException("기본 등급을 찾을 수 없습니다."));
     }
 
-    // DB 등급 테이블 기반 등급 업그레이드
     @Transactional
     public void updateMemberGradeByPurchaseAmount(String userId, int totalPurchaseAmount) {
         log.info("등급 업데이트 확인 - userId: {}, 누적구매금액: {}", userId, totalPurchaseAmount);
@@ -82,14 +76,12 @@ public class UserService {
         Member member = userRepository.findByUserId(userId)
                 .orElseThrow(() -> new RuntimeException("회원을 찾을 수 없습니다."));
 
-        // 관리자/호스트 등급은 변경하지 않음 (DB에서 확인)
         if (isSpecialGrade(member.getMemberGrade())) {
             log.info("특별 등급은 변경하지 않음 - userId: {}, 등급: {}",
                     userId, member.getMemberGrade().getGradeName());
             return;
         }
 
-        // DB에서 구매 금액에 맞는 최고 등급 찾기
         Optional<MemberGrade> newGrade = userGradeRepository.findBestGradeByPurchaseAmount(totalPurchaseAmount);
 
         if (newGrade.isPresent() &&
@@ -104,19 +96,16 @@ public class UserService {
         }
     }
 
-    // 특별 등급 여부 확인 (등급명으로 판단)
     private boolean isSpecialGrade(MemberGrade grade) {
         String gradeName = grade.getGradeName().toUpperCase();
         return gradeName.contains("관리자") || gradeName.contains("ADMIN") ||
                 gradeName.contains("호스트") || gradeName.contains("HOST");
     }
 
-    // 구매 금액에 따른 최적 등급 찾기
     private Optional<MemberGrade> findBestGradeByPurchaseAmount(int purchaseAmount) {
         return userGradeRepository.findBestGradeByPurchaseAmount(purchaseAmount);
     }
 
-    // 회원 ID로 조회
     public Optional<UserDto> getMemberDetail(String userId) {
         if (userId == null || userId.trim().isEmpty()) {
             return Optional.empty();
@@ -126,7 +115,6 @@ public class UserService {
                 .map(this::toUserDto);
     }
 
-    // UserDto 변환 메서드
     private UserDto toUserDto(Member member) {
         return UserDto.builder()
                 .userId(member.getUserId())
@@ -240,23 +228,15 @@ public class UserService {
 
     public Optional<UserDto> getMemberByNameAndEmail(String name, String email) {
         try {
-            log.info("이름과 이메일로 회원 조회 - name: {}, email: {}***",
-                    name, email.length() > 3 ? email.substring(0, 3) : email);
-
-            // 🔥 JPA Repository를 직접 사용하여 Member 엔티티 조회
             Optional<Member> memberOpt = userRepository.findByNameAndEmailAndStatusAndSecessionYn(
-                    name, email, "ACTIVE", "N"
+                    name, email, "Y", "N"
             );
 
             if (memberOpt.isPresent()) {
                 Member member = memberOpt.get();
-                log.info("회원 조회 성공 - userId: {}", member.getUserId());
-
-                // 🔥 기존 toUserDto 메서드를 사용하여 변환
                 UserDto userDto = toUserDto(member);
                 return Optional.of(userDto);
             } else {
-                log.warn("회원 조회 실패 - 일치하는 회원 없음");
                 return Optional.empty();
             }
 
@@ -304,30 +284,19 @@ public class UserService {
                 userId, oldGradeName, newGrade.getGradeName());
     }
 
-    // 모든 등급 정보 조회 (관리자용)
     public List<MemberGrade> getAllGrades() {
         return userGradeRepository.findAllByOrderByGradeMinAmountAsc();
     }
 
-    /**
-     * 사용자 ID로 이메일 조회
-     */
-
     public String getUserEmailByUserId(String userId) {
         try {
-            log.info("DB에서 사용자 이메일 조회: userId={}", userId);
-
-            // 🔥 Member 엔티티 사용 (User가 아닌)
             Optional<Member> memberOpt = userRepository.findByUserId(userId);
             if (memberOpt.isPresent()) {
                 Member member = memberOpt.get();
                 String email = member.getEmail();
-                log.info("사용자 이메일 조회 성공: userId={}, email={}***", userId,
-                        email.substring(0, Math.min(2, email.length())));
                 return email;
             }
 
-            log.warn("사용자를 찾을 수 없음: userId={}", userId);
             return null;
 
         } catch (Exception e) {

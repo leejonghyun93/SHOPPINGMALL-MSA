@@ -360,7 +360,7 @@ async function submitForm() {
       phone: form.userPhone,
       zipcode: form.zipcode,
       address: form.userAddress + ' ' + (form.detailAddress || ''),
-      myaddress: form.detailAddress || null,
+      myAddress: form.detailAddress || null,
       birthDate: form.birthDate,
       gender: form.gender,
       marketingAgree: form.agreeMarketing ? 'Y' : 'N'

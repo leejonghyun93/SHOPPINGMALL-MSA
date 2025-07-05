@@ -1,349 +1,318 @@
 version: '3.8'
 
-networks:
-  shopmall-network:
-    driver: bridge
-
 services:
-  # 1. Eureka Service (서비스 디스커버리)
+  # 필수 서비스: Service Discovery
   eureka-service:
     build:
       context: ./eureka-service
       dockerfile: Dockerfile
+    image: live-commerce/eureka-service:latest
     container_name: eureka-service
     ports:
       - "8761:8761"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
+      - JAVA_OPTS=-Xmx512m -Xms256m
     networks:
-      - shopmall-network
+      - live-commerce-network
     restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 250M
-        reservations:
-          memory: 150M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
-  # 2. Config Service (설정 관리)
+  # 필수 서비스: Configuration Server
   config-service:
     build:
       context: ./config-service
       dockerfile: Dockerfile
+    image: live-commerce/config-service:latest
     container_name: config-service
     ports:
       - "8888:8888"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka
+      - JAVA_OPTS=-Xmx512m -Xms256m
+    networks:
+      - live-commerce-network
     depends_on:
       - eureka-service
-    networks:
-      - shopmall-network
     restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 200M
-        reservations:
-          memory: 100M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8888/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
-  # 3. API Gateway (라우팅)
-  apigateway-service:
-    build:
-      context: ./apigateway-service
-      dockerfile: Dockerfile
-    container_name: apigateway-service
-    ports:
-      - "8080:8080"
-    environment:
-      - SPRING_PROFILES_ACTIVE=docker
-      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka
-    depends_on:
-      - eureka-service
-      - config-service
-    networks:
-      - shopmall-network
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 300M
-        reservations:
-          memory: 150M
-
-  # 4. Auth Service (인증/권한)
+  # 필수 서비스: Authentication Service
   auth-service:
     build:
       context: ./auth-service
       dockerfile: Dockerfile
+    image: live-commerce/auth-service:latest
     container_name: auth-service
     ports:
       - "8081:8081"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka
+      - SPRING_CLOUD_CONFIG_URI=http://config-service:8888
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/auth_db?useSSL=false&serverTimezone=UTC
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=rootpassword
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PORT=6379
+      - JAVA_OPTS=-Xmx512m -Xms256m
+    networks:
+      - live-commerce-network
     depends_on:
       - eureka-service
-    networks:
-      - shopmall-network
+      - config-service
+      - mysql
+      - redis
     restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 200M
-        reservations:
-          memory: 100M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
-  # 5. User Service (사용자 관리)
+  # 필수 서비스: API Gateway
+  apigateway-service:
+    build:
+      context: ./apigateway-service
+      dockerfile: Dockerfile
+    image: live-commerce/apigateway-service:latest
+    container_name: apigateway-service
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka
+      - SPRING_CLOUD_CONFIG_URI=http://config-service:8888
+      - JAVA_OPTS=-Xmx512m -Xms256m
+    networks:
+      - live-commerce-network
+    depends_on:
+      - eureka-service
+      - config-service
+      - auth-service
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # 비즈니스 서비스: User Service
   user-service:
     build:
       context: ./user-service
       dockerfile: Dockerfile
+    image: live-commerce/user-service:latest
     container_name: user-service
-    ports:
-      - "8103:8103"
-    environment:
-      - SPRING_PROFILES_ACTIVE=docker
-      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka
-    depends_on:
-      - eureka-service
-    networks:
-      - shopmall-network
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 150M
-        reservations:
-          memory: 100M
-
-  # 6. Product Service (상품 관리)
-  product-service:
-    build:
-      context: ./product-service
-      dockerfile: Dockerfile
-    container_name: product-service
-    ports:
-      - "8082:8082"
-    environment:
-      - SPRING_PROFILES_ACTIVE=docker
-      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka
-    depends_on:
-      - eureka-service
-    networks:
-      - shopmall-network
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 150M
-        reservations:
-          memory: 100M
-
-  # 7. Category Service (카테고리 관리)
-  category-service:
-    build:
-      context: ./category-service
-      dockerfile: Dockerfile
-    container_name: category-service
     ports:
       - "8083:8083"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka
+      - SPRING_CLOUD_CONFIG_URI=http://config-service:8888
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/user_db?useSSL=false&serverTimezone=UTC
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=rootpassword
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PORT=6379
+      - JAVA_OPTS=-Xmx512m -Xms256m
+    networks:
+      - live-commerce-network
     depends_on:
       - eureka-service
-    networks:
-      - shopmall-network
+      - config-service
+      - mysql
+      - redis
     restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 150M
-        reservations:
-          memory: 100M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
-  # 8. Cart Service (장바구니)
-  cart-service:
+  # 비즈니스 서비스: Commerce Service
+  commerce-service:
     build:
-      context: ./cart-service
+      context: ./commerce-service
       dockerfile: Dockerfile
-    container_name: cart-service
+    image: live-commerce/commerce-service:latest
+    container_name: commerce-service
     ports:
-      - "8084:8084"
+      - "8082:8082"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka
+      - SPRING_CLOUD_CONFIG_URI=http://config-service:8888
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/commerce_db?useSSL=false&serverTimezone=UTC
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=rootpassword
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PORT=6379
+      - JAVA_OPTS=-Xmx512m -Xms256m
+    networks:
+      - live-commerce-network
     depends_on:
       - eureka-service
-    networks:
-      - shopmall-network
+      - config-service
+      - mysql
+      - redis
     restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 150M
-        reservations:
-          memory: 100M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
-  # 9. Order Service (주문 관리)
-  order-service:
-    build:
-      context: ./order-service
-      dockerfile: Dockerfile
-    container_name: order-service
-    ports:
-      - "8085:8085"
-    environment:
-      - SPRING_PROFILES_ACTIVE=docker
-      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka
-    depends_on:
-      - eureka-service
-    networks:
-      - shopmall-network
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 150M
-        reservations:
-          memory: 100M
-
-  # 10. Payment Service (결제)
-  payment-service:
-    build:
-      context: ./payment-service
-      dockerfile: Dockerfile
-    container_name: payment-service
-    ports:
-      - "8086:8086"
-    environment:
-      - SPRING_PROFILES_ACTIVE=docker
-      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka
-    depends_on:
-      - eureka-service
-    networks:
-      - shopmall-network
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 150M
-        reservations:
-          memory: 100M
-
-  # 11. Board Service (게시판)
-  board-service:
-    build:
-      context: ./board-service
-      dockerfile: Dockerfile
-    container_name: board-service
-    ports:
-      - "8087:8087"
-    environment:
-      - SPRING_PROFILES_ACTIVE=docker
-      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka
-    depends_on:
-      - eureka-service
-    networks:
-      - shopmall-network
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 150M
-        reservations:
-          memory: 100M
-
-  # 12. Image Service (이미지 관리)
-  image-service:
-    build:
-      context: ./image-service
-      dockerfile: Dockerfile
-    container_name: image-service
-    ports:
-      - "8088:8088"
-    environment:
-      - SPRING_PROFILES_ACTIVE=docker
-      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka
-    depends_on:
-      - eureka-service
-    networks:
-      - shopmall-network
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 200M
-        reservations:
-          memory: 100M
-
-  # 13. Live Streaming Service (라이브 스트리밍)
+  # 비즈니스 서비스: Live Streaming Service
   live-streaming-service:
     build:
       context: ./live-streaming-service
       dockerfile: Dockerfile
+    image: live-commerce/live-streaming-service:latest
     container_name: live-streaming-service
     ports:
-      - "8089:8089"
+      - "8084:8084"
+      - "1935:1935"  # RTMP 스트리밍 포트
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka
+      - SPRING_CLOUD_CONFIG_URI=http://config-service:8888
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/streaming_db?useSSL=false&serverTimezone=UTC
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=rootpassword
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PORT=6379
+      - RTMP_PORT=1935
+      - JAVA_OPTS=-Xmx1g -Xms512m
+    networks:
+      - live-commerce-network
     depends_on:
       - eureka-service
-    networks:
-      - shopmall-network
+      - config-service
+      - mysql
+      - redis
     restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 200M
-        reservations:
-          memory: 100M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8084/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
-  # 14. Live Chat Service (실시간 채팅)
-  live-chat-service:
-    build:
-      context: ./live-chat-service
-      dockerfile: Dockerfile
-    container_name: live-chat-service
+  # 데이터베이스: MySQL
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
     ports:
-      - "8090:8090"
+      - "3306:3306"
     environment:
-      - SPRING_PROFILES_ACTIVE=docker
-      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka
-    depends_on:
-      - eureka-service
+      - MYSQL_ROOT_PASSWORD=rootpassword
+      - MYSQL_DATABASE=live_commerce_db
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./init-db:/docker-entrypoint-initdb.d
     networks:
-      - shopmall-network
+      - live-commerce-network
     restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 200M
-        reservations:
-          memory: 100M
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
-  # 15. Notification Service (알림)
-  notification-service:
-    build:
-      context: live-streaming-service
-      dockerfile: Dockerfile
-    container_name: notification-service
+  # 캐시: Redis
+  redis:
+    image: redis:7-alpine
+    container_name: redis
     ports:
-      - "8096:8096"
-    environment:
-      - SPRING_PROFILES_ACTIVE=docker
-      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka
-    depends_on:
-      - eureka-service
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
     networks:
-      - shopmall-network
+      - live-commerce-network
     restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 150M
-        reservations:
-          memory: 100M
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # 메시지 브로커: RabbitMQ
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=admin123
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - live-commerce-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # 모니터링: Prometheus
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    networks:
+      - live-commerce-network
+    restart: unless-stopped
+
+  # 모니터링: Grafana
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+    volumes:
+      - grafana-data:/var/lib/grafana
+    networks:
+      - live-commerce-network
+    restart: unless-stopped
+
+volumes:
+  mysql-data:
+  redis-data:
+  rabbitmq-data:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  live-commerce-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

@@ -53,21 +53,19 @@ public class ProductReviewService {
     }
 
     // 상품별 리뷰 조회 메서드 - startRow 계산 추가
-    public List<ProductReviewDto> getProductReviews(String productId, int page, int size, String sortBy) {
+    public List<ProductReviewDto> getProductReviews(Integer productId, int page, int size, String sortBy) {
         log.info("서비스: getProductReviews 호출됨 - productId: {}, page: {}, size: {}", productId, page, size);
 
         try {
-            // startRow 계산 (page는 1부터 시작)
             int startRow = (page - 1) * size;
             log.info("서비스: 계산된 startRow: {}", startRow);
 
-            // 매퍼 호출 시 startRow 전달
-            List<ProductReviewDto> result = productReviewMapper.selectProductReviewsByStringId(
+            // 매퍼 호출 시 Integer productId 전달
+            List<ProductReviewDto> result = productReviewMapper.selectProductReviewsByIntId(
                     productId, startRow, size, sortBy);
 
             log.info("서비스: 상품 {} DB 조회 결과 {} 건", productId, result.size());
 
-            // 결과가 있으면 첫 번째 데이터 로깅
             if (!result.isEmpty()) {
                 ProductReviewDto first = result.get(0);
                 log.info("서비스: 첫 번째 결과 - reviewId: {}, productId: {}, title: {}",
@@ -82,7 +80,7 @@ public class ProductReviewService {
         }
     }
 
-    public boolean verifyPurchase(String userId, String productId) {
+    public boolean verifyPurchase(String userId, Integer productId) {
         log.info("서비스: verifyPurchase 호출됨 - userId: {}, productId: {}", userId, productId);
 
         try {
@@ -114,7 +112,7 @@ public class ProductReviewService {
     }
 
     //  구매 정보 조회 (선택사항)
-    public Map<String, Object> getPurchaseInfo(String userId, String productId) {
+    public Map<String, Object> getPurchaseInfo(String userId, Integer productId) {
         try {
             Map<String, Object> purchaseInfo = productReviewMapper.getPurchaseInfo(userId, productId);
             log.info("서비스: 구매 정보 조회 결과 - {}", purchaseInfo);
@@ -124,6 +122,7 @@ public class ProductReviewService {
             return null;
         }
     }
+
     public String createReview(ProductReviewDto reviewDto) {
         log.info("서비스: createReview 호출됨 - productId: {}, userId: {}, authorName: {}",
                 reviewDto.getProductId(), reviewDto.getUserId(), reviewDto.getAuthorName());
@@ -238,9 +237,9 @@ public class ProductReviewService {
     }
 
     // 상품별 리뷰 개수 조회
-    public int getProductReviewCount(String productId) {
+    public int getProductReviewCount(Integer productId) {
         try {
-            int count = productReviewMapper.getProductReviewCountByStringId(productId);
+            int count = productReviewMapper.getProductReviewCountByIntId(productId);
             log.info("서비스: 상품 {} 리뷰 개수: {}", productId, count);
             return count;
         } catch (Exception e) {

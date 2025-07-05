@@ -165,9 +165,10 @@
 <script setup>
 import { onMounted, computed, ref, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
-import { user, setUserFromToken } from "@/stores/userStore";
+import { user, resetUser } from "@/stores/userStore";
 import apiClient from '@/api/axiosInstance'
 import { notificationApiCall, notificationHelpers } from '@/config/notificationConfig'
+// import { user, resetUser } from "@/stores/userStore";
 
 const router = useRouter();
 const isDropdownVisible = ref(false);
@@ -231,47 +232,60 @@ const isTokenValid = (token) => {
     return false
   }
 }
+// 토큰에서 사용자 ID만 추출하는 함수
+const getUserIdFromToken = (token) => {
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return null
 
+    let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+    while (base64.length % 4) {
+      base64 += '='
+    }
+
+    const payloadStr = atob(base64)
+    const payload = JSON.parse(payloadStr)
+
+    return payload.sub || payload.userId || payload.username
+  } catch (error) {
+    console.error('토큰에서 사용자 ID 추출 실패:', error)
+    return null
+  }
+}
 // 사용자 정보 검증 함수
+
 // 사용자 정보 검증 함수 수정
 const validateUserInfo = async () => {
-  const token = localStorage.getItem("token")
-  if (!token || !isTokenValid(token)) {
-    return false
-  }
-
   try {
     const response = await apiClient.get('/api/users/profile')
 
-    console.log('프로필 응답:', response.data) // 디버깅용
+    console.log('프로필 응답:', response.data);
 
-    // ✅ UserApiController의 실제 응답 구조에 맞게 수정
-    if (response.data && response.data.userId) {
-      const userData = response.data  // data.data가 아닌 data 직접 사용
+    if (response.data && response.data.success && response.data.data) {
+      const userData = response.data.data;
 
-      user.id = userData.userId || userData.id
-      user.name = userData.name
-      user.email = userData.email
-      user.role = userData.role || 'USER'
+      // 🔥 사용자 정보 설정 (API 데이터만 사용)
+      user.id = userData.userId;
+      user.name = userData.name;
+      user.email = userData.email;
+      user.role = userData.role || 'USER';
 
-      console.log('사용자 정보 설정됨:', {
+      console.log('API에서 설정된 최종 사용자 정보:', {
         id: user.id,
         name: user.name,
         email: user.email
-      })
+      });
 
-      return true
+      return true;
     } else {
-      console.warn('프로필 응답에서 사용자 정보를 찾을 수 없음:', response.data)
+      console.warn('프로필 응답에서 사용자 정보를 찾을 수 없음:', response.data);
+      return false;
     }
   } catch (error) {
-    console.error('프로필 조회 실패:', error)
-    return false
+    console.error('프로필 조회 실패:', error);
+    return false;
   }
-
-  return false
-}
-
+};
 // 장바구니 수 가져오기
 const fetchCartCount = async () => {
   if (!computedUser.value.id) return;
@@ -442,53 +456,81 @@ const handleNotificationIconClick = () => {
 }
 
 function logout() {
+  // 1. 알림 폴링 중지
   stopNotificationPolling();
-  localStorage.removeItem("token");
-  user.id = null;
-  user.name = null;
-  user.role = null;
+
+  // 2. userStore의 resetUser 함수 사용
+  resetUser();
+
+  // 3. 헤더 컴포넌트의 로컬 상태 초기화
   isDropdownVisible.value = false;
   cartCount.value = 0;
   unreadNotificationCount.value = 0;
   notifications.value = [];
+  searchKeyword.value = '';
+
+  // 4. 로그인 페이지로 이동
   router.push("/login");
 }
+
 
 onMounted(async () => {
   const token = localStorage.getItem("token");
 
   if (token && isTokenValid(token)) {
     try {
-      setUserFromToken(token);
+      // 🔥 setUserFromToken 호출 제거 - API에서만 사용자 정보 가져오기
+      console.log('토큰 유효성 확인됨, API로 사용자 정보 조회 시작');
 
-      validateUserInfo().catch(() => {
-        // 검증 실패해도 기본 정보는 유지
-      })
+      // API로 정확한 사용자 정보 가져오기
+      const isValid = await validateUserInfo();
 
-      // 데이터 가져오기
-      await Promise.all([
-        fetchCartCount(),
-        fetchNotifications()
-      ]);
+      if (isValid) {
+        console.log('API 검증 완료 후 사용자 정보:', {
+          id: user.id,
+          name: user.name,
+          email: user.email
+        });
 
-      // 실시간 알림 폴링 시작
-      startNotificationPolling();
+        // 사용자 정보가 확실히 설정된 후에만 다른 작업 수행
+        await Promise.all([
+          fetchCartCount(),
+          fetchNotifications()
+        ]);
+
+        // 실시간 알림 폴링 시작
+        startNotificationPolling();
+      } else {
+        // API 검증 실패 시 토큰 제거하고 초기화
+        console.warn('사용자 정보 검증 실패, 토큰 제거');
+        localStorage.removeItem("token");
+        resetUserState();
+      }
 
     } catch (error) {
+      console.error('사용자 정보 초기화 중 오류:', error);
       localStorage.removeItem("token");
-      user.id = null;
-      user.name = null;
-      user.role = null;
+      resetUserState();
     }
   } else {
+    // 토큰이 없거나 유효하지 않은 경우
     if (token) {
       localStorage.removeItem("token");
     }
-    user.id = null;
-    user.name = null;
-    user.role = null;
+    resetUserState();
   }
 });
+
+// 사용자 상태 초기화 함수 추가
+const resetUserState = () => {
+  user.id = null;
+  user.name = null;
+  user.role = null;
+  user.email = null;
+  cartCount.value = 0;
+  unreadNotificationCount.value = 0;
+  notifications.value = [];
+};
 
 onUnmounted(() => {
   stopNotificationPolling();

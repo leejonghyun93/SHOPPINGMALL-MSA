@@ -27,17 +27,10 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final RestTemplate restTemplate;
 
-    // 임시 비밀번호 재설정 코드 저장소 (실제로는 Redis 사용 권장)
     private final Map<String, String> resetCodes = new ConcurrentHashMap<>();
 
-    /**
-     * 로그인 처리
-     */
     public AuthResponse login(String userId, String password) {
         try {
-            log.info("로그인 시도: userId={}", userId);
-
-            // 입력값 검증
             if (userId == null || userId.trim().isEmpty()) {
                 return AuthResponse.builder()
                         .success(false)
@@ -52,33 +45,25 @@ public class AuthService {
                         .build();
             }
 
-            // 1. User Service에서 사용자 정보 조회
             UserDto user = getUserFromUserService(userId);
             if (user == null) {
-                log.warn("사용자를 찾을 수 없음: {}", userId);
                 return AuthResponse.builder()
                         .success(false)
                         .message("존재하지 않는 사용자입니다.")
                         .build();
             }
 
-            // 2. 비밀번호 검증
             if (!passwordEncoder.matches(password, user.getPassword())) {
-                log.warn("비밀번호 불일치: {}", userId);
                 return AuthResponse.builder()
                         .success(false)
                         .message("비밀번호가 일치하지 않습니다.")
                         .build();
             }
 
-            // 3. User Service에 사용자 세션 캐시 저장 요청
             cacheUserSessionInUserService(userId);
 
-            // 4. JWT 토큰 생성
             String accessToken = jwtUtil.generateToken(user.getUserId(), "USER");
             String refreshToken = jwtUtil.generateRefreshToken(user.getUserId());
-
-            log.info("로그인 성공: userId={}", userId);
 
             return AuthResponse.builder()
                     .success(true)
@@ -97,9 +82,6 @@ public class AuthService {
         }
     }
 
-    /**
-     * User Service에 사용자 세션 캐시 저장 요청
-     */
     private void cacheUserSessionInUserService(String userId) {
         try {
             String url = userServiceUrl + "/api/users/cache/" + userId;
@@ -120,13 +102,9 @@ public class AuthService {
             }
         } catch (Exception e) {
             log.error("User Service 캐시 저장 요청 실패: userId={}, error={}", userId, e.getMessage());
-            // 캐시 저장 실패는 로그인 실패로 이어지지 않음
         }
     }
 
-    /**
-     * 토큰 검증 + 사용자 정보 반환 (수정된 버전)
-     */
     public AuthResponse validateToken(String token) {
         try {
             if (token == null || token.trim().isEmpty()) {
@@ -142,7 +120,6 @@ public class AuthService {
 
                 log.debug("토큰 검증 성공, 사용자 정보 조회 시작: userId={}", userId);
 
-                // 1. 먼저 세션 API로 시도
                 UserDto sessionUser = getUserFromUserServiceSession(userId);
 
                 if (sessionUser != null) {
@@ -158,7 +135,6 @@ public class AuthService {
                             .build();
                 }
 
-                // 2. 세션 조회 실패시 직접 DB 조회
                 log.debug("세션 조회 실패, DB에서 직접 조회: userId={}", userId);
                 UserDto dbUser = getUserFromUserService(userId);
 
@@ -196,9 +172,7 @@ public class AuthService {
                     .build();
         }
     }
-    /**
-     * User Service 세션 API에서 사용자 정보 조회 (수정된 버전)
-     */
+
     private UserDto getUserFromUserServiceSession(String userId) {
         try {
             String url = userServiceUrl + "/api/users/session/" + userId;
@@ -238,9 +212,7 @@ public class AuthService {
             return null;
         }
     }
-    /**
-     * 토큰 갱신
-     */
+
     public AuthResponse refreshToken(String refreshToken) {
         try {
             if (refreshToken == null || refreshToken.trim().isEmpty()) {
@@ -269,14 +241,10 @@ public class AuthService {
         }
     }
 
-    /**
-     * 로그아웃
-     */
     public AuthResponse logout(String token) {
         try {
             if (token != null && jwtUtil.validateAccessToken(token)) {
                 String userId = jwtUtil.getUserIdFromToken(token);
-                log.info("로그아웃 처리: userId={}", userId);
             }
 
             return AuthResponse.builder()
@@ -292,9 +260,6 @@ public class AuthService {
         }
     }
 
-    /**
-     * 사용자 프로필 조회
-     */
     public AuthResponse getUserProfile(String userId) {
         try {
             if (userId == null || userId.trim().isEmpty()) {
@@ -330,7 +295,6 @@ public class AuthService {
         }
     }
 
-    // 비밀번호 찾기 관련 메소드들
     public AuthResponse findPassword(FindPasswordRequest request) {
         try {
             if (request == null || request.getUserid() == null || request.getEmail() == null) {
@@ -340,8 +304,16 @@ public class AuthService {
                         .build();
             }
 
-            UserDto user = verifyUserFromUserService(request.getUserid(), request.getEmail());
+            UserDto user = getUserFromUserService(request.getUserid());
+
             if (user == null) {
+                return AuthResponse.builder()
+                        .success(false)
+                        .message("해당 정보로 등록된 사용자를 찾을 수 없습니다.")
+                        .build();
+            }
+
+            if (!request.getEmail().equals(user.getEmail())) {
                 return AuthResponse.builder()
                         .success(false)
                         .message("해당 정보로 등록된 사용자를 찾을 수 없습니다.")
@@ -350,8 +322,6 @@ public class AuthService {
 
             String resetCode = generateResetCode();
             resetCodes.put(request.getUserid(), resetCode);
-
-            log.info("비밀번호 재설정 코드 생성: userId={}, code={}", request.getUserid(), resetCode);
 
             return AuthResponse.builder()
                     .success(true)
@@ -455,7 +425,6 @@ public class AuthService {
         }
     }
 
-    // Private helper methods
     private UserDto getUserFromUserService(String userId) {
         try {
             String url = userServiceUrl + "/api/users/" + userId;
@@ -472,24 +441,6 @@ public class AuthService {
             }
         } catch (Exception e) {
             log.error("User Service 호출 실패: {}", e.getMessage());
-            return null;
-        }
-    }
-
-    private UserDto verifyUserFromUserService(String userId, String email) {
-        try {
-            String url = userServiceUrl + "/api/users/verify/" + userId + "/" + email;
-            log.debug("User Service 검증 호출: {}", url);
-
-            ResponseEntity<UserDto> response = restTemplate.getForEntity(url, UserDto.class);
-
-            if (response.getStatusCode().is2xxSuccessful()) {
-                return response.getBody();
-            } else {
-                return null;
-            }
-        } catch (Exception e) {
-            log.error("User Service 검증 실패: {}", e.getMessage());
             return null;
         }
     }

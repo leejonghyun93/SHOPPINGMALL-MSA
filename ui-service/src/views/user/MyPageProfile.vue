@@ -179,23 +179,6 @@
             <div class="form-group">
               <label class="form-label">
                 <svg class="label-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2"/>
-                  <line x1="16" y1="2" x2="16" y2="6" stroke="currentColor" stroke-width="2"/>
-                  <line x1="8" y1="2" x2="8" y2="6" stroke="currentColor" stroke-width="2"/>
-                  <line x1="3" y1="10" x2="21" y2="10" stroke="currentColor" stroke-width="2"/>
-                </svg>
-                생년월일
-              </label>
-              <input
-                  type="date"
-                  v-model="userInfo.birthDate"
-                  class="form-input"
-              />
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">
-                <svg class="label-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                   <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
@@ -210,10 +193,10 @@
                   <input type="radio" value="F" v-model="userInfo.gender">
                   <span>여자</span>
                 </label>
-                <label :class="{ active: userInfo.gender === 'U' }">
-                  <input type="radio" value="U" v-model="userInfo.gender">
-                  <span>선택 안 함</span>
-                </label>
+<!--                <label :class="{ active: userInfo.gender === 'U' }">-->
+<!--                  <input type="radio" value="U" v-model="userInfo.gender">-->
+<!--                  <span>선택 안 함</span>-->
+<!--                </label>-->
               </div>
             </div>
 
@@ -473,7 +456,7 @@
 <script setup>
 import {ref, onMounted, computed} from 'vue'
 import {useRouter} from 'vue-router'
-import {user, setUserFromToken} from '@/stores/userStore'
+import { user, setUserFromToken, resetUser } from '@/stores/userStore'
 
 const router = useRouter()
 
@@ -616,7 +599,8 @@ const loadUserProfile = async () => {
       throw new Error('사용자 정보를 불러올 수 없습니다.')
     }
 
-    const userData = await response.json()
+    const responseData = await response.json()
+    const userData = responseData.data
 
     userInfo.value = {
       username: userData.userId,
@@ -628,14 +612,12 @@ const loadUserProfile = async () => {
       newPassword: '',
       confirmNewPassword: ''
     }
-
   } catch (err) {
     error.value = err.message || '사용자 정보를 불러오는 중 오류가 발생했습니다.'
   } finally {
     loading.value = false
   }
 }
-
 // 비밀번호 확인
 const verifyPassword = async () => {
   if (!currentPassword.value) {
@@ -805,7 +787,7 @@ const withdrawalForm = ref({
   password: '',
   reason: '',
   confirmText: '',
-  withdrawalDate: new Date().toISOString().split('T')[0] // 오늘 날짜
+  withdrawalDate: new Date().toISOString().split('T')[0]
 })
 const withdrawing = ref(false)
 const withdrawalError = ref('')
@@ -821,7 +803,6 @@ const withdrawalReasons = [
 
 // 회원탈퇴 모달 표시
 const showWithdrawModal = () => {
-  // 폼 초기화
   withdrawalForm.value = {
     password: '',
     reason: '',
@@ -850,6 +831,7 @@ const isWithdrawConfirmValid = computed(() => {
 })
 
 // 회원탈퇴 실행
+// 회원탈퇴 실행 함수 - 완전한 버전
 const executeWithdrawal = async () => {
   // 유효성 검사
   if (!withdrawalForm.value.password) {
@@ -887,6 +869,7 @@ const executeWithdrawal = async () => {
       throw new Error('사용자 정보를 찾을 수 없습니다.')
     }
 
+    // 서버가 기대하는 정확한 요청 구조
     const requestData = {
       userId: userId,
       password: withdrawalForm.value.password,
@@ -894,20 +877,18 @@ const executeWithdrawal = async () => {
       withdrawalDate: withdrawalForm.value.withdrawalDate
     }
 
-    const headers = getAuthHeaders()
+    const apiUrl = `${API_BASE_URL}/api/users/withdrawal/process`
 
-    const response = await fetch(`${API_BASE_URL}/api/users/withdraw`, {
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(requestData)
     })
 
-    // 응답 처리 개선: JSON 파싱 전에 응답 내용 확인
+    // 응답 처리
     const contentType = response.headers.get('content-type')
-
     let result = null
 
-    // Content-Type이 JSON인지 확인하고, 응답 본문이 있는지 확인
     if (contentType && contentType.includes('application/json')) {
       const responseText = await response.text()
 
@@ -921,7 +902,6 @@ const executeWithdrawal = async () => {
         result = { success: response.ok }
       }
     } else {
-      // JSON이 아닌 응답인 경우
       const responseText = await response.text()
       result = {
         success: response.ok,
@@ -930,25 +910,61 @@ const executeWithdrawal = async () => {
     }
 
     if (response.ok) {
-      // 성공 처리 - result가 null이어도 OK
+
+      // 1. userStore의 완전 초기화 함수 호출
+      resetUser()
+
+      // 2. 현재 컴포넌트 상태 초기화
+      userInfo.value = {
+        username: '',
+        name: '',
+        email: '',
+        phone: '',
+        birthDate: '',
+        gender: 'U',
+        newPassword: '',
+        confirmNewPassword: ''
+      }
+
+      // 3. 폼 상태 초기화
+      withdrawalForm.value = {
+        password: '',
+        reason: '',
+        confirmText: '',
+        withdrawalDate: new Date().toISOString().split('T')[0]
+      }
+
+      // 4. 모든 단계 초기화
+      currentStep.value = 'verify'
+      currentPassword.value = ''
+      passwordError.value = ''
+
+      // 5. 모달 닫기
+      showWithdrawConfirm.value = false
+
+      // 6. 성공 알림
       alert('회원탈퇴가 정상적으로 처리되었습니다.\n그동안 이용해 주셔서 감사합니다.')
 
-      // 로컬 스토리지 정리
-      localStorage.removeItem('token')
-      localStorage.removeItem('userId')
+      // 7. 로그인 페이지로 강제 이동 (완전 초기화)
+      window.location.href = '/login'
 
-      // 로그인 페이지로 이동
-      router.push('/login')
     } else {
-      // 오류 처리
-      const errorMessage = result?.message || `서버 오류 (${response.status})`
-      throw new Error(errorMessage)
+
+      if (response.status === 404) {
+        throw new Error('회원탈퇴 API를 찾을 수 없습니다. 서버 설정을 확인해주세요.')
+      } else if (response.status === 401) {
+        throw new Error('인증이 만료되었습니다. 다시 로그인해주세요.')
+      } else if (response.status === 403) {
+        throw new Error('권한이 없습니다.')
+      } else {
+        const errorMessage = result?.message || `서버 오류 (${response.status})`
+        throw new Error(errorMessage)
+      }
     }
 
   } catch (error) {
-    // 네트워크 오류나 기타 오류 처리
     if (error.name === 'TypeError' && error.message.includes('fetch')) {
-      withdrawalError.value = '네트워크 연결에 문제가 있습니다. 다시 시도해주세요.'
+      withdrawalError.value = '네트워크 연결에 문제가 있습니다. 서버가 실행 중인지 확인해주세요.'
     } else {
       withdrawalError.value = error.message || '회원탈퇴 처리 중 오류가 발생했습니다.'
     }

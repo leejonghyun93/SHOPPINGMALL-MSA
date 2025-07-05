@@ -70,7 +70,7 @@ public class Member {
 
     @Column(name = "STATUS", length = 20)
     @Builder.Default
-    private String status = "ACTIVE";
+    private String status = "Y";
 
     @Column(name = "LAST_LOGIN")
     private LocalDateTime lastLogin;

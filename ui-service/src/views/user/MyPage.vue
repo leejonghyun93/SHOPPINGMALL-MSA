@@ -53,22 +53,22 @@
                 </div>
               </div>
 
-              <div class="menu-item" @click="navigateToTab('coupons')" :class="{ active: activeTab === 'coupons' }">
-                <div class="menu-icon coupons-icon">
-                  <svg class="svg-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path
-                        d="M21 8V16C21 17.1046 20.1046 18 19 18H5C3.89543 18 3 17.1046 3 16V8C3 6.89543 3.89543 6 5 6H19C20.1046 6 21 6.89543 21 8Z"
-                        stroke="#7b1fa2" stroke-width="2" fill="none"/>
-                    <circle cx="8" cy="12" r="1" fill="#7b1fa2"/>
-                    <circle cx="16" cy="12" r="1" fill="#7b1fa2"/>
-                    <path d="M12 8V16" stroke="#7b1fa2" stroke-width="1" stroke-dasharray="2 2"/>
-                  </svg>
-                </div>
-                <div class="menu-info">
-                  <div class="menu-name">쿠폰</div>
-                  <div class="menu-count">{{ availableCoupons || 0 }}</div>
-                </div>
-              </div>
+<!--              <div class="menu-item" @click="navigateToTab('coupons')" :class="{ active: activeTab === 'coupons' }">-->
+<!--                <div class="menu-icon coupons-icon">-->
+<!--                  <svg class="svg-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">-->
+<!--                    <path-->
+<!--                        d="M21 8V16C21 17.1046 20.1046 18 19 18H5C3.89543 18 3 17.1046 3 16V8C3 6.89543 3.89543 6 5 6H19C20.1046 6 21 6.89543 21 8Z"-->
+<!--                        stroke="#7b1fa2" stroke-width="2" fill="none"/>-->
+<!--                    <circle cx="8" cy="12" r="1" fill="#7b1fa2"/>-->
+<!--                    <circle cx="16" cy="12" r="1" fill="#7b1fa2"/>-->
+<!--                    <path d="M12 8V16" stroke="#7b1fa2" stroke-width="1" stroke-dasharray="2 2"/>-->
+<!--                  </svg>-->
+<!--                </div>-->
+<!--                <div class="menu-info">-->
+<!--                  <div class="menu-name">쿠폰</div>-->
+<!--                  <div class="menu-count">{{ availableCoupons || 0 }}</div>-->
+<!--                </div>-->
+<!--              </div>-->
 
               <div class="menu-item" @click="navigateToTab('wishlist')" :class="{ active: activeTab === 'wishlist' }">
                 <div class="menu-icon wishlist-icon">
@@ -84,31 +84,19 @@
                 </div>
               </div>
 
-              <div class="menu-item" @click="navigateToTab('frequent')" :class="{ active: activeTab === 'frequent' }">
-                <div class="menu-icon frequent-icon">
-                  <svg class="svg-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path
-                        d="M7 4V2C7 1.44772 7.44772 1 8 1H16C16.5523 1 17 1.44772 17 2V4H20C20.5523 4 21 4.44772 21 5C21 5.55228 20.5523 6 20 6H19V19C19 20.1046 18.1046 21 17 21H7C5.89543 21 5 20.1046 5 19V6H4C3.44772 6 3 5.55228 3 5C3 4.44772 3.44772 4 4 4H7Z"
-                        fill="#388e3c"/>
-                    <path d="M9 3H15V4H9V3Z" fill="white"/>
-                  </svg>
-                </div>
-                <div class="menu-info">
-                  <div class="menu-name">자주 구매</div>
-                </div>
-              </div>
-            </div>
-
-            <!-- 배너 섹션 -->
-            <div class="banner-section">
-              <div class="banner-content">
-                <div class="banner-text">
-                  <div class="banner-main">베네핏 회원 혜택받고 즐거워지고</div>
-                  <div class="banner-sub">2주년 기념 혜택 + 최대 30% 쿠폰 +</div>
-                </div>
-                <div class="banner-badge">0원</div>
-                <div class="banner-discount">-30%</div>
-              </div>
+<!--              <div class="menu-item" @click="navigateToTab('frequent')" :class="{ active: activeTab === 'frequent' }">-->
+<!--                <div class="menu-icon frequent-icon">-->
+<!--                  <svg class="svg-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">-->
+<!--                    <path-->
+<!--                        d="M7 4V2C7 1.44772 7.44772 1 8 1H16C16.5523 1 17 1.44772 17 2V4H20C20.5523 4 21 4.44772 21 5C21 5.55228 20.5523 6 20 6H19V19C19 20.1046 18.1046 21 17 21H7C5.89543 21 5 20.1046 5 19V6H4C3.44772 6 3 5.55228 3 5C3 4.44772 3.44772 4 4 4H7Z"-->
+<!--                        fill="#388e3c"/>-->
+<!--                    <path d="M9 3H15V4H9V3Z" fill="white"/>-->
+<!--                  </svg>-->
+<!--                </div>-->
+<!--                <div class="menu-info">-->
+<!--                  <div class="menu-name">자주 구매</div>-->
+<!--                </div>-->
+<!--              </div>-->
             </div>
 
             <!-- 하단 링크 섹션 -->
@@ -132,9 +120,9 @@
                 <div class="link-item" @click="navigateToProfile()">
                   회원 정보 관리
                 </div>
-                <div class="link-item" @click="navigateToTab('vip')" :class="{ active: activeTab === 'vip' }">
-                  VIP 예상 등급
-                </div>
+<!--                <div class="link-item" @click="navigateToTab('vip')" :class="{ active: activeTab === 'vip' }">-->
+<!--                  VIP 예상 등급-->
+<!--                </div>-->
               </div>
             </div>
           </div>
@@ -205,6 +193,20 @@ const navigateToTab = (tabName) => {
   }
 }
 
+// 주문 개수만 별도로 다시 로드하는 함수
+const reloadOrderCount = async () => {
+  try {
+    const response = await apiClient.get('/api/orders/count')
+
+    if (response.data.success) {
+      const orderCount = response.data.data || 0
+      totalOrders.value = orderCount
+    }
+  } catch (error) {
+    // 에러 처리만 유지
+  }
+}
+
 // 자식 컴포넌트에서 카운트 업데이트
 const updateCounts = (data) => {
   if (data.orderCount !== undefined) totalOrders.value = data.orderCount
@@ -220,32 +222,40 @@ const fetchUserExtraInfo = async () => {
       call: () => apiClient.get('/api/orders/count'),
       onSuccess: (response) => {
         if (response.data.success) {
-          totalOrders.value = response.data.data?.count || 0
+          const orderCount = response.data.data || 0
+          totalOrders.value = orderCount
+        } else {
+          totalOrders.value = 0
+        }
+      }
+    },
+    {
+      name: '장바구니 개수',
+      call: () => apiClient.get('/api/cart/count'),
+      onSuccess: (response) => {
+        if (response.data.success) {
+          const cartCount = response.data.data || 0
+          // 장바구니 개수를 사용할 곳이 있다면 설정
         }
       }
     }
   ]
 
-  const results = await Promise.allSettled(
+  await Promise.allSettled(
       apiCalls.map(async (api) => {
         try {
           const response = await api.call()
           api.onSuccess(response)
           return { name: api.name, success: true }
         } catch (error) {
-          // API 호출 실패시 조용히 처리
+          // 주문 개수 API 실패시 기본값 설정
+          if (api.name === '주문 개수') {
+            totalOrders.value = 0
+          }
           return { name: api.name, success: false, error: error.message }
         }
       })
   )
-
-  const successCount = results.filter(r => r.value?.success).length
-  const totalCount = results.length
-
-  // 실패한 API가 있어도 에러로 처리하지 않고 조용히 넘어감
-  if (successCount < totalCount) {
-    // 필요시 에러 로깅을 위한 처리를 여기에 추가할 수 있음
-  }
 }
 
 function navigateToProfile() {
@@ -305,6 +315,16 @@ onMounted(async () => {
 
   // 추가 사용자 정보 로드
   await fetchUserExtraInfo()
+
+  // 1초 후 주문 개수 재확인
+  setTimeout(async () => {
+    await reloadOrderCount()
+  }, 1000)
+})
+
+// 자식 컴포넌트에서 호출할 수 있도록 expose
+defineExpose({
+  reloadOrderCount
 })
 </script>
 

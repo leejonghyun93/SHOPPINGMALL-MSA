@@ -16,10 +16,9 @@
         <module>apigateway-service</module> <!--필수 -->
         <module>auth-service</module>       <!--필수 -->
         <module>config-service</module>     <!--필수 -->
-        <module>product-catalog-service</module>  <!--필수 -->
+        <module>commerce-service</module>
         <module>eureka-service</module>     <!--필수 -->
         <module>user-service</module>
-        <module>order-service</module>      <!--필수 -->
         <module>live-streaming-service</module>
     </modules>
     <name>shoppingmall-msa</name>

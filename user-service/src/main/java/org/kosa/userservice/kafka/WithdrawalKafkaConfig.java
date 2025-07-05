@@ -19,20 +19,17 @@ import java.util.Map;
 
 @Configuration
 @EnableKafka
-public class WithdrawalKafkaConfig {  // 클래스명 변경
+public class WithdrawalKafkaConfig {
 
-    @Value("${spring.kafka.bootstrap-servers}")
+    @Value("${spring.kafka.bootstrap-servers}")  // 기본값 추가
     private String bootstrapServers;
 
-    // Producer 설정 - Bean 이름 변경
-    @Bean("withdrawalProducerFactory")  // Bean 이름 명시
+    @Bean("withdrawalProducerFactory")
     public ProducerFactory<String, Object> withdrawalProducerFactory() {
         Map<String, Object> configProps = new HashMap<>();
         configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
-
-        // 안정성을 위한 설정
         configProps.put(ProducerConfig.ACKS_CONFIG, "all");
         configProps.put(ProducerConfig.RETRIES_CONFIG, 3);
         configProps.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
@@ -41,13 +38,12 @@ public class WithdrawalKafkaConfig {  // 클래스명 변경
         return new DefaultKafkaProducerFactory<>(configProps);
     }
 
-    @Bean("withdrawalKafkaTemplate")  // Bean 이름 명시
+    @Bean("withdrawalKafkaTemplate")
     public KafkaTemplate<String, Object> withdrawalKafkaTemplate() {
         return new KafkaTemplate<>(withdrawalProducerFactory());
     }
 
-    // Consumer 설정 - Bean 이름 변경
-    @Bean("withdrawalConsumerFactory")  // Bean 이름 명시
+    @Bean("withdrawalConsumerFactory")
     public ConsumerFactory<String, UserWithdrawalEvent> withdrawalConsumerFactory() {
         Map<String, Object> props = new HashMap<>();
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
@@ -60,7 +56,7 @@ public class WithdrawalKafkaConfig {  // 클래스명 변경
         return new DefaultKafkaConsumerFactory<>(props);
     }
 
-    @Bean("withdrawalKafkaListenerContainerFactory")  // Bean 이름 명시
+    @Bean("withdrawalKafkaListenerContainerFactory")
     public ConcurrentKafkaListenerContainerFactory<String, UserWithdrawalEvent> withdrawalKafkaListenerContainerFactory() {
         ConcurrentKafkaListenerContainerFactory<String, UserWithdrawalEvent> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();

@@ -70,7 +70,8 @@
 import { reactive, ref, onMounted } from "vue";
 import axios from "axios";
 import { useRouter } from "vue-router";
-import { setUserFromToken } from "@/stores/userStore";
+import { setUserFromToken, user } from "@/stores/userStore";  // user도 import
+import apiClient from '@/api/axiosInstance';  // API 클라이언트 추가
 import '@/assets/css/memberList.css';
 
 const router = useRouter();
@@ -81,6 +82,37 @@ const form = reactive({
 const rememberId = ref(false);
 const errorMessage = ref("");
 const isLoading = ref(false);
+
+// 사용자 프로필 정보 가져오기 함수
+const fetchUserProfile = async (token) => {
+  try {
+    console.log('로그인 후 프로필 정보 조회 시작');
+
+    const response = await apiClient.get('/api/users/profile');
+
+    if (response.data && response.data.success && response.data.data) {
+      const userData = response.data.data;
+
+      // 🔥 실제 사용자 정보로 업데이트
+      user.id = userData.userId;
+      user.name = userData.name;  // 실제 이름으로 설정
+      user.email = userData.email;
+      user.role = userData.role || 'USER';
+
+      console.log('로그인 후 프로필 정보 설정 완료:', {
+        id: user.id,
+        name: user.name,
+        email: user.email
+      });
+
+      return true;
+    }
+  } catch (error) {
+    console.error('로그인 후 프로필 조회 실패:', error);
+    // 프로필 조회 실패해도 로그인은 유지
+  }
+  return false;
+};
 
 // 페이지 로드 시 저장된 아이디 불러오기
 onMounted(() => {
@@ -116,7 +148,12 @@ const handleLogin = async () => {
     // AuthResponse 구조에 맞게 처리
     if (response.data.success && response.data.token) {
       localStorage.setItem("token", response.data.token);
+
+      // 🔥 1. 토큰에서 기본 정보 설정
       setUserFromToken(response.data.token);
+
+      // 🔥 2. API로 실제 사용자 정보 가져오기
+      await fetchUserProfile(response.data.token);
 
       // 아이디 저장 처리
       if (rememberId.value) {
@@ -124,6 +161,13 @@ const handleLogin = async () => {
       } else {
         localStorage.removeItem("savedUserId");
       }
+
+      console.log('로그인 완료 후 최종 사용자 정보:', {
+        id: user.id,
+        name: user.name,
+        email: user.email
+      });
+
       await router.push("/");
     } else {
       errorMessage.value = response.data.message || "로그인 실패";

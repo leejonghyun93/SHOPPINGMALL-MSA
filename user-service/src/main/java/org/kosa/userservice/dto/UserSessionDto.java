@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Data
@@ -19,5 +20,6 @@ public class UserSessionDto implements Serializable {
     private String phone;
     private String gradeId;
     private String status;
+    private LocalDate birthDate;
     private LocalDateTime cachedAt;
 }

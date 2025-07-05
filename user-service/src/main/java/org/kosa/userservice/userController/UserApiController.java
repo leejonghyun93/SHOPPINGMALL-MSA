@@ -102,6 +102,7 @@ public class UserApiController {
                         .phone(session.getPhone())
                         .gradeId(session.getGradeId())
                         .status(session.getStatus())
+                        .birthDate(session.getBirthDate())
                         .build();
 
                 return ResponseEntity.ok(ApiResponse.builder()
@@ -127,6 +128,7 @@ public class UserApiController {
                             .build());
         }
     }
+
     /**
      * 사용자 세션 캐시 저장 (Auth-Service에서 호출)
      */
@@ -342,7 +344,7 @@ public class UserApiController {
 
             if (userId == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(Map.of("message", "인증이 필요합니다."));
+                        .body(Map.of("success", false, "message", "인증이 필요합니다."));
             }
 
             log.info("프로필 조회 요청 - userId: {}", userId);
@@ -350,28 +352,38 @@ public class UserApiController {
             Optional<UserDto> userOpt = userService.getMemberDetail(userId);
             if (userOpt.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(Map.of("message", "사용자를 찾을 수 없습니다."));
+                        .body(Map.of("success", false, "message", "사용자를 찾을 수 없습니다."));
             }
 
             UserDto user = userOpt.get();
 
+            // ✅ success, data 구조로 통일
             Map<String, Object> response = new HashMap<>();
-            response.put("userId", user.getUserId());
-            response.put("name", user.getName());
-            response.put("email", user.getEmail());
-            response.put("phone", user.getPhone());
-            response.put("birthDate", user.getBirthDate());
-            response.put("address", user.getAddress());
-            response.put("zipcode", user.getZipcode());
-            response.put("gender", user.getGender());
+            response.put("success", true);
+            response.put("message", "프로필 조회 성공");
 
-            log.info("프로필 조회 성공 - userId: {}", userId);
+            Map<String, Object> userData = new HashMap<>();
+            userData.put("userId", user.getUserId());
+            userData.put("name", user.getName());
+            userData.put("email", user.getEmail());
+            userData.put("phone", user.getPhone());
+            userData.put("birthDate", user.getBirthDate());
+            userData.put("address", user.getAddress());
+            userData.put("zipcode", user.getZipcode());
+            userData.put("gender", user.getGender());
+
+            response.put("data", userData);
+
+            log.info("프로필 조회 성공 - userId: {}, name: {}", userId, user.getName());
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
             log.error("프로필 조회 중 오류: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("message", "프로필 정보를 불러올 수 없습니다."));
+                    .body(Map.of(
+                            "success", false,
+                            "message", "프로필 정보를 불러올 수 없습니다."
+                    ));
         }
     }
 
