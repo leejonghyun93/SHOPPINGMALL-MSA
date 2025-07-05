@@ -9,13 +9,18 @@ RUN ./mvnw clean package -DskipTests -Dmaven.javadoc.skip=true
 
 FROM amazoncorretto:17-alpine-jdk
 RUN apk add --no-cache curl && \
-    rm -rf /var/cache/apk/*
+    rm -rf /var/cache/apk/* && \
+    addgroup -g 1000 appuser && \
+    adduser -u 1000 -G appuser -D appuser
 
 WORKDIR /app
 COPY --from=builder /app/target/*.jar app.jar
+RUN chown appuser:appuser app.jar
 
-# 안전하고 검증된 JVM 옵션만 사용
-ENV JAVA_OPTS="-Xmx128m -Xms64m"
+USER appuser
+
+# 인증 서비스용 메모리 설정 (JWT 처리)
+ENV JAVA_OPTS="-Xmx80m -Xms40m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -Djava.security.egd=file:/dev/./urandom"
 
 EXPOSE 8082
 

@@ -1,318 +1,463 @@
 version: '3.8'
 
 services:
-  # 필수 서비스: Service Discovery
-  eureka-service:
-    build:
-      context: ./eureka-service
-      dockerfile: Dockerfile
-    image: live-commerce/eureka-service:latest
-    container_name: eureka-service
-    ports:
-      - "8761:8761"
-    environment:
-      - SPRING_PROFILES_ACTIVE=docker
-      - JAVA_OPTS=-Xmx512m -Xms256m
-    networks:
-      - live-commerce-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
+  # ======================
+  # 인프라 서비스들
+  # ======================
 
-  # 필수 서비스: Configuration Server
-  config-service:
-    build:
-      context: ./config-service
-      dockerfile: Dockerfile
-    image: live-commerce/config-service:latest
-    container_name: config-service
-    ports:
-      - "8888:8888"
-    environment:
-      - SPRING_PROFILES_ACTIVE=docker
-      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka
-      - JAVA_OPTS=-Xmx512m -Xms256m
-    networks:
-      - live-commerce-network
-    depends_on:
-      - eureka-service
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8888/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-
-  # 필수 서비스: Authentication Service
-  auth-service:
-    build:
-      context: ./auth-service
-      dockerfile: Dockerfile
-    image: live-commerce/auth-service:latest
-    container_name: auth-service
-    ports:
-      - "8081:8081"
-    environment:
-      - SPRING_PROFILES_ACTIVE=docker
-      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka
-      - SPRING_CLOUD_CONFIG_URI=http://config-service:8888
-      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/auth_db?useSSL=false&serverTimezone=UTC
-      - SPRING_DATASOURCE_USERNAME=root
-      - SPRING_DATASOURCE_PASSWORD=rootpassword
-      - SPRING_REDIS_HOST=redis
-      - SPRING_REDIS_PORT=6379
-      - JAVA_OPTS=-Xmx512m -Xms256m
-    networks:
-      - live-commerce-network
-    depends_on:
-      - eureka-service
-      - config-service
-      - mysql
-      - redis
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-
-  # 필수 서비스: API Gateway
-  apigateway-service:
-    build:
-      context: ./apigateway-service
-      dockerfile: Dockerfile
-    image: live-commerce/apigateway-service:latest
-    container_name: apigateway-service
-    ports:
-      - "8080:8080"
-    environment:
-      - SPRING_PROFILES_ACTIVE=docker
-      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka
-      - SPRING_CLOUD_CONFIG_URI=http://config-service:8888
-      - JAVA_OPTS=-Xmx512m -Xms256m
-    networks:
-      - live-commerce-network
-    depends_on:
-      - eureka-service
-      - config-service
-      - auth-service
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-
-  # 비즈니스 서비스: User Service
-  user-service:
-    build:
-      context: ./user-service
-      dockerfile: Dockerfile
-    image: live-commerce/user-service:latest
-    container_name: user-service
-    ports:
-      - "8083:8083"
-    environment:
-      - SPRING_PROFILES_ACTIVE=docker
-      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka
-      - SPRING_CLOUD_CONFIG_URI=http://config-service:8888
-      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/user_db?useSSL=false&serverTimezone=UTC
-      - SPRING_DATASOURCE_USERNAME=root
-      - SPRING_DATASOURCE_PASSWORD=rootpassword
-      - SPRING_REDIS_HOST=redis
-      - SPRING_REDIS_PORT=6379
-      - JAVA_OPTS=-Xmx512m -Xms256m
-    networks:
-      - live-commerce-network
-    depends_on:
-      - eureka-service
-      - config-service
-      - mysql
-      - redis
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-
-  # 비즈니스 서비스: Commerce Service
-  commerce-service:
-    build:
-      context: ./commerce-service
-      dockerfile: Dockerfile
-    image: live-commerce/commerce-service:latest
-    container_name: commerce-service
-    ports:
-      - "8082:8082"
-    environment:
-      - SPRING_PROFILES_ACTIVE=docker
-      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka
-      - SPRING_CLOUD_CONFIG_URI=http://config-service:8888
-      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/commerce_db?useSSL=false&serverTimezone=UTC
-      - SPRING_DATASOURCE_USERNAME=root
-      - SPRING_DATASOURCE_PASSWORD=rootpassword
-      - SPRING_REDIS_HOST=redis
-      - SPRING_REDIS_PORT=6379
-      - JAVA_OPTS=-Xmx512m -Xms256m
-    networks:
-      - live-commerce-network
-    depends_on:
-      - eureka-service
-      - config-service
-      - mysql
-      - redis
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-
-  # 비즈니스 서비스: Live Streaming Service
-  live-streaming-service:
-    build:
-      context: ./live-streaming-service
-      dockerfile: Dockerfile
-    image: live-commerce/live-streaming-service:latest
-    container_name: live-streaming-service
-    ports:
-      - "8084:8084"
-      - "1935:1935"  # RTMP 스트리밍 포트
-    environment:
-      - SPRING_PROFILES_ACTIVE=docker
-      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka
-      - SPRING_CLOUD_CONFIG_URI=http://config-service:8888
-      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/streaming_db?useSSL=false&serverTimezone=UTC
-      - SPRING_DATASOURCE_USERNAME=root
-      - SPRING_DATASOURCE_PASSWORD=rootpassword
-      - SPRING_REDIS_HOST=redis
-      - SPRING_REDIS_PORT=6379
-      - RTMP_PORT=1935
-      - JAVA_OPTS=-Xmx1g -Xms512m
-    networks:
-      - live-commerce-network
-    depends_on:
-      - eureka-service
-      - config-service
-      - mysql
-      - redis
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8084/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-
-  # 데이터베이스: MySQL
-  mysql:
-    image: mysql:8.0
-    container_name: mysql
-    ports:
-      - "3306:3306"
-    environment:
-      - MYSQL_ROOT_PASSWORD=rootpassword
-      - MYSQL_DATABASE=live_commerce_db
-    volumes:
-      - mysql-data:/var/lib/mysql
-      - ./init-db:/docker-entrypoint-initdb.d
-    networks:
-      - live-commerce-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-
-  # 캐시: Redis
+  # Redis - 캐시 및 세션 저장소
   redis:
     image: redis:7-alpine
     container_name: redis
     ports:
       - "6379:6379"
+    command: redis-server --maxmemory 64mb --maxmemory-policy allkeys-lru
+    deploy:
+      resources:
+        limits:
+          memory: 80M
+          cpus: '0.1'
+        reservations:
+          memory: 40M
     volumes:
-      - redis-data:/data
+      - redis_data:/data
     networks:
-      - live-commerce-network
+      - msa-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 30s
-      timeout: 10s
+      timeout: 3s
       retries: 3
-      start_period: 30s
 
-  # 메시지 브로커: RabbitMQ
-  rabbitmq:
-    image: rabbitmq:3-management
-    container_name: rabbitmq
-    ports:
-      - "5672:5672"
-      - "15672:15672"
+  # Zookeeper - Kafka용
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: zookeeper
     environment:
-      - RABBITMQ_DEFAULT_USER=admin
-      - RABBITMQ_DEFAULT_PASS=admin123
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    deploy:
+      resources:
+        limits:
+          memory: 96M
+          cpus: '0.1'
+        reservations:
+          memory: 48M
     volumes:
-      - rabbitmq-data:/var/lib/rabbitmq
+      - zk_data:/var/lib/zookeeper/data
+      - zk_logs:/var/lib/zookeeper/log
     networks:
-      - live-commerce-network
+      - msa-network
+    restart: unless-stopped
+
+  # Kafka - 메시지 큐
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_HEAP_OPTS: "-Xmx96m -Xms48m"
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.15'
+        reservations:
+          memory: 64M
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - msa-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "rabbitmqctl", "status"]
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server=localhost:9092"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 30s
 
-  # 모니터링: Prometheus
+  # ======================
+  # MSA 핵심 서비스들
+  # ======================
+
+  # Eureka 서비스 디스커버리
+  eureka-service:
+    build:
+      context: ./eureka-service
+      dockerfile: Dockerfile
+    container_name: eureka-service
+    ports:
+      - "8761:8761"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - JAVA_OPTS=-Xmx128m -Xms64m -XX:+UseG1GC
+    deploy:
+      resources:
+        limits:
+          memory: 160M
+          cpus: '0.2'
+        reservations:
+          memory: 80M
+    networks:
+      - msa-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+
+  # Config 서버
+  config-service:
+    build:
+      context: ./config-service
+      dockerfile: Dockerfile
+    container_name: config-service
+    ports:
+      - "8888:8888"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - CONFIG_SERVER_GIT_URI=${CONFIG_REPO_GIT_URI:-https://github.com/your-repo/config-repo}
+      - EUREKA_CLIENT_SERVICE_URL=http://eureka-service:8761/eureka
+      - JAVA_OPTS=-Xmx96m -Xms48m -XX:+UseG1GC
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.15'
+        reservations:
+          memory: 64M
+    depends_on:
+      eureka-service:
+        condition: service_healthy
+    networks:
+      - msa-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8888/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+
+  # 인증 서비스
+  auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    container_name: auth-service
+    ports:
+      - "8082:8082"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - EUREKA_CLIENT_SERVICE_URL=http://eureka-service:8761/eureka
+      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-service:8888
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PORT=6379
+      - JAVA_OPTS=-Xmx80m -Xms40m -XX:+UseG1GC
+    deploy:
+      resources:
+        limits:
+          memory: 112M
+          cpus: '0.15'
+        reservations:
+          memory: 56M
+    depends_on:
+      eureka-service:
+        condition: service_healthy
+      config-service:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - msa-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+
+  # 사용자 서비스
+  user-service:
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
+    container_name: user-service
+    ports:
+      - "8103:8103"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - EUREKA_CLIENT_SERVICE_URL=http://eureka-service:8761/eureka
+      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-service:8888
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PORT=6379
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - JAVA_OPTS=-Xmx80m -Xms40m -XX:+UseG1GC
+    deploy:
+      resources:
+        limits:
+          memory: 112M
+          cpus: '0.15'
+        reservations:
+          memory: 56M
+    depends_on:
+      eureka-service:
+        condition: service_healthy
+      config-service:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    networks:
+      - msa-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8103/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+
+  # 커머스 서비스
+  commerce-service:
+    build:
+      context: ./commerce-service
+      dockerfile: Dockerfile
+    container_name: commerce-service
+    ports:
+      - "8090:8090"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - EUREKA_CLIENT_SERVICE_URL=http://eureka-service:8761/eureka
+      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-service:8888
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PORT=6379
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - JAVA_OPTS=-Xmx96m -Xms48m -XX:+UseG1GC
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.15'
+        reservations:
+          memory: 64M
+    depends_on:
+      eureka-service:
+        condition: service_healthy
+      config-service:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    networks:
+      - msa-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8090/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+
+  # 라이브 스트리밍 서비스
+  live-streaming-service:
+    build:
+      context: ./live-streaming-service
+      dockerfile: Dockerfile
+    container_name: live-streaming-service
+    ports:
+      - "8096:8096"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - EUREKA_CLIENT_SERVICE_URL=http://eureka-service:8761/eureka
+      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-service:8888
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PORT=6379
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - JAVA_OPTS=-Xmx128m -Xms64m -XX:+UseG1GC
+    deploy:
+      resources:
+        limits:
+          memory: 160M
+          cpus: '0.2'
+        reservations:
+          memory: 80M
+    depends_on:
+      eureka-service:
+        condition: service_healthy
+      config-service:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    networks:
+      - msa-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8096/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+
+  # API Gateway
+  apigateway-service:
+    build:
+      context: ./apigateway-service
+      dockerfile: Dockerfile
+    container_name: apigateway-service
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - EUREKA_CLIENT_SERVICE_URL=http://eureka-service:8761/eureka
+      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-service:8888
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PORT=6379
+      - JAVA_OPTS=-Xmx112m -Xms56m -XX:+UseG1GC
+    deploy:
+      resources:
+        limits:
+          memory: 144M
+          cpus: '0.2'
+        reservations:
+          memory: 72M
+    depends_on:
+      eureka-service:
+        condition: service_healthy
+      config-service:
+        condition: service_healthy
+      auth-service:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+      commerce-service:
+        condition: service_healthy
+      live-streaming-service:
+        condition: service_healthy
+    networks:
+      - msa-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+
+  # ======================
+  # 모니터링 서비스들
+  # ======================
+
+  # Prometheus - 메트릭 수집
   prometheus:
-    image: prom/prometheus
+    image: prom/prometheus:v2.45.0
     container_name: prometheus
     ports:
       - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--storage.tsdb.retention.time=7d'
+      - '--storage.tsdb.retention.size=512MB'
+      - '--web.enable-lifecycle'
     volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
-      - prometheus-data:/prometheus
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.15'
+        reservations:
+          memory: 64M
     networks:
-      - live-commerce-network
+      - msa-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
-  # 모니터링: Grafana
+  # Grafana - 메트릭 시각화
   grafana:
-    image: grafana/grafana
+    image: grafana/grafana:10.0.0
     container_name: grafana
     ports:
       - "3000:3000"
     environment:
+      - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
     volumes:
-      - grafana-data:/var/lib/grafana
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    deploy:
+      resources:
+        limits:
+          memory: 96M
+          cpus: '0.1'
+        reservations:
+          memory: 48M
+    depends_on:
+      - prometheus
     networks:
-      - live-commerce-network
+      - msa-network
     restart: unless-stopped
-
-volumes:
-  mysql-data:
-  redis-data:
-  rabbitmq-data:
-  prometheus-data:
-  grafana-data:
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
 networks:
-  live-commerce-network:
+  msa-network:
     driver: bridge
     ipam:
       config:
         - subnet: 172.20.0.0/16
+
+volumes:
+  redis_data:
+    driver: local
+  kafka_data:
+    driver: local
+  zk_data:
+    driver: local
+  zk_logs:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+# ======================
+# 총 메모리 사용량 (약 1.5GB)
+# ======================
+# MSA 서비스들: ~944MB
+# Redis: 80MB
+# Kafka + Zookeeper: 224MB
+# Prometheus: 128MB
+# Grafana: 96MB
+# ======================
+# t2.micro 1GB + 스왑 1GB로 실행 가능
+# 개발 시에는 모니터링 서비스 제외 권장

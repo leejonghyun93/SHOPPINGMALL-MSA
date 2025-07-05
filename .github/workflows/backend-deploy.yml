@@ -1,0 +1,173 @@
+name: Backend CI/CD
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'apigateway-service/**'
+      - 'auth-service/**'
+      - 'commerce-service/**'
+      - 'config-service/**'
+      - 'eureka-service/**'
+      - 'live-streaming-service/**'
+      - 'user-service/**'
+      - 'docker-compose.yml'
+      - 'pom.xml'
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - 'apigateway-service/**'
+      - 'auth-service/**'
+      - 'commerce-service/**'
+      - 'config-service/**'
+      - 'eureka-service/**'
+      - 'live-streaming-service/**'
+      - 'user-service/**'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'corretto'
+
+      - name: Cache Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+
+      - name: Run tests for all services
+        run: |
+          # 각 서비스별로 테스트 실행
+          for service in apigateway-service auth-service commerce-service config-service eureka-service live-streaming-service user-service; do
+            echo "Testing $service..."
+            cd $service
+            if [ -f "pom.xml" ]; then
+              ../mvnw test -f pom.xml
+            fi
+            cd ..
+          done
+
+  build-and-deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'corretto'
+
+      - name: Cache Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+
+      - name: Build all services
+        run: |
+          # 각 서비스별로 빌드
+          for service in eureka-service config-service auth-service user-service commerce-service live-streaming-service apigateway-service; do
+            echo "Building $service..."
+            cd $service
+            if [ -f "pom.xml" ]; then
+              ../mvnw clean package -DskipTests -f pom.xml
+            fi
+            cd ..
+          done
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker images
+        run: |
+          for service in eureka-service config-service auth-service user-service commerce-service live-streaming-service apigateway-service; do
+            echo "Building Docker image for $service..."
+            if [ -f "$service/Dockerfile" ]; then
+              docker build -t $service:latest ./$service
+            fi
+          done
+
+      - name: Save Docker images
+        run: |
+          docker save -o backend-images.tar \
+            eureka-service:latest \
+            config-service:latest \
+            auth-service:latest \
+            user-service:latest \
+            commerce-service:latest \
+            live-streaming-service:latest \
+            apigateway-service:latest
+
+      - name: Copy files to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "backend-images.tar,docker-compose.yml"
+          target: "/home/ec2-user/app/"
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd /home/ec2-user/app
+            
+            # 기존 컨테이너 정리
+            docker-compose down || true
+            docker system prune -f || true
+            
+            # 새 이미지 로드
+            docker load -i backend-images.tar
+            
+            # 서비스 순차 시작
+            echo "Starting Eureka Service..."
+            docker-compose up -d eureka-service
+            sleep 30
+            
+            echo "Starting Config Service..."
+            docker-compose up -d config-service
+            sleep 20
+            
+            echo "Starting Auth and User Services..."
+            docker-compose up -d auth-service user-service
+            sleep 20
+            
+            echo "Starting Commerce and Live Streaming Services..."
+            docker-compose up -d commerce-service live-streaming-service
+            sleep 20
+            
+            echo "Starting API Gateway..."
+            docker-compose up -d apigateway-service
+            sleep 10
+            
+            # 헬스체크
+            echo "Checking service health..."
+            for i in {1..10}; do
+              if curl -f http://localhost:8080/actuator/health; then
+                echo "Services are healthy!"
+                break
+              else
+                echo "Waiting for services to be ready... ($i/10)"
+                sleep 10
+              fi
+            done
+            
+            # 최종 상태 확인
+            docker-compose ps
