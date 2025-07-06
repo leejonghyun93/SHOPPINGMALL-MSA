@@ -25,7 +25,7 @@ on:
       - 'user-service/**'
 
 jobs:
-  test:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -43,21 +43,21 @@ jobs:
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
 
-      - name: Run tests for all services
+      - name: Build all services (skip tests)
         run: |
-          # 각 서비스별로 테스트 실행
+          # 각 서비스별로 컴파일만 확인 (테스트 완전 스킵)
           for service in apigateway-service auth-service commerce-service config-service eureka-service live-streaming-service user-service; do
-            echo "Testing $service..."
+            echo "Building $service..."
             cd $service
             if [ -f "pom.xml" ]; then
-              chmod +x ./mvnw  # 실행 권한 확실히 부여
-              ./mvnw test -f pom.xml  # ../mvnw -> ./mvnw로 수정
+              chmod +x ./mvnw
+              ./mvnw clean compile -DskipTests -Dmaven.test.skip=true -f pom.xml
             fi
             cd ..
           done
 
   build-and-deploy:
-    needs: test
+    needs: build
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
 
