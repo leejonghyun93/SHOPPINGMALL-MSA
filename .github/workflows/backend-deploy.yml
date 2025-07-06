@@ -56,7 +56,7 @@ jobs:
             cd ..
           done
 
-  build-and-deploy:
+  build-docker-images:
     needs: build
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
@@ -77,15 +77,15 @@ jobs:
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
 
-      - name: Build all services
+      - name: Build JAR files
         run: |
-          # 각 서비스별로 빌드
+          # 각 서비스별로 JAR 파일 빌드
           for service in eureka-service config-service auth-service user-service commerce-service live-streaming-service apigateway-service; do
-            echo "Building $service..."
+            echo "Building JAR for $service..."
             cd $service
             if [ -f "pom.xml" ]; then
-              chmod +x ./mvnw  # 실행 권한 확실히 부여
-              ./mvnw clean package -DskipTests -f pom.xml  # ../mvnw -> ./mvnw로 수정
+              chmod +x ./mvnw
+              ./mvnw clean package -DskipTests -f pom.xml
             fi
             cd ..
           done
@@ -102,74 +102,86 @@ jobs:
             fi
           done
 
-      - name: Save Docker images
+      - name: Docker images built successfully
         run: |
-          docker save -o backend-images.tar \
-            eureka-service:latest \
-            config-service:latest \
-            auth-service:latest \
-            user-service:latest \
-            commerce-service:latest \
-            live-streaming-service:latest \
-            apigateway-service:latest
+          echo "✅ 모든 Docker 이미지 빌드 완료!"
+          echo "📦 빌드된 이미지들:"
+          docker images | grep -E "(eureka-service|config-service|auth-service|user-service|commerce-service|live-streaming-service|apigateway-service)"
+          echo ""
+          echo "🚀 배포 준비 완료! (EC2 배포는 나중에 설정)"
 
-      - name: Copy files to EC2
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USERNAME }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          source: "backend-images.tar,docker-compose.yml"
-          target: "/home/ec2-user/app/"
+      # ======================
+      # EC2 배포 부분 (주석 처리)
+      # ======================
 
-      - name: Deploy to EC2
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USERNAME }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            cd /home/ec2-user/app
-            
-            # 기존 컨테이너 정리
-            docker-compose down || true
-            docker system prune -f || true
-            
-            # 새 이미지 로드
-            docker load -i backend-images.tar
-            
-            # 서비스 순차 시작
-            echo "Starting Eureka Service..."
-            docker-compose up -d eureka-service
-            sleep 30
-            
-            echo "Starting Config Service..."
-            docker-compose up -d config-service
-            sleep 20
-            
-            echo "Starting Auth and User Services..."
-            docker-compose up -d auth-service user-service
-            sleep 20
-            
-            echo "Starting Commerce and Live Streaming Services..."
-            docker-compose up -d commerce-service live-streaming-service
-            sleep 20
-            
-            echo "Starting API Gateway..."
-            docker-compose up -d apigateway-service
-            sleep 10
-            
-            # 헬스체크
-            echo "Checking service health..."
-            for i in {1..10}; do
-              if curl -f http://localhost:8080/actuator/health; then
-                echo "Services are healthy!"
-                break
-              else
-                echo "Waiting for services to be ready... ($i/10)"
-                sleep 10
-              fi
-            done
-            
-            # 최종 상태 확인
-            docker-compose ps
+      # - name: Save Docker images
+      #   run: |
+      #     docker save -o backend-images.tar \
+      #       eureka-service:latest \
+      #       config-service:latest \
+      #       auth-service:latest \
+      #       user-service:latest \
+      #       commerce-service:latest \
+      #       live-streaming-service:latest \
+      #       apigateway-service:latest
+
+      # - name: Copy files to EC2
+      #   uses: appleboy/scp-action@v0.1.7
+      #   with:
+      #     host: ${{ secrets.EC2_HOST }}
+      #     username: ${{ secrets.EC2_USERNAME }}
+      #     key: ${{ secrets.EC2_SSH_KEY }}
+      #     source: "backend-images.tar,docker-compose.yml"
+      #     target: "/home/ec2-user/app/"
+
+      # - name: Deploy to EC2
+      #   uses: appleboy/ssh-action@v1.0.3
+      #   with:
+      #     host: ${{ secrets.EC2_HOST }}
+      #     username: ${{ secrets.EC2_USERNAME }}
+      #     key: ${{ secrets.EC2_SSH_KEY }}
+      #     script: |
+      #       cd /home/ec2-user/app
+      #
+      #       # 기존 컨테이너 정리
+      #       docker-compose down || true
+      #       docker system prune -f || true
+      #
+      #       # 새 이미지 로드
+      #       docker load -i backend-images.tar
+      #
+      #       # 서비스 순차 시작
+      #       echo "Starting Eureka Service..."
+      #       docker-compose up -d eureka-service
+      #       sleep 30
+      #
+      #       echo "Starting Config Service..."
+      #       docker-compose up -d config-service
+      #       sleep 20
+      #
+      #       echo "Starting Auth and User Services..."
+      #       docker-compose up -d auth-service user-service
+      #       sleep 20
+      #
+      #       echo "Starting Commerce and Live Streaming Services..."
+      #       docker-compose up -d commerce-service live-streaming-service
+      #       sleep 20
+      #
+      #       echo "Starting API Gateway..."
+      #       docker-compose up -d apigateway-service
+      #       sleep 10
+      #
+      #       # 헬스체크
+      #       echo "Checking service health..."
+      #       for i in {1..10}; do
+      #         if curl -f http://localhost:8080/actuator/health; then
+      #           echo "Services are healthy!"
+      #           break
+      #         else
+      #           echo "Waiting for services to be ready... ($i/10)"
+      #           sleep 10
+      #         fi
+      #       done
+      #
+      #       # 최종 상태 확인
+      #       docker-compose ps
