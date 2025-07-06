@@ -50,7 +50,8 @@ jobs:
             echo "Testing $service..."
             cd $service
             if [ -f "pom.xml" ]; then
-              ../mvnw test -f pom.xml
+              chmod +x ./mvnw  # 실행 권한 확실히 부여
+              ./mvnw test -f pom.xml  # ../mvnw -> ./mvnw로 수정
             fi
             cd ..
           done
@@ -83,7 +84,8 @@ jobs:
             echo "Building $service..."
             cd $service
             if [ -f "pom.xml" ]; then
-              ../mvnw clean package -DskipTests -f pom.xml
+              chmod +x ./mvnw  # 실행 권한 확실히 부여
+              ./mvnw clean package -DskipTests -f pom.xml  # ../mvnw -> ./mvnw로 수정
             fi
             cd ..
           done
