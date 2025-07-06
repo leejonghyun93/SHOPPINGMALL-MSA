@@ -2,6 +2,7 @@ package org.kosa.commerceservice.repository.cart;
 
 import org.kosa.commerceservice.entity.cart.CartItem;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -57,4 +58,14 @@ public interface CartItemRepository extends JpaRepository<CartItem, String> {
 
     // Cart 엔티티 참조로 아이템 목록 조회
     List<CartItem> findByCart_CartIdOrderByUpdatedDateDesc(String cartId);
+
+    @Query("SELECT ci FROM CartItem ci WHERE ci.cartId = :cartId AND ci.productId IN :productIds")
+    List<CartItem> findByCartIdAndProductIdIn(@Param("cartId") String cartId, @Param("productIds") List<Integer> productIds);
+
+    /**
+     * 상품 ID로 장바구니 아이템 삭제
+     */
+    @Modifying
+    @Query("DELETE FROM CartItem ci WHERE ci.cartId = :cartId AND ci.productId IN :productIds")
+    void deleteByCartIdAndProductIdIn(@Param("cartId") String cartId, @Param("productIds") List<Integer> productIds);
 }

@@ -53,4 +53,10 @@ public interface UserRepository extends JpaRepository<Member, String> {
     //  등급별 활성 회원 조회
     @Query("SELECT m FROM Member m WHERE m.memberGrade.gradeId = :gradeId AND m.status = 'ACTIVE' AND m.secessionYn = 'N'")
     List<Member> findActiveByMemberGradeGradeId(@Param("gradeId") String gradeId);
+
+    // 소셜 ID와 소셜 타입으로 회원 검색
+    Optional<Member> findBySocialIdAndSocialType(String socialId, String socialType);
+
+    // 소셜 ID로 회원 검색
+    Optional<Member> findBySocialId(String socialId);
 }

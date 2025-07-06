@@ -151,9 +151,17 @@ public class SimpleJwtFilter implements WebFilter {
 
     // 공개 경로 확인 로직은 기존과 동일
     private boolean isPublicPath(String path, String method) {
-        // 기본 공개 경로들
-        if (path.startsWith("/auth/") ||
-                path.startsWith("/api/users/register") ||
+        // 🔥 소셜 로그인 콜백 경로 명시적 추가
+        if (path.equals("/auth/callback") ||
+                path.startsWith("/auth/callback?") ||
+                path.startsWith("/auth/social/") ||
+                path.startsWith("/auth/")) {
+            System.out.println("소셜 로그인 콜백 경로로 인식: " + path);
+            return true;
+        }
+
+        // 기존 공개 경로들
+        if (path.startsWith("/api/users/register") ||
                 path.startsWith("/api/users/login") ||
                 path.startsWith("/api/users/findId") ||
                 path.startsWith("/api/users/verify-password") ||

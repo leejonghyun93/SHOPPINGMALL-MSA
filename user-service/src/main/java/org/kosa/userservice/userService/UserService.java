@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.*;
 
 @Service
@@ -24,14 +25,11 @@ public class UserService {
 
     @Transactional
     public Member saveMember(Member member) {
-        log.info("회원 등록 시작 - userId: {}", member.getUserId());
-
         member.setPassword(passwordEncoder.encode(member.getPassword()));
 
         if (member.getMemberGrade() == null) {
             MemberGrade defaultGrade = getLowestGrade();
             member.setMemberGrade(defaultGrade);
-            log.info("기본 등급({}) 설정 완료", defaultGrade.getGradeName());
         }
 
         if (member.getStatus() == null) {
@@ -57,10 +55,6 @@ public class UserService {
         }
 
         Member savedMember = userRepository.save(member);
-        log.info("회원 등록 완료 - userId: {}, 등급: {}",
-                savedMember.getUserId(),
-                savedMember.getMemberGrade().getGradeName());
-
         return savedMember;
     }
 
@@ -71,14 +65,10 @@ public class UserService {
 
     @Transactional
     public void updateMemberGradeByPurchaseAmount(String userId, int totalPurchaseAmount) {
-        log.info("등급 업데이트 확인 - userId: {}, 누적구매금액: {}", userId, totalPurchaseAmount);
-
         Member member = userRepository.findByUserId(userId)
                 .orElseThrow(() -> new RuntimeException("회원을 찾을 수 없습니다."));
 
         if (isSpecialGrade(member.getMemberGrade())) {
-            log.info("특별 등급은 변경하지 않음 - userId: {}, 등급: {}",
-                    userId, member.getMemberGrade().getGradeName());
             return;
         }
 
@@ -87,12 +77,8 @@ public class UserService {
         if (newGrade.isPresent() &&
                 !newGrade.get().getGradeId().equals(member.getMemberGrade().getGradeId())) {
 
-            String oldGradeName = member.getMemberGrade().getGradeName();
             member.setMemberGrade(newGrade.get());
             userRepository.save(member);
-
-            log.info("등급 업그레이드 완료 - userId: {}, {} → {} (구매금액: {}원)",
-                    userId, oldGradeName, newGrade.get().getGradeName(), totalPurchaseAmount);
         }
     }
 
@@ -173,7 +159,6 @@ public class UserService {
         withdrawnUserRepository.save(withdrawnMember);
 
         userRepository.delete(member);
-        log.info("회원 탈퇴 처리 완료 - userId: {}", userId);
     }
 
     private String generateWithdrawnId() {
@@ -211,7 +196,6 @@ public class UserService {
         }
 
         userRepository.save(member);
-        log.info("회원 정보 수정 완료 - userId: {}", userDto.getUserId());
     }
 
     public Optional<Member> findMemberEntityByUserId(String userId) {
@@ -241,7 +225,6 @@ public class UserService {
             }
 
         } catch (Exception e) {
-            log.error("회원 조회 중 오류 발생: {}", e.getMessage(), e);
             return Optional.empty();
         }
     }
@@ -253,7 +236,6 @@ public class UserService {
             Member member = memberOptional.get();
             member.setPassword(passwordEncoder.encode(rawPassword));
             userRepository.save(member);
-            log.info("비밀번호 업데이트 완료 (원본 비밀번호 암호화) - userId: {}", userId);
         } else {
             throw new RuntimeException("해당 회원을 찾을 수 없습니다.");
         }
@@ -276,12 +258,8 @@ public class UserService {
         MemberGrade newGrade = userGradeRepository.findById(newGradeId)
                 .orElseThrow(() -> new RuntimeException("등급을 찾을 수 없습니다: " + newGradeId));
 
-        String oldGradeName = member.getMemberGrade().getGradeName();
         member.setMemberGrade(newGrade);
         userRepository.save(member);
-
-        log.info("관리자에 의한 등급 변경 완료 - userId: {}, {} → {}",
-                userId, oldGradeName, newGrade.getGradeName());
     }
 
     public List<MemberGrade> getAllGrades() {
@@ -300,9 +278,313 @@ public class UserService {
             return null;
 
         } catch (Exception e) {
-            log.error("사용자 이메일 조회 실패: userId={}, error={}", userId, e.getMessage(), e);
             throw new RuntimeException("사용자 이메일 조회 실패", e);
         }
     }
 
+    /**
+     * 소셜 로그인 사용자 생성 또는 업데이트
+     */
+    @Transactional
+    public UserDto createOrUpdateSocialUser(Map<String, Object> socialUserData) {
+        try {
+            String socialId = (String) socialUserData.get("socialId");
+            String provider = (String) socialUserData.get("provider");
+            String email = (String) socialUserData.get("email");
+            String name = (String) socialUserData.get("name");
+            String nickname = (String) socialUserData.get("nickname");
+            String profileImage = (String) socialUserData.get("profileImage");
+            String gender = (String) socialUserData.get("gender");
+            String mobile = (String) socialUserData.get("mobile");
+
+            log.info("소셜 로그인 사용자 처리 시작 - provider: {}, socialId: {}, name: '{}', nickname: '{}'",
+                    provider, socialId, name, nickname);
+
+            // 1. 기존 소셜 사용자 확인 (socialId로 검색)
+            Optional<Member> existingSocialUser = userRepository.findBySocialIdAndSocialType(socialId, provider);
+
+            if (existingSocialUser.isPresent()) {
+                // 기존 소셜 사용자 업데이트
+                Member member = existingSocialUser.get();
+                updateSocialUserInfo(member, socialUserData);
+                Member updatedMember = userRepository.save(member);
+                log.info("기존 소셜 사용자 업데이트 완료 - userId: {}, name: '{}'",
+                        updatedMember.getUserId(), updatedMember.getName());
+                return toUserDto(updatedMember);
+            }
+
+            // 2. 이메일로 기존 일반 회원 확인 (이메일이 있는 경우)
+            if (email != null && !email.trim().isEmpty()) {
+                Optional<Member> existingEmailUser = userRepository.findByEmail(email);
+                if (existingEmailUser.isPresent()) {
+                    // 기존 회원에 소셜 정보 연동
+                    Member member = existingEmailUser.get();
+                    linkSocialAccount(member, socialUserData);
+                    Member linkedMember = userRepository.save(member);
+                    log.info("기존 이메일 회원에 소셜 연동 완료 - userId: {}, name: '{}'",
+                            linkedMember.getUserId(), linkedMember.getName());
+                    return toUserDto(linkedMember);
+                }
+            }
+
+            // 3. 새로운 소셜 사용자 생성
+            Member newSocialUser = createNewSocialUser(socialUserData);
+            Member savedMember = userRepository.save(newSocialUser);
+            log.info("새로운 소셜 사용자 생성 완료 - userId: {}, name: '{}'",
+                    savedMember.getUserId(), savedMember.getName());
+            return toUserDto(savedMember);
+
+        } catch (Exception e) {
+            log.error("소셜 사용자 처리 실패", e);
+            throw new RuntimeException("소셜 사용자 처리 실패", e);
+        }
+    }
+
+    /**
+     * 기존 소셜 사용자 정보 업데이트 (이름 처리 개선)
+     */
+    private void updateSocialUserInfo(Member member, Map<String, Object> socialUserData) {
+        String name = (String) socialUserData.get("name");
+        String nickname = (String) socialUserData.get("nickname");
+        String email = (String) socialUserData.get("email");
+        String profileImage = (String) socialUserData.get("profileImage");
+        String mobile = (String) socialUserData.get("mobile");
+
+        log.info("기존 소셜 사용자 업데이트 - 현재 이름: '{}', 새 이름: '{}', 새 닉네임: '{}'",
+                member.getName(), name, nickname);
+
+        // 이름 업데이트 로직 개선
+        String currentName = member.getName();
+        String newName = determineFinalName(name, nickname, member.getSocialType());
+
+        // 현재 이름이 기본값이거나 새 이름이 더 좋으면 업데이트
+        if (shouldUpdateName(currentName, newName)) {
+            member.setName(newName);
+            log.info("이름 업데이트: '{}' → '{}'", currentName, newName);
+        } else {
+            log.info("기존 이름 유지: '{}'", currentName);
+        }
+
+        if (email != null && !email.trim().isEmpty()) {
+            member.setEmail(email);
+        }
+        if (profileImage != null && !profileImage.trim().isEmpty()) {
+            member.setProfileImg(profileImage);
+        }
+        if (mobile != null && !mobile.trim().isEmpty()) {
+            member.setPhone(mobile);
+        }
+
+        member.setSessionDate(LocalDateTime.now());
+        member.setLastLogin(LocalDateTime.now());
+    }
+
+    /**
+     * 기존 회원에 소셜 계정 연동
+     */
+    private void linkSocialAccount(Member member, Map<String, Object> socialUserData) {
+        String socialId = (String) socialUserData.get("socialId");
+        String provider = (String) socialUserData.get("provider");
+        String profileImage = (String) socialUserData.get("profileImage");
+
+        member.setSocialId(socialId);
+        member.setSocialType(provider);
+
+        if (profileImage != null && !profileImage.trim().isEmpty()) {
+            member.setProfileImg(profileImage);
+        }
+
+        member.setSessionDate(LocalDateTime.now());
+        member.setLastLogin(LocalDateTime.now());
+    }
+
+    /**
+     * 새로운 소셜 사용자 생성 (이름 처리 개선)
+     */
+    private Member createNewSocialUser(Map<String, Object> socialUserData) {
+        String socialId = (String) socialUserData.get("socialId");
+        String provider = (String) socialUserData.get("provider");
+        String email = (String) socialUserData.get("email");
+        String name = (String) socialUserData.get("name");
+        String nickname = (String) socialUserData.get("nickname");
+        String profileImage = (String) socialUserData.get("profileImage");
+        String gender = (String) socialUserData.get("gender");
+        String mobile = (String) socialUserData.get("mobile");
+
+        // 이름 우선순위 개선
+        String finalName = determineFinalName(name, nickname, provider);
+
+        log.info("소셜 사용자 생성 - provider: {}, 원본 이름: '{}', 닉네임: '{}', 최종 이름: '{}'",
+                provider, name, nickname, finalName);
+
+        String userId = generateSocialUserId(provider, socialId);
+
+        Member member = Member.builder()
+                .userId(userId)
+                .name(finalName) // 개선된 이름 설정
+                .email(email)
+                .phone(mobile)
+                .password(passwordEncoder.encode(UUID.randomUUID().toString()))
+                .socialId(socialId)
+                .socialType(provider)
+                .profileImg(profileImage)
+                .gender(gender != null ? gender : "U")
+                .status("Y")
+                .loginFailCnt(0)
+                .marketingAgree("N")
+                .successionYn("N")
+                .blacklisted("N")
+                .secessionYn("N")
+                .createdDate(LocalDateTime.now())
+                .sessionDate(LocalDateTime.now())
+                .lastLogin(LocalDateTime.now())
+                .build();
+
+        MemberGrade defaultGrade = getLowestGrade();
+        member.setMemberGrade(defaultGrade);
+
+        return member;
+    }
+
+    /**
+     * 소셜 로그인 이름 결정 로직
+     */
+    private String determineFinalName(String name, String nickname, String provider) {
+        // 1. 실제 이름이 있고 유효하면 우선 사용
+        if (isValidName(name)) {
+            log.info("실제 이름 사용: '{}'", name);
+            return name.trim();
+        }
+
+        // 2. 닉네임이 있고 유효하면 사용
+        if (isValidName(nickname)) {
+            log.info("닉네임 사용: '{}'", nickname);
+            return nickname.trim();
+        }
+
+        // 3. 모두 없으면 제공업체별 기본값
+        String defaultName = getProviderDefaultName(provider);
+        log.info("기본 이름 사용: '{}'", defaultName);
+        return defaultName;
+    }
+
+    /**
+     * 유효한 이름인지 확인
+     */
+    private boolean isValidName(String name) {
+        return name != null &&
+                !name.trim().isEmpty() &&
+                !name.equals("사용자") &&
+                !name.equals("소셜사용자") &&
+                name.trim().length() > 0;
+    }
+
+    /**
+     * 제공업체별 기본 이름
+     */
+    private String getProviderDefaultName(String provider) {
+        switch (provider.toLowerCase()) {
+            case "kakao":
+                return "카카오사용자";
+            case "naver":
+                return "네이버사용자";
+            default:
+                return provider + "사용자";
+        }
+    }
+
+    /**
+     * 이름 업데이트 여부 결정
+     */
+    private boolean shouldUpdateName(String currentName, String newName) {
+        // 현재 이름이 기본값이면 업데이트
+        if (isDefaultName(currentName)) {
+            return true;
+        }
+
+        // 새 이름이 실제 이름이고 현재 이름이 닉네임이면 업데이트
+        if (isRealName(newName) && !isRealName(currentName)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * 기본 이름인지 확인
+     */
+    private boolean isDefaultName(String name) {
+        if (name == null) return true;
+        return name.equals("소셜사용자") ||
+                name.equals("카카오사용자") ||
+                name.equals("네이버사용자") ||
+                name.endsWith("사용자");
+    }
+
+    /**
+     * 실제 이름인지 확인 (한글 이름 또는 영문 이름)
+     */
+    private boolean isRealName(String name) {
+        if (name == null || name.trim().isEmpty()) return false;
+
+        // 한글 이름 패턴 (2-4글자)
+        if (name.matches("^[가-힣]{2,4}$")) {
+            return true;
+        }
+
+        // 영문 이름 패턴 (공백 포함 가능, 2-50글자)
+        if (name.matches("^[a-zA-Z\\s]{2,50}$") && !name.toLowerCase().contains("user")) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * 소셜 로그인용 userId 생성
+     */
+    private String generateSocialUserId(String provider, String socialId) {
+        // 접두사 설정 (2자리)
+        String prefix;
+        if ("naver".equals(provider.toLowerCase())) {
+            prefix = "nv";
+        } else if ("kakao".equals(provider.toLowerCase())) {
+            prefix = "kt";
+        } else {
+            prefix = provider.substring(0, Math.min(2, provider.length())).toLowerCase();
+        }
+
+        // socialId를 안전한 길이로 자르기 (최대 30자)
+        String safeSocialId = socialId.length() > 30 ? socialId.substring(0, 30) : socialId;
+
+        // 기본 userId 생성: prefix_safeSocialId (최대 33자)
+        String baseUserId = prefix + "_" + safeSocialId;
+
+        // 데이터베이스 컬럼 길이 제한 (보통 50자) 내에서 생성
+        String userId = baseUserId;
+
+        // 중복 확인 및 처리
+        int counter = 1;
+        while (userRepository.existsByUserId(userId)) {
+            String suffix = String.valueOf(counter);
+            // 전체 길이가 50자를 넘지 않도록 조정
+            int maxBaseLength = 49 - suffix.length(); // 50 - suffix길이 - 1(언더스코어)
+            if (baseUserId.length() > maxBaseLength) {
+                userId = baseUserId.substring(0, maxBaseLength) + "_" + suffix;
+            } else {
+                userId = baseUserId + "_" + suffix;
+            }
+            counter++;
+
+            // 무한루프 방지
+            if (counter > 9999) {
+                // 타임스탬프 기반 고유 ID로 변경
+                long timestamp = System.currentTimeMillis();
+                userId = prefix + "_" + String.valueOf(timestamp).substring(8); // 뒤 5자리만 사용
+                break;
+            }
+        }
+
+        return userId;
+    }
 }

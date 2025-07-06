@@ -495,4 +495,44 @@ public class UserApiController {
             ));
         }
     }
+
+    @PostMapping("/social")
+    public ResponseEntity<?> createOrUpdateSocialUser(@RequestBody Map<String, Object> socialUserData) {
+        try {
+            log.info("🔍 소셜 사용자 생성/업데이트 요청: provider={}, socialId={}",
+                    socialUserData.get("provider"), socialUserData.get("socialId"));
+
+            // 요청 데이터 검증
+            String socialId = (String) socialUserData.get("socialId");
+            String provider = (String) socialUserData.get("provider");
+            String email = (String) socialUserData.get("email");
+            String name = (String) socialUserData.get("name");
+            String nickname = (String) socialUserData.get("nickname");
+
+            if (socialId == null || provider == null) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "success", false,
+                        "message", "socialId와 provider는 필수 항목입니다."
+                ));
+            }
+
+            // 소셜 로그인 사용자 처리
+            UserDto userDto = userService.createOrUpdateSocialUser(socialUserData);
+
+            log.info("✅ 소셜 사용자 처리 완료 - userId: {}, provider: {}",
+                    userDto.getUserId(), provider);
+
+            return ResponseEntity.ok(userDto);
+
+        } catch (Exception e) {
+            log.error("💥 소셜 사용자 처리 중 오류", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                    "success", false,
+                    "error", "INTERNAL_SERVER_ERROR",
+                    "message", "서버 내부 오류가 발생했습니다.",
+                    "timestamp", LocalDateTime.now(),
+                    "status", 500
+            ));
+        }
+    }
 }

@@ -62,7 +62,11 @@ public class AuthService {
 
             cacheUserSessionInUserService(userId);
 
-            String accessToken = jwtUtil.generateToken(user.getUserId(), "USER");
+            // 🔥 이름을 포함하여 토큰 생성
+            String actualName = determineUserName(user);
+            log.info("🔍 일반 로그인 토큰 생성 - userId: {}, name: '{}'", user.getUserId(), actualName);
+
+            String accessToken = jwtUtil.generateToken(user.getUserId(), "USER", actualName);
             String refreshToken = jwtUtil.generateRefreshToken(user.getUserId());
 
             return AuthResponse.builder()
@@ -71,6 +75,9 @@ public class AuthService {
                     .token(accessToken)
                     .userId(userId)
                     .username(user.getUserId())
+                    .name(actualName) // 🔥 응답에도 이름 포함
+                    .email(user.getEmail())
+                    .phone(user.getPhone())
                     .build();
 
         } catch (Exception e) {
@@ -80,6 +87,20 @@ public class AuthService {
                     .message("로그인 처리 중 오류가 발생했습니다.")
                     .build();
         }
+    }
+
+    /**
+     * 🔥 사용자 이름 결정 로직
+     */
+    private String determineUserName(UserDto user) {
+        // 1. DB에서 가져온 이름이 유효하면 사용
+        if (user.getName() != null && !user.getName().trim().isEmpty() &&
+                !user.getName().equals("사용자") && !user.getName().equals("소셜사용자")) {
+            return user.getName().trim();
+        }
+
+        // 2. 이름이 없으면 userId를 이름으로 사용
+        return user.getUserId();
     }
 
     private void cacheUserSessionInUserService(String userId) {
