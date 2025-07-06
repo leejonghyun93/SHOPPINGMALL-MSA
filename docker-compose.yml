@@ -62,7 +62,8 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://${KAFKA_HOST:-kafka}:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
@@ -98,7 +99,7 @@ services:
     ports:
       - "8761:8761"
     environment:
-      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
       - JAVA_OPTS=-Xmx128m -Xms64m -XX:+UseG1GC
     deploy:
       resources:
@@ -126,8 +127,12 @@ services:
     ports:
       - "8888:8888"
     environment:
-      - SPRING_PROFILES_ACTIVE=prod
-      - CONFIG_SERVER_GIT_URI=${CONFIG_REPO_GIT_URI:-https://github.com/your-repo/config-repo}
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
+      - CONFIG_REPO_GIT_URI=${CONFIG_REPO_GIT_URI}
+      - CONFIG_GIT_USERNAME=${CONFIG_GIT_USERNAME:-}
+      - CONFIG_GIT_PASSWORD=${CONFIG_GIT_PASSWORD:-}
+      - CONFIG_SERVER_USERNAME=${CONFIG_SERVER_USERNAME:-config}
+      - CONFIG_SERVER_PASSWORD=${CONFIG_SERVER_PASSWORD}
       - EUREKA_CLIENT_SERVICE_URL=http://eureka-service:8761/eureka
       - JAVA_OPTS=-Xmx96m -Xms48m -XX:+UseG1GC
     deploy:
@@ -159,11 +164,17 @@ services:
     ports:
       - "8082:8082"
     environment:
-      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
       - EUREKA_CLIENT_SERVICE_URL=http://eureka-service:8761/eureka
       - SPRING_CONFIG_IMPORT=optional:configserver:http://config-service:8888
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
+      # 환경별 환경변수 주입
+      - PROD_REDIS_HOST=${PROD_REDIS_HOST:-redis}
+      - PROD_REDIS_PASSWORD=${PROD_REDIS_PASSWORD:-}
+      - PROD_MAIL_USERNAME=${PROD_MAIL_USERNAME}
+      - PROD_MAIL_PASSWORD=${PROD_MAIL_PASSWORD}
+      - PROD_JWT_SECRET_KEY=${PROD_JWT_SECRET_KEY}
       - JAVA_OPTS=-Xmx80m -Xms40m -XX:+UseG1GC
     deploy:
       resources:
@@ -198,12 +209,20 @@ services:
     ports:
       - "8103:8103"
     environment:
-      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
       - EUREKA_CLIENT_SERVICE_URL=http://eureka-service:8761/eureka
       - SPRING_CONFIG_IMPORT=optional:configserver:http://config-service:8888
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      # 환경별 환경변수 주입
+      - PROD_DB_URL=${PROD_DB_URL}
+      - PROD_DB_USERNAME=${PROD_DB_USERNAME}
+      - PROD_DB_PASSWORD=${PROD_DB_PASSWORD}
+      - PROD_REDIS_HOST=${PROD_REDIS_HOST:-redis}
+      - PROD_REDIS_PASSWORD=${PROD_REDIS_PASSWORD:-}
+      - PROD_KAFKA_SERVERS=${PROD_KAFKA_SERVERS:-kafka:9092}
+      - PROD_AUTH_SERVICE_URL=${PROD_AUTH_SERVICE_URL:-http://auth-service}
       - JAVA_OPTS=-Xmx80m -Xms40m -XX:+UseG1GC
     deploy:
       resources:
@@ -240,12 +259,23 @@ services:
     ports:
       - "8090:8090"
     environment:
-      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
       - EUREKA_CLIENT_SERVICE_URL=http://eureka-service:8761/eureka
       - SPRING_CONFIG_IMPORT=optional:configserver:http://config-service:8888
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      # 환경별 환경변수 주입
+      - PROD_DB_URL=${PROD_DB_URL}
+      - PROD_DB_USERNAME=${PROD_DB_USERNAME}
+      - PROD_DB_PASSWORD=${PROD_DB_PASSWORD}
+      - PROD_REDIS_HOST=${PROD_REDIS_HOST:-redis}
+      - PROD_REDIS_PASSWORD=${PROD_REDIS_PASSWORD:-}
+      - PROD_KAFKA_SERVERS=${PROD_KAFKA_SERVERS:-kafka:9092}
+      - PROD_IAMPORT_API_KEY=${PROD_IAMPORT_API_KEY}
+      - PROD_IAMPORT_API_SECRET=${PROD_IAMPORT_API_SECRET}
+      - PROD_IMAGE_UPLOAD_PATH=${PROD_IMAGE_UPLOAD_PATH:-/app/uploads/products/}
+      - PROD_IMAGE_BASE_URL=${PROD_IMAGE_BASE_URL}
       - JAVA_OPTS=-Xmx96m -Xms48m -XX:+UseG1GC
     deploy:
       resources:
@@ -282,12 +312,16 @@ services:
     ports:
       - "8096:8096"
     environment:
-      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
       - EUREKA_CLIENT_SERVICE_URL=http://eureka-service:8761/eureka
       - SPRING_CONFIG_IMPORT=optional:configserver:http://config-service:8888
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      # 환경별 환경변수 주입 (기본 공통 설정 사용)
+      - PROD_REDIS_HOST=${PROD_REDIS_HOST:-redis}
+      - PROD_REDIS_PASSWORD=${PROD_REDIS_PASSWORD:-}
+      - PROD_KAFKA_SERVERS=${PROD_KAFKA_SERVERS:-kafka:9092}
       - JAVA_OPTS=-Xmx128m -Xms64m -XX:+UseG1GC
     deploy:
       resources:
@@ -324,11 +358,15 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
       - EUREKA_CLIENT_SERVICE_URL=http://eureka-service:8761/eureka
       - SPRING_CONFIG_IMPORT=optional:configserver:http://config-service:8888
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
+      # 환경별 환경변수 주입
+      - FRONTEND_URL=${FRONTEND_URL:-https://shopmall.com}
+      - ADMIN_URL=${ADMIN_URL:-https://admin.shopmall.com}
+      - JWT_SECRET=${PROD_JWT_SECRET_KEY}
       - JAVA_OPTS=-Xmx112m -Xms56m -XX:+UseG1GC
     deploy:
       resources:
@@ -361,7 +399,7 @@ services:
       start_period: 60s
 
   # ======================
-  # 모니터링 서비스들
+  # 모니터링 서비스들 (선택적)
   # ======================
 
   # Prometheus - 메트릭 수집
@@ -396,6 +434,8 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+    profiles:
+      - monitoring
 
   # Grafana - 메트릭 시각화
   grafana:
@@ -405,7 +445,7 @@ services:
       - "3000:3000"
     environment:
       - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin123}
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
     volumes:
@@ -428,6 +468,8 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+    profiles:
+      - monitoring
 
 networks:
   msa-network:
@@ -451,13 +493,7 @@ volumes:
     driver: local
 
 # ======================
-# 총 메모리 사용량 (약 1.5GB)
+# 사용법:
+# 기본 실행 (MSA 서비스만): docker-compose up -d
+# 모니터링 포함: docker-compose --profile monitoring up -d
 # ======================
-# MSA 서비스들: ~944MB
-# Redis: 80MB
-# Kafka + Zookeeper: 224MB
-# Prometheus: 128MB
-# Grafana: 96MB
-# ======================
-# t2.micro 1GB + 스왑 1GB로 실행 가능
-# 개발 시에는 모니터링 서비스 제외 권장
