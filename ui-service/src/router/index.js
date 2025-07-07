@@ -46,7 +46,6 @@ const requireAuth = (to, from, next) => {
         next('/login')
     }
 }
-
 const routes = [
     {
         path: '/',
@@ -97,7 +96,6 @@ const routes = [
             title: '비밀번호 찾기'
         }
     },
-    // 🔥 마이페이지 라우트 수정
     {
         path: '/mypage',
         name: 'MyPage',

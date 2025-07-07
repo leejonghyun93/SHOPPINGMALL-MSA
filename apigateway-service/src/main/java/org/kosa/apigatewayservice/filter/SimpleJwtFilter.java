@@ -160,6 +160,12 @@ public class SimpleJwtFilter implements WebFilter {
             return true;
         }
 
+        // 🔥 방송 시청자 페이지 경로 추가 (단수형 broadcast)
+        if (path.startsWith("/api/broadcast/")) {
+            System.out.println("방송 시청자 페이지 경로로 인식: " + path);
+            return true;
+        }
+
         // 기존 공개 경로들
         if (path.startsWith("/api/users/register") ||
                 path.startsWith("/api/users/login") ||
@@ -167,7 +173,7 @@ public class SimpleJwtFilter implements WebFilter {
                 path.startsWith("/api/users/verify-password") ||
                 path.startsWith("/api/users/checkUserId/") ||
                 path.startsWith("/api/users/health") ||
-                path.startsWith("/api/broadcasts/") ||
+                path.startsWith("/api/broadcasts/") ||  // 복수형 broadcasts는 기존 그대로
                 path.startsWith("/api/cart/guest/") ||
                 path.startsWith("/api/payments/guest/") ||
                 path.startsWith("/api/payments/webhook") ||

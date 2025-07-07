@@ -411,8 +411,8 @@ public class SocialAuthService {
      */
     private AuthResponse processUserCreationOrUpdate(SocialUserInfo socialUser) {
         try {
-            log.info("🔍 소셜 사용자 처리 시작 - provider: {}, socialId: {}, name: '{}'",
-                    socialUser.getProvider(), socialUser.getSocialId(), socialUser.getName());
+            log.info("🔍 소셜 사용자 처리 시작 - provider: {}, socialId: {}, name: '{}', nickname: '{}'",
+                    socialUser.getProvider(), socialUser.getSocialId(), socialUser.getName(), socialUser.getNickname());
 
             // User Service에 소셜 사용자 정보 전송
             UserDto user = createOrUpdateUserInUserService(socialUser);
@@ -462,29 +462,64 @@ public class SocialAuthService {
      * 🔥 실제 사용할 이름 결정 (우선순위: DB 이름 → 소셜 이름 → 닉네임)
      */
     private String determineActualName(UserDto user, SocialUserInfo socialUser) {
-        // 1. DB에서 가져온 이름이 유효하면 사용
-        if (user.getName() != null && !user.getName().trim().isEmpty() &&
-                !user.getName().equals("소셜사용자") && !user.getName().equals("사용자")) {
-            log.info("🔍 DB 이름 사용: '{}'", user.getName());
-            return user.getName().trim();
+        log.info("🔍 이름 결정 시작 - DB name: '{}', Social name: '{}', Social nickname: '{}'",
+                user.getName(), socialUser.getName(), socialUser.getNickname());
+
+        // 1. 소셜에서 받은 실제 이름이 있으면 최우선 사용
+        if (socialUser.getName() != null && !socialUser.getName().trim().isEmpty()) {
+            String socialName = socialUser.getName().trim();
+            if (!socialName.equals("소셜사용자") &&
+                    !socialName.equals("사용자") &&
+                    !socialName.equals(user.getUserId()) &&
+                    socialName.length() >= 2) {
+                log.info("🔍 소셜 실제 이름 사용: '{}'", socialName);
+                return socialName;
+            }
         }
 
-        // 2. 소셜에서 받은 실제 이름이 있으면 사용
-        if (socialUser.getName() != null && !socialUser.getName().trim().isEmpty() &&
-                !socialUser.getName().equals("소셜사용자") && !socialUser.getName().equals("사용자")) {
-            log.info("🔍 소셜 실제 이름 사용: '{}'", socialUser.getName());
-            return socialUser.getName().trim();
-        }
-
-        // 3. 닉네임이 있으면 사용
+        // 2. 소셜 닉네임이 있으면 사용
         if (socialUser.getNickname() != null && !socialUser.getNickname().trim().isEmpty()) {
-            log.info("🔍 소셜 닉네임 사용: '{}'", socialUser.getNickname());
-            return socialUser.getNickname().trim();
+            String nickname = socialUser.getNickname().trim();
+            if (!nickname.equals("소셜사용자") &&
+                    !nickname.equals("사용자") &&
+                    !nickname.equals(user.getUserId()) &&
+                    nickname.length() >= 2) {
+                log.info("🔍 소셜 닉네임 사용: '{}'", nickname);
+                return nickname;
+            }
         }
 
-        // 4. 모두 없으면 기본값
-        log.warn("⚠️ 유효한 이름을 찾을 수 없어 기본값 사용");
-        return "소셜사용자";
+        // 3. DB에서 가져온 이름이 유효하면 사용
+        if (user.getName() != null && !user.getName().trim().isEmpty()) {
+            String dbName = user.getName().trim();
+            if (!dbName.equals("소셜사용자") &&
+                    !dbName.equals("사용자") &&
+                    !dbName.equals(user.getUserId()) &&
+                    dbName.length() >= 2) {
+                log.info("🔍 DB 이름 사용: '{}'", dbName);
+                return dbName;
+            }
+        }
+
+        // 4. 제공업체별 기본값
+        String provider = socialUser.getProvider();
+        String providerName;
+        switch (provider.toUpperCase()) {
+            case "KAKAO":
+                providerName = "카카오사용자";
+                break;
+            case "NAVER":
+                providerName = "네이버사용자";
+                break;
+            case "GOOGLE":
+                providerName = "구글사용자";
+                break;
+            default:
+                providerName = "소셜사용자";
+        }
+
+        log.info("🔍 제공업체 기본값 사용: '{}'", providerName);
+        return providerName;
     }
 
     /**

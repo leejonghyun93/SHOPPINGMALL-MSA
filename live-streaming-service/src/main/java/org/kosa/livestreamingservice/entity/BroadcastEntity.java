@@ -1,5 +1,5 @@
 // BroadcastEntity.java
-package org.kosa.livestreamingservice.entity.alarm;
+package org.kosa.livestreamingservice.entity;
 
 import jakarta.persistence.*;
 import lombok.*;

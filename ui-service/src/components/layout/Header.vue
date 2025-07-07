@@ -175,6 +175,7 @@ import { user, resetUser, updateUserFromApi, setUserFromToken, isSocialLoginUser
 import apiClient from '@/api/axiosInstance'
 import { notificationApiCall, notificationHelpers } from '@/config/notificationConfig'
 
+
 const router = useRouter();
 const isDropdownVisible = ref(false);
 const isNotificationDropdownVisible = ref(false);
@@ -194,37 +195,124 @@ let notificationPollingInterval = null;
 const computedUser = computed(() => user);
 
 const displayUserName = computed(() => {
-  console.log('🔍 Header.vue - displayUserName computed:', {
+  console.log('🔍 Header.vue - displayUserName computed 호출:', {
     isUserInfoLoaded: isUserInfoLoaded.value,
     userId: computedUser.value.id,
     userName: computedUser.value.name,
-    userNameTrim: computedUser.value.name ? computedUser.value.name.trim() : null
+    localStorage_login_type: localStorage.getItem('login_type'),
+    localStorage_social_name: localStorage.getItem('social_name'),
+    sessionStorage_social_name: sessionStorage.getItem('social_name'),
+    localStorage_user_display_name: localStorage.getItem('user_display_name'),
+    sessionStorage_current_user_name: sessionStorage.getItem('current_user_name')
   });
 
-  if (!isUserInfoLoaded.value && computedUser.value.id) {
-    return computedUser.value.name || "사용자";
+  // 🔥 소셜 로그인인 경우 우선순위 개선
+  if (localStorage.getItem('login_type') === 'SOCIAL') {
+    console.log('🔍 소셜 로그인 모드 - 이름 찾기 시작')
+
+    // 1순위: user.name (토큰에서 제대로 추출된 이름)
+    if (computedUser.value.name &&
+        computedUser.value.name.trim() &&
+        computedUser.value.name !== "사용자" &&
+        computedUser.value.name !== "소셜사용자" &&
+        computedUser.value.name !== computedUser.value.id &&
+        computedUser.value.name.length >= 2) {
+      console.log('🔍 user.name 사용 (소셜):', computedUser.value.name);
+      return computedUser.value.name;
+    }
+
+    // 2순위: sessionStorage의 social_name
+    const sessionSocialName = sessionStorage.getItem('social_name');
+    if (sessionSocialName &&
+        sessionSocialName.trim() &&
+        sessionSocialName !== "사용자" &&
+        sessionSocialName !== "소셜사용자" &&
+        sessionSocialName.length >= 2) {
+      console.log('🔍 세션 소셜 이름 사용:', sessionSocialName);
+      return sessionSocialName;
+    }
+
+    // 3순위: localStorage의 social_name
+    const localSocialName = localStorage.getItem('social_name');
+    if (localSocialName &&
+        localSocialName.trim() &&
+        localSocialName !== "사용자" &&
+        localSocialName !== "소셜사용자" &&
+        localSocialName.length >= 2) {
+      console.log('🔍 로컬 소셜 이름 사용:', localSocialName);
+      return localSocialName;
+    }
+
+    // 4순위: current_user_name
+    const currentUserName = sessionStorage.getItem('current_user_name');
+    if (currentUserName &&
+        currentUserName.trim() &&
+        currentUserName !== "사용자" &&
+        currentUserName !== "소셜사용자" &&
+        currentUserName.length >= 2) {
+      console.log('🔍 current_user_name 사용:', currentUserName);
+      return currentUserName;
+    }
+
+    // 5순위: 제공업체별 기본값
+    const provider = localStorage.getItem('social_provider');
+    const providerNames = {
+      'KAKAO': '카카오사용자',
+      'NAVER': '네이버사용자',
+      'GOOGLE': '구글사용자'
+    };
+    const providerName = providerNames[provider?.toUpperCase()] || '소셜사용자';
+    console.log('🔍 제공업체 기본값 사용:', providerName);
+    return providerName;
   }
 
+  // 일반 로그인인 경우
   if (computedUser.value.name &&
       computedUser.value.name.trim() &&
-      computedUser.value.name !== computedUser.value.id) {
+      computedUser.value.name !== computedUser.value.id &&
+      computedUser.value.name !== "사용자" &&
+      computedUser.value.name.length >= 1) {
+    console.log('🔍 일반 로그인 이름 사용:', computedUser.value.name);
     return computedUser.value.name;
   }
 
+  // 저장된 이름이 있는지 확인
+  const savedName = sessionStorage.getItem('current_user_name') ||
+      localStorage.getItem('user_display_name');
+  if (savedName &&
+      savedName.trim() &&
+      savedName !== "사용자" &&
+      savedName.length >= 1) {
+    console.log('🔍 저장된 이름 사용:', savedName);
+    return savedName;
+  }
+
+  console.log('🔍 기본값 "사용자" 사용');
   return "사용자";
 });
-
 // 소셜 로그인 여부 체크 함수
 const checkSocialLoginStatus = () => {
+  console.log('🔍 Header.vue - 소셜 로그인 상태 체크 시작');
+
+  const previousIsSocial = isSocialUser.value;
+  const previousProvider = socialProvider.value;
+
+  // userStore의 정확한 함수 사용
   isSocialUser.value = isSocialLoginUser();
   socialProvider.value = getSocialLoginProvider();
 
-  console.log('🔍 Header.vue - checkSocialLoginStatus:', {
-    isSocialUser: isSocialUser.value,
-    socialProvider: socialProvider.value
+  console.log('🔍 Header.vue - 소셜 로그인 체크 결과:', {
+    이전: { isSocial: previousIsSocial, provider: previousProvider },
+    현재: { isSocial: isSocialUser.value, provider: socialProvider.value },
+    변경됨: previousIsSocial !== isSocialUser.value,
+    loginType: localStorage.getItem('login_type'),
+    저장된_소셜_정보: {
+      social_provider: localStorage.getItem('social_provider'),
+      social_name: localStorage.getItem('social_name'),
+      social_email: localStorage.getItem('social_email')
+    }
   });
 };
-
 // 소셜 로그인 제공업체 이름 반환
 const getSocialProviderName = () => {
   switch (socialProvider.value) {
@@ -289,11 +377,11 @@ watch(() => computedUser.value.id, async (newUserId, oldUserId) => {
   if (newUserId && newUserId !== oldUserId) {
     isUserInfoLoaded.value = false;
 
+    // 🔥 소셜 로그인 체크를 가장 먼저
+    checkSocialLoginStatus();
+
     try {
       await validateUserInfo();
-
-      // 소셜 로그인 여부 체크
-      checkSocialLoginStatus();
 
       await Promise.all([
         fetchCartCount(),
@@ -317,12 +405,50 @@ watch(() => computedUser.value.id, async (newUserId, oldUserId) => {
   }
 }, { immediate: false });
 
+// 🔥 로그인 타입 변화 감지 (localStorage 변화 감지)
+watch(() => localStorage.getItem('login_type'), (newType, oldType) => {
+  console.log('🔍 Header.vue - login_type 변화 감지:', { oldType, newType });
+  if (newType !== oldType && computedUser.value.id) {
+    checkSocialLoginStatus();
+  }
+});
+
 const resetUserData = () => {
-  console.log('🔍 Header.vue - resetUserData called');
+  console.log('🔍 Header.vue - resetUserData called (소셜 정보 보호 모드)');
+
+  // 현재 소셜 로그인 정보 백업
+  const currentLoginType = localStorage.getItem('login_type');
+  const currentSocialProvider = localStorage.getItem('social_provider');
+  const currentSocialName = localStorage.getItem('social_name');
+  const currentSocialEmail = localStorage.getItem('social_email');
+
   cartCount.value = 0;
   unreadNotificationCount.value = 0;
   notifications.value = [];
   stopNotificationPolling();
+
+  // 🔥 소셜 로그인 정보 복원
+  if (currentLoginType === 'SOCIAL') {
+    localStorage.setItem('login_type', 'SOCIAL');
+    sessionStorage.setItem('login_type', 'SOCIAL');
+
+    if (currentSocialProvider) {
+      localStorage.setItem('social_provider', currentSocialProvider);
+      sessionStorage.setItem('social_provider', currentSocialProvider);
+    }
+
+    if (currentSocialName) {
+      localStorage.setItem('social_name', currentSocialName);
+      sessionStorage.setItem('social_name', currentSocialName);
+    }
+
+    if (currentSocialEmail) {
+      localStorage.setItem('social_email', currentSocialEmail);
+      sessionStorage.setItem('social_email', currentSocialEmail);
+    }
+
+    console.log('🔍 resetUserData에서 소셜 정보 복원 완료');
+  }
 };
 
 const performSearch = () => {
@@ -366,14 +492,19 @@ const isTokenValid = (token) => {
 const validateUserInfo = async () => {
   console.log('🔍 Header.vue - validateUserInfo called');
 
-  // 소셜 로그인 이름이 있으면 API 호출 건너뛰기
-  const socialName = localStorage.getItem('social_login_name') ||
-      sessionStorage.getItem('current_user_name') ||
-      localStorage.getItem('preserved_user_name');
+  // 🔥 소셜 로그인 이름 우선 처리 개선
+  const socialName = localStorage.getItem('social_name') ||
+      sessionStorage.getItem('social_name');
 
   console.log('🔍 Header.vue - validateUserInfo socialName check:', { socialName });
 
-  if (socialName && socialName.trim() && socialName !== "사용자") {
+  // 🔥 소셜 이름이 있고 유효하다면 사용
+  if (socialName &&
+      socialName.trim() &&
+      socialName !== "사용자" &&
+      socialName !== "소셜사용자" &&
+      socialName.length >= 2 &&
+      !isGarbledKorean(socialName)) {
     user.name = socialName;
     sessionStorage.setItem('current_user_name', socialName);
     isUserInfoLoaded.value = true;
@@ -381,12 +512,7 @@ const validateUserInfo = async () => {
     return true;
   }
 
-  // 이미 로딩된 상태이고 유효한 이름이 있으면 재검증 생략
-  if (isUserInfoLoaded.value && user.name && user.name.trim() && user.name !== "사용자") {
-    console.log('🔍 Header.vue - using cached user info');
-    return true;
-  }
-
+  // API 호출 시도
   try {
     const response = await apiClient.get('/api/users/profile', {
       timeout: 3000,
@@ -395,29 +521,38 @@ const validateUserInfo = async () => {
       }
     });
 
-    console.log('🔍 Header.vue - API response:', response);
-
     if (response.status === 200 && response.data && response.data.success && response.data.data) {
       const userData = response.data.data;
 
-      // 소셜 로그인 이름이 있으면 API 이름 완전 무시
-      const preservedName = localStorage.getItem('social_login_name') ||
-          sessionStorage.getItem('current_user_name') ||
-          localStorage.getItem('preserved_user_name');
+      // 🔥 소셜 로그인인 경우 소셜 이름 우선 유지
+      const preservedName = localStorage.getItem('social_name') ||
+          sessionStorage.getItem('social_name');
 
-      // 기본 정보 업데이트
       user.id = userData.userId || userData.id;
       user.email = userData.email;
       user.role = userData.role || 'USER';
       user.phone = userData.phone;
 
-      if (preservedName && preservedName.trim() && preservedName !== "사용자") {
+      if (preservedName &&
+          preservedName.trim() &&
+          preservedName !== "사용자" &&
+          preservedName !== "소셜사용자" &&
+          preservedName.length >= 2 &&
+          !isGarbledKorean(preservedName)) {
         user.name = preservedName;
         sessionStorage.setItem('current_user_name', preservedName);
-        console.log('🔍 Header.vue - using preserved name:', preservedName);
-      } else if (userData.name && userData.name.trim()) {
+        console.log('🔍 Header.vue - using preserved social name:', preservedName);
+      } else if (userData.name &&
+          userData.name.trim() &&
+          userData.name.length >= 1 &&
+          !isGarbledKorean(userData.name)) {
         user.name = userData.name.trim();
         sessionStorage.setItem('current_user_name', user.name);
+        // 소셜 로그인인데 API에서 올바른 이름이 온 경우 저장
+        if (localStorage.getItem('login_type') === 'SOCIAL') {
+          localStorage.setItem('social_name', user.name);
+          sessionStorage.setItem('social_name', user.name);
+        }
         console.log('🔍 Header.vue - using API name:', user.name);
       } else {
         user.name = "사용자";
@@ -426,27 +561,35 @@ const validateUserInfo = async () => {
 
       isUserInfoLoaded.value = true;
       return true;
-    } else if (response.status === 401) {
-      console.log('🔍 Header.vue - 401 response, falling back to token');
-      return handleTokenFallback();
-    } else {
-      console.log('🔍 Header.vue - API error, falling back to token');
-      return handleTokenFallback();
     }
   } catch (error) {
     console.error('🔍 Header.vue - validateUserInfo error:', error);
-    return handleTokenFallback();
   }
-};
 
+  return handleTokenFallback();
+};
+function isGarbledKorean(text) {
+  if (!text) return false;
+
+  // 깨진 문자 패턴들
+  const garbledPatterns = [
+    /[\uFFFD]/g,  // 대체 문자
+    /[ì í î ë ê é è ñ ò ó ô]/g,  // 잘못된 라틴 문자들
+    /â[^\s]/g,    // â 다음에 공백이 아닌 문자
+    /Ã[^\s]/g,    // Ã 다음에 공백이 아닌 문자
+  ];
+
+  return garbledPatterns.some(pattern => pattern.test(text));
+}
 const handleTokenFallback = () => {
   console.log('🔍 Header.vue - handleTokenFallback called');
 
   if (user.id) {
     isUserInfoLoaded.value = true;
 
-    // API 실패 시에도 보존된 이름 복원
-    const preservedName = localStorage.getItem('social_login_name') ||
+    // 🔥 FIXED: 올바른 키로 소셜 이름 확인
+    const preservedName = localStorage.getItem('social_name') ||  // 🔥 이게 맞는 키!
+        sessionStorage.getItem('social_name') ||
         sessionStorage.getItem('current_user_name') ||
         localStorage.getItem('preserved_user_name');
 
@@ -474,7 +617,7 @@ const handleTokenFallback = () => {
             if (payload.name && payload.name.trim() && payload.name !== payload.sub) {
               user.name = payload.name;
               sessionStorage.setItem('current_user_name', payload.name);
-              localStorage.setItem('social_login_name', payload.name);
+              localStorage.setItem('social_name', payload.name);  // 🔥 올바른 키로 저장
               console.log('🔍 Header.vue - extracted name from token:', payload.name);
             }
           }
@@ -628,19 +771,78 @@ function hideNotificationDropdown() {
 }
 
 function logout() {
-  console.log('🔍 Header.vue - logout called');
+  console.log('🔍 Header.vue - logout called (의도적 로그아웃)');
   stopNotificationPolling();
-  resetUser();
-  resetUserData();
+
+  // 🔥 의도적 로그아웃이므로 모든 정보 삭제
+  resetUser(); // userStore의 resetUser 호출
+
+  cartCount.value = 0;
+  unreadNotificationCount.value = 0;
+  notifications.value = [];
   searchKeyword.value = '';
   isDropdownVisible.value = false;
   isUserInfoLoaded.value = false;
-  // 소셜 로그인 상태도 초기화
+
+  // 소셜 로그인 상태도 완전 초기화
   isSocialUser.value = false;
   socialProvider.value = null;
+
   router.push("/login");
 }
 
+
+const resetUserState = () => {
+  console.log('🔍 Header.vue - resetUserState called (소셜 정보 보호 모드)');
+
+  // 현재 소셜 로그인 정보 백업
+  const currentLoginType = localStorage.getItem('login_type');
+  const currentSocialProvider = localStorage.getItem('social_provider');
+  const currentSocialName = localStorage.getItem('social_name');
+  const currentSocialEmail = localStorage.getItem('social_email');
+
+  console.log('🔍 백업된 소셜 정보:', {
+    loginType: currentLoginType,
+    provider: currentSocialProvider,
+    name: currentSocialName,
+    email: currentSocialEmail
+  });
+
+  // 사용자 정보만 초기화
+  user.id = null;
+  user.name = null;
+  user.role = null;
+  user.email = null;
+  resetUserData();
+  isUserInfoLoaded.value = false;
+
+  // 🔥 소셜 로그인 정보 복원
+  if (currentLoginType === 'SOCIAL') {
+    localStorage.setItem('login_type', 'SOCIAL');
+    sessionStorage.setItem('login_type', 'SOCIAL');
+
+    if (currentSocialProvider) {
+      localStorage.setItem('social_provider', currentSocialProvider);
+      sessionStorage.setItem('social_provider', currentSocialProvider);
+    }
+
+    if (currentSocialName) {
+      localStorage.setItem('social_name', currentSocialName);
+      sessionStorage.setItem('social_name', currentSocialName);
+    }
+
+    if (currentSocialEmail) {
+      localStorage.setItem('social_email', currentSocialEmail);
+      sessionStorage.setItem('social_email', currentSocialEmail);
+    }
+
+    console.log('🔍 소셜 로그인 정보 복원 완료');
+  }
+
+  console.log('🔍 Header.vue - resetUserState 완료 (소셜 정보 보존됨)');
+};
+
+// 🔥 이 부분을 완전히 삭제하세요 (중복됨)
 onMounted(async () => {
   console.log('🔍 Header.vue - onMounted called');
   const token = localStorage.getItem("token");
@@ -655,7 +857,8 @@ onMounted(async () => {
       const isValid = await validateUserInfo();
 
       if (isValid) {
-        // 소셜 로그인 여부 체크
+        // 🔥 소셜 로그인 여부 체크 - 지연 후 실행
+        await new Promise(resolve => setTimeout(resolve, 200));
         checkSocialLoginStatus();
 
         await Promise.all([
@@ -665,39 +868,47 @@ onMounted(async () => {
 
         startNotificationPolling();
       } else {
+        // 🔥 CRITICAL: 토큰이 유효하지 않을 때만 제거
+        console.log('🔍 토큰 유효하지 않음 - 제거');
         localStorage.removeItem("token");
-        resetUserState();
+        // resetUserState(); // 이 함수 호출하지 않음!
+
+        // 대신 직접 필요한 것만 초기화
+        user.id = null;
+        user.name = null;
+        user.role = null;
+        user.email = null;
+        resetUserData();
+        isUserInfoLoaded.value = false;
       }
 
     } catch (error) {
       console.error('🔍 Header.vue - onMounted error:', error);
       localStorage.removeItem("token");
-      resetUserState();
+      // resetUserState(); // 이 함수 호출하지 않음!
+
+      // 대신 직접 필요한 것만 초기화
+      user.id = null;
+      user.name = null;
+      user.role = null;
+      user.email = null;
+      resetUserData();
+      isUserInfoLoaded.value = false;
     }
   } else {
     if (token) {
       localStorage.removeItem("token");
     }
-    resetUserState();
+    // resetUserState(); // 이 함수 호출하지 않음!
+
+    // 토큰이 없을 때는 사용자 정보만 초기화하고 소셜 로그인 타입은 보존
+    user.id = null;
+    user.name = null;
+    user.role = null;
+    user.email = null;
+    resetUserData();
+    isUserInfoLoaded.value = false;
   }
-});
-
-const resetUserState = () => {
-  console.log('🔍 Header.vue - resetUserState called');
-  user.id = null;
-  user.name = null;
-  user.role = null;
-  user.email = null;
-  resetUserData();
-  isUserInfoLoaded.value = false;
-  // 소셜 로그인 상태도 초기화
-  isSocialUser.value = false;
-  socialProvider.value = null;
-};
-
-onUnmounted(() => {
-  console.log('🔍 Header.vue - onUnmounted called');
-  stopNotificationPolling();
 });
 </script>
 

@@ -63,15 +63,40 @@ public class JwtUtil {
                     .setExpiration(expiryDate)
                     .setIssuer("auth-service"); // 발급자
 
-            // 🔥 이름이 있고 유효하면 토큰에 포함
-            if (name != null && !name.trim().isEmpty() && !name.equals("사용자") && !name.equals("소셜사용자")) {
-                builder.claim("name", name.trim());
-                log.info("✅ 토큰에 이름 포함: '{}'", name.trim());
+            // 🔥 이름 처리 로직 개선
+            if (name != null && !name.trim().isEmpty()) {
+                String cleanName = name.trim();
+
+                // 기본값들 제외 조건 완화
+                if (!cleanName.equals("사용자") &&
+                        !cleanName.equals("소셜사용자") &&
+                        !cleanName.equals(userId) &&
+                        cleanName.length() > 0) {
+
+                    builder.claim("name", cleanName);
+                    log.info("✅ 토큰에 이름 포함: '{}'", cleanName);
+                } else {
+                    log.info("⚠️ 토큰에 이름 미포함 - 기본값 처리: '{}'", cleanName);
+                }
             } else {
-                log.info("⚠️ 토큰에 이름 미포함 - name: '{}'", name);
+                log.info("⚠️ 토큰에 이름 미포함 - name이 null 또는 빈 문자열: '{}'", name);
             }
 
-            return builder.signWith(getSigningKey(), SignatureAlgorithm.HS256).compact();
+            String token = builder.signWith(getSigningKey(), SignatureAlgorithm.HS256).compact();
+
+            // 🔥 생성된 토큰의 내용 확인 (디버깅용)
+            try {
+                Claims claims = getAllClaimsFromToken(token);
+                log.info("🔍 생성된 토큰 내용 확인:");
+                log.info("  - subject: {}", claims.getSubject());
+                log.info("  - username: {}", claims.get("username"));
+                log.info("  - name: {}", claims.get("name"));
+                log.info("  - role: {}", claims.get("role"));
+            } catch (Exception e) {
+                log.warn("토큰 내용 확인 실패: {}", e.getMessage());
+            }
+
+            return token;
         } catch (Exception e) {
             log.error("JWT 토큰 생성 실패: {}", e.getMessage(), e);
             throw new RuntimeException("JWT 토큰 생성에 실패했습니다", e);

@@ -122,36 +122,93 @@ const REDIRECT_URI = import.meta.env.VITE_REDIRECT_URI || `${window.location.ori
 // 소셜 로그인 토큰 처리 함수
 const handleSocialLoginToken = async (token) => {
   try {
-    localStorage.setItem('token', token)
-    apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`
+    console.log('📱 Login.vue에서 소셜 로그인 처리 시작');
 
-    const tokenSet = setUserFromToken(token)
-    if (!tokenSet) {
-      throw new Error('토큰에서 사용자 정보 추출 실패')
+    localStorage.setItem('token', token)
+
+    // 🔥 개선된 토큰에서 소셜 정보 추출
+    let socialProvider = 'KAKAO';
+    let socialName = '소셜사용자';
+    let socialEmail = null;
+
+    try {
+      const parts = token.split('.');
+      if (parts.length === 3) {
+        let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+        while (base64.length % 4) {
+          base64 += '=';
+        }
+
+        // 🔥 개선된 UTF-8 디코딩
+        const binaryString = atob(base64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+
+        const decoder = new TextDecoder('utf-8');
+        const jsonStr = decoder.decode(bytes);
+        console.log('📱 디코딩된 JSON 문자열:', jsonStr);
+
+        const payload = JSON.parse(jsonStr);
+        console.log('📱 토큰 페이로드:', payload);
+
+        socialProvider = payload.socialProvider || payload.provider || 'KAKAO';
+
+        // 🔥 한글 이름 처리
+        if (payload.name && payload.name.trim()) {
+          let rawName = payload.name;
+
+          // URI 디코딩 시도
+          if (rawName.includes('%')) {
+            try {
+              rawName = decodeURIComponent(rawName);
+            } catch (e) {
+              console.log('URI 디코딩 실패');
+            }
+          }
+
+          // 깨진 한글 복구 시도
+          if (isGarbledKorean(rawName)) {
+            rawName = repairGarbledKorean(rawName);
+          }
+
+          // 최종 검증
+          if (rawName && !isGarbledKorean(rawName) && rawName.length >= 2) {
+            socialName = rawName;
+          }
+        } else if (payload.username && payload.username.trim()) {
+          socialName = payload.username;
+        }
+
+        socialEmail = payload.email;
+        console.log('📱 최종 추출된 이름:', socialName);
+      }
+    } catch (e) {
+      console.error('📱 토큰 파싱 오류:', e);
     }
 
-    const response = await apiClient.get('/api/users/profile')
+    // 소셜 로그인 설정
+    localStorage.setItem('login_type', 'SOCIAL');
+    localStorage.setItem('social_provider', socialProvider);
+    localStorage.setItem('social_name', socialName);
+    sessionStorage.setItem('social_name', socialName);
 
-    if (response.data && response.data.success && response.data.data) {
-      const userData = response.data.data
+    if (socialEmail) {
+      localStorage.setItem('social_email', socialEmail);
+    }
 
-      const updated = updateUserFromApi(userData)
+    const tokenSuccess = setUserFromToken(token);
 
-      if (updated) {
-        alert(`${userData.name}님, 환영합니다!`)
-        window.history.replaceState({}, document.title, window.location.pathname)
-        await router.push('/')
-      } else {
-        throw new Error('사용자 정보 업데이트 실패')
-      }
+    if (tokenSuccess) {
+      await router.push('/');
     } else {
-      throw new Error('사용자 정보 조회 실패')
+      throw new Error('토큰 처리 실패');
     }
 
   } catch (error) {
-    localStorage.removeItem('token')
-    delete apiClient.defaults.headers.common['Authorization']
-    alert('로그인 처리 중 오류가 발생했습니다. 다시 시도해주세요.')
+    console.error('📱 에러 상세:', error);
+    alert(`로그인 처리 중 오류: ${error.message}`);
   }
 }
 
@@ -225,7 +282,21 @@ const handleLogin = async () => {
     });
 
     if (response.data.success && response.data.token) {
+      // 🔥 일반 로그인 처리
       localStorage.setItem("token", response.data.token);
+
+      // 일반 로그인으로 설정
+      localStorage.setItem('login_type', 'NORMAL');
+      sessionStorage.setItem('login_type', 'NORMAL');
+
+      // 소셜 로그인 정보 제거
+      localStorage.removeItem('social_provider');
+      localStorage.removeItem('social_name');
+      localStorage.removeItem('social_email');
+      sessionStorage.removeItem('social_provider');
+      sessionStorage.removeItem('social_name');
+      sessionStorage.removeItem('social_email');
+
       setUserFromToken(response.data.token);
       await fetchUserProfile(response.data.token);
 
@@ -236,10 +307,10 @@ const handleLogin = async () => {
       }
 
       await router.push("/");
-    } else {
-      errorMessage.value = response.data.message || "로그인 실패";
     }
   } catch (error) {
+    console.error('📝 일반 로그인 오류:', error);
+
     if (error.response) {
       const status = error.response.status;
       const data = error.response.data;

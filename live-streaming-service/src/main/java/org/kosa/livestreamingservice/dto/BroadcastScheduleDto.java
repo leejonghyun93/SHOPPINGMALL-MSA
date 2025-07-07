@@ -13,5 +13,5 @@ import java.util.List;
 @AllArgsConstructor
 public class BroadcastScheduleDto {
     private String time;
-    private List<BroadcastDto> broadcasts;
+    private List<BroadcastDto.AlarmDto> broadcasts;
 }

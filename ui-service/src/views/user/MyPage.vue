@@ -11,10 +11,12 @@
           <div class="user-info-section">
             <div class="welcome-text">
               반가워요! <span class="username">{{ userName }}</span>
-              <!--  소셜 로그인 표시 -->
-<!--              <div v-if="isSocialUser" class="social-login-badge">-->
-<!--                <span class="social-badge">{{ socialProviderName }}</span>-->
-<!--              </div>-->
+              <!-- 로그인 타입 표시 (디버깅용) -->
+              <div v-if="isDevelopment" class="login-type-debug">
+                <small class="text-muted">
+                  [{{ currentLoginType }}{{ isSocialUser ? ` - ${socialProviderName}` : '' }}]
+                </small>
+              </div>
             </div>
 
             <div class="benefit-cards">
@@ -77,7 +79,7 @@
             <!-- 하단 링크 섹션 -->
             <div class="bottom-links">
               <div class="link-section">
-                <div class="section-title">소셜</div>
+                <div class="section-title">쇼핑</div>
                 <div class="link-item" @click="navigateToTab('returns')" :class="{ active: activeTab === 'returns' }">
                   취소 · 반품 내역
                 </div>
@@ -92,13 +94,15 @@
 
               <div class="link-section">
                 <div class="section-title">내 정보관리</div>
-                <!--  소셜 로그인 사용자 제한 적용 -->
-                <div v-if="!isSocialUser" class="link-item" @click="navigateToProfile()">
+                <!-- 🔥 핵심: 소셜/일반 로그인에 따른 조건부 렌더링 -->
+                <div v-if="!isSocialUser" class="link-item clickable" @click="navigateToProfile()">
+                  <i class="fas fa-user-edit me-2"></i>
                   회원 정보 관리
                 </div>
                 <div v-else class="link-item disabled" @click="showSocialUserAlert">
+                  <i class="fas fa-lock me-2"></i>
                   <span class="disabled-text">회원 정보 관리</span>
-                  <span class="social-restriction-icon">🔒</span>
+                  <span class="social-restriction-badge">{{ socialProviderName }} 로그인</span>
                 </div>
               </div>
             </div>
@@ -117,7 +121,7 @@
       <div class="modal-content social-alert-modal" @click.stop>
         <div class="modal-header">
           <div class="social-icon">
-            {{ socialProviderName === '카카오' ? '💬' : socialProviderName === '네이버' ? '🟢' : '👤' }}
+            {{ getSocialProviderIcon() }}
           </div>
           <h3 class="modal-title">{{ socialProviderName }} 로그인 사용자</h3>
           <button @click="closeSocialAlert" class="modal-close">
@@ -174,26 +178,35 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { user, setUserFromToken, isSocialLoginUser, getSocialLoginProvider } from '@/stores/userStore'
+import { user, setUserFromToken, isSocialLoginUser, getSocialLoginProvider, getCurrentUser } from '@/stores/userStore'
 import apiClient from '@/api/axiosInstance'
 
 const route = useRoute()
 const router = useRouter()
 
-//  소셜 로그인 관련 상태 추가
+// 개발 환경 체크
+const isDevelopment = computed(() => import.meta.env.DEV)
+
+// 🔥 반응형 소셜 로그인 관련 상태
 const isSocialUser = ref(false)
 const socialProvider = ref(null)
 const showSocialAlert = ref(false)
 
-// 사용자 데이터 - userStore에서 가져오기
+// 사용자 데이터
 const computedUser = computed(() => user)
 const userName = computed(() => {
   return computedUser.value.name ? computedUser.value.name + '님' : '사용자님'
 })
 
-//  소셜 로그인 제공업체 표시명
+// 🔥 현재 로그인 타입 표시
+const currentLoginType = computed(() => {
+  const loginType = localStorage.getItem('login_type')
+  return loginType || 'UNKNOWN'
+})
+
+// 🔥 소셜 로그인 제공업체 표시명
 const socialProviderName = computed(() => {
   switch (socialProvider.value) {
     case 'KAKAO':
@@ -209,6 +222,23 @@ const socialProviderName = computed(() => {
       return '소셜'
   }
 })
+
+// 소셜 제공업체 아이콘
+const getSocialProviderIcon = () => {
+  switch (socialProvider.value) {
+    case 'KAKAO':
+    case 'kakao':
+      return '💬'
+    case 'NAVER':
+    case 'naver':
+      return '🟢'
+    case 'GOOGLE':
+    case 'google':
+      return '🔵'
+    default:
+      return '👤'
+  }
+}
 
 // 현재 활성 탭 (라우트 기반)
 const activeTab = computed(() => {
@@ -232,6 +262,64 @@ const availableCoupons = ref(0)
 const giftCards = ref(0)
 const totalOrders = ref(0)
 
+// 🔥 핵심: 소셜 로그인 상태를 정확히 체크하는 함수
+const checkSocialLoginStatus = () => {
+  console.log('🔍 MyPage.vue - 소셜 로그인 상태 체크 시작');
+
+  const previousIsSocial = isSocialUser.value;
+  const previousProvider = socialProvider.value;
+
+  // userStore의 정확한 함수 사용
+  isSocialUser.value = isSocialLoginUser();
+  socialProvider.value = getSocialLoginProvider();
+
+  console.log('🔍 MyPage.vue - 소셜 로그인 체크 결과:', {
+    이전: { isSocial: previousIsSocial, provider: previousProvider },
+    현재: { isSocial: isSocialUser.value, provider: socialProvider.value },
+    변경됨: previousIsSocial !== isSocialUser.value,
+    loginType: localStorage.getItem('login_type'),
+    userInfo: getCurrentUser(),
+    저장된_정보: {
+      localStorage_login_type: localStorage.getItem('login_type'),
+      localStorage_social_provider: localStorage.getItem('social_provider'),
+      localStorage_social_name: localStorage.getItem('social_name'),
+      sessionStorage_login_type: sessionStorage.getItem('login_type'),
+      sessionStorage_social_provider: sessionStorage.getItem('social_provider')
+    }
+  });
+};
+
+
+// 🔥 사용자 상태 변화 감지
+watch(() => computedUser.value.id, async (newUserId, oldUserId) => {
+  console.log('🔍 MyPage.vue - user.id 변화:', { oldUserId, newUserId });
+
+  if (newUserId && newUserId !== oldUserId) {
+    console.log('🔍 새로운 사용자 로그인 감지');
+
+    // 약간의 지연 후 체크 (userStore 설정이 완료된 후)
+    await nextTick();
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    checkSocialLoginStatus();
+    await fetchUserExtraInfo();
+  } else if (!newUserId && oldUserId) {
+    console.log('🔍 사용자 로그아웃 감지');
+    isSocialUser.value = false;
+    socialProvider.value = null;
+  }
+}, { immediate: true });
+
+// 🔥 로그인 타입 변화 감지 추가
+watch(() => localStorage.getItem('login_type'), (newType, oldType) => {
+  console.log('🔍 MyPage.vue - login_type 변화:', { oldType, newType });
+  if (newType !== oldType && computedUser.value.id) {
+    setTimeout(() => {
+      checkSocialLoginStatus();
+    }, 50);
+  }
+});
+
 // 탭 네비게이션
 const navigateToTab = (tabName) => {
   const routeNameMap = {
@@ -251,8 +339,13 @@ const navigateToTab = (tabName) => {
   }
 }
 
-// 소셜 로그인 사용자 알림 표시
+// 🔥 소셜 로그인 사용자 알림 표시
 const showSocialUserAlert = () => {
+  console.log('🔍 MyPage.vue - 소셜 사용자 알림 표시:', {
+    isSocialUser: isSocialUser.value,
+    socialProvider: socialProvider.value,
+    socialProviderName: socialProviderName.value
+  })
   showSocialAlert.value = true
 }
 
@@ -260,17 +353,37 @@ const closeSocialAlert = () => {
   showSocialAlert.value = false
 }
 
-// 주문 개수만 별도로 다시 로드하는 함수
+// 🔥 회원정보관리 네비게이션 (소셜 로그인 체크)
+function navigateToProfile() {
+  console.log('🔍 MyPage.vue - navigateToProfile 호출:', {
+    isSocialUser: isSocialUser.value,
+    socialProvider: socialProvider.value,
+    loginType: localStorage.getItem('login_type'),
+    실시간_체크: isSocialLoginUser() // 실시간으로 다시 체크
+  });
+
+  // 실시간으로 다시 체크
+  const currentIsSocial = isSocialLoginUser();
+
+  if (currentIsSocial) {
+    console.log('🔍 실시간 체크 결과: 소셜 로그인 사용자');
+    showSocialUserAlert();
+    return;
+  }
+
+  console.log('🔍 실시간 체크 결과: 일반 로그인 사용자, 프로필 페이지로 이동');
+  router.push({ name: 'MyPageProfile' });
+}
+
+// 주문 개수 로드
 const reloadOrderCount = async () => {
   try {
     const response = await apiClient.get('/api/orders/count')
-
     if (response.data.success) {
-      const orderCount = response.data.data || 0
-      totalOrders.value = orderCount
+      totalOrders.value = response.data.data || 0
     }
   } catch (error) {
-    // 에러 처리만 유지
+    console.error('주문 개수 로드 실패:', error)
   }
 }
 
@@ -281,7 +394,7 @@ const updateCounts = (data) => {
   if (data.giftCards !== undefined) giftCards.value = data.giftCards
 }
 
-// 사용자 추가 정보 로딩 함수
+// 사용자 추가 정보 로딩
 const fetchUserExtraInfo = async () => {
   const apiCalls = [
     {
@@ -289,8 +402,7 @@ const fetchUserExtraInfo = async () => {
       call: () => apiClient.get('/api/orders/count'),
       onSuccess: (response) => {
         if (response.data.success) {
-          const orderCount = response.data.data || 0
-          totalOrders.value = orderCount
+          totalOrders.value = response.data.data || 0
         } else {
           totalOrders.value = 0
         }
@@ -301,8 +413,7 @@ const fetchUserExtraInfo = async () => {
       call: () => apiClient.get('/api/cart/count'),
       onSuccess: (response) => {
         if (response.data.success) {
-          const cartCount = response.data.data || 0
-          // 장바구니 개수를 사용할 곳이 있다면 설정
+          // 장바구니 개수 사용할 곳이 있다면 설정
         }
       }
     }
@@ -315,7 +426,6 @@ const fetchUserExtraInfo = async () => {
           api.onSuccess(response)
           return { name: api.name, success: true }
         } catch (error) {
-          // 주문 개수 API 실패시 기본값 설정
           if (api.name === '주문 개수') {
             totalOrders.value = 0
           }
@@ -323,17 +433,6 @@ const fetchUserExtraInfo = async () => {
         }
       })
   )
-}
-
-//  회원정보관리 네비게이션 (소셜 로그인 체크 추가)
-function navigateToProfile() {
-  // 소셜 로그인 사용자는 접근 차단
-  if (isSocialUser.value) {
-    showSocialUserAlert()
-    return
-  }
-
-  router.push({ name: 'MyPageProfile' })
 }
 
 // 토큰 유효성 검사
@@ -353,69 +452,93 @@ const isTokenValid = (token) => {
     const payload = JSON.parse(payloadStr)
     const currentTime = Math.floor(Date.now() / 1000)
 
-    if (payload.exp && payload.exp < currentTime) {
-      return false
-    }
-
-    return true
+    return !(payload.exp && payload.exp < currentTime)
   } catch (error) {
     return false
   }
 }
 
-//  소셜 로그인 여부 체크 함수
-const checkSocialLoginStatus = () => {
-  isSocialUser.value = isSocialLoginUser()
-  socialProvider.value = getSocialLoginProvider()
-
-  console.log('🔍 소셜 로그인 체크:', {
-    isSocialUser: isSocialUser.value,
-    provider: socialProvider.value,
-    providerName: socialProviderName.value
-  })
-}
-
-// 마운트 시 처리
+// 🔥 컴포넌트 마운트 시 처리
 onMounted(async () => {
-  const token = localStorage.getItem('token')
+  console.log('🔍 MyPage.vue - onMounted 시작');
+
+  const token = localStorage.getItem('token');
 
   if (!token) {
-    router.push('/login')
-    return
+    console.log('🔍 토큰 없음, 로그인 페이지로 이동');
+    router.push('/login');
+    return;
   }
 
   if (!isTokenValid(token)) {
-    localStorage.removeItem('token')
-    router.push('/login')
-    return
+    console.log('🔍 유효하지 않은 토큰, 로그인 페이지로 이동');
+    localStorage.removeItem('token');
+    router.push('/login');
+    return;
   }
 
-  // userStore에서 사용자 정보 설정
   try {
-    setUserFromToken(token)
+    // userStore에서 사용자 정보 설정 (이미 로그인 타입이 설정되어 있어야 함)
+    setUserFromToken(token);
+    console.log('🔍 토큰에서 사용자 정보 설정 완료:', computedUser.value);
 
-    //  소셜 로그인 여부 체크
-    checkSocialLoginStatus()
+    // 소셜 로그인 상태 체크 - 지연 후 실행
+    await nextTick();
+    await new Promise(resolve => setTimeout(resolve, 200));
+    checkSocialLoginStatus();
+
+    // 추가 정보 로드
+    await fetchUserExtraInfo();
+
+    // 1초 후 주문 개수 재확인
+    setTimeout(async () => {
+      await reloadOrderCount();
+    }, 1000);
 
   } catch (error) {
-    localStorage.removeItem('token')
-    router.push('/login')
-    return
+    console.error('🔍 사용자 정보 설정 오류:', error);
+    localStorage.removeItem('token');
+    router.push('/login');
   }
+});
 
-  // 추가 사용자 정보 로드
-  await fetchUserExtraInfo()
-
-  // 1초 후 주문 개수 재확인
-  setTimeout(async () => {
-    await reloadOrderCount()
-  }, 1000)
-})
 
 // 자식 컴포넌트에서 호출할 수 있도록 expose
 defineExpose({
-  reloadOrderCount
+  reloadOrderCount,
+  checkSocialLoginStatus
 })
 </script>
 
-<style scoped src="@/assets/css/myPage.css"></style>
+<style scoped src="@/assets/css/myPage.css">
+/* 추가 스타일 */
+.login-type-debug {
+  margin-top: 5px;
+}
+
+.social-restriction-badge {
+  font-size: 0.75rem;
+  background: #ff9800;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 10px;
+  margin-left: 8px;
+}
+
+.disabled {
+  opacity: 0.6;
+  cursor: not-allowed !important;
+}
+
+.disabled:hover {
+  background-color: transparent !important;
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+.clickable:hover {
+  background-color: #f5f5f5;
+}
+</style>

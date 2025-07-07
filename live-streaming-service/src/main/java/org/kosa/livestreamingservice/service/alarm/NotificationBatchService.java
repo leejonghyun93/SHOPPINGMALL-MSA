@@ -6,7 +6,7 @@ import org.kosa.livestreamingservice.client.alarm.BroadcastServiceClient;
 import org.kosa.livestreamingservice.entity.alarm.LiveBroadcastNotification;
 import org.kosa.livestreamingservice.repository.alarm.LiveBroadcastNotificationRepository;
 import org.kosa.livestreamingservice.repository.alarm.BroadcastRepository;
-import org.kosa.livestreamingservice.entity.alarm.BroadcastEntity;
+import org.kosa.livestreamingservice.entity.BroadcastEntity;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

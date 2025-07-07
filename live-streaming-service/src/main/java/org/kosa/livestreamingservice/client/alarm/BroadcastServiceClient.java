@@ -2,7 +2,7 @@ package org.kosa.livestreamingservice.client.alarm;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.kosa.livestreamingservice.entity.alarm.BroadcastEntity;
+import org.kosa.livestreamingservice.entity.BroadcastEntity;
 import org.kosa.livestreamingservice.repository.alarm.BroadcastRepository;
 import org.springframework.stereotype.Component;
 
