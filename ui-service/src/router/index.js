@@ -29,7 +29,7 @@ import BroadcastList from "@/views/live/BroadcastList.vue"
 import LiveBroadcastViewer from '@/views/live/BroadcastViewer.vue'
 
 // 방송 예약 컴포넌트
-import BroadcastCalendar from "@/views/live/calendar.vue"
+import BroadcastCalendar from "@/views/live/Calendar.vue"
 
 // 에러 페이지 컴포넌트 추가
 import ErrorPage from '@/views/ErrorPage.vue'
