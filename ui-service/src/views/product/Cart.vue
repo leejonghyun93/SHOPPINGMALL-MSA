@@ -302,34 +302,6 @@ const checkLoginStatus = () => {
   return isLoggedIn.value
 }
 
-// 상품 매핑 함수
-const mapCartItemToProduct = (cartItem) => {
-  if (!cartItem) return null
-
-  const originalPrice = cartItem.productPrice || cartItem.price || 0;
-  const salePrice = cartItem.salePrice || originalPrice;
-
-  let discountRate = 0;
-  if (originalPrice > 0 && salePrice < originalPrice) {
-    discountRate = Math.floor(((originalPrice - salePrice) / originalPrice) * 100);
-    if (discountRate <= 0 || discountRate >= 100) {
-      discountRate = 0;
-    }
-  }
-
-  return {
-    id: cartItem.cartItemId || cartItem.id || `item_${cartItem.productId}_${Date.now()}`,
-    productId: cartItem.productId,
-    name: cartItem.productName || cartItem.name || '상품명 없음',
-    price: originalPrice,
-    salePrice: salePrice > 0 && salePrice < originalPrice ? salePrice : originalPrice,
-    discountRate: discountRate,
-    quantity: cartItem.quantity || 1,
-    image: cartItem.productImage || cartItem.image || generatePlaceholderImage(),
-    category: cartItem.category || 'normal',
-    deliveryType: cartItem.deliveryType || 'normal'
-  }
-}
 
 // 개별 상품 할인 여부 확인 함수
 const hasItemDiscount = (item) => {
@@ -393,62 +365,6 @@ const toggleSelectAll = () => {
     selectedItems.value = cartItems.value.map(item => item?.id).filter(Boolean)
   } else {
     selectedItems.value = []
-  }
-}
-
-// 수량 증가 함수
-const increaseQuantity = async (item) => {
-  if (!item) return
-
-  const originalQuantity = item.quantity || 1;
-  item.quantity = originalQuantity + 1;
-
-  if (isLoggedIn.value) {
-    try {
-      await apiClient.put('/api/cart/items', {
-        cartItemId: item.id,
-        quantity: item.quantity
-      });
-    } catch (error) {
-      item.quantity = originalQuantity;
-
-      if (error.response?.status === 404) {
-        alert('장바구니 상품을 찾을 수 없습니다. 페이지를 새로고침합니다.');
-        window.location.reload();
-      } else {
-        alert('수량 변경에 실패했습니다.');
-      }
-    }
-  } else {
-    updateGuestCartQuantity(item.productId, item.quantity);
-  }
-}
-
-// 수량 감소 함수
-const decreaseQuantity = async (item) => {
-  if (!item || (item.quantity || 1) <= 1) return;
-
-  const originalQuantity = item.quantity || 1;
-  item.quantity = originalQuantity - 1;
-
-  if (isLoggedIn.value) {
-    try {
-      await apiClient.put('/api/cart/items', {
-        cartItemId: item.id,
-        quantity: item.quantity
-      });
-    } catch (error) {
-      item.quantity = originalQuantity;
-
-      if (error.response?.status === 404) {
-        alert('장바구니 상품을 찾을 수 없습니다. 페이지를 새로고침합니다.');
-        window.location.reload();
-      } else {
-        alert('수량 변경에 실패했습니다.');
-      }
-    }
-  } else {
-    updateGuestCartQuantity(item.productId, item.quantity);
   }
 }
 
@@ -555,17 +471,12 @@ const updateGuestCartQuantity = (productId, newQuantity) => {
   }
 }
 
-// Cart.vue의 goToCheckout 함수 - 즉시 수정하여 주문 진행하게 하기
-
 const goToCheckout = async () => {
   try {
     checkoutLoading.value = true;
 
-    console.log('🚀 === 주문하기 시작 (수정 버전) ===')
-
     // 1. 로그인 상태 확인
     const currentLoginStatus = checkLoginStatus()
-    console.log('1️⃣ 로그인 상태:', currentLoginStatus)
 
     if (!currentLoginStatus) {
       alert('주문하려면 로그인이 필요합니다.')
@@ -573,14 +484,10 @@ const goToCheckout = async () => {
       return
     }
 
-    // 🔥 프로필 API 호출 완전 제거 - 바로 주문 진행
-    console.log('⚠️ 프로필 체크 건너뛰고 주문 진행 (임시 조치)')
-
     // 2. 선택된 상품 확인
     const selectedProducts = cartItems.value.filter(item =>
         item && selectedItems.value.includes(item.id)
     )
-    console.log('2️⃣ 선택된 상품 수:', selectedProducts.length)
 
     if (selectedProducts.length === 0) {
       alert('주문할 상품을 선택해주세요.')
@@ -596,19 +503,13 @@ const goToCheckout = async () => {
       deliveryFee: deliveryFee.value
     }
 
-    console.log('3️⃣ 주문 데이터:', checkoutData)
-
     // 4. 세션 저장
     sessionStorage.setItem('checkout_data', JSON.stringify(checkoutData))
-    console.log('4️⃣ 세션 저장 완료')
 
     // 5. 주문서로 이동
-    console.log('5️⃣ 주문서로 이동...')
     router.push('/checkout')
-    console.log('✅ === 주문하기 완료 ===')
 
   } catch (error) {
-    console.error('💥 주문 오류:', error)
     alert('주문 페이지로 이동 중 오류가 발생했습니다.')
   } finally {
     checkoutLoading.value = false;
@@ -741,5 +642,129 @@ onMounted(async () => {
     loading.value = false
   }
 })
+
+// 수량 증가 함수
+const increaseQuantity = async (item) => {
+  if (!item) return
+
+  const originalQuantity = item.quantity || 1;
+  item.quantity = originalQuantity + 1;
+
+  if (isLoggedIn.value) {
+    try {
+      const requestPayload = {
+        cartItemId: item.cartItemId || item.id,
+        quantity: item.quantity
+      }
+
+      const response = await apiClient.put('/api/cart/items', requestPayload);
+
+    } catch (error) {
+      // 수량 롤백
+      item.quantity = originalQuantity;
+
+      if (error.response?.status === 404) {
+        alert('장바구니 상품을 찾을 수 없습니다. 장바구니를 다시 불러오겠습니다.');
+        await loadCartItems();
+        return;
+      } else if (error.response?.status === 401) {
+        return // 인터셉터에서 처리
+      } else {
+        alert('수량 변경에 실패했습니다: ' + (error.response?.data?.message || error.message));
+      }
+    }
+  } else {
+    updateGuestCartQuantity(item.productId, item.quantity);
+  }
+}
+
+const loadCartItems = async () => {
+  loading.value = true;
+  try {
+    if (isLoggedIn.value) {
+      const response = await apiClient.get('/api/cart');
+      if (response.data.success && Array.isArray(response.data.data?.cartItems)) {
+        const serverItems = response.data.data.cartItems
+            .map(mapCartItemToProduct)
+            .filter(Boolean);
+
+        cartItems.value = serverItems;
+        selectedItems.value = serverItems.map(item => item.id);
+        selectAll.value = serverItems.length > 0;
+      }
+    }
+  } catch (error) {
+    // 장바구니 재로드 실패 처리
+  } finally {
+    loading.value = false;
+  }
+}
+
+// 수량 감소 함수
+const decreaseQuantity = async (item) => {
+  if (!item || (item.quantity || 1) <= 1) return;
+
+  const originalQuantity = item.quantity || 1;
+  item.quantity = originalQuantity - 1;
+
+  if (isLoggedIn.value) {
+    try {
+      const requestPayload = {
+        cartItemId: item.cartItemId || item.id,
+        quantity: item.quantity
+      }
+
+      const response = await apiClient.put('/api/cart/items', requestPayload);
+
+    } catch (error) {
+      // 수량 롤백
+      item.quantity = originalQuantity;
+
+      if (error.response?.status === 404) {
+        alert('장바구니 상품을 찾을 수 없습니다. 페이지를 새로고침합니다.');
+        window.location.reload();
+      } else if (error.response?.status === 401) {
+        // 401은 인터셉터에서 처리됨
+        return
+      } else {
+        alert('수량 변경에 실패했습니다: ' + (error.response?.data?.message || error.message));
+      }
+    }
+  } else {
+    updateGuestCartQuantity(item.productId, item.quantity);
+  }
+}
+
+// 상품 매핑 함수
+const mapCartItemToProduct = (cartItem) => {
+  if (!cartItem) return null
+
+  const originalPrice = cartItem.productPrice || cartItem.price || 0;
+  const salePrice = cartItem.salePrice || originalPrice;
+
+  let discountRate = 0;
+  if (originalPrice > 0 && salePrice < originalPrice) {
+    discountRate = Math.floor(((originalPrice - salePrice) / originalPrice) * 100);
+    if (discountRate <= 0 || discountRate >= 100) {
+      discountRate = 0;
+    }
+  }
+
+  return {
+    // id와 cartItemId를 모두 설정
+    id: cartItem.cartItemId || cartItem.id || `item_${cartItem.productId}_${Date.now()}`,
+    cartItemId: cartItem.cartItemId, // 실제 cartItemId 추가
+    productId: cartItem.productId,
+    name: cartItem.productName || cartItem.name || '상품명 없음',
+    price: originalPrice,
+    salePrice: salePrice > 0 && salePrice < originalPrice ? salePrice : originalPrice,
+    discountRate: discountRate,
+    quantity: cartItem.quantity || 1,
+    image: cartItem.productImage || cartItem.image || generatePlaceholderImage(),
+    category: cartItem.category || 'normal',
+    deliveryType: cartItem.deliveryType || 'normal'
+  }
+}
+
 </script>
 <style scoped src="@/assets/css/cart.css"></style>

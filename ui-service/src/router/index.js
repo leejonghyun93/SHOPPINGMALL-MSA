@@ -31,8 +31,11 @@ import LiveBroadcastViewer from '@/views/live/BroadcastViewer.vue'
 // 방송 예약 컴포넌트
 import BroadcastCalendar from "@/views/live/calendar.vue"
 
-// 🔥 에러 페이지 컴포넌트 추가
+// 에러 페이지 컴포넌트 추가
 import ErrorPage from '@/views/ErrorPage.vue'
+
+// 소셜 로그인 콜백 처리 컴포넌트
+import SocialCallback from '@/views/auth/SocialCallback.vue'
 
 // 인증 가드
 const requireAuth = (to, from, next) => {
@@ -59,6 +62,15 @@ const routes = [
         component: Login,
         meta: {
             title: '로그인'
+        }
+    },
+    {
+        path: '/auth/callback',
+        name: 'SocialCallback',
+        component: SocialCallback,
+        meta: {
+            title: '로그인 처리 중...',
+            hideNavigation: true
         }
     },
     {

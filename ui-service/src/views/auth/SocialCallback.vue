@@ -62,8 +62,11 @@ const processSocialCallback = async () => {
       localStorage.setItem('refreshToken', refreshToken)
     }
 
-    // 🔥 토큰에서 소셜 로그인 사용자 이름 강제 추출 및 보존
+    // 토큰에서 소셜 로그인 사용자 정보 추출 및 보존
     let extractedSocialName = null;
+    let extractedEmail = null;
+    let extractedPhone = null;
+
     try {
       const parts = token.split('.');
       if (parts.length === 3) {
@@ -73,24 +76,55 @@ const processSocialCallback = async () => {
         }
         const payload = JSON.parse(atob(base64));
 
+        // 이름 추출
         if (payload.name && payload.name.trim() && payload.name !== payload.sub && payload.name !== "사용자") {
           if (/[가-힣]/.test(payload.name) || (/^[a-zA-Z\s]+$/.test(payload.name) && payload.name.length > 1)) {
             extractedSocialName = payload.name.trim();
-
-            // 🔥 즉시 모든 저장소에 저장
-            localStorage.setItem('social_login_name', extractedSocialName);
-            localStorage.setItem('user_display_name', extractedSocialName);
-            localStorage.setItem('preserved_user_name', extractedSocialName);
-            sessionStorage.setItem('current_user_name', extractedSocialName);
-
-            // userStore에 즉시 설정
-            user.name = extractedSocialName;
-
-            // 🔥 소셜 로그인 이름 잠금
-            if (saveSocialLoginName) {
-              saveSocialLoginName(extractedSocialName);
-            }
           }
+        }
+
+        // 이메일 추출
+        const emailFields = ['email', 'mail', 'userEmail', 'emailAddress']
+        for (const field of emailFields) {
+          if (payload[field]) {
+            extractedEmail = payload[field]
+            break
+          }
+        }
+
+        // 휴대폰 번호 추출
+        const phoneFields = ['phone', 'phoneNumber', 'mobile', 'userPhone', 'tel', 'cellphone'];
+        for (const field of phoneFields) {
+          if (payload[field]) {
+            extractedPhone = payload[field];
+            break;
+          }
+        }
+
+        // 즉시 모든 저장소에 저장
+        if (extractedSocialName) {
+          localStorage.setItem('social_login_name', extractedSocialName);
+          localStorage.setItem('user_display_name', extractedSocialName);
+          localStorage.setItem('preserved_user_name', extractedSocialName);
+          sessionStorage.setItem('current_user_name', extractedSocialName);
+          user.name = extractedSocialName;
+        }
+
+        if (extractedEmail) {
+          localStorage.setItem('user_email', extractedEmail);
+          sessionStorage.setItem('user_email', extractedEmail);
+          user.email = extractedEmail;
+        }
+
+        if (extractedPhone) {
+          localStorage.setItem('user_phone', extractedPhone);
+          sessionStorage.setItem('user_phone', extractedPhone);
+          user.phone = extractedPhone;
+        }
+
+        // 소셜 로그인 이름 잠금
+        if (extractedSocialName && saveSocialLoginName) {
+          saveSocialLoginName(extractedSocialName);
         }
       }
     } catch (e) {
@@ -100,19 +134,35 @@ const processSocialCallback = async () => {
     // 토큰으로 사용자 정보 설정
     setUserFromToken(token)
 
-    // 🔥 setUserFromToken 후에도 이름이 덮어써지지 않도록 강제 복원
+    // setUserFromToken 후에도 정보가 덮어써지지 않도록 강제 복원
     if (extractedSocialName) {
       user.name = extractedSocialName;
       sessionStorage.setItem('current_user_name', extractedSocialName);
     }
+    if (extractedEmail) {
+      user.email = extractedEmail;
+      sessionStorage.setItem('user_email', extractedEmail);
+    }
+    if (extractedPhone) {
+      user.phone = extractedPhone;
+      sessionStorage.setItem('user_phone', extractedPhone);
+    }
 
-    // 프로필 API는 호출하지만 이름은 덮어쓰지 않음
-    const profileSuccess = await fetchUserProfile(token, extractedSocialName)
+    // 프로필 API는 호출하지만 기본 정보는 덮어쓰지 않음
+    const profileSuccess = await fetchUserProfile(token, extractedSocialName, extractedEmail, extractedPhone)
 
-    // 🔥 최종 확인 및 강제 설정
+    // 최종 확인 및 강제 설정
     if (extractedSocialName && (!user.name || user.name === "사용자")) {
       user.name = extractedSocialName;
       sessionStorage.setItem('current_user_name', extractedSocialName);
+    }
+    if (extractedEmail && !user.email) {
+      user.email = extractedEmail;
+      sessionStorage.setItem('user_email', extractedEmail);
+    }
+    if (extractedPhone && !user.phone) {
+      user.phone = extractedPhone;
+      sessionStorage.setItem('user_phone', extractedPhone);
     }
 
     setTimeout(async () => {
@@ -124,11 +174,13 @@ const processSocialCallback = async () => {
   }
 }
 
-const fetchUserProfile = async (token, protectedSocialName = null) => {
+const fetchUserProfile = async (token, protectedSocialName = null, protectedEmail = null, protectedPhone = null) => {
   try {
-    // 🔥 소셜 로그인 이름이 보호되어 있으면 API 호출 건너뛰기
-    if (protectedSocialName) {
+    // 보호된 정보가 모두 있으면 API 호출 건너뛰기
+    if (protectedSocialName && protectedEmail && protectedPhone) {
       user.name = protectedSocialName;
+      user.email = protectedEmail;
+      user.phone = protectedPhone;
       return true;
     }
 
@@ -138,16 +190,11 @@ const fetchUserProfile = async (token, protectedSocialName = null) => {
       const userData = response.data.data
 
       user.id = userData.userId
-      user.email = userData.email
       user.role = userData.role || 'USER'
-      user.phone = userData.phone
 
-      // 🔥 소셜 로그인 이름이 보호되어 있으면 API 이름 무시
-      const currentSocialName = localStorage.getItem('social_login_name') ||
-          sessionStorage.getItem('current_user_name');
-
-      if (currentSocialName && currentSocialName.trim() && currentSocialName !== "사용자") {
-        user.name = currentSocialName;
+      // 보호된 정보가 있으면 API 정보 무시
+      if (protectedSocialName) {
+        user.name = protectedSocialName;
       } else if (userData.name && userData.name.trim()) {
         user.name = userData.name;
         sessionStorage.setItem('current_user_name', userData.name);
@@ -155,12 +202,34 @@ const fetchUserProfile = async (token, protectedSocialName = null) => {
         user.name = "사용자";
       }
 
+      if (protectedEmail) {
+        user.email = protectedEmail;
+      } else if (userData.email && userData.email.trim()) {
+        user.email = userData.email;
+        localStorage.setItem('user_email', userData.email);
+        sessionStorage.setItem('user_email', userData.email);
+      }
+
+      if (protectedPhone) {
+        user.phone = protectedPhone;
+      } else if (userData.phone && userData.phone.trim()) {
+        user.phone = userData.phone;
+        localStorage.setItem('user_phone', userData.phone);
+        sessionStorage.setItem('user_phone', userData.phone);
+      }
+
       return true
     }
   } catch (error) {
-    // 🔥 API 실패해도 소셜 로그인 이름은 절대 보호
+    // API 실패해도 보호된 정보는 유지
     if (protectedSocialName) {
       user.name = protectedSocialName;
+    }
+    if (protectedEmail) {
+      user.email = protectedEmail;
+    }
+    if (protectedPhone) {
+      user.phone = protectedPhone;
     }
   }
   return false

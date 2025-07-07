@@ -313,6 +313,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { user } from '@/stores/userStore'
 
 // 상태 유틸리티 import
 import {
@@ -352,7 +353,6 @@ const getAuthHeaders = () => {
     headers.Authorization = authToken
   }
 
-  // X-User-Id 헤더 제거
   return headers
 }
 
@@ -374,13 +374,11 @@ const refreshTokenIfNeeded = async () => {
       const result = await response.json()
       if (result.success && result.token) {
         localStorage.setItem('token', result.token)
-        console.log('✅ 토큰 자동 갱신 성공')
         return true
       }
     }
     return false
   } catch (error) {
-    console.error('토큰 갱신 실패:', error)
     return false
   }
 }
@@ -392,12 +390,6 @@ const loadOrderData = async (orderId) => {
     error.value = ''
 
     const userId = localStorage.getItem('userId') || 'guest'
-
-    console.log('🔍 주문 정보 요청:', {
-      orderId: orderId,
-      userId: userId
-    })
-
     const url = `${API_BASE_URL}/api/orders/${orderId}?userId=${userId}`
 
     const response = await fetch(url, {
@@ -405,37 +397,129 @@ const loadOrderData = async (orderId) => {
       headers: getAuthHeaders()
     })
 
-    console.log('📡 응답 상태:', response.status, response.statusText)
-
     if (!response.ok) {
-      const errorText = await response.text()
-      console.error('❌ 에러 응답:', errorText)
       throw new Error(`주문 정보를 찾을 수 없습니다. (${response.status})`)
     }
 
     const result = await response.json()
-    console.log('✅ 주문 데이터:', result)
 
     if (result.success) {
       orderData.value = result.data
 
-      // 디버깅: 상태 정보 확인
-      console.log('=== 주문 상세 상태 디버깅 ===')
-      console.log(`주문 ${orderData.value.orderId}:`)
-      console.log(`  - 원본 상태: "${orderData.value.orderStatus}"`)
-      console.log(`  - 표시명: "${getStatusDisplayName(orderData.value.orderStatus)}"`)
-      console.log(`  - CSS 클래스: "${getStatusClass(orderData.value.orderStatus)}"`)
-      console.log(`  - 취소 가능: ${canCancelOrder(orderData.value.orderStatus)}`)
-      console.log(`  - 주문자명: "${orderData.value.userName || orderData.value.recipientName || '정보없음'}"`)
-      console.log(`  - 주문자 휴대폰: "${orderData.value.phone || '정보없음'}"`)
-      console.log(`  - 주문자 이메일: "${orderData.value.email || '정보없음'}"`)
-      console.log('===============================')
+      // 사용자 정보 보완 처리
+
+      // 이름 정보 보완
+      if (!orderData.value.userName || orderData.value.userName === '사용자') {
+        if (orderData.value.recipientName && orderData.value.recipientName !== '수령인') {
+          orderData.value.userName = orderData.value.recipientName
+        } else if (user.name && user.name !== '사용자') {
+          orderData.value.userName = user.name
+        } else {
+          // 토큰에서 이름 추출
+          const token = localStorage.getItem('token')
+          if (token) {
+            try {
+              const parts = token.replace('Bearer ', '').split('.')
+              if (parts.length === 3) {
+                let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+                while (base64.length % 4) {
+                  base64 += '='
+                }
+                const payload = JSON.parse(atob(base64))
+
+                if (payload.name && payload.name !== payload.sub) {
+                  orderData.value.userName = payload.name
+                }
+              }
+            } catch (e) {
+              // 토큰 파싱 실패 무시
+            }
+          }
+        }
+      }
+
+      // 이메일 정보 보완
+      if (!orderData.value.email) {
+        if (user.email) {
+          orderData.value.email = user.email
+        } else {
+          const savedEmail = localStorage.getItem('user_email') ||
+              sessionStorage.getItem('user_email')
+          if (savedEmail) {
+            orderData.value.email = savedEmail
+          } else {
+            // 토큰에서 이메일 추출
+            const token = localStorage.getItem('token')
+            if (token) {
+              try {
+                const parts = token.replace('Bearer ', '').split('.')
+                if (parts.length === 3) {
+                  let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+                  while (base64.length % 4) {
+                    base64 += '='
+                  }
+                  const payload = JSON.parse(atob(base64))
+
+                  const emailFields = ['email', 'mail', 'userEmail', 'emailAddress']
+                  for (const field of emailFields) {
+                    if (payload[field]) {
+                      orderData.value.email = payload[field]
+                      break
+                    }
+                  }
+                }
+              } catch (e) {
+                // 토큰 파싱 실패 무시
+              }
+            }
+          }
+        }
+      }
+
+      // 휴대폰 번호 보완
+      if (!orderData.value.phone) {
+        if (orderData.value.recipientPhone) {
+          orderData.value.phone = orderData.value.recipientPhone
+        } else if (user.phone) {
+          orderData.value.phone = user.phone
+        } else {
+          const savedPhone = localStorage.getItem('user_phone') ||
+              sessionStorage.getItem('user_phone')
+          if (savedPhone) {
+            orderData.value.phone = savedPhone
+          } else {
+            // 토큰에서 휴대폰 추출
+            const token = localStorage.getItem('token')
+            if (token) {
+              try {
+                const parts = token.replace('Bearer ', '').split('.')
+                if (parts.length === 3) {
+                  let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+                  while (base64.length % 4) {
+                    base64 += '='
+                  }
+                  const payload = JSON.parse(atob(base64))
+
+                  const phoneFields = ['phone', 'phoneNumber', 'mobile', 'userPhone', 'tel', 'cellphone']
+                  for (const field of phoneFields) {
+                    if (payload[field]) {
+                      orderData.value.phone = payload[field]
+                      break
+                    }
+                  }
+                }
+              } catch (e) {
+                // 토큰 파싱 실패 무시
+              }
+            }
+          }
+        }
+      }
 
     } else {
       throw new Error(result.message || '주문 정보를 불러오는데 실패했습니다.')
     }
   } catch (err) {
-    console.error('주문 정보 로드 실패:', err)
     error.value = err.message || '주문 정보를 불러오는 중 오류가 발생했습니다.'
   } finally {
     loading.value = false
@@ -460,8 +544,6 @@ const cancelOrderAction = async () => {
       paymentId: orderData.value.paymentId
     }
 
-    console.log('🔥 주문 취소 요청 데이터:', cancelData)
-
     // 첫 번째 시도
     let response = await fetch(`${API_BASE_URL}/api/orders/${orderData.value.orderId}/cancel`, {
       method: 'POST',
@@ -471,8 +553,6 @@ const cancelOrderAction = async () => {
 
     // 401 오류시 토큰 갱신 후 재시도
     if (response.status === 401) {
-      console.log('🔄 토큰 만료, 갱신 후 재시도...')
-
       const refreshed = await refreshTokenIfNeeded()
       if (refreshed) {
         // 토큰 갱신 성공, 다시 요청
@@ -491,15 +571,12 @@ const cancelOrderAction = async () => {
       }
     }
 
-    console.log('📡 응답 상태:', response.status, response.statusText)
-
     if (!response.ok) {
       const errorData = await response.json()
       throw new Error(errorData.message || '주문 취소에 실패했습니다.')
     }
 
     const result = await response.json()
-    console.log('✅ 주문 취소 성공:', result)
 
     if (result.success) {
       alert('주문이 성공적으로 취소되었습니다.\n환불은 영업일 기준 3-5일 소요됩니다.')
@@ -516,7 +593,6 @@ const cancelOrderAction = async () => {
     }
 
   } catch (err) {
-    console.error('🚨 주문 취소 실패:', err)
     alert(`주문 취소 실패: ${err.message}`)
   } finally {
     cancelLoading.value = false
@@ -561,13 +637,6 @@ const goBack = () => {
   const fromPage = route.query.from
   const wasPaymentComplete = sessionStorage.getItem('payment_completed') === 'true'
 
-  console.log('🔍 네비게이션 정보:', {
-    fromPage,
-    wasPaymentComplete,
-    routeQuery: route.query,
-    currentRoute: route.name
-  })
-
   //  수정: checkout에서 온 경우 (결제 완료 후)와 mypage에서 온 경우 모두 마이페이지로
   if (fromPage === 'checkout' || fromPage === 'payment' || fromPage === 'mypage' || wasPaymentComplete) {
     sessionStorage.removeItem('payment_completed') // 정리
@@ -576,7 +645,6 @@ const goBack = () => {
       query: { from: 'order-complete' }
     })
   } else {
-
     router.push({ name: 'MyPageOrders' })
   }
 }
@@ -616,9 +684,38 @@ onMounted(async () => {
   const paymentId = route.query.paymentId || ''
   const amount = route.query.amount || ''
 
-  // 🔥 결제 완료 후 직접 온 경우 마킹 (URL에 paymentId와 amount가 있으면 결제 완료 후)
+  // 결제 완료 후 직접 온 경우 처리
   if (paymentId && amount) {
     sessionStorage.setItem('payment_completed', 'true')
+  }
+
+  // 결제 중 정보 손실 복구 시도
+  const backupTime = sessionStorage.getItem('payment_backup_time')
+  if (backupTime) {
+    const backupAge = Date.now() - parseInt(backupTime)
+    if (backupAge < 10 * 60 * 1000) { // 10분 이내
+      // 결제 백업 정보에서 복구
+      const paymentName = localStorage.getItem('payment_user_name')
+      const paymentEmail = localStorage.getItem('payment_user_email')
+      const paymentPhone = localStorage.getItem('payment_user_phone')
+
+      if (paymentName && (!user.name || user.name === "사용자")) {
+        user.name = paymentName
+        sessionStorage.setItem('current_user_name', paymentName)
+      }
+
+      if (paymentEmail && !user.email) {
+        user.email = paymentEmail
+        sessionStorage.setItem('user_email', paymentEmail)
+        localStorage.setItem('user_email', paymentEmail)
+      }
+
+      if (paymentPhone && !user.phone) {
+        user.phone = paymentPhone
+        sessionStorage.setItem('user_phone', paymentPhone)
+        localStorage.setItem('user_phone', paymentPhone)
+      }
+    }
   }
 
   if (!orderId) {

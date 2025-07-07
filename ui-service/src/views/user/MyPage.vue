@@ -9,7 +9,13 @@
         <div class="col-md-3 sidebar">
           <!-- 사용자 정보 섹션 -->
           <div class="user-info-section">
-            <div class="welcome-text">반가워요! <span class="username">{{ userName }}</span></div>
+            <div class="welcome-text">
+              반가워요! <span class="username">{{ userName }}</span>
+              <!--  소셜 로그인 표시 -->
+<!--              <div v-if="isSocialUser" class="social-login-badge">-->
+<!--                <span class="social-badge">{{ socialProviderName }}</span>-->
+<!--              </div>-->
+            </div>
 
             <div class="benefit-cards">
               <div class="benefit-card">
@@ -53,23 +59,6 @@
                 </div>
               </div>
 
-<!--              <div class="menu-item" @click="navigateToTab('coupons')" :class="{ active: activeTab === 'coupons' }">-->
-<!--                <div class="menu-icon coupons-icon">-->
-<!--                  <svg class="svg-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">-->
-<!--                    <path-->
-<!--                        d="M21 8V16C21 17.1046 20.1046 18 19 18H5C3.89543 18 3 17.1046 3 16V8C3 6.89543 3.89543 6 5 6H19C20.1046 6 21 6.89543 21 8Z"-->
-<!--                        stroke="#7b1fa2" stroke-width="2" fill="none"/>-->
-<!--                    <circle cx="8" cy="12" r="1" fill="#7b1fa2"/>-->
-<!--                    <circle cx="16" cy="12" r="1" fill="#7b1fa2"/>-->
-<!--                    <path d="M12 8V16" stroke="#7b1fa2" stroke-width="1" stroke-dasharray="2 2"/>-->
-<!--                  </svg>-->
-<!--                </div>-->
-<!--                <div class="menu-info">-->
-<!--                  <div class="menu-name">쿠폰</div>-->
-<!--                  <div class="menu-count">{{ availableCoupons || 0 }}</div>-->
-<!--                </div>-->
-<!--              </div>-->
-
               <div class="menu-item" @click="navigateToTab('wishlist')" :class="{ active: activeTab === 'wishlist' }">
                 <div class="menu-icon wishlist-icon">
                   <svg class="svg-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -83,20 +72,6 @@
                   <div class="menu-count">0</div>
                 </div>
               </div>
-
-<!--              <div class="menu-item" @click="navigateToTab('frequent')" :class="{ active: activeTab === 'frequent' }">-->
-<!--                <div class="menu-icon frequent-icon">-->
-<!--                  <svg class="svg-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">-->
-<!--                    <path-->
-<!--                        d="M7 4V2C7 1.44772 7.44772 1 8 1H16C16.5523 1 17 1.44772 17 2V4H20C20.5523 4 21 4.44772 21 5C21 5.55228 20.5523 6 20 6H19V19C19 20.1046 18.1046 21 17 21H7C5.89543 21 5 20.1046 5 19V6H4C3.44772 6 3 5.55228 3 5C3 4.44772 3.44772 4 4 4H7Z"-->
-<!--                        fill="#388e3c"/>-->
-<!--                    <path d="M9 3H15V4H9V3Z" fill="white"/>-->
-<!--                  </svg>-->
-<!--                </div>-->
-<!--                <div class="menu-info">-->
-<!--                  <div class="menu-name">자주 구매</div>-->
-<!--                </div>-->
-<!--              </div>-->
             </div>
 
             <!-- 하단 링크 섹션 -->
@@ -117,12 +92,14 @@
 
               <div class="link-section">
                 <div class="section-title">내 정보관리</div>
-                <div class="link-item" @click="navigateToProfile()">
+                <!--  소셜 로그인 사용자 제한 적용 -->
+                <div v-if="!isSocialUser" class="link-item" @click="navigateToProfile()">
                   회원 정보 관리
                 </div>
-<!--                <div class="link-item" @click="navigateToTab('vip')" :class="{ active: activeTab === 'vip' }">-->
-<!--                  VIP 예상 등급-->
-<!--                </div>-->
+                <div v-else class="link-item disabled" @click="showSocialUserAlert">
+                  <span class="disabled-text">회원 정보 관리</span>
+                  <span class="social-restriction-icon">🔒</span>
+                </div>
               </div>
             </div>
           </div>
@@ -134,22 +111,103 @@
         </div>
       </div>
     </div>
+
+    <!-- 소셜 로그인 사용자 알림 모달 -->
+    <div v-if="showSocialAlert" class="modal-overlay" @click="closeSocialAlert">
+      <div class="modal-content social-alert-modal" @click.stop>
+        <div class="modal-header">
+          <div class="social-icon">
+            {{ socialProviderName === '카카오' ? '💬' : socialProviderName === '네이버' ? '🟢' : '👤' }}
+          </div>
+          <h3 class="modal-title">{{ socialProviderName }} 로그인 사용자</h3>
+          <button @click="closeSocialAlert" class="modal-close">
+            <svg class="close-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2"/>
+              <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <div class="alert-content">
+            <div class="alert-message">
+              <p class="main-message">
+                <strong>{{ socialProviderName }} 로그인</strong>으로 가입하신 회원은<br>
+                보안상의 이유로 회원정보 수정이 제한됩니다.
+              </p>
+
+              <div class="restriction-details">
+                <h4>이용 가능한 서비스:</h4>
+                <ul class="available-services">
+                  <li>주문 내역 조회</li>
+                  <li>상품 주문 및 결제</li>
+                  <li>상품 후기 작성</li>
+                  <li>고객센터 문의</li>
+                </ul>
+
+                <h4 class="mt-3">제한되는 서비스:</h4>
+                <ul class="restricted-services">
+                  <li>개인정보 수정 (이름, 이메일 등)</li>
+                  <li>비밀번호 변경</li>
+                  <li>회원탈퇴 ({{ socialProviderName }}에서 직접 처리)</li>
+                </ul>
+              </div>
+
+              <div class="help-section">
+                <p class="help-text">
+                  <strong>개인정보 변경이 필요하신 경우:</strong><br>
+                  {{ socialProviderName }} 계정에서 직접 정보를 수정해주세요.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button @click="closeSocialAlert" class="confirm-button">
+            확인
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { user, setUserFromToken } from '@/stores/userStore'
+import { user, setUserFromToken, isSocialLoginUser, getSocialLoginProvider } from '@/stores/userStore'
 import apiClient from '@/api/axiosInstance'
 
 const route = useRoute()
 const router = useRouter()
 
+//  소셜 로그인 관련 상태 추가
+const isSocialUser = ref(false)
+const socialProvider = ref(null)
+const showSocialAlert = ref(false)
+
 // 사용자 데이터 - userStore에서 가져오기
 const computedUser = computed(() => user)
 const userName = computed(() => {
   return computedUser.value.name ? computedUser.value.name + '님' : '사용자님'
+})
+
+//  소셜 로그인 제공업체 표시명
+const socialProviderName = computed(() => {
+  switch (socialProvider.value) {
+    case 'KAKAO':
+    case 'kakao':
+      return '카카오'
+    case 'NAVER':
+    case 'naver':
+      return '네이버'
+    case 'GOOGLE':
+    case 'google':
+      return '구글'
+    default:
+      return '소셜'
+  }
 })
 
 // 현재 활성 탭 (라우트 기반)
@@ -191,6 +249,15 @@ const navigateToTab = (tabName) => {
   if (routeName) {
     router.push({ name: routeName })
   }
+}
+
+// 소셜 로그인 사용자 알림 표시
+const showSocialUserAlert = () => {
+  showSocialAlert.value = true
+}
+
+const closeSocialAlert = () => {
+  showSocialAlert.value = false
 }
 
 // 주문 개수만 별도로 다시 로드하는 함수
@@ -258,7 +325,14 @@ const fetchUserExtraInfo = async () => {
   )
 }
 
+//  회원정보관리 네비게이션 (소셜 로그인 체크 추가)
 function navigateToProfile() {
+  // 소셜 로그인 사용자는 접근 차단
+  if (isSocialUser.value) {
+    showSocialUserAlert()
+    return
+  }
+
   router.push({ name: 'MyPageProfile' })
 }
 
@@ -289,6 +363,18 @@ const isTokenValid = (token) => {
   }
 }
 
+//  소셜 로그인 여부 체크 함수
+const checkSocialLoginStatus = () => {
+  isSocialUser.value = isSocialLoginUser()
+  socialProvider.value = getSocialLoginProvider()
+
+  console.log('🔍 소셜 로그인 체크:', {
+    isSocialUser: isSocialUser.value,
+    provider: socialProvider.value,
+    providerName: socialProviderName.value
+  })
+}
+
 // 마운트 시 처리
 onMounted(async () => {
   const token = localStorage.getItem('token')
@@ -307,6 +393,10 @@ onMounted(async () => {
   // userStore에서 사용자 정보 설정
   try {
     setUserFromToken(token)
+
+    //  소셜 로그인 여부 체크
+    checkSocialLoginStatus()
+
   } catch (error) {
     localStorage.removeItem('token')
     router.push('/login')

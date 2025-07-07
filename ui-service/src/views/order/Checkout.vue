@@ -282,7 +282,7 @@
 import {ref, computed, onMounted} from 'vue'
 import {ChevronLeft} from 'lucide-vue-next'
 import apiClient from '@/api/axiosInstance'
-import {user, setUserFromToken} from "@/stores/userStore"
+import { user, setUserFromToken, backupNameForPayment, restoreNameAfterPayment } from "@/stores/userStore"
 
 import {
   getFailureReason,
@@ -456,7 +456,6 @@ const isTokenValid = (token) => {
     const parts = token.split('.')
     if (parts.length !== 3) return false
 
-    // Base64 디코딩
     let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
     while (base64.length % 4) {
       base64 += '='
@@ -465,22 +464,17 @@ const isTokenValid = (token) => {
     const payloadStr = atob(base64)
     const payload = JSON.parse(payloadStr)
 
-    // 만료 시간 확인
     const currentTime = Math.floor(Date.now() / 1000)
     if (payload.exp && payload.exp < currentTime) {
-      console.warn('토큰 만료:', new Date(payload.exp * 1000))
       return false
     }
 
-    // 필수 필드 확인
     if (!payload.sub && !payload.username) {
-      console.warn('토큰에 사용자 정보 없음')
       return false
     }
 
     return true
   } catch (error) {
-    console.error('토큰 검증 실패:', error)
     return false
   }
 }
@@ -494,7 +488,6 @@ const checkLoginStatus = () => {
   }
 
   if (!isTokenValid(token)) {
-    console.warn('유효하지 않은 토큰 - 제거')
     localStorage.removeItem('token')
     localStorage.removeItem('userId')
     isLoggedIn.value = false
@@ -505,10 +498,8 @@ const checkLoginStatus = () => {
   try {
     setUserFromToken(token)
     isLoggedIn.value = !!user.id
-    console.log('로그인 상태 확인:', { userId: user.id, isLoggedIn: isLoggedIn.value })
     return isLoggedIn.value
   } catch (error) {
-    console.error('사용자 정보 설정 실패:', error)
     isLoggedIn.value = false
     return false
   }
@@ -516,7 +507,6 @@ const checkLoginStatus = () => {
 
 const loadUserInfo = async () => {
   try {
-    // 비로그인 사용자 처리
     if (!isLoggedIn.value) {
       userInfo.value = {
         name: '게스트 사용자',
@@ -527,37 +517,132 @@ const loadUserInfo = async () => {
       return
     }
 
-    // 🔥 API 호출 완전 제거 - 토큰 정보만 사용
-    console.log('✅ 토큰 기반 사용자 정보 사용 (API 호출 제거)')
+    // 1단계: userStore와 저장소에서 기본 정보 수집
+    let finalUserName = user.name || '사용자'
+    let finalUserEmail = user.email || localStorage.getItem('user_email') || sessionStorage.getItem('user_email') || ''
+    let finalUserPhone = user.phone || localStorage.getItem('user_phone') || sessionStorage.getItem('user_phone') || ''
 
-    userInfo.value = {
-      name: user.name || '사용자',
-      phone: user.phone || '',
-      email: user.email || ''
+    // 2단계: 토큰에서 추가 정보 추출
+    const token = localStorage.getItem('token')
+    if (token) {
+      try {
+        const parts = token.replace('Bearer ', '').split('.')
+        if (parts.length === 3) {
+          let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+          while (base64.length % 4) {
+            base64 += '='
+          }
+          const payload = JSON.parse(atob(base64))
+
+          // 이름 보완
+          if (!finalUserName || finalUserName === '사용자') {
+            if (payload.name && payload.name.trim() && payload.name !== payload.sub) {
+              finalUserName = payload.name
+            }
+          }
+
+          // 이메일 보완
+          if (!finalUserEmail) {
+            const emailFields = ['email', 'mail', 'userEmail', 'emailAddress']
+            for (const field of emailFields) {
+              if (payload[field]) {
+                finalUserEmail = payload[field]
+                break
+              }
+            }
+          }
+
+          // 휴대폰 보완
+          if (!finalUserPhone) {
+            const phoneFields = ['phone', 'phoneNumber', 'mobile', 'userPhone', 'tel', 'cellphone']
+            for (const field of phoneFields) {
+              if (payload[field]) {
+                finalUserPhone = payload[field]
+                break
+              }
+            }
+          }
+        }
+      } catch (e) {
+        // 토큰 파싱 실패 무시
+      }
     }
 
-    // 기본 배송지 설정
-    setDefaultDeliveryInfo(user.name || '사용자', user.phone || '')
+    // 3단계: API 호출로 정보 보완 (필요한 경우에만)
+    const hasCompleteInfo = finalUserEmail && finalUserPhone
+    if (!hasCompleteInfo) {
+      try {
+        const response = await apiClient.get('/api/users/profile', {
+          timeout: 3000,
+          validateStatus: function (status) {
+            return status < 500
+          }
+        })
 
-    console.log('✅ 사용자 정보 설정 완료:', {
-      name: userInfo.value.name,
-      phone: userInfo.value.phone ? '***' : '없음',
-      email: userInfo.value.email ? '***' : '없음'
-    })
+        if (response.status === 200 && response.data?.success && response.data?.data) {
+          const userData = response.data.data
+
+          // 이메일과 휴대폰이 빈 문자열이 아닌 경우에만 사용
+          if (!finalUserEmail && userData.email && userData.email.trim()) {
+            finalUserEmail = userData.email.trim()
+          }
+
+          if (!finalUserPhone && userData.phone && userData.phone.trim()) {
+            finalUserPhone = userData.phone.trim()
+          }
+
+          // 소셜 로그인이 아닌 경우에만 이름 업데이트
+          const isSocialLogin = localStorage.getItem('social_login_name') ||
+              sessionStorage.getItem('current_user_name')
+
+          if (!isSocialLogin && userData.name && userData.name.trim() && userData.name !== "사용자") {
+            finalUserName = userData.name.trim()
+          }
+
+          // userStore 업데이트
+          user.name = finalUserName
+          if (finalUserEmail) {
+            user.email = finalUserEmail
+          }
+          if (finalUserPhone) {
+            user.phone = finalUserPhone
+          }
+
+          // 정보 저장
+          if (finalUserEmail) {
+            localStorage.setItem('user_email', finalUserEmail)
+            sessionStorage.setItem('user_email', finalUserEmail)
+          }
+          if (finalUserPhone) {
+            localStorage.setItem('user_phone', finalUserPhone)
+            sessionStorage.setItem('user_phone', finalUserPhone)
+          }
+        }
+      } catch (error) {
+        // API 실패해도 기존 정보 사용
+      }
+    }
+
+    // 4단계: 최종 사용자 정보 설정
+    userInfo.value = {
+      name: finalUserName,
+      phone: finalUserPhone,
+      email: finalUserEmail
+    }
+
+    setDefaultDeliveryInfo(userInfo.value.name, userInfo.value.phone)
 
   } catch (error) {
-    console.error('사용자 정보 설정 실패:', error)
-
-    // 최종 fallback: 기본값 설정
+    // 실패해도 최소한의 정보는 설정
     userInfo.value = {
-      name: user.name || '사용자',
+      name: user.name || user.id || '사용자',
       phone: user.phone || '',
       email: user.email || ''
     }
-    setDefaultDeliveryInfo(user.name || '사용자', user.phone || '')
+
+    setDefaultDeliveryInfo(userInfo.value.name, userInfo.value.phone)
   }
 }
-
 
 const setDefaultDeliveryInfo = (name, phone) => {
   deliveryInfo.value = {
@@ -569,6 +654,7 @@ const setDefaultDeliveryInfo = (name, phone) => {
     recipientPhone: phone || ''
   }
 }
+
 const loadDeliveryInfo = async () => {
   if (!isLoggedIn.value) {
     return
@@ -754,13 +840,9 @@ const initiatePayment = async (paymentData) => {
         }
       }
 
-      console.log('결제 요청 데이터:', paymentRequest)
-
       IMP.request_pay(paymentRequest, async (response) => {
         try {
           if (response.success) {
-            console.log('✅ 결제 성공:', response)
-
             const pendingOrderData = sessionStorage.getItem('pending_order_data')
             if (!pendingOrderData) {
               throw new Error('임시 주문 데이터를 찾을 수 없습니다')
@@ -777,16 +859,14 @@ const initiatePayment = async (paymentData) => {
               })
 
               if (orderResponse.data.success) {
-                console.log('✅ 주문 생성 성공, 장바구니 정리 시작...')
-
-                // 🔥 장바구니 정리 시 에러 무시
+                // 장바구니 정리 시 에러 무시
                 try {
                   await clearPurchasedItemsFromCart(orderData.items)
                 } catch (cartError) {
-                  console.log('⚠️ 장바구니 정리 실패했지만 결제는 성공 - 무시하고 진행')
+                  // 무시하고 진행
                 }
 
-                // 🔥 세션 정리
+                // 세션 정리
                 sessionStorage.removeItem('pending_order_data')
                 sessionStorage.removeItem('checkout_data')
                 sessionStorage.setItem('payment_completed', 'true')
@@ -794,16 +874,9 @@ const initiatePayment = async (paymentData) => {
                 const successMsg = getSuccessMessage(pgProvider, response.paid_amount)
                 showFriendlyMessage(successMsg, 'success')
 
-                // 🔥 주문 완료 페이지로 이동 시 토큰 상태 확인
+                // 토큰이 만료된 경우에도 주문 완료 페이지로 이동
                 const currentToken = localStorage.getItem('token')
-                console.log('🔍 주문 완료 페이지 이동 전 토큰 상태:', {
-                  hasToken: !!currentToken,
-                  tokenValid: currentToken ? isTokenValid(currentToken) : false
-                })
-
-                // 🔥 토큰이 만료된 경우 갱신 시도
                 if (currentToken && !isTokenValid(currentToken)) {
-                  console.log('🔄 토큰 만료됨, 주문 완료 페이지로 바로 이동')
                   // 토큰을 삭제하지 말고 주문 완료 페이지에서 처리하도록 함
                 }
 
@@ -814,11 +887,8 @@ const initiatePayment = async (paymentData) => {
               }
 
             } catch (orderError) {
-              console.error('❌ 주문 생성 실패:', orderError)
-
-              // 🔥 결제는 성공했으나 주문 생성 실패 시 처리
+              // 결제는 성공했으나 주문 생성 실패 시 처리
               if (orderError.response?.status === 401) {
-                console.log('🔄 주문 생성 중 인증 만료 - 주문 완료 페이지로 이동')
                 sessionStorage.setItem('payment_completed', 'true')
                 sessionStorage.setItem('pending_payment_verification', JSON.stringify({
                   paymentId: response.imp_uid,
@@ -845,7 +915,6 @@ const initiatePayment = async (paymentData) => {
           }
 
         } catch (error) {
-          console.error('❌ 결제 처리 중 오류:', error)
           sessionStorage.removeItem('pending_order_data')
 
           if (!error.alreadyHandled) {
@@ -856,7 +925,7 @@ const initiatePayment = async (paymentData) => {
                   refund_amount: response.paid_amount
                 })
               } catch (cancelError) {
-                console.error('결제 취소 실패:', cancelError)
+                // 취소 실패 무시
               }
             }
             const errorMsg = getFailureReason('SYSTEM_ERROR', '결제 처리 중 오류가 발생했습니다')
@@ -874,19 +943,12 @@ const initiatePayment = async (paymentData) => {
     throw error
   }
 }
-// 🔥 Checkout.vue - clearPurchasedItemsFromCart 함수 개선 버전
 
 const clearPurchasedItemsFromCart = async (purchasedItems) => {
   try {
     const currentLoginStatus = checkLoginStatus()
 
-    console.log('🛒 장바구니 정리 시작:', {
-      loginStatus: currentLoginStatus,
-      purchasedItemsCount: purchasedItems?.length || 0
-    })
-
     if (currentLoginStatus) {
-      // 로그인 사용자: 서버 장바구니에서 제거
       const productIds = purchasedItems
           .map(item => {
             let productId = item.productId || item.id || item.product_id
@@ -900,35 +962,29 @@ const clearPurchasedItemsFromCart = async (purchasedItems) => {
           })
           .filter(id => id !== null && id !== undefined)
 
-      console.log('🔍 추출된 상품 ID들:', productIds)
-
       if (productIds.length > 0) {
         try {
-          // 🔥 장바구니 정리 시 에러를 무시하도록 설정
           const response = await apiClient.post('/api/cart/remove-purchased-items', {
             productIds: productIds
           }, {
-            timeout: 3000,  // 타임아웃 단축
-            // 🔥 401 에러도 정상으로 처리
+            timeout: 3000,
             validateStatus: function (status) {
-              return status < 500; // 500 미만은 모두 성공으로 처리
+              return status < 500;
             }
           })
 
           if (response.status === 401) {
-            console.log('🔇 장바구니 정리 중 401 에러 - 무시하고 진행')
+            // 401 에러 무시
           } else if (response.data?.success) {
-            console.log('✅ 서버 장바구니에서 구매 상품 제거 완료')
+            // 성공 처리
           } else {
-            console.log('⚠️ 서버 장바구니 정리 실패 - 무시하고 진행')
+            // 실패하지만 무시
           }
         } catch (error) {
-          console.log('🔇 장바구니 정리 실패 - 결제는 성공했으므로 무시:', error.message)
           // 에러를 던지지 않고 조용히 처리
         }
       }
     } else {
-      // 게스트 사용자: 로컬 스토리지에서 제거 (기존 로직 유지)
       const productIds = purchasedItems
           .map(item => item.productId || item.id || item.product_id)
           .filter(Boolean)
@@ -940,23 +996,20 @@ const clearPurchasedItemsFromCart = async (purchasedItems) => {
             return !productIds.includes(String(cartItem.productId))
           })
           localStorage.setItem('guestCart', JSON.stringify(updatedCart))
-          console.log('✅ 게스트 장바구니 정리 완료')
         } catch (error) {
-          console.error('❌ 게스트 장바구니 정리 실패:', error)
+          // 에러 무시
         }
       }
     }
 
-    // 🔥 정리 완료 마킹
     sessionStorage.setItem('cart_cleaned_after_payment', 'true')
     sessionStorage.setItem('last_purchase_cleanup', Date.now().toString())
-    console.log('✅ 장바구니 정리 완료')
 
   } catch (error) {
-    console.log('🔇 장바구니 정리 중 전체 오류 - 결제 성공 후이므로 무시:', error.message)
     // 결제 성공 후이므로 에러를 던지지 않음
   }
 }
+
 const getPaymentMethodName = (method) => {
   if (method === 'general' && selectedSubPayment.value === 'credit') {
     const typeNames = {
@@ -979,6 +1032,7 @@ const getPaymentMethodName = (method) => {
   return methodNames[method] || '기타'
 }
 
+// 결제 시작 시 이름 백업
 const processPayment = async () => {
   if (!validatePaymentMethod()) {
     return
@@ -992,7 +1046,9 @@ const processPayment = async () => {
   try {
     loading.value = true
 
-    // 로그인 상태 재확인
+    backupNameForPayment()
+    sessionStorage.setItem('payment_in_progress', 'true')
+
     const currentLoginStatus = checkLoginStatus()
 
     if (!currentLoginStatus) {
@@ -1003,7 +1059,6 @@ const processPayment = async () => {
       return
     }
 
-    // 필수 정보 검증
     if (!userInfo.value.name || userInfo.value.name.trim() === '') {
       showFriendlyMessage('주문자 이름이 필요합니다.', 'warning')
       return
@@ -1014,7 +1069,6 @@ const processPayment = async () => {
       return
     }
 
-    // 주문 데이터 생성
     const tempOrderId = `ORDER${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
     const orderData = {
@@ -1043,7 +1097,6 @@ const processPayment = async () => {
       tempOrderId: tempOrderId
     }
 
-    // 주문 데이터 검증
     if (!orderData.items || orderData.items.length === 0) {
       showFriendlyMessage('주문할 상품이 없습니다.', 'warning')
       return
@@ -1054,20 +1107,10 @@ const processPayment = async () => {
       return
     }
 
-    // 임시 주문 데이터 저장
     sessionStorage.setItem('pending_order_data', JSON.stringify(orderData))
 
-    // 실제 상품명으로 주문명 생성
     const orderName = generateOrderName()
 
-    console.log('🛒 결제 시작:', {
-      orderId: tempOrderId,
-      amount: finalAmount.value,
-      orderName: orderName,
-      itemCount: orderData.items.length
-    })
-
-    // 결제 진행
     await initiatePayment({
       orderId: tempOrderId,
       amount: finalAmount.value,
@@ -1079,7 +1122,8 @@ const processPayment = async () => {
     })
 
   } catch (error) {
-    console.error('결제 처리 중 오류:', error)
+    restoreNameAfterPayment()
+    sessionStorage.removeItem('payment_in_progress')
 
     if (!error.alreadyHandled) {
       const friendlyError = error.friendlyMessage ||
@@ -1114,13 +1158,21 @@ const verifyPayment = async (impUid, merchantUid) => {
 
 onMounted(async () => {
   try {
-    checkLoginStatus()
-    loadOrderData()
-    await loadUserInfo()
-    await loadDeliveryInfo()
+    // 1. 로그인 상태 확인
+    const loginValid = checkLoginStatus();
+
+    // 2. 주문 데이터 로드
+    loadOrderData();
+
+    // 3. 사용자 정보 로드 (로그인 여부와 관계없이)
+    await loadUserInfo();
+
+    // 4. 배송 정보 로드
+    await loadDeliveryInfo();
+
   } catch (error) {
-    showFriendlyMessage('페이지 로드 중 문제가 발생했습니다.', 'error')
+    showFriendlyMessage('페이지 로드 중 문제가 발생했습니다.', 'error');
   }
-})
+});
 </script>
 <style scoped src="@/assets/css/checkout.css"></style>

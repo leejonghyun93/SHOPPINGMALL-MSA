@@ -165,31 +165,56 @@ public class CartService {
             log.info("📝 장바구니 수량 변경 - userId: {}, cartItemId: {}, newQuantity: {}",
                     userId, cartItemId, newQuantity);
 
-            if (newQuantity == null || newQuantity <= 0) {
-                throw new IllegalArgumentException("수량은 1 이상이어야 합니다.");
+            // 1단계: 직접 cartItemId로 조회
+            Optional<CartItem> cartItemOpt = cartItemRepository.findById(cartItemId);
+
+            if (cartItemOpt.isEmpty()) {
+                log.warn("⚠️ cartItemId로 조회 실패, 대안 조회 시도");
+
+                // 2단계: 사용자 기반 조회
+                List<CartItem> userCartItems = cartItemRepository.findByUserId(userId);
+                log.info("🔍 사용자 장바구니 아이템 수: {}", userCartItems.size());
+
+                for (CartItem item : userCartItems) {
+                    log.debug("- cartItemId: {}, productId: {}",
+                            item.getCartItemId(), item.getProductId());
+                }
+
+                cartItemOpt = userCartItems.stream()
+                        .filter(item -> cartItemId.equals(item.getCartItemId()))
+                        .findFirst();
             }
 
-            // 장바구니 아이템 조회
-            CartItem cartItem = cartItemRepository.findById(cartItemId)
-                    .orElseThrow(() -> new IllegalArgumentException("해당 장바구니 상품을 찾을 수 없습니다."));
+            if (cartItemOpt.isEmpty()) {
+                log.error("💥 장바구니 아이템 조회 완전 실패 - cartItemId: {}", cartItemId);
+                throw new IllegalArgumentException("해당 장바구니 상품을 찾을 수 없습니다: " + cartItemId);
+            }
+
+            CartItem cartItem = cartItemOpt.get();
 
             // 권한 확인
             Cart cart = cartRepository.findById(cartItem.getCartId())
                     .orElseThrow(() -> new IllegalArgumentException("장바구니를 찾을 수 없습니다."));
 
             if (!cart.getUserId().equals(userId)) {
+                log.error("🚫 권한 없음: cart.userId={}, request.userId={}",
+                        cart.getUserId(), userId);
                 throw new IllegalArgumentException("접근 권한이 없습니다.");
             }
 
+            // 수량 업데이트
+            Integer oldQuantity = cartItem.getQuantity();
             cartItem.setQuantity(newQuantity);
-            cartItemRepository.save(cartItem);
 
-            log.info("✅ 장바구니 수량 변경 완료 - cartItemId: {}, newQuantity: {}", cartItemId, newQuantity);
+            CartItem savedItem = cartItemRepository.save(cartItem);
+
+            log.info("✅ 수량 변경 완료 - cartItemId: {}, {}개 → {}개",
+                    cartItemId, oldQuantity, savedItem.getQuantity());
 
         } catch (Exception e) {
-            log.error("💥 장바구니 수량 변경 실패: userId={}, cartItemId={}, error={}",
+            log.error("💥 수량 변경 실패: userId={}, cartItemId={}, error={}",
                     userId, cartItemId, e.getMessage(), e);
-            throw new RuntimeException("장바구니 수량 변경에 실패했습니다: " + e.getMessage(), e);
+            throw new RuntimeException("수량 변경에 실패했습니다: " + e.getMessage(), e);
         }
     }
 

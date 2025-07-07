@@ -51,8 +51,38 @@
         </button>
 
         <!-- 에러 메시지 -->
-        <div v-if="errorMessage.length > 0" class="error mt-2">
+        <div v-if="errorMessage.length > 0" class="alert alert-danger mt-2">
           {{ errorMessage }}
+        </div>
+
+        <!-- 구분선 -->
+        <div class="divider my-4">
+          <span>또는</span>
+        </div>
+
+        <!-- 소셜 로그인 버튼들 -->
+        <div class="social-login-section">
+          <!-- 카카오 로그인 -->
+          <button
+              type="button"
+              class="btn w-100 mb-2"
+              style="background-color: #FEE500; color: #000; border: none;"
+              @click="handleKakaoLogin"
+              :disabled="isLoading"
+          >
+            카카오로 로그인
+          </button>
+
+          <!-- 네이버 로그인 -->
+          <button
+              type="button"
+              class="btn w-100 mb-3"
+              style="background-color: #03C75A; color: white; border: none;"
+              @click="handleNaverLogin"
+              :disabled="isLoading"
+          >
+            네이버로 로그인
+          </button>
         </div>
 
         <!-- 회원가입 링크 -->
@@ -69,12 +99,13 @@
 <script setup>
 import { reactive, ref, onMounted } from "vue";
 import axios from "axios";
-import { useRouter } from "vue-router";
-import { setUserFromToken, user } from "@/stores/userStore";  // user도 import
-import apiClient from '@/api/axiosInstance';  // API 클라이언트 추가
+import { useRouter, useRoute } from "vue-router";
+import { setUserFromToken, user, updateUserFromApi } from "@/stores/userStore";
+import apiClient from '@/api/axiosInstance';
 import '@/assets/css/memberList.css';
 
 const router = useRouter();
+const route = useRoute();
 const form = reactive({
   userid: "",
   password: "",
@@ -83,35 +114,82 @@ const rememberId = ref(false);
 const errorMessage = ref("");
 const isLoading = ref(false);
 
+// 환경변수에서 소셜 로그인 설정 가져오기
+const KAKAO_CLIENT_ID = import.meta.env.VITE_KAKAO_CLIENT_ID;
+const NAVER_CLIENT_ID = import.meta.env.VITE_NAVER_CLIENT_ID;
+const REDIRECT_URI = import.meta.env.VITE_REDIRECT_URI || `${window.location.origin}/auth/callback`;
+
+// 소셜 로그인 토큰 처리 함수
+const handleSocialLoginToken = async (token) => {
+  try {
+    localStorage.setItem('token', token)
+    apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`
+
+    const tokenSet = setUserFromToken(token)
+    if (!tokenSet) {
+      throw new Error('토큰에서 사용자 정보 추출 실패')
+    }
+
+    const response = await apiClient.get('/api/users/profile')
+
+    if (response.data && response.data.success && response.data.data) {
+      const userData = response.data.data
+
+      const updated = updateUserFromApi(userData)
+
+      if (updated) {
+        alert(`${userData.name}님, 환영합니다!`)
+        window.history.replaceState({}, document.title, window.location.pathname)
+        await router.push('/')
+      } else {
+        throw new Error('사용자 정보 업데이트 실패')
+      }
+    } else {
+      throw new Error('사용자 정보 조회 실패')
+    }
+
+  } catch (error) {
+    localStorage.removeItem('token')
+    delete apiClient.defaults.headers.common['Authorization']
+    alert('로그인 처리 중 오류가 발생했습니다. 다시 시도해주세요.')
+  }
+}
+
 // 사용자 프로필 정보 가져오기 함수
 const fetchUserProfile = async (token) => {
   try {
-    console.log('로그인 후 프로필 정보 조회 시작');
-
     const response = await apiClient.get('/api/users/profile');
 
     if (response.data && response.data.success && response.data.data) {
       const userData = response.data.data;
+      const updated = updateUserFromApi(userData);
 
-      // 🔥 실제 사용자 정보로 업데이트
-      user.id = userData.userId;
-      user.name = userData.name;  // 실제 이름으로 설정
-      user.email = userData.email;
-      user.role = userData.role || 'USER';
-
-      console.log('로그인 후 프로필 정보 설정 완료:', {
-        id: user.id,
-        name: user.name,
-        email: user.email
-      });
-
-      return true;
+      if (updated) {
+        return true;
+      }
     }
   } catch (error) {
-    console.error('로그인 후 프로필 조회 실패:', error);
-    // 프로필 조회 실패해도 로그인은 유지
+    // 에러 처리
   }
   return false;
+};
+
+// 소셜 로그인 콜백 처리
+const checkSocialLoginCallback = async () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const token = urlParams.get('token');
+  const error = urlParams.get('error');
+
+  if (error) {
+    errorMessage.value = decodeURIComponent(error);
+    window.history.replaceState({}, document.title, window.location.pathname);
+    return;
+  }
+
+  if (token) {
+    await handleSocialLoginToken(token);
+    return;
+  }
 };
 
 // 페이지 로드 시 저장된 아이디 불러오기
@@ -121,10 +199,12 @@ onMounted(() => {
     form.userid = savedUserId;
     rememberId.value = true;
   }
+
+  checkSocialLoginCallback();
 });
 
+// 일반 로그인 처리
 const handleLogin = async () => {
-  // 입력값 검증
   if (!form.userid.trim()) {
     errorMessage.value = "아이디를 입력해주세요.";
     return;
@@ -139,34 +219,21 @@ const handleLogin = async () => {
   errorMessage.value = "";
 
   try {
-    // 백엔드 DTO 필드명에 맞게 수정
     const response = await axios.post("/auth/login", {
-      userid: form.userid,      // username → userid
-      passwd: form.password     // password → passwd
+      userid: form.userid,
+      passwd: form.password
     });
 
-    // AuthResponse 구조에 맞게 처리
     if (response.data.success && response.data.token) {
       localStorage.setItem("token", response.data.token);
-
-      // 🔥 1. 토큰에서 기본 정보 설정
       setUserFromToken(response.data.token);
-
-      // 🔥 2. API로 실제 사용자 정보 가져오기
       await fetchUserProfile(response.data.token);
 
-      // 아이디 저장 처리
       if (rememberId.value) {
         localStorage.setItem("savedUserId", form.userid);
       } else {
         localStorage.removeItem("savedUserId");
       }
-
-      console.log('로그인 완료 후 최종 사용자 정보:', {
-        id: user.id,
-        name: user.name,
-        email: user.email
-      });
 
       await router.push("/");
     } else {
@@ -208,7 +275,60 @@ const handleLogin = async () => {
     isLoading.value = false;
   }
 };
+
+// 카카오 로그인
+const handleKakaoLogin = () => {
+  if (!KAKAO_CLIENT_ID) {
+    errorMessage.value = "카카오 로그인 설정이 완료되지 않았습니다.";
+    return;
+  }
+
+  try {
+    const state = generateRandomState();
+    localStorage.setItem('oauth_state', state);
+
+    const kakaoAuthUrl = `https://kauth.kakao.com/oauth/authorize?` +
+        `client_id=${KAKAO_CLIENT_ID}&` +
+        `redirect_uri=${encodeURIComponent(REDIRECT_URI)}&` +
+        `response_type=code&` +
+        `state=${state}`;
+
+    window.location.href = kakaoAuthUrl;
+  } catch (error) {
+    errorMessage.value = "카카오 로그인 처리 중 오류가 발생했습니다.";
+  }
+};
+
+// 네이버 로그인
+const handleNaverLogin = () => {
+  if (!NAVER_CLIENT_ID) {
+    errorMessage.value = "네이버 로그인 설정이 완료되지 않았습니다.";
+    return;
+  }
+
+  try {
+    const state = generateRandomState();
+    localStorage.setItem('oauth_state', state);
+
+    const naverAuthUrl = `https://nid.naver.com/oauth2.0/authorize?` +
+        `client_id=${NAVER_CLIENT_ID}&` +
+        `redirect_uri=${encodeURIComponent(REDIRECT_URI)}&` +
+        `response_type=code&` +
+        `state=${state}&` +
+        `scope=profile`;
+
+    window.location.href = naverAuthUrl;
+  } catch (error) {
+    errorMessage.value = "네이버 로그인 처리 중 오류가 발생했습니다.";
+  }
+};
+
+// 랜덤 state 생성 (CSRF 보호)
+const generateRandomState = () => {
+  const state = Math.random().toString(36).substring(2, 15) +
+      Math.random().toString(36).substring(2, 15);
+  return state;
+};
 </script>
+
 <style scoped src="@/assets/css/login.css"></style>
-
-

@@ -37,3 +37,112 @@
 .small:hover {
     text-decoration: underline !important;
 }
+
+.divider {
+    position: relative;
+    text-align: center;
+    margin: 1.5rem 0;
+}
+
+.divider::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background-color: #dee2e6;
+}
+
+.divider span {
+    background-color: #f8f9fa;
+    padding: 0 1rem;
+    color: #6c757d;
+    font-size: 0.875rem;
+}
+
+/* 소셜 로그인 버튼 스타일 */
+.social-login-section {
+    margin-bottom: 1rem;
+}
+
+.btn-kakao {
+    background-color: #FEE500;
+    border: 1px solid #FEE500;
+    color: #000000;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 16px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.btn-kakao:hover {
+    background-color: #FDD835;
+    border-color: #FDD835;
+    color: #000000;
+}
+
+.btn-kakao:disabled {
+    background-color: #FFF9C4;
+    border-color: #FFF9C4;
+    color: #9E9E9E;
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.btn-naver {
+    background-color: #03C75A;
+    border: 1px solid #03C75A;
+    color: #ffffff;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 16px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.btn-naver:hover {
+    background-color: #02B350;
+    border-color: #02B350;
+    color: #ffffff;
+}
+
+.btn-naver:disabled {
+    background-color: #81C784;
+    border-color: #81C784;
+    color: #E8F5E8;
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.social-icon {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 576px) {
+    .card {
+        margin: 1rem;
+        width: calc(100% - 2rem) !important;
+    }
+
+    .social-icon {
+        width: 18px;
+        height: 18px;
+    }
+
+    .btn-kakao,
+    .btn-naver {
+        font-size: 0.875rem;
+        padding: 10px 14px;
+    }
+}

@@ -37,7 +37,11 @@
       <!-- 사용자 메뉴 (로그인된 상태) -->
       <div v-if="computedUser.id" class="user-menu-container" @mouseenter="showDropdown" @mouseleave="hideDropdown">
         <span class="navbar-brand mx-2 user-name">
-          {{ computedUser.name }} 님 ▼
+          {{ displayUserName }} 님 ▼
+          <!-- 소셜 로그인 표시 -->
+          <span v-if="isSocialUser" class="social-indicator" :title="`${getSocialProviderName()} 로그인`">
+            {{ getSocialProviderIcon() }}
+          </span>
         </span>
 
         <!-- 드롭다운 메뉴 -->
@@ -45,9 +49,14 @@
           <router-link to="/mypage/orders" class="dropdown-item" @click="hideDropdown">
             마이페이지
           </router-link>
-          <router-link to="/mypage/profile" class="dropdown-item" @click="hideDropdown">
+          <!-- 소셜 로그인 사용자 제한 적용 -->
+          <div v-if="!isSocialUser" @click="navigateToProfile" class="dropdown-item">
             회원정보관리
-          </router-link>
+          </div>
+          <div v-else @click="showSocialAlert" class="dropdown-item social-restricted">
+            <span>회원정보관리</span>
+            <span class="restriction-badge"></span>
+          </div>
           <div class="dropdown-divider"></div>
           <button @click="logout" class="dropdown-item logout-btn">
             로그아웃
@@ -115,11 +124,10 @@
                    }"
                    @click="handleNotificationClick(notification)">
 
-                <!-- 🔥 알림 타입 아이콘 추가 -->
                 <div class="notification-type-icon">
-                  {{ notification.type === 'BROADCAST_START' ? '🔴' :
-                    notification.type === 'BROADCAST_END' ? '⏹️' :
-                        notification.type === 'BROADCAST_REMINDER' ? '🔔' : '📢' }}
+                  {{ notification.type === 'BROADCAST_START' ? '' :
+                    notification.type === 'BROADCAST_END' ? '' :
+                        notification.type === 'BROADCAST_REMINDER' ? '' : '' }}
                 </div>
 
                 <div class="notification-content">
@@ -128,7 +136,6 @@
                   <div class="notification-time">{{ formatTime(notification.createdAt) }}</div>
                 </div>
 
-                <!-- 🔥 읽지 않은 알림 표시 개선 -->
                 <div v-if="!notification.isRead" class="unread-indicator">
                   <div class="unread-dot"></div>
                 </div>
@@ -138,14 +145,13 @@
             <!-- 알림 없음 -->
             <div v-else class="no-notifications">
               <div class="text-muted text-center py-3">
-                <div class="mb-2">📭</div>
+                <div class="mb-2"></div>
                 <div class="mb-1">알림</div>
                 <small>새로운 알림이 없습니다</small>
               </div>
             </div>
           </div>
 
-          <!-- 🔥 푸터 개선 -->
           <div v-if="notifications.length > 0" class="notification-footer">
             <router-link to="/notifications"
                          class="btn btn-sm btn-outline-primary w-100"
@@ -163,12 +169,11 @@
 </template>
 
 <script setup>
-import { onMounted, computed, ref, onUnmounted } from "vue";
+import { onMounted, computed, ref, onUnmounted, watch } from "vue";
 import { useRouter } from "vue-router";
-import { user, resetUser } from "@/stores/userStore";
+import { user, resetUser, updateUserFromApi, setUserFromToken, isSocialLoginUser, getSocialLoginProvider } from "@/stores/userStore";
 import apiClient from '@/api/axiosInstance'
 import { notificationApiCall, notificationHelpers } from '@/config/notificationConfig'
-// import { user, resetUser } from "@/stores/userStore";
 
 const router = useRouter();
 const isDropdownVisible = ref(false);
@@ -177,36 +182,161 @@ const isLoadingNotifications = ref(false);
 const cartCount = ref(0);
 const unreadNotificationCount = ref(0);
 const notifications = ref([]);
-
-// 🔥 검색 관련 변수
 const searchKeyword = ref('');
+const isUserInfoLoaded = ref(false);
 
-// 폴링 인터벌 ID
+// 소셜 로그인 관련 상태
+const isSocialUser = ref(false);
+const socialProvider = ref(null);
+
 let notificationPollingInterval = null;
 
 const computedUser = computed(() => user);
 
-// 🔥 검색 기능
-const performSearch = () => {
-  const keyword = searchKeyword.value.trim();
+const displayUserName = computed(() => {
+  console.log('🔍 Header.vue - displayUserName computed:', {
+    isUserInfoLoaded: isUserInfoLoaded.value,
+    userId: computedUser.value.id,
+    userName: computedUser.value.name,
+    userNameTrim: computedUser.value.name ? computedUser.value.name.trim() : null
+  });
 
-  if (!keyword) {
-    return;
+  if (!isUserInfoLoaded.value && computedUser.value.id) {
+    return computedUser.value.name || "사용자";
   }
 
-  console.log('검색 실행:', keyword);
+  if (computedUser.value.name &&
+      computedUser.value.name.trim() &&
+      computedUser.value.name !== computedUser.value.id) {
+    return computedUser.value.name;
+  }
 
-  // 카테고리 페이지로 이동하면서 검색어를 URL 파라미터로 전달
+  return "사용자";
+});
+
+// 소셜 로그인 여부 체크 함수
+const checkSocialLoginStatus = () => {
+  isSocialUser.value = isSocialLoginUser();
+  socialProvider.value = getSocialLoginProvider();
+
+  console.log('🔍 Header.vue - checkSocialLoginStatus:', {
+    isSocialUser: isSocialUser.value,
+    socialProvider: socialProvider.value
+  });
+};
+
+// 소셜 로그인 제공업체 이름 반환
+const getSocialProviderName = () => {
+  switch (socialProvider.value) {
+    case 'KAKAO':
+    case 'kakao':
+      return '카카오';
+    case 'NAVER':
+    case 'naver':
+      return '네이버';
+    case 'GOOGLE':
+    case 'google':
+      return '구글';
+    default:
+      return '소셜';
+  }
+};
+
+// 소셜 로그인 제공업체 아이콘 반환
+const getSocialProviderIcon = () => {
+  switch (socialProvider.value) {
+    case 'KAKAO':
+    case 'kakao':
+      return '';
+    case 'NAVER':
+    case 'naver':
+      return '';
+    case 'GOOGLE':
+    case 'google':
+      return '';
+    default:
+      return '';
+  }
+};
+
+// 소셜 로그인 사용자 알림 표시
+const showSocialAlert = () => {
+  const providerName = getSocialProviderName();
+
+  console.log('🔍 Header.vue - showSocialAlert:', {
+    providerName,
+    isSocialUser: isSocialUser.value
+  });
+
+  alert(`${providerName} 로그인으로 가입하신 회원은 보안상의 이유로 회원정보 수정이 제한됩니다.\n\n개인정보 변경이 필요한 경우 ${providerName} 계정에서 직접 수정해주세요.`);
+  hideDropdown();
+};
+
+// 회원정보관리 네비게이션 함수
+const navigateToProfile = () => {
+  console.log('🔍 Header.vue - navigateToProfile called');
+  hideDropdown();
+  router.push('/mypage/profile');
+};
+
+watch(() => computedUser.value.id, async (newUserId, oldUserId) => {
+  console.log('🔍 Header.vue - user.id watcher:', {
+    newUserId,
+    oldUserId,
+    currentUser: computedUser.value
+  });
+
+  if (newUserId && newUserId !== oldUserId) {
+    isUserInfoLoaded.value = false;
+
+    try {
+      await validateUserInfo();
+
+      // 소셜 로그인 여부 체크
+      checkSocialLoginStatus();
+
+      await Promise.all([
+        fetchCartCount(),
+        fetchNotifications()
+      ]);
+
+      stopNotificationPolling();
+      startNotificationPolling();
+    } catch (error) {
+      console.error('🔍 Header.vue - user.id watcher error:', error);
+    } finally {
+      isUserInfoLoaded.value = true;
+    }
+  } else if (!newUserId && oldUserId) {
+    console.log('🔍 Header.vue - user logout detected');
+    resetUserData();
+    isUserInfoLoaded.value = false;
+    // 소셜 로그인 상태도 초기화
+    isSocialUser.value = false;
+    socialProvider.value = null;
+  }
+}, { immediate: false });
+
+const resetUserData = () => {
+  console.log('🔍 Header.vue - resetUserData called');
+  cartCount.value = 0;
+  unreadNotificationCount.value = 0;
+  notifications.value = [];
+  stopNotificationPolling();
+};
+
+const performSearch = () => {
+  const keyword = searchKeyword.value.trim();
+  console.log('🔍 Header.vue - performSearch:', { keyword });
+
+  if (!keyword) return;
+
   router.push({
     path: '/category',
     query: { search: keyword }
   });
-
-  // 검색 후 검색창 비우기 (선택사항)
-  // searchKeyword.value = '';
 };
 
-// 토큰 유효성 검사 함수
 const isTokenValid = (token) => {
   if (!token) return false
 
@@ -232,61 +362,145 @@ const isTokenValid = (token) => {
     return false
   }
 }
-// 토큰에서 사용자 ID만 추출하는 함수
-const getUserIdFromToken = (token) => {
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return null
 
-    let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
-    while (base64.length % 4) {
-      base64 += '='
-    }
-
-    const payloadStr = atob(base64)
-    const payload = JSON.parse(payloadStr)
-
-    return payload.sub || payload.userId || payload.username
-  } catch (error) {
-    console.error('토큰에서 사용자 ID 추출 실패:', error)
-    return null
-  }
-}
-// 사용자 정보 검증 함수
-
-// 사용자 정보 검증 함수 수정
 const validateUserInfo = async () => {
+  console.log('🔍 Header.vue - validateUserInfo called');
+
+  // 소셜 로그인 이름이 있으면 API 호출 건너뛰기
+  const socialName = localStorage.getItem('social_login_name') ||
+      sessionStorage.getItem('current_user_name') ||
+      localStorage.getItem('preserved_user_name');
+
+  console.log('🔍 Header.vue - validateUserInfo socialName check:', { socialName });
+
+  if (socialName && socialName.trim() && socialName !== "사용자") {
+    user.name = socialName;
+    sessionStorage.setItem('current_user_name', socialName);
+    isUserInfoLoaded.value = true;
+    console.log('🔍 Header.vue - using social name:', socialName);
+    return true;
+  }
+
+  // 이미 로딩된 상태이고 유효한 이름이 있으면 재검증 생략
+  if (isUserInfoLoaded.value && user.name && user.name.trim() && user.name !== "사용자") {
+    console.log('🔍 Header.vue - using cached user info');
+    return true;
+  }
+
   try {
-    const response = await apiClient.get('/api/users/profile')
+    const response = await apiClient.get('/api/users/profile', {
+      timeout: 3000,
+      validateStatus: function (status) {
+        return status < 500;
+      }
+    });
 
-    console.log('프로필 응답:', response.data);
+    console.log('🔍 Header.vue - API response:', response);
 
-    if (response.data && response.data.success && response.data.data) {
+    if (response.status === 200 && response.data && response.data.success && response.data.data) {
       const userData = response.data.data;
 
-      // 🔥 사용자 정보 설정 (API 데이터만 사용)
-      user.id = userData.userId;
-      user.name = userData.name;
+      // 소셜 로그인 이름이 있으면 API 이름 완전 무시
+      const preservedName = localStorage.getItem('social_login_name') ||
+          sessionStorage.getItem('current_user_name') ||
+          localStorage.getItem('preserved_user_name');
+
+      // 기본 정보 업데이트
+      user.id = userData.userId || userData.id;
       user.email = userData.email;
       user.role = userData.role || 'USER';
+      user.phone = userData.phone;
 
-      console.log('API에서 설정된 최종 사용자 정보:', {
-        id: user.id,
-        name: user.name,
-        email: user.email
-      });
+      if (preservedName && preservedName.trim() && preservedName !== "사용자") {
+        user.name = preservedName;
+        sessionStorage.setItem('current_user_name', preservedName);
+        console.log('🔍 Header.vue - using preserved name:', preservedName);
+      } else if (userData.name && userData.name.trim()) {
+        user.name = userData.name.trim();
+        sessionStorage.setItem('current_user_name', user.name);
+        console.log('🔍 Header.vue - using API name:', user.name);
+      } else {
+        user.name = "사용자";
+        console.log('🔍 Header.vue - defaulting to "사용자"');
+      }
 
+      isUserInfoLoaded.value = true;
       return true;
+    } else if (response.status === 401) {
+      console.log('🔍 Header.vue - 401 response, falling back to token');
+      return handleTokenFallback();
     } else {
-      console.warn('프로필 응답에서 사용자 정보를 찾을 수 없음:', response.data);
-      return false;
+      console.log('🔍 Header.vue - API error, falling back to token');
+      return handleTokenFallback();
     }
   } catch (error) {
-    console.error('프로필 조회 실패:', error);
-    return false;
+    console.error('🔍 Header.vue - validateUserInfo error:', error);
+    return handleTokenFallback();
   }
 };
-// 장바구니 수 가져오기
+
+const handleTokenFallback = () => {
+  console.log('🔍 Header.vue - handleTokenFallback called');
+
+  if (user.id) {
+    isUserInfoLoaded.value = true;
+
+    // API 실패 시에도 보존된 이름 복원
+    const preservedName = localStorage.getItem('social_login_name') ||
+        sessionStorage.getItem('current_user_name') ||
+        localStorage.getItem('preserved_user_name');
+
+    console.log('🔍 Header.vue - handleTokenFallback preservedName:', preservedName);
+
+    if (preservedName && preservedName.trim() && preservedName !== "사용자") {
+      user.name = preservedName;
+      sessionStorage.setItem('current_user_name', preservedName);
+      console.log('🔍 Header.vue - restored preserved name:', preservedName);
+    } else if (!user.name || user.name === "사용자") {
+      // 토큰에서 이름 추출 시도
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          const parts = token.replace('Bearer ', '').split('.');
+          if (parts.length === 3) {
+            let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+            while (base64.length % 4) {
+              base64 += '=';
+            }
+            const payload = JSON.parse(atob(base64));
+
+            console.log('🔍 Header.vue - token payload:', payload);
+
+            if (payload.name && payload.name.trim() && payload.name !== payload.sub) {
+              user.name = payload.name;
+              sessionStorage.setItem('current_user_name', payload.name);
+              localStorage.setItem('social_login_name', payload.name);
+              console.log('🔍 Header.vue - extracted name from token:', payload.name);
+            }
+          }
+        } catch (e) {
+          console.error('🔍 Header.vue - token parsing error:', e);
+        }
+      }
+    }
+    return true;
+  }
+  return false;
+};
+
+const refreshUserInfo = async () => {
+  console.log('🔍 Header.vue - refreshUserInfo called');
+  isUserInfoLoaded.value = false;
+  const token = localStorage.getItem('token');
+
+  if (token && isTokenValid(token)) {
+    setUserFromToken(token);
+    await validateUserInfo();
+  }
+};
+
+window.refreshHeaderUserInfo = refreshUserInfo;
+
 const fetchCartCount = async () => {
   if (!computedUser.value.id) return;
 
@@ -294,68 +508,60 @@ const fetchCartCount = async () => {
     const cartResponse = await apiClient.get('/api/cart/count');
     if (cartResponse.data.success) {
       cartCount.value = cartResponse.data.data.count || 0;
+      console.log('🔍 Header.vue - cart count updated:', cartCount.value);
     }
   } catch (error) {
-    // 에러 무시
+    console.error('🔍 Header.vue - fetchCartCount error:', error);
   }
 }
 
-// 🔥 실시간 알림 데이터 가져오기 (새로운 API 사용)
 const fetchNotifications = async () => {
   if (!computedUser.value.id) return;
 
   try {
-    // 🔥 새로운 API 사용: 읽지 않은 알림 개수 조회
     const unreadResponse = await notificationApiCall(`/unread-count?userId=${computedUser.value.id}`);
     if (unreadResponse && unreadResponse.ok) {
       const unreadData = await unreadResponse.json();
       unreadNotificationCount.value = unreadData.count || 0;
+      console.log('🔍 Header.vue - unread notifications:', unreadNotificationCount.value);
     }
 
-    // 🔥 새로운 API 사용: 최근 알림 목록 조회 (최대 10개)
     const notificationsResponse = await notificationApiCall(`/recent?userId=${computedUser.value.id}&limit=10`);
     if (notificationsResponse && notificationsResponse.ok) {
       const notificationsData = await notificationsResponse.json();
       notifications.value = notificationsData || [];
+      console.log('🔍 Header.vue - notifications loaded:', notifications.value.length);
     }
   } catch (error) {
-    console.error('알림 조회 실패:', error);
-    // 에러 시 기존 값 유지
+    console.error('🔍 Header.vue - fetchNotifications error:', error);
   }
 }
 
-// 알림 폴링 시작
 const startNotificationPolling = () => {
   if (!computedUser.value.id) return;
-
-  // 30초마다 알림 확인
+  console.log('🔍 Header.vue - starting notification polling');
   notificationPollingInterval = setInterval(() => {
     fetchNotifications();
   }, 10000);
 }
 
-// 알림 폴링 중지
 const stopNotificationPolling = () => {
   if (notificationPollingInterval) {
+    console.log('🔍 Header.vue - stopping notification polling');
     clearInterval(notificationPollingInterval);
     notificationPollingInterval = null;
   }
 }
 
-//  시간 포맷팅 (헬퍼 사용)
 const formatTime = (timeString) => {
   return notificationHelpers.formatTime(timeString);
 }
 
-//  알림 클릭 처리 (개선된 버전)
 const handleNotificationClick = async (notification) => {
   try {
-    //  읽지 않은 알림이면 읽음 처리
     if (!notification.isRead) {
       const success = await notificationHelpers.markAsRead(notification.notificationId, computedUser.value.id);
-
       if (success) {
-        // 로컬 상태 업데이트
         notification.isRead = true;
         notification.readAt = new Date().toISOString();
         unreadNotificationCount.value = Math.max(0, unreadNotificationCount.value - 1);
@@ -364,48 +570,37 @@ const handleNotificationClick = async (notification) => {
 
     hideNotificationDropdown();
 
-    //  알림 타입에 따른 페이지 이동 (기존 로직 유지 + 개선)
     if (notification.type === 'BROADCAST_START') {
-      // 방송 관련 알림이면 해당 방송으로 이동 (broadcastId가 있으면)
       if (notification.broadcastId) {
         router.push(`/live/${notification.broadcastId}`);
       } else {
         router.push('/broadcasts/category');
       }
     } else {
-      // 기본적으로 알림 페이지로 이동
       router.push('/notifications');
     }
   } catch (error) {
-    console.error('알림 클릭 처리 오류:', error);
+    console.error('🔍 Header.vue - handleNotificationClick error:', error);
     hideNotificationDropdown();
   }
 }
 
-//  모든 알림 읽음 처리 (새로운 API 사용)
 const markAllAsRead = async () => {
   try {
-    // 🔥 새로운 API 사용: 모든 알림 읽음 처리
     const success = await notificationHelpers.markAllAsRead(computedUser.value.id);
-
     if (success) {
-      // 로컬 상태 업데이트
       notifications.value.forEach(notification => {
         notification.isRead = true;
         notification.readAt = new Date().toISOString();
       });
-
       unreadNotificationCount.value = 0;
-      console.log('모든 알림 읽음 처리 완료');
-    } else {
-      console.warn('모든 알림 읽음 처리 실패');
+      console.log('🔍 Header.vue - all notifications marked as read');
     }
   } catch (error) {
-    console.error('모든 알림 읽음 처리 오류:', error);
+    console.error('🔍 Header.vue - markAllAsRead error:', error);
   }
 }
 
-// 드롭다운 관련 함수들
 function showDropdown() {
   isDropdownVisible.value = true;
 }
@@ -432,88 +627,54 @@ function hideNotificationDropdown() {
   }, 150);
 }
 
-// 수동 새로고침 함수 추가
-const refreshNotifications = async () => {
-  console.log('알림 수동 새로고침...');
-  isLoadingNotifications.value = true;
-
-  try {
-    await fetchNotifications();
-    console.log('알림 새로고침 완료');
-  } catch (error) {
-    console.error('알림 새로고침 실패:', error);
-  } finally {
-    isLoadingNotifications.value = false;
-  }
-}
-
-const handleNotificationIconClick = () => {
-  // 알림 아이콘 클릭 시 즉시 새로고침
-  if (!isNotificationDropdownVisible.value) {
-    refreshNotifications();
-  }
-  showNotificationDropdown();
-}
-
 function logout() {
-  // 1. 알림 폴링 중지
+  console.log('🔍 Header.vue - logout called');
   stopNotificationPolling();
-
-  // 2. userStore의 resetUser 함수 사용
   resetUser();
-
-  // 3. 헤더 컴포넌트의 로컬 상태 초기화
-  isDropdownVisible.value = false;
-  cartCount.value = 0;
-  unreadNotificationCount.value = 0;
-  notifications.value = [];
+  resetUserData();
   searchKeyword.value = '';
-
-  // 4. 로그인 페이지로 이동
+  isDropdownVisible.value = false;
+  isUserInfoLoaded.value = false;
+  // 소셜 로그인 상태도 초기화
+  isSocialUser.value = false;
+  socialProvider.value = null;
   router.push("/login");
 }
 
-
 onMounted(async () => {
+  console.log('🔍 Header.vue - onMounted called');
   const token = localStorage.getItem("token");
 
   if (token && isTokenValid(token)) {
     try {
-      // 🔥 setUserFromToken 호출 제거 - API에서만 사용자 정보 가져오기
-      console.log('토큰 유효성 확인됨, API로 사용자 정보 조회 시작');
+      if (user.id && user.name) {
+        isUserInfoLoaded.value = true;
+        console.log('🔍 Header.vue - user already loaded');
+      }
 
-      // API로 정확한 사용자 정보 가져오기
       const isValid = await validateUserInfo();
 
       if (isValid) {
-        console.log('API 검증 완료 후 사용자 정보:', {
-          id: user.id,
-          name: user.name,
-          email: user.email
-        });
+        // 소셜 로그인 여부 체크
+        checkSocialLoginStatus();
 
-        // 사용자 정보가 확실히 설정된 후에만 다른 작업 수행
         await Promise.all([
           fetchCartCount(),
           fetchNotifications()
         ]);
 
-        // 실시간 알림 폴링 시작
         startNotificationPolling();
       } else {
-        // API 검증 실패 시 토큰 제거하고 초기화
-        console.warn('사용자 정보 검증 실패, 토큰 제거');
         localStorage.removeItem("token");
         resetUserState();
       }
 
     } catch (error) {
-      console.error('사용자 정보 초기화 중 오류:', error);
+      console.error('🔍 Header.vue - onMounted error:', error);
       localStorage.removeItem("token");
       resetUserState();
     }
   } else {
-    // 토큰이 없거나 유효하지 않은 경우
     if (token) {
       localStorage.removeItem("token");
     }
@@ -521,21 +682,25 @@ onMounted(async () => {
   }
 });
 
-// 사용자 상태 초기화 함수 추가
 const resetUserState = () => {
+  console.log('🔍 Header.vue - resetUserState called');
   user.id = null;
   user.name = null;
   user.role = null;
   user.email = null;
-  cartCount.value = 0;
-  unreadNotificationCount.value = 0;
-  notifications.value = [];
+  resetUserData();
+  isUserInfoLoaded.value = false;
+  // 소셜 로그인 상태도 초기화
+  isSocialUser.value = false;
+  socialProvider.value = null;
 };
 
 onUnmounted(() => {
+  console.log('🔍 Header.vue - onUnmounted called');
   stopNotificationPolling();
 });
 </script>
 
-<style scoped src="@/assets/css/header.css"></style>
+<style scoped src="@/assets/css/header.css">
 
+</style>

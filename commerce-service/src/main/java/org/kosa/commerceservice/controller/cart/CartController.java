@@ -102,10 +102,14 @@ public class CartController {
             HttpServletRequest httpRequest) {
 
         try {
+            log.info("🔄 장바구니 수량 변경 요청 - cartItemId: {}, quantity: {}",
+                    request.getCartItemId(), request.getQuantity());
+
             String authHeader = httpRequest.getHeader("Authorization");
             String userId = jwtTokenParser.extractUserIdFromAuthHeader(authHeader);
 
             if (userId == null) {
+                log.warn("⚠️ 인증 실패 - Authorization 헤더: {}", authHeader);
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(ApiResponse.<Void>builder()
                                 .success(false)
@@ -113,18 +117,39 @@ public class CartController {
                                 .build());
             }
 
-            log.info("장바구니 수량 변경 - userId: {}, cartItemId: {}, quantity: {}",
-                    userId, request.getCartItemId(), request.getQuantity());
+            log.info("✅ 인증 성공 - userId: {}", userId);
+
+            // 🔥 추가: 요청 데이터 검증
+            if (request.getCartItemId() == null || request.getCartItemId().trim().isEmpty()) {
+                log.error("❌ cartItemId 누락");
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.<Void>builder()
+                                .success(false)
+                                .message("cartItemId가 필요합니다.")
+                                .build());
+            }
+
+            if (request.getQuantity() == null || request.getQuantity() <= 0) {
+                log.error("❌ 잘못된 수량: {}", request.getQuantity());
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.<Void>builder()
+                                .success(false)
+                                .message("올바른 수량을 입력해주세요.")
+                                .build());
+            }
 
             cartService.updateCartItemQuantity(userId, request.getCartItemId(), request.getQuantity());
 
+            log.info("✅ 장바구니 수량 변경 성공");
             return ResponseEntity.ok(ApiResponse.<Void>builder()
                     .success(true)
                     .message("수량이 변경되었습니다.")
                     .build());
 
         } catch (Exception e) {
-            log.error("장바구니 수량 변경 실패: {}", e.getMessage(), e);
+            log.error("💥 장바구니 수량 변경 실패: cartItemId={}, error={}",
+                    request != null ? request.getCartItemId() : "null", e.getMessage(), e);
+
             return ResponseEntity.badRequest()
                     .body(ApiResponse.<Void>builder()
                             .success(false)
