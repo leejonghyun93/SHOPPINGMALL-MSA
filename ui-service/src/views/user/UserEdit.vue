@@ -102,7 +102,7 @@ export default {
     async checkPermissionAndFetch() {
       try {
         const userid = this.$route.params.userid;
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('jwt');
 
         if (!token) {
           alert('로그인이 필요합니다.');
@@ -140,7 +140,7 @@ export default {
     },
 
     async updateUser() {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('jwt');
       if (!token) {
         alert('로그인이 필요합니다.');
         this.$router.push('/login');

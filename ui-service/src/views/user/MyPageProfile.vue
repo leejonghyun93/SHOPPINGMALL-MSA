@@ -500,7 +500,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080'
 
 // 토큰 가져오기 함수
 const getToken = () => {
-  return localStorage.getItem('token')
+  return localStorage.getItem('jwt')
 }
 
 // JWT 토큰에서 userId 추출하는 함수
@@ -591,7 +591,7 @@ const loadUserProfile = async () => {
 
     if (!response.ok) {
       if (response.status === 401) {
-        localStorage.removeItem('token')
+        localStorage.removeItem('jwt')
         localStorage.removeItem('userId')
         router.push('/login')
         return

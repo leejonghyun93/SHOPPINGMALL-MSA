@@ -291,12 +291,12 @@ const isTokenValid = (token) => {
 
 // 로그인 상태 확인 함수
 const checkLoginStatus = () => {
-  const token = localStorage.getItem('token')
+  const token = localStorage.getItem('jwt')
   const valid = token && isTokenValid(token)
   isLoggedIn.value = valid
 
   if (!valid && token) {
-    localStorage.removeItem('token')
+    localStorage.removeItem('jwt')
   }
 
   return isLoggedIn.value

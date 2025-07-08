@@ -18,7 +18,7 @@ import java.util.function.Function;
 @Slf4j
 public class JwtUtil {
 
-    @Value("${jwt.secret:verySecretKeyThatIsAtLeast32BytesLong1234}")
+    @Value("${jwt.secret:rrYd2zPDUkx7BUhgDsOTxHCbsBkeTgE/uoARWYSqBjU=}")
     private String jwtSecret;
 
     @Value("${jwt.expiration:86400000}") // 24시간 (밀리초)
@@ -28,7 +28,7 @@ public class JwtUtil {
         // JWT secret이 32바이트 이상인지 확인
         if (jwtSecret.length() < 32) {
             log.warn("JWT secret key가 너무 짧습니다. 최소 32바이트 필요");
-            jwtSecret = "verySecretKeyThatIsAtLeast32BytesLong1234567890"; // 기본값으로 확장
+            jwtSecret = "rrYd2zPDUkx7BUhgDsOTxHCbsBkeTgE/uoARWYSqBjU="; // 기본값으로 확장
         }
         return Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
     }

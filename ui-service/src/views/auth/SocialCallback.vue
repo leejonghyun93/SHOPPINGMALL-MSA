@@ -11,7 +11,7 @@
 
       <div v-else-if="hasError">
         <div class="text-danger mb-3">
-          <i class="bi bi-exclamation-triangle" style="font-size: 2rem;"></i>
+          <div style="font-size: 2rem;">⚠️</div>
         </div>
         <h5 class="text-danger">소셜 로그인 실패</h5>
         <p class="text-muted">{{ errorMessage }}</p>
@@ -40,7 +40,9 @@ const errorMessage = ref('')
 const processSocialCallback = async () => {
   try {
     const urlParams = new URLSearchParams(window.location.search)
-    const token = urlParams.get('token')
+
+    // 'token'과 'jwt' 둘 다 확인
+    const token = urlParams.get('token') || urlParams.get('jwt')
     const error = urlParams.get('error')
 
     // URL 정리
@@ -57,9 +59,7 @@ const processSocialCallback = async () => {
       return
     }
 
-    console.log('🔍 받은 토큰:', token.substring(0, 50) + '...')
-
-    // 🔥 토큰 파싱 개선
+    // 토큰 파싱 개선
     let socialProvider = 'SOCIAL'
     let socialName = null
     let socialEmail = null
@@ -75,7 +75,7 @@ const processSocialCallback = async () => {
 
         let payload = null
 
-        // 🔥 UTF-8 디코딩 개선
+        // UTF-8 디코딩 개선
         try {
           const binaryString = atob(base64)
           const bytes = new Uint8Array(binaryString.length)
@@ -85,16 +85,12 @@ const processSocialCallback = async () => {
           const decoder = new TextDecoder('utf-8')
           const jsonStr = decoder.decode(bytes)
           payload = JSON.parse(jsonStr)
-
-          console.log('🔍 UTF-8 디코딩 성공:', payload)
         } catch (e) {
           // fallback to simple decoding
           try {
             const jsonStr = atob(base64)
             payload = JSON.parse(jsonStr)
-            console.log('🔍 Simple 디코딩 성공:', payload)
           } catch (e2) {
-            console.error('🔍 모든 디코딩 방법 실패:', e2)
             throw new Error('토큰 디코딩 실패')
           }
         }
@@ -103,13 +99,9 @@ const processSocialCallback = async () => {
           throw new Error('토큰 페이로드가 null입니다')
         }
 
-        console.log('🔍 파싱된 페이로드:', payload)
-
-        // 🔥 이름 추출 개선
+        // 이름 추출 개선
         if (payload.name && payload.name.trim()) {
           let extractedName = payload.name.trim()
-
-          console.log('🔍 토큰에서 추출한 이름:', extractedName)
 
           // 기본값이 아닌 경우에만 사용
           if (extractedName !== '사용자' &&
@@ -118,11 +110,10 @@ const processSocialCallback = async () => {
               extractedName !== payload.username &&
               extractedName.length >= 2) {
             socialName = extractedName
-            console.log('🔍 최종 사용할 이름:', socialName)
           }
         }
 
-        // 🔥 provider 추출
+        // provider 추출
         if (payload.provider) {
           socialProvider = payload.provider.toUpperCase()
         } else if (payload.socialProvider) {
@@ -133,26 +124,17 @@ const processSocialCallback = async () => {
         socialPhone = payload.phone
       }
     } catch (e) {
-      console.error('🔍 토큰 파싱 오류:', e)
       // 파싱 실패해도 계속 진행
     }
 
-    // 🔥 이름이 여전히 없는 경우 기본값 설정
+    // 이름이 여전히 없는 경우 기본값 설정
     if (!socialName) {
       const providerDisplayName = getProviderDisplayName(socialProvider)
       socialName = `${providerDisplayName}사용자`
-      console.log('🔍 기본 이름 설정:', socialName)
     }
 
-    console.log('🔍 최종 소셜 정보:', {
-      provider: socialProvider,
-      name: socialName,
-      email: socialEmail,
-      phone: socialPhone
-    })
-
-    // 🔥 토큰 및 정보 저장 개선
-    localStorage.setItem('token', token)
+    // 토큰 및 정보 저장 개선
+    localStorage.setItem('jwt', token)
     localStorage.setItem('login_type', 'SOCIAL')
     sessionStorage.setItem('login_type', 'SOCIAL')
 
@@ -166,9 +148,6 @@ const processSocialCallback = async () => {
       sessionStorage.setItem('social_name', socialName)
       localStorage.setItem('user_display_name', socialName)
       sessionStorage.setItem('current_user_name', socialName)
-
-      console.log('🔍 이름 저장 완료 - localStorage social_name:', localStorage.getItem('social_name'))
-      console.log('🔍 이름 저장 완료 - sessionStorage social_name:', sessionStorage.getItem('social_name'))
     }
 
     if (socialEmail) {
@@ -189,13 +168,11 @@ const processSocialCallback = async () => {
       return
     }
 
-    console.log('🔍 userStore 설정 후 user.name:', user.name)
-
     // 프로필 API 호출 시도 (실패해도 무시)
     try {
       await fetchUserProfile()
     } catch (profileError) {
-      console.log('🔍 프로필 API 호출 실패 (무시):', profileError)
+      // 프로필 API 호출 실패 무시
     }
 
     // 성공 메시지 표시
@@ -205,14 +182,13 @@ const processSocialCallback = async () => {
     setTimeout(async () => {
       await router.push('/')
 
-      // 🔥 헤더 새로고침 트리거
+      // 헤더 새로고침 트리거
       if (window.refreshHeaderUserInfo) {
         window.refreshHeaderUserInfo()
       }
     }, 1000)
 
   } catch (error) {
-    console.error('🔍 소셜 콜백 처리 오류:', error)
     showError('소셜 로그인 처리 중 오류가 발생했습니다.')
   }
 }

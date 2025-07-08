@@ -267,7 +267,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080'
 
 // 인증 헤더 생성
 const getAuthHeaders = () => {
-  const token = localStorage.getItem('token')
+  const token = localStorage.getItem('jwt')
 
   const headers = {
     'Content-Type': 'application/json'
@@ -500,7 +500,7 @@ const formatPrice = (price) => {
 const cancelOrder = async (orderId) => {
   try {
     // 1. 기본 인증 확인
-    const token = localStorage.getItem('token')
+    const token = localStorage.getItem('jwt')
     const userId = localStorage.getItem('userId')
 
     if (!token || token === 'null' || token === 'undefined') {

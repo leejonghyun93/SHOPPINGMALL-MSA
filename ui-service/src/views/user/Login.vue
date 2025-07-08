@@ -122,70 +122,42 @@ const REDIRECT_URI = import.meta.env.VITE_REDIRECT_URI || `${window.location.ori
 // 소셜 로그인 토큰 처리 함수
 const handleSocialLoginToken = async (token) => {
   try {
-    console.log('📱 Login.vue에서 소셜 로그인 처리 시작');
+    // Bearer 접두사 제거 (있는 경우)
+    const cleanToken = token.startsWith('Bearer ') ? token.substring(7) : token;
 
-    localStorage.setItem('token', token)
+    localStorage.setItem('jwt', cleanToken);
 
-    // 🔥 개선된 토큰에서 소셜 정보 추출
+    // 토큰에서 소셜 정보 추출
     let socialProvider = 'KAKAO';
     let socialName = '소셜사용자';
     let socialEmail = null;
 
     try {
-      const parts = token.split('.');
+      const parts = cleanToken.split('.');
       if (parts.length === 3) {
         let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
         while (base64.length % 4) {
           base64 += '=';
         }
 
-        // 🔥 개선된 UTF-8 디코딩
-        const binaryString = atob(base64);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
+        const payload = JSON.parse(atob(base64));
+
+        // 소셜 제공업체 확인
+        if (payload.sub && payload.sub.includes('kakao_')) {
+          socialProvider = 'KAKAO';
+        } else if (payload.sub && payload.sub.includes('naver_')) {
+          socialProvider = 'NAVER';
         }
 
-        const decoder = new TextDecoder('utf-8');
-        const jsonStr = decoder.decode(bytes);
-        console.log('📱 디코딩된 JSON 문자열:', jsonStr);
-
-        const payload = JSON.parse(jsonStr);
-        console.log('📱 토큰 페이로드:', payload);
-
-        socialProvider = payload.socialProvider || payload.provider || 'KAKAO';
-
-        // 🔥 한글 이름 처리
-        if (payload.name && payload.name.trim()) {
-          let rawName = payload.name;
-
-          // URI 디코딩 시도
-          if (rawName.includes('%')) {
-            try {
-              rawName = decodeURIComponent(rawName);
-            } catch (e) {
-              console.log('URI 디코딩 실패');
-            }
-          }
-
-          // 깨진 한글 복구 시도
-          if (isGarbledKorean(rawName)) {
-            rawName = repairGarbledKorean(rawName);
-          }
-
-          // 최종 검증
-          if (rawName && !isGarbledKorean(rawName) && rawName.length >= 2) {
-            socialName = rawName;
-          }
-        } else if (payload.username && payload.username.trim()) {
-          socialName = payload.username;
+        // 한글 이름 처리 - 단순화
+        if (payload.name && payload.name.trim() && payload.name !== "사용자") {
+          socialName = payload.name.trim();
         }
 
         socialEmail = payload.email;
-        console.log('📱 최종 추출된 이름:', socialName);
       }
     } catch (e) {
-      console.error('📱 토큰 파싱 오류:', e);
+      // 토큰 파싱 오류 무시
     }
 
     // 소셜 로그인 설정
@@ -193,12 +165,14 @@ const handleSocialLoginToken = async (token) => {
     localStorage.setItem('social_provider', socialProvider);
     localStorage.setItem('social_name', socialName);
     sessionStorage.setItem('social_name', socialName);
+    sessionStorage.setItem('login_type', 'SOCIAL');
 
     if (socialEmail) {
       localStorage.setItem('social_email', socialEmail);
+      sessionStorage.setItem('social_email', socialEmail);
     }
 
-    const tokenSuccess = setUserFromToken(token);
+    const tokenSuccess = setUserFromToken(cleanToken);
 
     if (tokenSuccess) {
       await router.push('/');
@@ -207,10 +181,9 @@ const handleSocialLoginToken = async (token) => {
     }
 
   } catch (error) {
-    console.error('📱 에러 상세:', error);
-    alert(`로그인 처리 중 오류: ${error.message}`);
+    errorMessage.value = `로그인 처리 중 오류: ${error.message}`;
   }
-}
+};
 
 // 사용자 프로필 정보 가져오기 함수
 const fetchUserProfile = async (token) => {
@@ -234,17 +207,28 @@ const fetchUserProfile = async (token) => {
 // 소셜 로그인 콜백 처리
 const checkSocialLoginCallback = async () => {
   const urlParams = new URLSearchParams(window.location.search);
+
+  // 'token' 파라미터 확인 (기존 'jwt' 대신)
   const token = urlParams.get('token');
   const error = urlParams.get('error');
 
   if (error) {
     errorMessage.value = decodeURIComponent(error);
+    // URL 파라미터 제거
     window.history.replaceState({}, document.title, window.location.pathname);
     return;
   }
 
   if (token) {
-    await handleSocialLoginToken(token);
+    try {
+      await handleSocialLoginToken(token);
+      // URL 파라미터 제거
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } catch (error) {
+      errorMessage.value = '소셜 로그인 처리 중 오류가 발생했습니다.';
+      // URL 파라미터 제거
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
     return;
   }
 };
@@ -257,10 +241,10 @@ onMounted(() => {
     rememberId.value = true;
   }
 
+  // 소셜 콜백 처리 활성화
   checkSocialLoginCallback();
 });
 
-// 일반 로그인 처리
 const handleLogin = async () => {
   if (!form.userid.trim()) {
     errorMessage.value = "아이디를 입력해주세요.";
@@ -276,14 +260,18 @@ const handleLogin = async () => {
   errorMessage.value = "";
 
   try {
-    const response = await axios.post("/auth/login", {
+    // axios 대신 apiClient 사용
+    const response = await apiClient.post("/auth/login", {
       userid: form.userid,
       passwd: form.password
+    }, {
+      // 인증 실패 시 에러 페이지로 리다이렉트하지 않도록 설정
+      skipGlobalErrorHandler: true
     });
 
     if (response.data.success && response.data.token) {
-      // 🔥 일반 로그인 처리
-      localStorage.setItem("token", response.data.token);
+      // 일반 로그인 처리
+      localStorage.setItem("jwt", response.data.token);
 
       // 일반 로그인으로 설정
       localStorage.setItem('login_type', 'NORMAL');
@@ -309,20 +297,21 @@ const handleLogin = async () => {
       await router.push("/");
     }
   } catch (error) {
-    console.error('📝 일반 로그인 오류:', error);
-
     if (error.response) {
       const status = error.response.status;
       const data = error.response.data;
+
+      // 백엔드에서 온 메시지 우선 사용
       if (data && data.message) {
-        errorMessage.value = `${data.message}`;
+        errorMessage.value = data.message;
       } else {
+        // 상태 코드별 기본 메시지
         switch (status) {
           case 400:
-            errorMessage.value = "아이디 또는 비밀번호가 잘못되었습니다.";
+            errorMessage.value = "아이디 또는 비밀번호가 틀렸습니다. 다시 확인 후 로그인 부탁드립니다.";
             break;
           case 401:
-            errorMessage.value = "인증에 실패했습니다.";
+            errorMessage.value = "인증에 실패했습니다. 아이디와 비밀번호를 확인해주세요.";
             break;
           case 403:
             errorMessage.value = "접근이 거부되었습니다.";
@@ -331,14 +320,14 @@ const handleLogin = async () => {
             errorMessage.value = "존재하지 않는 아이디입니다.";
             break;
           case 500:
-            errorMessage.value = "서버 내부 오류입니다.";
+            errorMessage.value = "서버 내부 오류입니다. 잠시 후 다시 시도해주세요.";
             break;
           default:
             errorMessage.value = `로그인 실패 (오류 코드: ${status})`;
         }
       }
     } else if (error.request) {
-      errorMessage.value = "서버에 연결할 수 없습니다.";
+      errorMessage.value = "서버에 연결할 수 없습니다. 네트워크 상태를 확인해주세요.";
     } else {
       errorMessage.value = "예상치 못한 오류가 발생했습니다.";
     }

@@ -109,8 +109,14 @@
             <button
                 :class="['wishlist-button', { active: isWishlisted }]"
                 @click="toggleWishlist"
+                :disabled="wishlistLoading"
             >
-              <Heart :size="20" :fill="isWishlisted ? '#ff4444' : 'none'" />
+              <Heart
+                  :size="20"
+                  :fill="isWishlisted ? '#ff4444' : 'none'"
+                  :stroke="isWishlisted ? '#ff4444' : '#666'"
+              />
+              <span v-if="wishlistLoading" class="wishlist-loading">처리중...</span>
             </button>
           </div>
           <button class="buy-now-button" @click="handleAddToCart">
@@ -423,12 +429,12 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ChevronLeft, Share2, Heart, Bell, Star, Plus, ChevronDown } from 'lucide-vue-next'
 import apiClient from '@/api/axiosInstance.js'
 
 const router = useRouter()
 const route = useRoute()
 
+// 상태 관리
 const loading = ref(false)
 const error = ref(null)
 const product = ref(null)
@@ -438,6 +444,7 @@ const qnas = ref([])
 const selectedTab = ref('details')
 const quantity = ref(1)
 const isWishlisted = ref(false)
+const wishlistLoading = ref(false)
 const showNotification = ref(false)
 const currentImageIndex = ref(0)
 
@@ -463,6 +470,7 @@ const qnaForm = ref({
 const editingQnaId = ref(null)
 const expandedQna = ref(null)
 
+// 탭 계산 속성
 const tabs = computed(() => [
   { id: 'details', label: '상품설명' },
   { id: 'info', label: '상세정보' },
@@ -470,8 +478,9 @@ const tabs = computed(() => [
   { id: 'inquiry', label: `문의 (${getQnaCount()})` }
 ])
 
+// 유틸리티 함수들
 const getAuthToken = () => {
-  return localStorage.getItem('token')
+  return localStorage.getItem('jwt')
 }
 
 function base64UrlDecode(str) {
@@ -482,27 +491,34 @@ function base64UrlDecode(str) {
   return atob(base64)
 }
 
+// 인증 상태 확인
 const isAuthenticated = () => {
   const token = getAuthToken()
-  if (!token) {
+  if (!token || token === 'null' || token === 'undefined') {
     return false
   }
+
   try {
-    const payloadJson = base64UrlDecode(token.split('.')[1])
+    // Bearer 제거 후 토큰 검증
+    const cleanToken = token.startsWith('Bearer ') ? token.substring(7) : token;
+    const payloadJson = base64UrlDecode(cleanToken.split('.')[1])
     const payload = JSON.parse(payloadJson)
     const isValid = payload.exp > Date.now() / 1000
+
     return isValid
   } catch (e) {
     return false
   }
 }
 
+// 현재 사용자 정보 가져오기
 const getCurrentUser = () => {
   const token = getAuthToken()
   if (!token) return null
 
   try {
-    const payloadJson = base64UrlDecode(token.split('.')[1])
+    const cleanToken = token.startsWith('Bearer ') ? token.substring(7) : token;
+    const payloadJson = base64UrlDecode(cleanToken.split('.')[1])
     const payload = JSON.parse(payloadJson)
     return payload
   } catch (e) {
@@ -510,6 +526,7 @@ const getCurrentUser = () => {
   }
 }
 
+// 내 리뷰인지 확인
 const isMyReview = (review) => {
   const currentUser = getCurrentUser()
   if (!currentUser) return false
@@ -517,6 +534,106 @@ const isMyReview = (review) => {
   return review.authorName === currentUser.sub ||
       review.authorId === currentUser.userId ||
       review.userId === currentUser.userId
+}
+
+// 찜하기 상태 확인
+const checkWishlistStatus = async () => {
+  if (!isAuthenticated() || !product.value?.productId) {
+    return
+  }
+
+  try {
+    const response = await apiClient.get(`/api/wishlist/check/${product.value.productId}`, {
+      timeout: 8000,
+    })
+
+    if (response.data.success) {
+      isWishlisted.value = response.data.data || false
+    } else {
+      isWishlisted.value = false
+    }
+  } catch (error) {
+    if (error.response?.status === 401) {
+      const token = localStorage.getItem('jwt');
+    }
+
+    // 에러 발생시 찜하기 상태를 false로 설정
+    isWishlisted.value = false
+  }
+}
+
+// 찜하기 토글
+const toggleWishlist = async () => {
+  if (!isAuthenticated()) {
+    alert('로그인이 필요합니다.')
+    router.push('/login')
+    return
+  }
+
+  if (!product.value?.productId) {
+    alert('상품 정보를 불러올 수 없습니다.')
+    return
+  }
+
+  // 토큰 상태 미리 확인
+  const token = localStorage.getItem('jwt');
+  if (!token || token === 'null' || token === 'undefined') {
+    alert('로그인이 필요합니다.')
+    router.push('/login')
+    return
+  }
+
+  wishlistLoading.value = true
+
+  try {
+    if (isWishlisted.value) {
+      // 찜 해제
+      const response = await apiClient.delete(`/api/wishlist/${product.value.productId}`, {
+        timeout: 8000
+      })
+
+      if (response.data.success) {
+        isWishlisted.value = false
+      } else {
+        alert(response.data.message || '찜 해제에 실패했습니다.')
+      }
+    } else {
+      // 찜 추가
+      const response = await apiClient.post('/api/wishlist', {
+        productId: product.value.productId
+      }, {
+        timeout: 8000
+      })
+
+      if (response.data.success) {
+        isWishlisted.value = true
+      } else {
+        alert(response.data.message || '찜하기에 실패했습니다.')
+      }
+    }
+  } catch (error) {
+    if (error.response?.status === 401) {
+      alert('로그인이 만료되었습니다. 다시 로그인해주세요.')
+      localStorage.removeItem('jwt')
+      localStorage.removeItem('userId')
+      router.push('/login')
+    } else if (error.response?.status === 409) {
+      // 이미 찜한 상품인 경우
+      alert('이미 찜한 상품입니다.')
+      isWishlisted.value = true
+    } else if (error.response?.status === 404) {
+      // API가 구현되지 않은 경우
+      alert('위시리스트 기능이 아직 준비되지 않았습니다.')
+    } else if (error.response?.status === 500) {
+      alert('서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.')
+    } else if (error.code === 'ECONNABORTED') {
+      alert('요청 시간이 초과되었습니다. 다시 시도해주세요.')
+    } else {
+      alert('찜하기 처리 중 오류가 발생했습니다.')
+    }
+  } finally {
+    wishlistLoading.value = false
+  }
 }
 
 // Q&A 관련 유틸리티 함수들
@@ -558,7 +675,6 @@ const submitQna = async () => {
     }
 
     const response = await apiClient.post('/api/qna', qnaData, {
-      withAuth: true,
       timeout: 10000
     })
 
@@ -573,7 +689,7 @@ const submitQna = async () => {
   } catch (error) {
     if (error.response?.status === 401) {
       alert('로그인이 필요합니다.')
-      localStorage.removeItem('token')
+      localStorage.removeItem('jwt')
       router.push('/login')
     } else if (error.response?.status === 403) {
       alert('해당 상품을 구매하고 배송완료된 고객만 문의를 작성할 수 있습니다.')
@@ -613,7 +729,7 @@ const updateQna = async () => {
       isSecret: qnaForm.value.isSecret ? 'Y' : 'N'
     }
 
-    await apiClient.put(`/api/qna/${editingQnaId.value}`, qnaData, { withAuth: true })
+    await apiClient.put(`/api/qna/${editingQnaId.value}`, qnaData)
 
     alert('문의가 수정되었습니다.')
     cancelQnaForm()
@@ -633,7 +749,7 @@ const deleteQna = async (qnaId) => {
   }
 
   try {
-    await apiClient.delete(`/api/qna/${qnaId}`, { withAuth: true })
+    await apiClient.delete(`/api/qna/${qnaId}`)
 
     alert('문의가 삭제되었습니다.')
     await loadProductQnas(route.params.id)
@@ -711,7 +827,6 @@ const submitReview = async () => {
     }
 
     const response = await apiClient.post('/api/board/reviews', reviewData, {
-      withAuth: true,
       timeout: 10000
     })
 
@@ -726,7 +841,7 @@ const submitReview = async () => {
   } catch (error) {
     if (error.response?.status === 401) {
       alert('로그인이 필요합니다.')
-      localStorage.removeItem('token')
+      localStorage.removeItem('jwt')
       router.push('/login')
     } else if (error.response?.status === 403) {
       alert('해당 상품을 구매하고 배송완료된 고객만 리뷰를 작성할 수 있습니다.')
@@ -764,7 +879,7 @@ const updateReview = async () => {
       rating: reviewForm.value.rating
     }
 
-    await apiClient.put(`/api/board/reviews/${editingReviewId.value}`, reviewData, { withAuth: true })
+    await apiClient.put(`/api/board/reviews/${editingReviewId.value}`, reviewData)
 
     alert('리뷰가 수정되었습니다.')
     cancelReviewForm()
@@ -784,7 +899,7 @@ const deleteReview = async (reviewId) => {
   }
 
   try {
-    await apiClient.delete(`/api/board/reviews/${reviewId}`, { withAuth: true })
+    await apiClient.delete(`/api/board/reviews/${reviewId}`)
 
     alert('리뷰가 삭제되었습니다.')
     await loadProductReviews(route.params.id)
@@ -969,10 +1084,6 @@ const loadRelatedProducts = async (productId) => {
 const goBack = () => router.go(-1)
 const goToProduct = (id) => router.push(`/product/${id}`)
 
-const toggleWishlist = () => {
-  isWishlisted.value = !isWishlisted.value
-}
-
 const handleAddToCart = async () => {
   if (!product.value?.productId) {
     alert('상품 정보를 찾을 수 없습니다.');
@@ -980,7 +1091,7 @@ const handleAddToCart = async () => {
   }
 
   // 로그인 상태 먼저 확인
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('jwt');
   if (!token) {
     alert('로그인이 필요합니다.');
     router.push('/login');
@@ -990,7 +1101,7 @@ const handleAddToCart = async () => {
   // 토큰 유효성 검증
   if (!isAuthenticated()) {
     alert('로그인이 만료되었습니다. 다시 로그인해주세요.');
-    localStorage.removeItem('token');
+    localStorage.removeItem('jwt');
     router.push('/login');
     return;
   }
@@ -999,20 +1110,12 @@ const handleAddToCart = async () => {
     productId: product.value.productId,
     quantity: quantity.value,
     productOptionId: 'defaultOptionId'
-    // 🔥 userId 제거 - JWT 토큰에서 백엔드가 추출
   };
 
   try {
-    console.log('장바구니 추가 요청:', cartItem);
-
-    // 🔥 순수 JWT Bearer 토큰만 사용 (X-*** 헤더 완전 제거)
     const response = await apiClient.post('/api/cart', cartItem, {
-      withAuth: true,
       timeout: 10000
-      // headers 설정 제거 - axiosInstance에서 자동으로 Authorization 헤더 추가
     });
-
-    console.log('장바구니 응답:', response.data);
 
     if (response.data.success) {
       const goToCart = confirm('장바구니에 추가되었습니다! 장바구니로 이동하시겠습니까?');
@@ -1024,18 +1127,13 @@ const handleAddToCart = async () => {
     }
 
   } catch (error) {
-    console.error('장바구니 추가 에러:', error);
-
     if (error.response) {
       const status = error.response.status;
       const message = error.response.data?.message || error.message;
 
-      console.error('응답 상태:', status);
-      console.error('응답 데이터:', error.response.data);
-
       if (status === 401) {
         alert('인증이 만료되었습니다. 다시 로그인해주세요.');
-        localStorage.removeItem('token');
+        localStorage.removeItem('jwt');
         router.push('/login');
         return;
       } else if (status === 403) {
@@ -1054,6 +1152,7 @@ const handleAddToCart = async () => {
     }
   }
 };
+
 const getCurrentImage = () => {
   if (product.value?.images?.length > 0)
     return product.value.images[currentImageIndex.value] || product.value.images[0]
@@ -1102,7 +1201,7 @@ const handleImageError = (e) => {
   e.target.parentNode.appendChild(placeholder)
 }
 
-// 라이프사이클
+// 라이프사이클 - 컴포넌트 마운트
 onMounted(async () => {
   await loadProduct();
 
@@ -1110,16 +1209,20 @@ onMounted(async () => {
   if (productId) {
     await loadProductReviews(productId);
     await loadProductQnas(productId);
+
+    // 찜하기 상태 확인
+    await checkWishlistStatus();
   }
 });
 
+// 라우트 변경 감지
 watch(() => route.params.id, async (newId) => {
   if (newId) {
     await loadProduct();
     await loadProductReviews(newId);
     await loadProductQnas(newId);
+    await checkWishlistStatus();
   }
 });
 </script>
-
 <style scoped src="@/assets/css/productDetail.css"></style>

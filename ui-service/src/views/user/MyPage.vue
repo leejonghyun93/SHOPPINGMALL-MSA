@@ -36,7 +36,6 @@
 
             <button class="benefit-button">
               쇼핑할 때 쓸 수 있는 혜택이 많이
-              <i class="fas fa-chevron-right"></i>
             </button>
           </div>
 
@@ -94,13 +93,10 @@
 
               <div class="link-section">
                 <div class="section-title">내 정보관리</div>
-                <!-- 🔥 핵심: 소셜/일반 로그인에 따른 조건부 렌더링 -->
                 <div v-if="!isSocialUser" class="link-item clickable" @click="navigateToProfile()">
-                  <i class="fas fa-user-edit me-2"></i>
                   회원 정보 관리
                 </div>
                 <div v-else class="link-item disabled" @click="showSocialUserAlert">
-                  <i class="fas fa-lock me-2"></i>
                   <span class="disabled-text">회원 정보 관리</span>
                   <span class="social-restriction-badge">{{ socialProviderName }} 로그인</span>
                 </div>
@@ -189,7 +185,7 @@ const router = useRouter()
 // 개발 환경 체크
 const isDevelopment = computed(() => import.meta.env.DEV)
 
-// 🔥 반응형 소셜 로그인 관련 상태
+// 반응형 소셜 로그인 관련 상태
 const isSocialUser = ref(false)
 const socialProvider = ref(null)
 const showSocialAlert = ref(false)
@@ -200,13 +196,13 @@ const userName = computed(() => {
   return computedUser.value.name ? computedUser.value.name + '님' : '사용자님'
 })
 
-// 🔥 현재 로그인 타입 표시
+// 현재 로그인 타입 표시
 const currentLoginType = computed(() => {
   const loginType = localStorage.getItem('login_type')
   return loginType || 'UNKNOWN'
 })
 
-// 🔥 소셜 로그인 제공업체 표시명
+// 소셜 로그인 제공업체 표시명
 const socialProviderName = computed(() => {
   switch (socialProvider.value) {
     case 'KAKAO':
@@ -262,41 +258,19 @@ const availableCoupons = ref(0)
 const giftCards = ref(0)
 const totalOrders = ref(0)
 
-// 🔥 핵심: 소셜 로그인 상태를 정확히 체크하는 함수
+// 소셜 로그인 상태를 정확히 체크하는 함수
 const checkSocialLoginStatus = () => {
-  console.log('🔍 MyPage.vue - 소셜 로그인 상태 체크 시작');
-
   const previousIsSocial = isSocialUser.value;
   const previousProvider = socialProvider.value;
 
   // userStore의 정확한 함수 사용
   isSocialUser.value = isSocialLoginUser();
   socialProvider.value = getSocialLoginProvider();
-
-  console.log('🔍 MyPage.vue - 소셜 로그인 체크 결과:', {
-    이전: { isSocial: previousIsSocial, provider: previousProvider },
-    현재: { isSocial: isSocialUser.value, provider: socialProvider.value },
-    변경됨: previousIsSocial !== isSocialUser.value,
-    loginType: localStorage.getItem('login_type'),
-    userInfo: getCurrentUser(),
-    저장된_정보: {
-      localStorage_login_type: localStorage.getItem('login_type'),
-      localStorage_social_provider: localStorage.getItem('social_provider'),
-      localStorage_social_name: localStorage.getItem('social_name'),
-      sessionStorage_login_type: sessionStorage.getItem('login_type'),
-      sessionStorage_social_provider: sessionStorage.getItem('social_provider')
-    }
-  });
 };
 
-
-// 🔥 사용자 상태 변화 감지
+// 사용자 상태 변화 감지
 watch(() => computedUser.value.id, async (newUserId, oldUserId) => {
-  console.log('🔍 MyPage.vue - user.id 변화:', { oldUserId, newUserId });
-
   if (newUserId && newUserId !== oldUserId) {
-    console.log('🔍 새로운 사용자 로그인 감지');
-
     // 약간의 지연 후 체크 (userStore 설정이 완료된 후)
     await nextTick();
     await new Promise(resolve => setTimeout(resolve, 100));
@@ -304,15 +278,13 @@ watch(() => computedUser.value.id, async (newUserId, oldUserId) => {
     checkSocialLoginStatus();
     await fetchUserExtraInfo();
   } else if (!newUserId && oldUserId) {
-    console.log('🔍 사용자 로그아웃 감지');
     isSocialUser.value = false;
     socialProvider.value = null;
   }
 }, { immediate: true });
 
-// 🔥 로그인 타입 변화 감지 추가
+// 로그인 타입 변화 감지 추가
 watch(() => localStorage.getItem('login_type'), (newType, oldType) => {
-  console.log('🔍 MyPage.vue - login_type 변화:', { oldType, newType });
   if (newType !== oldType && computedUser.value.id) {
     setTimeout(() => {
       checkSocialLoginStatus();
@@ -339,13 +311,8 @@ const navigateToTab = (tabName) => {
   }
 }
 
-// 🔥 소셜 로그인 사용자 알림 표시
+// 소셜 로그인 사용자 알림 표시
 const showSocialUserAlert = () => {
-  console.log('🔍 MyPage.vue - 소셜 사용자 알림 표시:', {
-    isSocialUser: isSocialUser.value,
-    socialProvider: socialProvider.value,
-    socialProviderName: socialProviderName.value
-  })
   showSocialAlert.value = true
 }
 
@@ -353,25 +320,16 @@ const closeSocialAlert = () => {
   showSocialAlert.value = false
 }
 
-// 🔥 회원정보관리 네비게이션 (소셜 로그인 체크)
+// 회원정보관리 네비게이션 (소셜 로그인 체크)
 function navigateToProfile() {
-  console.log('🔍 MyPage.vue - navigateToProfile 호출:', {
-    isSocialUser: isSocialUser.value,
-    socialProvider: socialProvider.value,
-    loginType: localStorage.getItem('login_type'),
-    실시간_체크: isSocialLoginUser() // 실시간으로 다시 체크
-  });
-
   // 실시간으로 다시 체크
   const currentIsSocial = isSocialLoginUser();
 
   if (currentIsSocial) {
-    console.log('🔍 실시간 체크 결과: 소셜 로그인 사용자');
     showSocialUserAlert();
     return;
   }
 
-  console.log('🔍 실시간 체크 결과: 일반 로그인 사용자, 프로필 페이지로 이동');
   router.push({ name: 'MyPageProfile' });
 }
 
@@ -458,21 +416,17 @@ const isTokenValid = (token) => {
   }
 }
 
-// 🔥 컴포넌트 마운트 시 처리
+// 컴포넌트 마운트 시 처리
 onMounted(async () => {
-  console.log('🔍 MyPage.vue - onMounted 시작');
-
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('jwt');
 
   if (!token) {
-    console.log('🔍 토큰 없음, 로그인 페이지로 이동');
     router.push('/login');
     return;
   }
 
   if (!isTokenValid(token)) {
-    console.log('🔍 유효하지 않은 토큰, 로그인 페이지로 이동');
-    localStorage.removeItem('token');
+    localStorage.removeItem('jwt');
     router.push('/login');
     return;
   }
@@ -480,7 +434,6 @@ onMounted(async () => {
   try {
     // userStore에서 사용자 정보 설정 (이미 로그인 타입이 설정되어 있어야 함)
     setUserFromToken(token);
-    console.log('🔍 토큰에서 사용자 정보 설정 완료:', computedUser.value);
 
     // 소셜 로그인 상태 체크 - 지연 후 실행
     await nextTick();
@@ -496,12 +449,10 @@ onMounted(async () => {
     }, 1000);
 
   } catch (error) {
-    console.error('🔍 사용자 정보 설정 오류:', error);
-    localStorage.removeItem('token');
+    localStorage.removeItem('jwt');
     router.push('/login');
   }
 });
-
 
 // 자식 컴포넌트에서 호출할 수 있도록 expose
 defineExpose({

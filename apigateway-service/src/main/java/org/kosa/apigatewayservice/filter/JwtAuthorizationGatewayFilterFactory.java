@@ -19,7 +19,7 @@ import java.nio.charset.StandardCharsets;
 @Slf4j
 public class JwtAuthorizationGatewayFilterFactory extends AbstractGatewayFilterFactory<JwtAuthorizationGatewayFilterFactory.Config> {
 
-    @Value("${jwt.secret:verySecretKeyThatIsAtLeast32BytesLong1234}")
+    @Value("${jwt.secret:rrYd2zPDUkx7BUhgDsOTxHCbsBkeTgE/uoARWYSqBjU=}")
     private String secretKey;
 
     public JwtAuthorizationGatewayFilterFactory() {
@@ -53,7 +53,7 @@ public class JwtAuthorizationGatewayFilterFactory extends AbstractGatewayFilterF
                 return exchange.getResponse().setComplete();
             }
 
-            String token = authHeader.substring(7);
+            String jwt = authHeader.substring(7);
 
             try {
                 SecretKey key = Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
@@ -61,7 +61,7 @@ public class JwtAuthorizationGatewayFilterFactory extends AbstractGatewayFilterF
                 Claims claims = Jwts.parserBuilder()
                         .setSigningKey(key)
                         .build()
-                        .parseClaimsJws(token)
+                        .parseClaimsJws(jwt)
                         .getBody();
 
                 // 사용자 정보 추출 (검증용)

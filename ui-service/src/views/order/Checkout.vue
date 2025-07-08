@@ -480,7 +480,7 @@ const isTokenValid = (token) => {
 }
 
 const checkLoginStatus = () => {
-  const token = localStorage.getItem('token')
+  const token = localStorage.getItem('jwt')
 
   if (!token) {
     isLoggedIn.value = false
@@ -488,7 +488,7 @@ const checkLoginStatus = () => {
   }
 
   if (!isTokenValid(token)) {
-    localStorage.removeItem('token')
+    localStorage.removeItem('jwt')
     localStorage.removeItem('userId')
     isLoggedIn.value = false
     return false
@@ -523,7 +523,7 @@ const loadUserInfo = async () => {
     let finalUserPhone = user.phone || localStorage.getItem('user_phone') || sessionStorage.getItem('user_phone') || ''
 
     // 2단계: 토큰에서 추가 정보 추출
-    const token = localStorage.getItem('token')
+    const token = localStorage.getItem('jwt')
     if (token) {
       try {
         const parts = token.replace('Bearer ', '').split('.')
@@ -875,7 +875,7 @@ const initiatePayment = async (paymentData) => {
                 showFriendlyMessage(successMsg, 'success')
 
                 // 토큰이 만료된 경우에도 주문 완료 페이지로 이동
-                const currentToken = localStorage.getItem('token')
+                const currentToken = localStorage.getItem('jwt')
                 if (currentToken && !isTokenValid(currentToken)) {
                   // 토큰을 삭제하지 말고 주문 완료 페이지에서 처리하도록 함
                 }

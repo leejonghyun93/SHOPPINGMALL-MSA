@@ -342,7 +342,7 @@ const cancelDetail = ref('')
 
 // 인증 헤더 생성
 const getAuthHeaders = () => {
-  const token = localStorage.getItem('token')
+  const token = localStorage.getItem('jwt')
 
   const headers = {
     'Content-Type': 'application/json'
@@ -358,7 +358,7 @@ const getAuthHeaders = () => {
 
 // 토큰 자동 갱신 함수
 const refreshTokenIfNeeded = async () => {
-  const token = localStorage.getItem('token')
+  const token = localStorage.getItem('jwt')
   if (!token) return false
 
   try {
@@ -373,7 +373,7 @@ const refreshTokenIfNeeded = async () => {
     if (response.ok) {
       const result = await response.json()
       if (result.success && result.token) {
-        localStorage.setItem('token', result.token)
+        localStorage.setItem('jwt', result.token)
         return true
       }
     }
@@ -416,7 +416,7 @@ const loadOrderData = async (orderId) => {
           orderData.value.userName = user.name
         } else {
           // 토큰에서 이름 추출
-          const token = localStorage.getItem('token')
+          const token = localStorage.getItem('jwt')
           if (token) {
             try {
               const parts = token.replace('Bearer ', '').split('.')
@@ -449,7 +449,7 @@ const loadOrderData = async (orderId) => {
             orderData.value.email = savedEmail
           } else {
             // 토큰에서 이메일 추출
-            const token = localStorage.getItem('token')
+            const token = localStorage.getItem('jwt')
             if (token) {
               try {
                 const parts = token.replace('Bearer ', '').split('.')
@@ -489,7 +489,7 @@ const loadOrderData = async (orderId) => {
             orderData.value.phone = savedPhone
           } else {
             // 토큰에서 휴대폰 추출
-            const token = localStorage.getItem('token')
+            const token = localStorage.getItem('jwt')
             if (token) {
               try {
                 const parts = token.replace('Bearer ', '').split('.')
@@ -564,7 +564,7 @@ const cancelOrderAction = async () => {
       } else {
         // 토큰 갱신 실패
         alert('로그인이 만료되었습니다. 다시 로그인해주세요.')
-        localStorage.removeItem('token')
+        localStorage.removeItem('jwt')
         localStorage.removeItem('userId')
         router.push('/login')
         return

@@ -371,7 +371,7 @@ public class UserApiController {
             userData.put("address", user.getAddress());
             userData.put("zipcode", user.getZipcode());
             userData.put("gender", user.getGender());
-
+            userData.put("nickname", user.getName());
             response.put("data", userData);
 
             log.info("프로필 조회 성공 - userId: {}, name: {}", userId, user.getName());

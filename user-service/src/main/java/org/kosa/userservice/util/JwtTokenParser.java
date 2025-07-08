@@ -14,13 +14,13 @@ import java.nio.charset.StandardCharsets;
 @Slf4j
 public class JwtTokenParser {
 
-    @Value("${jwt.secret:verySecretKeyThatIsAtLeast32BytesLong1234}")
+    @Value("${jwt.secret:rrYd2zPDUkx7BUhgDsOTxHCbsBkeTgE/uoARWYSqBjU=}")
     private String jwtSecret;
 
     private SecretKey getSigningKey() {
         if (jwtSecret.length() < 32) {
             log.warn("JWT secret key가 너무 짧습니다. 최소 32바이트 필요");
-            jwtSecret = "verySecretKeyThatIsAtLeast32BytesLong1234567890";
+            jwtSecret = "rrYd2zPDUkx7BUhgDsOTxHCbsBkeTgE/uoARWYSqBjU=";
         }
         return Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
     }

@@ -126,6 +126,8 @@ public class SocialAuthController {
     private void redirectToFrontendWithSuccess(HttpServletResponse response, String token) throws IOException {
         try {
             String encodedToken = URLEncoder.encode(token, StandardCharsets.UTF_8);
+
+            // 🔥 /login으로 리다이렉트 (무한루프 방지)
             String redirectUrl = String.format("%s/login?token=%s", frontendUrl, encodedToken);
 
             log.info("🔄 소셜 로그인 성공 리다이렉트: {}", frontendUrl + "/login?token=***");
@@ -133,9 +135,11 @@ public class SocialAuthController {
 
         } catch (Exception e) {
             log.error("💥 성공 리다이렉트 처리 중 오류", e);
-            redirectToFrontendWithError(response, "로그인 완료 처리 중 오류가 발생했습니다.");
+            // 에러 시 단순히 /login으로
+            response.sendRedirect(frontendUrl + "/login");
         }
     }
+
 
     /**
      * 소셜 로그인 실패 시 프론트엔드로 리다이렉트
@@ -143,6 +147,8 @@ public class SocialAuthController {
     private void redirectToFrontendWithError(HttpServletResponse response, String errorMessage) throws IOException {
         try {
             String encodedError = URLEncoder.encode(errorMessage, StandardCharsets.UTF_8);
+
+            // 🔥 /login으로 에러와 함께 리다이렉트
             String redirectUrl = String.format("%s/login?error=%s", frontendUrl, encodedError);
 
             log.info("🔄 소셜 로그인 실패 리다이렉트: {}", frontendUrl + "/login?error=***");
@@ -153,7 +159,6 @@ public class SocialAuthController {
             response.sendRedirect(frontendUrl + "/login");
         }
     }
-
     /**
      * 소셜 로그인 설정 확인
      */

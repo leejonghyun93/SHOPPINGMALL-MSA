@@ -44,7 +44,7 @@ const shouldShowErrorPage = (status) => {
 
 axios.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem('token')
+        const token = localStorage.getItem('jwt')
         if (token && user.id && isTokenValid(token)) {
             config.headers.Authorization = `Bearer ${token}`
         }

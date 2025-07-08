@@ -115,8 +115,9 @@
           </div>
         </div>
 
-        <!-- 오른쪽: 상품 목록 -->
+        <!-- 🔥 오른쪽: 사이드바 (상품목록 + 채팅) -->
         <div class="sidebar">
+          <!-- 🔥 상품 목록 - 사이드바 상단 -->
           <div class="product-list" ref="productList">
             <div class="section-header">
               <h3>방송 상품 ({{ products.length }}개)</h3>
@@ -143,6 +144,98 @@
               상품 {{ products.length }}개 전체 보기
             </button>
           </div>
+
+          <!-- 🔥 채팅 컨테이너 - 사이드바 하단 (sidebar 안으로 이동) -->
+          <div class="chat-container">
+            <!-- 공지 영역 -->
+            <div class="notice-banner" :class="{ expanded: isNoticeExpanded }">
+              <div class="notice-text" :class="{ expanded: isNoticeExpanded }">
+                📢 {{ displayNotice }}
+              </div>
+              <button
+                  v-if="shouldShowMoreBtn"
+                  class="notice-toggle-btn"
+                  @click="toggleNotice"
+              >
+                {{ isNoticeExpanded ? '접기' : '더보기' }}
+              </button>
+            </div>
+
+            <!-- 메시지 + 입력창 묶음 -->
+            <div class="chat-main">
+              <div class="chat-messages" ref="messagesContainer" @scroll="handleScroll">
+                <div
+                    v-for="(msg, index) in messages"
+                    :key="index"
+                    :class="['chat-message', msg.systemOnly ? 'system-message' : (isMyMessage(msg) ? 'my-message' : 'other-message')]"
+                >
+                  <template v-if="msg.systemOnly">
+                    <div class="system-box">{{ msg.text }}</div>
+                  </template>
+                  <template v-else>
+                    <div class="chat-line">
+                      <template v-if="!isMyMessage(msg)">
+                        <div class="nickname">{{ msg.from }}</div>
+                      </template>
+                      <div class="bubble">
+                        <img v-if="msg.type === 'sticker'" :src="stickerMap[msg.text]" class="chat-sticker" />
+                        <span v-else class="chat-content">{{ msg.text }}</span>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+              </div>
+
+              <!-- 최근 메시지로 이동 -->
+              <div v-if="showScrollToBottom" class="scroll-to-bottom" @click="scrollToBottom">
+                최근 메시지로 이동
+              </div>
+
+              <!-- 입력창 -->
+              <div class="chat-input">
+                <input
+                    ref="inputRef"
+                    v-model="newMessage"
+                    @focus="handleInputFocus"
+                    @keyup.enter="sendMessage"
+                    :placeholder="isLoggedIn ? '메시지를 입력하세요' : '로그인 후 사용가능'"
+                />
+                <button @click="sendMessage">전송</button>
+                <button @click="toggleTools" class="tools-toggle">😎</button>
+              </div>
+
+              <!-- 도구창 -->
+              <div v-if="showTools" class="chat-tools">
+                <div class="tools-header">
+                  <div class="tab-buttons">
+                    <button :class="{ active: activeTab === 'bear' }" @click="activeTab = 'bear'">🐻</button>
+                    <button :class="{ active: activeTab === 'rabbit' }" @click="activeTab = 'rabbit'">🐰</button>
+                  </div>
+                  <button class="close-tools" @click="showTools = false">✖</button>
+                </div>
+                <div class="sticker-list">
+                  <img
+                      v-for="(src, key) in filteredStickers"
+                      :key="key"
+                      :src="src"
+                      class="sticker-item"
+                      @click="() => sendSticker(key)"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- 로그인 안내 -->
+            <div v-if="showLoginModal" class="login-popup-overlay">
+              <div class="login-popup">
+                <p>로그인 후 채팅이 가능합니다.</p>
+                <div class="popup-buttons">
+                  <button @click="goToLogin">로그인 하고 채팅 참여하기</button>
+                  <button @click="showLoginModal = false">로그인 없이 방송 시청하기</button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -150,10 +243,15 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick, computed, watch } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import apiClient from '@/api/axiosInstance.js'
-
+import axios from 'axios'
+import SockJS from 'sockjs-client'
+import { Client } from '@stomp/stompjs'
+import { stickerMap } from './chat/EmojiMap'
+import { userState } from './chat/UserState'
+import { getWebSocketUrl, getApiBaseUrl } from '@/config/websocket' // 🔥 추가
 const route = useRoute()
 const router = useRouter()
 
@@ -178,9 +276,75 @@ let hlsPlayer = null
 // 인터벌 참조
 let statusInterval = null
 
+// 채팅 관련 상태
+const isLoggedIn = ref(false)
+const showLoginModal = ref(false)
+const messages = ref([])
+const newMessage = ref('')
+const messagesContainer = ref(null)
+const inputRef = ref(null)
+const showTools = ref(false)
+const showScrollToBottom = ref(false)
+const activeTab = ref('bear')
+const noticeMessage = ref('')
+const isNoticeExpanded = ref(false)
+
 // 계산된 속성
 const featuredProduct = computed(() => {
   return products.value.find(p => p.isFeatured) || products.value[0] || null
+})
+
+const filteredStickers = computed(() => {
+  return Object.fromEntries(
+      Object.entries(stickerMap).filter(([key]) => key.startsWith(activeTab.value))
+  );
+})
+
+const shouldShowMoreBtn = computed(() => {
+  return noticeMessage.value.length > 10;
+})
+
+const displayNotice = computed(() => {
+  return noticeMessage.value.trim() !== '' ? noticeMessage.value : '등록된 공지사항이 없습니다.';
+})
+
+// 채팅 유틸리티 함수
+const normalize = str => String(str || '').trim()
+const isMyMessage = msg => normalize(msg.from) === normalize(userState.currentUser)
+
+// WebSocket 연결 설정
+const socket = new SockJS(getWebSocketUrl())
+const stompClient = new Client({
+  webSocketFactory: () => socket,
+  reconnectDelay: 5000,
+  onConnect: () => {
+    console.log('✅ WebSocket 연결 성공 (사용자 페이지):', getWebSocketUrl()) // 🔥 수정
+    console.log('🌐 연결된 서버:', getWebSocketUrl()) // 🔥 수정
+
+    messages.value.push({ text: '채팅방에 입장하셨습니다.', systemOnly: true })
+
+    stompClient.subscribe('/topic/public', msg => {
+      const received = JSON.parse(msg.body)
+      console.log('💬 메시지 수신 (사용자 페이지):', received)
+
+      if (received.type === 'notice') {
+        noticeMessage.value = received.text.trim() || ''
+        return
+      }
+
+      messages.value.push(received)
+
+      nextTick(() => {
+        isScrolledToBottom() ? scrollToBottom() : (showScrollToBottom.value = true)
+      })
+    })
+  },
+  onDisconnect: () => {
+    console.log('❌ WebSocket 연결 해제 (사용자 페이지)')
+  },
+  onStompError: (frame) => {
+    console.error('❌ STOMP 에러 (사용자 페이지):', frame)
+  }
 })
 
 // 스트림 URL 생성 함수
@@ -292,7 +456,7 @@ const loadBroadcastData = async () => {
     const broadcastId = route.params.broadcastId
 
     // 방송 정보 조회
-    const broadcastResponse = await apiClient.get(`/api/broadcast/${broadcastId}`, { withAuth: false })
+    const broadcastResponse = await apiClient.get(`/api/broadcast/${broadcastId}`)
     broadcast.value = broadcastResponse.data
 
     if (!broadcast.value.streamUrl) {
@@ -304,7 +468,7 @@ const loadBroadcastData = async () => {
     generateStreamUrls(broadcast.value)
 
     // 상품 목록 조회
-    const productsResponse = await apiClient.get(`/api/broadcast/${broadcastId}/products`, { withAuth: false })
+    const productsResponse = await apiClient.get(`/api/broadcast/${broadcastId}/products`)
     products.value = productsResponse.data.map(product => ({
       ...product,
       getDiscountPercent: () => {
@@ -324,11 +488,60 @@ const loadBroadcastData = async () => {
     // 자동 새로고침 시작
     startAutoRefresh()
 
+    // 채팅 초기화
+    await initializeChat()
+
   } catch (err) {
-    error.value = err.response?.data?.message || '방송 정보를 불러오는데 실패했습니다'
+    if (err.response?.status === 401) {
+      // 인증되지 않은 사용자 - 방송 시청만 가능
+    } else {
+      error.value = err.response?.data?.message || '방송 정보를 불러오는데 실패했습니다'
+    }
   } finally {
     loading.value = false
   }
+}
+
+// 채팅 초기화
+const initializeChat = async () => {
+  try {
+    console.log('🔌 WebSocket 연결 시도 (사용자 페이지)...')
+    stompClient.activate()
+  } catch (err) {
+    console.error('❌ WebSocket 연결 실패 (사용자 페이지):', err)
+  }
+
+  // 채팅 히스토리는 빈 상태로 시작
+  messages.value = []
+  noticeMessage.value = ''
+
+  // 로그인 유저 정보 확인
+  const token = localStorage.getItem('jwt') || sessionStorage.getItem('jwt')
+  if (token) {
+    try {
+      const res = await axios.get('/api/users/profile', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+
+      if (res.data && res.data.success && res.data.data) {
+        const userData = res.data.data
+        userState.currentUser = userData.nickname
+        userState.userId = userData.userId
+        isLoggedIn.value = true
+        console.log('✅ 유저서비스에서 사용자 정보 조회 성공:', userData.name)
+      } else {
+        console.warn('⚠️ 유저서비스 응답 구조가 예상과 다름:', res.data)
+        localStorage.removeItem('jwt')
+        sessionStorage.removeItem('jwt')
+      }
+    } catch (err) {
+      console.warn('❌ 유저서비스 사용자 정보 조회 실패:', err.message)
+      localStorage.removeItem('jwt')
+      sessionStorage.removeItem('jwt')
+    }
+  }
+
+  scrollToBottom()
 }
 
 // 비디오 이벤트 핸들러들
@@ -356,7 +569,7 @@ const onPause = () => {
 const increaseViewerCount = async () => {
   try {
     const broadcastId = route.params.broadcastId
-    await apiClient.post(`/api/broadcast/${broadcastId}/view`, {}, { withAuth: false })
+    await apiClient.post(`/api/broadcast/${broadcastId}/view`, {})
   } catch (err) {
     // 실패 무시
   }
@@ -365,7 +578,7 @@ const increaseViewerCount = async () => {
 const likeBroadcast = async () => {
   try {
     const broadcastId = route.params.broadcastId
-    const response = await apiClient.post(`/api/broadcast/${broadcastId}/like`, {}, { withAuth: false })
+    const response = await apiClient.post(`/api/broadcast/${broadcastId}/like`, {})
 
     if (response.data.success && broadcast.value) {
       broadcast.value.like_count = response.data.likeCount
@@ -379,7 +592,7 @@ const startAutoRefresh = () => {
   statusInterval = setInterval(async () => {
     try {
       const broadcastId = route.params.broadcastId
-      const response = await apiClient.get(`/api/broadcast/${broadcastId}/status`, { withAuth: false })
+      const response = await apiClient.get(`/api/broadcast/${broadcastId}/status`)
 
       if (response.data && broadcast.value) {
         broadcast.value.current_viewers = response.data.currentViewers
@@ -387,7 +600,7 @@ const startAutoRefresh = () => {
         broadcast.value.broadcast_status = response.data.broadcastStatus
       }
     } catch (err) {
-      // 실패 무시
+      // 실패해도 계속 진행
     }
   }, 10000)
 }
@@ -449,6 +662,89 @@ const shareBroadcast = () => {
     navigator.clipboard.writeText(window.location.href)
     alert('방송 링크가 클립보드에 복사되었습니다!')
   }
+}
+
+// 채팅 관련 함수들
+const sendMessage = () => {
+  if (!isLoggedIn.value || newMessage.value.trim() === '' || !stompClient.connected) {
+    console.warn('⚠️ 메시지 전송 조건 미충족:', {
+      isLoggedIn: isLoggedIn.value,
+      hasMessage: newMessage.value.trim() !== '',
+      isConnected: stompClient.connected
+    })
+    return
+  }
+
+  const payload = {
+    from: userState.currentUser,
+    text: newMessage.value,
+    type: 'text',
+    broadcastId: route.params.broadcastId,
+    userId: userState.userId
+  }
+
+  console.log('📤 메시지 전송 (사용자 페이지):', payload)
+  stompClient.publish({ destination: '/app/sendMessage', body: JSON.stringify(payload) })
+  newMessage.value = ''
+  focusInput()
+  scrollToBottom()
+}
+
+const sendSticker = key => {
+  if (!isLoggedIn.value || !stompClient.connected) return
+  const payload = {
+    from: userState.currentUser,
+    type: 'sticker',
+    text: key,
+    broadcastId: route.params.broadcastId,
+    userId: userState.userId
+  }
+  console.log('📤 스티커 전송 (사용자 페이지):', payload)
+  stompClient.publish({ destination: '/app/sendMessage', body: JSON.stringify(payload) })
+  focusInput()
+  scrollToBottom()
+}
+
+const focusInput = () => nextTick(() => inputRef.value?.focus())
+
+const scrollToBottom = () => {
+  nextTick(() => {
+    const el = messagesContainer.value
+    if (el) {
+      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+      showScrollToBottom.value = false
+    }
+  })
+}
+
+const isScrolledToBottom = (threshold = 200) => {
+  const el = messagesContainer.value
+  return !el || el.scrollHeight - el.scrollTop - el.clientHeight < threshold
+}
+
+const handleScroll = () => {
+  showScrollToBottom.value = !isScrolledToBottom(200)
+}
+
+const toggleTools = () => {
+  showTools.value = !showTools.value
+  focusInput()
+  if (showTools.value) {
+    scrollToBottom()
+  }
+}
+
+const goToLogin = () => router.push('/login')
+
+const handleInputFocus = e => {
+  if (!isLoggedIn.value) {
+    e.target.blur()
+    showLoginModal.value = true
+  }
+}
+
+const toggleNotice = () => {
+  isNoticeExpanded.value = !isNoticeExpanded.value
 }
 
 // 스트림 상태 텍스트
@@ -552,14 +848,12 @@ onUnmounted(() => {
   }
 
   stopAutoRefresh()
-})
 
-// broadcast 데이터 변화 감지
-watch(broadcast, (newBroadcast) => {
-  if (newBroadcast) {
-    generateStreamUrls(newBroadcast)
+  // WebSocket 연결 해제
+  if (stompClient.connected) {
+    stompClient.deactivate()
   }
-}, { immediate: true })
+})
 </script>
 
 <style scoped src="@/assets/css/broadcastViewer.css"></style>

@@ -27,7 +27,7 @@ public class ProductQnaController {
 
     private final ProductQnaService productQnaService;
 
-    @Value("${jwt.secret:verySecretKeyThatIsAtLeast32BytesLong1234}")
+    @Value("${jwt.secret:rrYd2zPDUkx7BUhgDsOTxHCbsBkeTgE/uoARWYSqBjU=}")
     private String jwtSecret;
 
     private String extractUserIdFromJWT(HttpServletRequest request) {

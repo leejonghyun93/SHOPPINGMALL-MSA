@@ -8,6 +8,12 @@ export default defineConfig({
     vue(),
     vueDevTools(),
   ],
+  define: {
+    global: 'globalThis',
+  },
+  optimizeDeps: {
+    include: ['sockjs-client']
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))

@@ -13,4 +13,4 @@ server:
   port: 8080
 
 jwt:
-  secret-key: "verySecretKeyThatIsAtLeast32BytesLong1234"
+  secret-key: "rrYd2zPDUkx7BUhgDsOTxHCbsBkeTgE/uoARWYSqBjU="

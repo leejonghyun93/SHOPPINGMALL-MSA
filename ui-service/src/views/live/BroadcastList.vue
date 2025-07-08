@@ -175,7 +175,7 @@ const refreshInterval = ref(null)
 
 // 초기 카테고리 데이터
 const categories = ref([
-  { categoryId: 'ALL', name: '전체', icon: 'fas fa-th-large', categoryDisplayOrder: 0 }
+  { categoryId: 'ALL', name: '전체', categoryDisplayOrder: 0 }
 ])
 
 // 계산된 속성
@@ -189,97 +189,39 @@ const selectedCategoryName = computed(() => {
   return category ? category.name : '전체'
 })
 
-// 🔥 아이콘 처리 로직 개선
-const getIconForCategory = (category) => {
-  console.log('🎨 카테고리 아이콘 처리:', category)
-
-  // Font Awesome 아이콘 매핑
-  const iconMap = {
-    '1': 'fas fa-leaf',        // 신선식품
-    '2': 'fas fa-box',         // 가공식품
-    '3': 'fas fa-bread-slice', // 베이커리
-    '4': 'fas fa-wine-glass',  // 유제품
-    '5': 'fas fa-pills',       // 건강식품
-    '6': 'fas fa-utensils',    // 주방용품
-    '7': 'fas fa-home',        // 생활용품
-    '8': 'fas fa-baby',        // 육아용품
-    'vegetables': 'fas fa-carrot',
-    'fruits': 'fas fa-apple-alt',
-    'meat': 'fas fa-drumstick-bite',
-    'seafood': 'fas fa-fish',
-    'snacks': 'fas fa-cookie-bite',
-    'drinks': 'fas fa-coffee',
-    'canned': 'fas fa-box',
-    'meal': 'fas fa-hamburger',
-    'bread': 'fas fa-bread-slice',
-    'milk': 'fas fa-wine-glass',
-    'medicine': 'fas fa-pills',
-    'cooking': 'fas fa-utensils',
-    'tissue': 'fas fa-toilet-paper',
-    'baby': 'fas fa-baby'
-  }
-
-  // 서버에서 제공하는 아이콘 URL이 있으면 우선 사용
-  if (category.iconUrl && category.iconUrl.trim() !== '') {
-    console.log('🖼️ URL 아이콘 사용:', category.iconUrl)
-    return null // URL 아이콘은 iconUrl 필드로 처리
-  }
-
-  // Font Awesome 아이콘 반환
-  const iconClass = iconMap[category.categoryId] || iconMap[category.categoryIcon] || 'fas fa-th-large'
-  console.log('🎭 Font Awesome 아이콘:', iconClass)
-  return iconClass
-}
-
-// 나머지 함수들은 동일...
-
 /**
- * 메인 카테고리 조회 (개선된 버전)
+ * 메인 카테고리 조회
  */
 const fetchMainCategories = async () => {
   try {
-    console.log('📋 메인 카테고리 조회 시작')
     const res = await apiClient.get('/api/categories/main', { withAuth: false })
 
     if (res.data && res.data.length > 0) {
       const allCategory = {
         categoryId: 'ALL',
         name: '전체',
-        icon: 'fas fa-th-large',
         categoryDisplayOrder: 0
       }
 
       const serverCategories = res.data
           .filter(cat => cat.categoryUseYn === 'Y' && cat.categoryLevel === 1)
           .sort((a, b) => a.categoryDisplayOrder - b.categoryDisplayOrder)
-          .map(cat => {
-            const processedCategory = {
-              categoryId: String(cat.categoryId),
-              name: cat.name,
-              icon: getIconForCategory(cat),
-              iconUrl: cat.iconUrl, // 🔥 iconUrl 필드 추가
-              categoryDisplayOrder: cat.categoryDisplayOrder,
-              categoryIcon: cat.categoryIcon
-            }
-            console.log('🏷️ 처리된 카테고리:', processedCategory)
-            return processedCategory
-          })
+          .map(cat => ({
+            categoryId: String(cat.categoryId),
+            name: cat.name,
+            categoryDisplayOrder: cat.categoryDisplayOrder
+          }))
 
       categories.value = [allCategory, ...serverCategories]
-      console.log('✅ 최종 카테고리 목록:', categories.value)
     }
   } catch (error) {
-    console.error('❌ 카테고리 조회 실패:', error)
     categories.value = [{
       categoryId: 'ALL',
       name: '전체',
-      icon: 'fas fa-th-large',
       categoryDisplayOrder: 0
     }]
   }
 }
-
-// ... 기존 함수들 (나머지는 동일)
 
 /**
  * 상품 카테고리 기준으로 라이브 방송 조회
@@ -306,7 +248,6 @@ const fetchLiveBroadcastsByCategory = async (categoryId) => {
 
     if (response.data && Array.isArray(response.data)) {
       allBroadcasts.value = response.data.map(broadcast => ({
-        // camelCase 필드명을 snake_case로 변환하여 일관성 유지
         broadcast_id: broadcast.broadcastId,
         broadcaster_id: broadcast.broadcasterId,
         broadcaster_name: broadcast.broadcasterName || '방송자',
@@ -488,15 +429,11 @@ const getBroadcastDuration = (startTime) => {
 }
 
 /**
- * 방송 페이지로 이동 (기존 라우터 이름에 맞춤)
+ * 방송 페이지로 이동
  */
 const goToBroadcast = (broadcast) => {
-  console.log('🚀 goToBroadcast 호출됨:', broadcast)
-
   // 백엔드에서 camelCase로 오는 경우와 snake_case 모두 지원
   const broadcastId = broadcast.broadcastId || broadcast.broadcast_id
-
-  console.log('📡 추출된 broadcastId:', broadcastId)
 
   if (broadcastId) {
     router.push({
@@ -504,8 +441,6 @@ const goToBroadcast = (broadcast) => {
       params: { broadcastId: String(broadcastId) }
     })
   } else {
-    console.error('❌ broadcastId를 찾을 수 없습니다:', broadcast)
-    console.log('🔍 사용 가능한 필드들:', Object.keys(broadcast))
     alert('방송 정보를 찾을 수 없습니다.')
   }
 }
@@ -574,5 +509,4 @@ onUnmounted(() => {
   stopAutoRefresh()
 })
 </script>
-
 <style scoped src="@/assets/css/boardcastList.css"></style>

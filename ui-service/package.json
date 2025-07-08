@@ -10,11 +10,13 @@
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^6.7.2",
+    "@stomp/stompjs": "^7.1.1",
     "axios": "^1.10.0",
     "bootstrap": "^5.3.6",
     "chart.js": "^4.4.9",
     "jwt-decode": "^4.0.0",
     "lucide-vue-next": "^0.514.0",
+    "sockjs-client": "^1.6.1",
     "swiper": "^11.2.8",
     "vue": "^3.5.13",
     "vue-router": "^4.5.1"

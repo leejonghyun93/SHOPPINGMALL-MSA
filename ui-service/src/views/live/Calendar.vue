@@ -402,7 +402,7 @@ const toggleNotification = async (broadcast) => {
             break
           case 'INVALID_USER_ID':
             errorMessage = '사용자 정보가 올바르지 않습니다. 다시 로그인해주세요.'
-            localStorage.removeItem('token')
+            localStorage.removeItem('jwt')
             break
           case 'INTERNAL_ERROR':
             errorMessage = '서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
@@ -413,7 +413,7 @@ const toggleNotification = async (broadcast) => {
       }
       else if (error.response.status === 401) {
         errorMessage = '인증이 필요합니다. 다시 로그인해주세요.'
-        localStorage.removeItem('token')
+        localStorage.removeItem('jwt')
       } else if (error.response.status === 403) {
         errorMessage = '권한이 없습니다.'
       } else if (error.response.status === 409) {

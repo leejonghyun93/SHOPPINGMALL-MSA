@@ -13,7 +13,7 @@ const instance = axios.create({
 // 요청 인터셉터
 instance.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem("token")
+        const token = localStorage.getItem("jwt")
 
         if (token) {
             try {
@@ -29,8 +29,7 @@ instance.interceptors.request.use(
 
                 config.headers["Authorization"] = `Bearer ${token}`
             } catch (error) {
-                console.error('토큰 디코딩 에러:', error)
-                localStorage.removeItem("token")
+                localStorage.removeItem("jwt")
             }
         }
 

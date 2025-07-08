@@ -1,3 +1,5 @@
+/* broadcastViewer.css 수정 */
+
 .live-broadcast-viewer {
     min-height: 100vh;
     background: #f5f5f5;
@@ -115,17 +117,23 @@
     background: #e9ecef;
 }
 
+/* 🔥 메인 컨텐츠 레이아웃 수정 - 방송 왼쪽 전체, 사이드바 오른쪽 */
 .main-content {
     display: grid;
-    grid-template-columns: 2fr 1fr;
+    grid-template-columns: 1fr 350px; /* 방송영역 : 사이드바 */
     gap: 20px;
+    min-height: 700px;
 }
 
+/* 🔥 비디오 섹션 - 왼쪽 전체 */
 .video-section {
     background: white;
     border-radius: 8px;
     overflow: hidden;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
 }
 
 .video-player {
@@ -133,6 +141,7 @@
     width: 100%;
     aspect-ratio: 16/9;
     background: #000;
+    flex-shrink: 0;
 }
 
 .video-element {
@@ -189,9 +198,11 @@
     50% { opacity: 0; }
 }
 
+/* 🔥 상품 정보 섹션 - 비디오 아래 */
 .product-info-section {
     padding: 20px;
     border-top: 1px solid #eee;
+    flex: 1;
 }
 
 .product-card {
@@ -268,16 +279,23 @@
     cursor: pointer;
 }
 
+/* 🔥 사이드바 - 오른쪽 전체 (상품목록 + 채팅) */
 .sidebar {
-    background: white;
-    border-radius: 8px;
-    overflow: hidden;
-    height: fit-content;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    height: 700px;
 }
 
+/* 🔥 상품 목록 영역 - 사이드바 상단 */
 .product-list {
-    padding: 20px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding: 15px;
+    height: 350px;
+    overflow-y: auto;
+    flex-shrink: 0;
 }
 
 .section-header {
@@ -295,10 +313,10 @@
 .product-item {
     display: flex;
     gap: 12px;
-    padding: 12px;
+    padding: 8px;
     border: 1px solid #eee;
     border-radius: 8px;
-    margin-bottom: 12px;
+    margin-bottom: 8px;
     cursor: pointer;
     transition: all 0.2s;
     position: relative;
@@ -306,82 +324,352 @@
 
 .product-item:hover {
     border-color: #007bff;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .product-badge {
     position: absolute;
-    top: 8px;
-    left: 8px;
+    top: 4px;
+    left: 4px;
     background: #dc3545;
     color: white;
-    padding: 2px 6px;
+    padding: 2px 4px;
     border-radius: 4px;
     font-size: 10px;
     font-weight: bold;
 }
 
 .product-thumb {
-    width: 80px;
-    height: 60px;
+    width: 60px;
+    height: 45px;
     object-fit: cover;
     border-radius: 4px;
+    flex-shrink: 0;
 }
 
 .product-info {
     flex: 1;
+    min-width: 0;
 }
 
 .product-name {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: bold;
-    margin: 0 0 8px 0;
+    margin: 0 0 4px 0;
     line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .product-price {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
 }
 
 .discount-rate {
     color: #dc3545;
     font-weight: bold;
-    font-size: 12px;
+    font-size: 11px;
 }
 
 .price {
     font-weight: bold;
-    font-size: 14px;
+    font-size: 12px;
 }
 
 .shipping-info {
     color: #28a745;
-    font-size: 12px;
-    margin-top: 4px;
+    font-size: 10px;
+    margin-top: 2px;
 }
 
 .view-more-btn {
     width: 100%;
-    padding: 12px;
+    padding: 8px;
     background: #f8f9fa;
     border: 1px solid #dee2e6;
     border-radius: 4px;
     cursor: pointer;
     font-weight: bold;
-    margin-top: 16px;
+    font-size: 12px;
+    margin-top: 8px;
 }
 
 .view-more-btn:hover {
     background: #e9ecef;
 }
 
+/* 🔥 채팅 컨테이너 - 사이드바 하단 */
+.chat-container {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    height: 330px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.notice-banner {
+    flex-shrink: 0;
+    background: #fef9c3;
+    padding: 6px 10px;
+    font-size: 12px;
+    color: #444;
+    border-bottom: 1px solid #facc15;
+}
+
+.notice-text {
+    font-size: 11px;
+    line-height: 1.4;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+    white-space: normal;
+}
+
+.notice-text.expanded {
+    -webkit-line-clamp: unset;
+}
+
+.notice-toggle-btn {
+    align-self: flex-end;
+    font-size: 10px;
+    background: none;
+    border: none;
+    color: #666;
+    cursor: pointer;
+    margin-top: 2px;
+}
+
+.chat-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+}
+
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+    font-size: 12px;
+    background: #f9f9f9;
+    min-height: 0;
+}
+
+.chat-message {
+    margin-bottom: 4px;
+    display: flex;
+    flex-direction: column;
+}
+
+.my-message {
+    align-items: flex-end;
+}
+
+.other-message {
+    align-items: flex-start;
+}
+
+.system-message {
+    align-items: center;
+}
+
+.system-box {
+    background: #e0e0e0;
+    color: #555;
+    font-size: 11px;
+    padding: 3px 6px;
+    border-radius: 4px;
+    margin: 3px 0;
+    text-align: center;
+}
+
+.nickname {
+    font-size: 11px;
+    color: #888;
+    margin-bottom: 1px;
+}
+
+.bubble {
+    background-color: #eeeeee;
+    border-radius: 10px;
+    padding: 4px 8px;
+    max-width: 85%;
+    word-break: break-word;
+    line-height: 1.3;
+    font-size: 12px;
+}
+
+.my-message .bubble {
+    background-color: #d8ecff;
+}
+
+.chat-sticker {
+    width: 36px;
+    height: 36px;
+    object-fit: contain;
+    border-radius: 4px;
+    margin-top: 2px;
+}
+
+.scroll-to-bottom {
+    background: #3b82f6;
+    color: white;
+    font-size: 10px;
+    padding: 3px 6px;
+    border-radius: 3px;
+    cursor: pointer;
+    text-align: center;
+    margin: 2px auto;
+    width: fit-content;
+    opacity: 0.8;
+}
+
+.chat-input {
+    display: flex;
+    padding: 4px;
+    border-top: 1px solid #ccc;
+    background: #fff;
+    flex-shrink: 0;
+    gap: 4px;
+}
+
+.chat-input input {
+    flex: 1;
+    padding: 4px 6px;
+    font-size: 12px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+}
+
+.chat-input button {
+    padding: 4px 8px;
+    font-size: 11px;
+    cursor: pointer;
+    border: none;
+    border-radius: 3px;
+}
+
+.chat-input button:first-of-type {
+    background-color: #3b82f6;
+    color: white;
+}
+
+.tools-toggle {
+    background: #f3f4f6;
+    border: 1px solid #ccc;
+    color: #333;
+}
+
+.chat-tools {
+    flex-shrink: 0;
+    background: #f8fafc;
+    border-top: 1px solid #ddd;
+    padding: 6px;
+}
+
+.tools-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.tab-buttons button {
+    margin-right: 3px;
+    font-size: 14px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+}
+
+.tab-buttons .active {
+    font-weight: bold;
+}
+
+.close-tools {
+    background: none;
+    border: none;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.sticker-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    max-height: 80px;
+    overflow-y: auto;
+}
+
+.sticker-item {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+.login-popup-overlay {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0,0,0,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+}
+
+.login-popup {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    text-align: center;
+}
+
+.popup-buttons {
+    margin-top: 12px;
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+.popup-buttons button:first-child {
+    background-color: #3b82f6;
+    color: white;
+}
+
+.popup-buttons button:last-child {
+    background-color: #eee;
+    color: #333;
+}
+
 /* 반응형 */
 @media (max-width: 1024px) {
     .main-content {
         grid-template-columns: 1fr;
+        gap: 20px;
+    }
+
+    .sidebar {
+        height: auto;
+        flex-direction: row;
+        gap: 20px;
+    }
+
+    .product-list, .chat-container {
+        height: 400px;
+        flex: 1;
     }
 
     .broadcast-header {
@@ -403,5 +691,17 @@
     .product-image {
         width: 100%;
         height: 200px;
+    }
+
+    .sidebar {
+        flex-direction: column;
+    }
+
+    .product-list, .chat-container {
+        height: 300px;
+    }
+
+    .main-content {
+        grid-template-columns: 1fr;
     }
 }

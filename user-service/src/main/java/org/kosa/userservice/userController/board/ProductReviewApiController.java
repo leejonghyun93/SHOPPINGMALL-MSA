@@ -27,7 +27,7 @@ public class ProductReviewApiController {
 
     private final ProductReviewService productReviewService;
 
-    @Value("${jwt.secret:verySecretKeyThatIsAtLeast32BytesLong1234}")
+    @Value("${jwt.secret:rrYd2zPDUkx7BUhgDsOTxHCbsBkeTgE/uoARWYSqBjU=}")
     private String jwtSecret;
 
     private String extractUserIdFromJWT(HttpServletRequest request) {

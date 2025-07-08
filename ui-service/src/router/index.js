@@ -37,9 +37,11 @@ import ErrorPage from '@/views/ErrorPage.vue'
 // 소셜 로그인 콜백 처리 컴포넌트
 import SocialCallback from '@/views/auth/SocialCallback.vue'
 
+import ChatTest from '@/views/live/chat/ChatTest.vue'
+
 // 인증 가드
 const requireAuth = (to, from, next) => {
-    const token = localStorage.getItem('token')
+    const token = localStorage.getItem('jwt')
     if (token) {
         next()
     } else {
@@ -65,6 +67,13 @@ const routes = [
     },
     {
         path: '/auth/callback',
+        name: 'SocialBackendCallback',
+        // 이 경로는 실제로는 백엔드가 처리하므로 컴포넌트 필요 없음
+        // 하지만 라우터 정의상 필요하므로 더미 컴포넌트 또는 리다이렉트 설정
+        redirect: '/login'
+    },
+    {
+        path: '/auth/social-callback',
         name: 'SocialCallback',
         component: SocialCallback,
         meta: {
@@ -235,7 +244,6 @@ const routes = [
         }
     },
 
-
     {
         path: '/:pathMatch(.*)*',
         redirect: to => {
@@ -253,13 +261,19 @@ const routes = [
                 }
             }
         }
+    },
+    {
+        path: '/chat-test/:broadcastId/:role?',
+        name: 'ChatTest',
+        component: ChatTest,
+        props: true
     }
 ]
 
 const router = createRouter({
     history: createWebHistory(),
     routes,
-    // 🔥 스크롤 동작 설정 (선택사항)
+    //  스크롤 동작 설정 (선택사항)
     scrollBehavior(to, from, savedPosition) {
         if (savedPosition) {
             return savedPosition
@@ -269,7 +283,7 @@ const router = createRouter({
     }
 })
 
-// 🔥 네비게이션 가드 추가 (선택사항)
+//  네비게이션 가드 추가 (선택사항)
 router.beforeEach((to, from, next) => {
     // 페이지 타이틀 설정
     if (to.meta.title) {
@@ -280,7 +294,7 @@ router.beforeEach((to, from, next) => {
 
     // 인증이 필요한 페이지 체크
     if (to.meta.requiresAuth) {
-        const token = localStorage.getItem('token')
+        const token = localStorage.getItem('jwt')
         if (!token) {
             // 로그인 페이지로 리다이렉트하되, 원래 가려던 페이지 정보 저장
             next({
@@ -294,7 +308,7 @@ router.beforeEach((to, from, next) => {
     next()
 })
 
-// 🔥 에러 처리 (선택사항)
+//  에러 처리 (선택사항)
 router.onError((error) => {
     console.error('라우터 에러:', error)
 

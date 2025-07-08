@@ -19,19 +19,18 @@ import reactor.core.publisher.Mono;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
 
 @Component
 public class SimpleJwtFilter implements WebFilter {
 
-    @Value("${jwt.secret:verySecretKeyThatIsAtLeast32BytesLong1234}")
+    @Value("${jwt.secret:rrYd2zPDUkx7BUhgDsOTxHCbsBkeTgE/uoARWYSqBjU=}")
     private String jwtSecret;
 
     private SecretKey getSigningKey() {
         if (jwtSecret.length() < 32) {
             System.err.println("⚠️ JWT secret key가 너무 짧습니다. 최소 32바이트 필요");
-            jwtSecret = "verySecretKeyThatIsAtLeast32BytesLong1234567890";
+            jwtSecret = "rrYd2zPDUkx7BUhgDsOTxHCbsBkeTgE/uoARWYSqBjU=";
         }
         return Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
     }
@@ -93,7 +92,7 @@ public class SimpleJwtFilter implements WebFilter {
 
             System.out.println("✅ JWT 토큰 검증 성공 - UserId: '" + userId + "', Role: '" + role + "'");
 
-            // 🔥 X-*** 헤더 완전 제거 - 토큰만 그대로 전달
+            // 🔥 토큰을 그대로 백엔드로 전달 (원본 요청 유지)
             // 백엔드 서비스들이 각자 토큰을 파싱하여 사용자 정보 추출
 
             // Spring Security Context에 인증 정보 설정
@@ -104,9 +103,9 @@ public class SimpleJwtFilter implements WebFilter {
             UsernamePasswordAuthenticationToken authToken =
                     new UsernamePasswordAuthenticationToken(userId, null, authorities);
 
-            System.out.println("✅ JWT 인증 성공 - 요청 전달 (X-헤더 없이): " + path);
+            System.out.println("✅ JWT 인증 성공 - 요청 전달 (토큰 그대로 전달): " + path);
 
-            // 🔥 원본 요청 그대로 전달 (X-*** 헤더 추가 안함)
+            // 🔥 원본 요청 그대로 전달 (Authorization 헤더 유지)
             return chain.filter(exchange)
                     .contextWrite(ReactiveSecurityContextHolder.withAuthentication(authToken));
 
@@ -182,6 +181,7 @@ public class SimpleJwtFilter implements WebFilter {
                 path.startsWith("/upload/") ||
                 path.startsWith("/uploads/") ||
                 path.startsWith("/static/") ||
+
                 path.startsWith("/resources/") ||
                 path.startsWith("/icons/") ||
                 path.equals("/auth/findPassword") ||
@@ -215,10 +215,20 @@ public class SimpleJwtFilter implements WebFilter {
             return true;
         }
 
+        // 🔥 찜하기 API를 공개 경로에서 제거 (인증 필요로 변경)
+        // if (path.startsWith("/api/wishlist")) {
+        //     return true;
+        // }
+
         return false;
     }
 
     private boolean isAuthRequiredPath(String path, String method) {
+        // 🔥 찜하기 API는 인증 필요로 추가
+        if (path.startsWith("/api/wishlist")) {
+            return true;
+        }
+
         if (path.startsWith("/api/users/profile") ||
                 path.startsWith("/api/users/points") ||
                 path.startsWith("/api/users/coupons") ||

@@ -72,7 +72,7 @@ export const unsubscribeBroadcast = async (userIdentifier, broadcastId) => {
 }
 
 const getCurrentUser = () => {
-    const token = localStorage.getItem('token')
+    const token = localStorage.getItem('jwt')
 
     if (!token || !isTokenValid(token)) {
         return { id: null, username: 'guest', identifier: null }
@@ -143,7 +143,7 @@ const isTokenValid = (token) => {
 }
 
 const getAuthHeaders = () => {
-    const token = localStorage.getItem('token')
+    const token = localStorage.getItem('jwt')
 
     const headers = {
         'Content-Type': 'application/json',
