@@ -440,7 +440,7 @@ const getBroadcasterAvatar = (broadcasterId) => {
  * 이미지 에러 처리
  */
 const handleImageError = (event) => {
-  event.target.src = '/default-thumbnail.jpg'
+  // event.target.src = '/default-thumbnail.jpg'
 }
 
 /**

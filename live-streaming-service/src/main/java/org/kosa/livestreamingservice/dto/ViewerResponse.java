@@ -25,7 +25,14 @@ public class ViewerResponse {
     private Integer peakViewers;
     private Integer likeCount;
     private String thumbnailUrl;
-    private String streamUrl;
+
+    // 스트림 관련 필드들 추가
+    private String streamUrl;        // HLS URL
+    private String streamKey;        // OBS 설정용
+    private String nginxHost;        // Docker 서버 IP
+    private String obsHost;          // OBS PC IP
+    private Integer obsPort;         // OBS WebSocket 포트
+
     private Integer categoryId;
     private String categoryName;
     private String tags;

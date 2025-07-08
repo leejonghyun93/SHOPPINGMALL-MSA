@@ -187,6 +187,9 @@ public class SimpleJwtFilter implements WebFilter {
                 path.equals("/auth/findPassword") ||
                 path.equals("/auth/verifyResetCode") ||
                 path.equals("/auth/resetPassword") ||
+                path.equals("/ws/**") ||
+                path.equals("/api/chat/history/**") ||
+                path.equals("/api/chat/**") ||
                 path.startsWith("/actuator/health/")) {
             return true;
         }

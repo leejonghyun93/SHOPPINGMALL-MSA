@@ -179,11 +179,15 @@ public class GatewaySecurityConfig {
                                 // 방송 시청자 수, 좋아요 수 업데이트 (인증 필요)
                                 .pathMatchers(HttpMethod.PATCH, "/api/broadcasts/*/viewers").hasAnyRole("USER", "ADMIN")
                                 .pathMatchers(HttpMethod.PATCH, "/api/broadcasts/*/likes").hasAnyRole("USER", "ADMIN")
+                                // 방송 상세보기 채팅방
+                                .pathMatchers(HttpMethod.GET, "/ws/**").permitAll()
+                                .pathMatchers(HttpMethod.GET, "/api/chat/history/**").permitAll()
+                                .pathMatchers(HttpMethod.GET, "api/chat/**").permitAll()
 
                                 // 방송 생성, 수정, 삭제 (관리자만)
-                                .pathMatchers(HttpMethod.POST, "/api/broadcasts/**").hasAnyRole("ADMIN")
-                                .pathMatchers(HttpMethod.PUT, "/api/broadcasts/**").hasAnyRole("ADMIN")
-                                .pathMatchers(HttpMethod.DELETE, "/api/broadcasts/**").hasAnyRole("ADMIN")
+//                                .pathMatchers(HttpMethod.POST, "/api/broadcasts/**").hasAnyRole("ADMIN")
+//                                .pathMatchers(HttpMethod.PUT, "/api/broadcasts/**").hasAnyRole("ADMIN")
+//                                .pathMatchers(HttpMethod.DELETE, "/api/broadcasts/**").hasAnyRole("ADMIN")
 
                                 // ===========================================
                                 // USER PROFILE (인증 필요)

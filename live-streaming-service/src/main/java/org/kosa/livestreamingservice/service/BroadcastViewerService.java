@@ -2,7 +2,7 @@ package org.kosa.livestreamingservice.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.kosa.livestreamingservice.dto.BroadcastDto;
+import org.kosa.livestreamingservice.dto.ViewerResponse; // 🔥 별도 파일 import
 import org.kosa.livestreamingservice.dto.ProductDto;
 import org.kosa.livestreamingservice.entity.BroadcastEntity;
 import org.kosa.livestreamingservice.repository.alarm.BroadcastRepository;
@@ -11,7 +11,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 @Service
@@ -24,9 +23,9 @@ public class BroadcastViewerService {
     private final BroadcastViewerRepository broadcastViewerRepository;
 
     /**
-     * 방송 상세 정보 조회
+     * 방송 상세 정보 조회 - 🔥 별도 ViewerResponse 사용
      */
-    public BroadcastDto.ViewerResponse getBroadcastDetail(Long broadcastId) {
+    public ViewerResponse getBroadcastDetail(Long broadcastId) {
         BroadcastEntity broadcast = broadcastRepository.findById(broadcastId)
                 .orElseThrow(() -> new IllegalArgumentException("방송을 찾을 수 없습니다: " + broadcastId));
 
@@ -34,7 +33,10 @@ public class BroadcastViewerService {
         String broadcasterName = getBroadcasterName(broadcast.getBroadcasterId());
         String categoryName = getCategoryName(broadcast.getCategoryId());
 
-        return BroadcastDto.ViewerResponse.builder()
+        log.info("🎥 방송 상세 조회 - broadcastId: {}, streamUrl: {}",
+                broadcastId, broadcast.getStreamUrl());
+
+        return ViewerResponse.builder() // 🔥 BroadcastDto. 제거
                 .broadcastId(broadcast.getBroadcastId())
                 .broadcasterId(broadcast.getBroadcasterId())
                 .broadcasterName(broadcasterName)
@@ -48,18 +50,22 @@ public class BroadcastViewerService {
                 .peakViewers(broadcast.getPeakViewers())
                 .likeCount(broadcast.getLikeCount())
                 .thumbnailUrl(broadcast.getThumbnailUrl())
-                .streamUrl(broadcast.getStreamUrl())
+                .streamUrl(broadcast.getStreamUrl()) // 🔥 DB에서 그대로 사용
                 .categoryId(broadcast.getCategoryId())
                 .categoryName(categoryName)
                 .tags(broadcast.getTags())
                 .isPublic(broadcast.getIsPublic())
                 .createdAt(broadcast.getCreatedAt())
+                // 🔥 스트림 정보도 DB에서 그대로
+                .streamKey(broadcast.getStreamKey())
+                .nginxHost(broadcast.getNginxHost())
+                .obsHost(broadcast.getObsHost())
+                .obsPort(broadcast.getObsPort())
                 .build();
     }
 
-    /**
-     * 방송의 상품 목록 조회
-     */
+    // 나머지 메소드들은 동일...
+
     public List<ProductDto.BroadcastProduct> getBroadcastProducts(Long broadcastId) {
         List<Object[]> productResults = broadcastViewerRepository.findBroadcastProductsWithDetails(broadcastId);
 
@@ -69,26 +75,19 @@ public class BroadcastViewerService {
                 .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
     }
 
-    /**
-     * 방송 시청자 수 증가
-     */
     @Transactional
     public Map<String, Object> increaseViewerCount(Long broadcastId) {
         BroadcastEntity broadcast = broadcastRepository.findById(broadcastId)
                 .orElseThrow(() -> new IllegalArgumentException("방송을 찾을 수 없습니다: " + broadcastId));
 
-        // 현재 시청자 수 증가
         Integer currentViewers = broadcast.getCurrentViewers() + 1;
         broadcast.setCurrentViewers(currentViewers);
 
-        // 최대 시청자 수 업데이트
         if (currentViewers > broadcast.getPeakViewers()) {
             broadcast.setPeakViewers(currentViewers);
         }
 
-        // 총 시청자 수 업데이트
         broadcast.setTotalViewers(broadcast.getTotalViewers() + 1);
-
         broadcastRepository.save(broadcast);
 
         Map<String, Object> result = new HashMap<>();
@@ -100,18 +99,13 @@ public class BroadcastViewerService {
         return result;
     }
 
-    /**
-     * 방송 좋아요
-     */
     @Transactional
     public Map<String, Object> likeBroadcast(Long broadcastId) {
         BroadcastEntity broadcast = broadcastRepository.findById(broadcastId)
                 .orElseThrow(() -> new IllegalArgumentException("방송을 찾을 수 없습니다: " + broadcastId));
 
-        // 좋아요 수 증가
         Integer likeCount = broadcast.getLikeCount() + 1;
         broadcast.setLikeCount(likeCount);
-
         broadcastRepository.save(broadcast);
 
         Map<String, Object> result = new HashMap<>();
@@ -121,9 +115,6 @@ public class BroadcastViewerService {
         return result;
     }
 
-    /**
-     * 방송 상태 확인 (실시간 업데이트용)
-     */
     public Map<String, Object> getBroadcastStatus(Long broadcastId) {
         BroadcastEntity broadcast = broadcastRepository.findById(broadcastId)
                 .orElseThrow(() -> new IllegalArgumentException("방송을 찾을 수 없습니다: " + broadcastId));
@@ -134,67 +125,12 @@ public class BroadcastViewerService {
         status.put("currentViewers", broadcast.getCurrentViewers());
         status.put("likeCount", broadcast.getLikeCount());
         status.put("isLive", "live".equals(broadcast.getBroadcastStatus()));
+        status.put("streamUrl", broadcast.getStreamUrl());
         status.put("timestamp", LocalDateTime.now());
 
         return status;
     }
 
-    /**
-     * 채팅 메시지 조회 (Mock 데이터)
-     */
-    public List<Map<String, Object>> getChatMessages(Long broadcastId, int page, int size) {
-        // 실제 구현에서는 채팅 DB에서 조회
-        List<Map<String, Object>> messages = new ArrayList<>();
-
-        // Mock 데이터 생성
-        String[] usernames = {"구매고민중", "냉장고맘", "가전왕", "절약이", "리뷰어", "방송팬", "쇼핑러버"};
-        String[] messageTexts = {
-                "안녕하세요!",
-                "이 제품 어떤가요?",
-                "가격이 궁금해요",
-                "배송은 언제 되나요?",
-                "할인 더 있나요?",
-                "색상 다른 것도 있나요?",
-                "설치비는 별도인가요?",
-                "환불 가능한가요?",
-                "좋은 정보 감사합니다",
-                "주문하고 싶어요"
-        };
-
-        for (int i = 0; i < size && i < 20; i++) {
-            Map<String, Object> message = new HashMap<>();
-            message.put("id", (page * size) + i + 1);
-            message.put("username", usernames[i % usernames.length]);
-            message.put("message", messageTexts[i % messageTexts.length]);
-            message.put("timestamp", LocalDateTime.now().minusMinutes(i).format(DateTimeFormatter.ofPattern("HH:mm")));
-            message.put("isMine", false);
-            messages.add(message);
-        }
-
-        return messages;
-    }
-
-    /**
-     * 채팅 메시지 전송 (Mock)
-     */
-    @Transactional
-    public Map<String, Object> sendChatMessage(Long broadcastId, Map<String, Object> messageData) {
-        // 실제 구현에서는 채팅 DB에 저장하고 WebSocket으로 브로드캐스트
-
-        Map<String, Object> result = new HashMap<>();
-        result.put("success", true);
-        result.put("messageId", System.currentTimeMillis());
-        result.put("timestamp", LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm")));
-        result.put("message", "메시지가 전송되었습니다");
-
-        return result;
-    }
-
-    // ============ 유틸리티 메소드들 ============
-
-    /**
-     * Object[] 배열을 ProductDto로 변환
-     */
     private ProductDto.BroadcastProduct convertToProductDto(Object[] row) {
         return ProductDto.BroadcastProduct.builder()
                 .productId((Integer) row[0])
@@ -214,9 +150,6 @@ public class BroadcastViewerService {
                 .build();
     }
 
-    /**
-     * 방송자 이름 조회
-     */
     private String getBroadcasterName(String broadcasterId) {
         if (broadcasterId == null || broadcasterId.trim().isEmpty()) {
             return "알 수 없는 방송자";
@@ -231,9 +164,6 @@ public class BroadcastViewerService {
         }
     }
 
-    /**
-     * 카테고리 이름 조회
-     */
     private String getCategoryName(Integer categoryId) {
         if (categoryId == null) return "일반";
 
