@@ -313,19 +313,15 @@ const normalize = str => String(str || '').trim()
 const isMyMessage = msg => normalize(msg.from) === normalize(userState.currentUser)
 
 // WebSocket 연결 설정
-const socket = new SockJS(getWebSocketUrl())
+const socket = new SockJS('http://localhost:8080/ws-chat');
 const stompClient = new Client({
   webSocketFactory: () => socket,
   reconnectDelay: 5000,
   onConnect: () => {
-    console.log('✅ WebSocket 연결 성공 (사용자 페이지):', getWebSocketUrl()) // 🔥 수정
-    console.log('🌐 연결된 서버:', getWebSocketUrl()) // 🔥 수정
-
     messages.value.push({ text: '채팅방에 입장하셨습니다.', systemOnly: true })
 
     stompClient.subscribe('/topic/public', msg => {
       const received = JSON.parse(msg.body)
-      console.log('💬 메시지 수신 (사용자 페이지):', received)
 
       if (received.type === 'notice') {
         noticeMessage.value = received.text.trim() || ''
@@ -340,10 +336,10 @@ const stompClient = new Client({
     })
   },
   onDisconnect: () => {
-    console.log('❌ WebSocket 연결 해제 (사용자 페이지)')
+    // 연결 해제
   },
   onStompError: (frame) => {
-    console.error('❌ STOMP 에러 (사용자 페이지):', frame)
+    // 에러 처리
   }
 })
 
@@ -505,10 +501,9 @@ const loadBroadcastData = async () => {
 // 채팅 초기화
 const initializeChat = async () => {
   try {
-    console.log('🔌 WebSocket 연결 시도 (사용자 페이지)...')
     stompClient.activate()
   } catch (err) {
-    console.error('❌ WebSocket 연결 실패 (사용자 페이지):', err)
+    // 에러 처리
   }
 
   // 채팅 히스토리는 빈 상태로 시작
@@ -528,14 +523,11 @@ const initializeChat = async () => {
         userState.currentUser = userData.nickname
         userState.userId = userData.userId
         isLoggedIn.value = true
-        console.log('✅ 유저서비스에서 사용자 정보 조회 성공:', userData.name)
       } else {
-        console.warn('⚠️ 유저서비스 응답 구조가 예상과 다름:', res.data)
         localStorage.removeItem('jwt')
         sessionStorage.removeItem('jwt')
       }
     } catch (err) {
-      console.warn('❌ 유저서비스 사용자 정보 조회 실패:', err.message)
       localStorage.removeItem('jwt')
       sessionStorage.removeItem('jwt')
     }
@@ -667,11 +659,6 @@ const shareBroadcast = () => {
 // 채팅 관련 함수들
 const sendMessage = () => {
   if (!isLoggedIn.value || newMessage.value.trim() === '' || !stompClient.connected) {
-    console.warn('⚠️ 메시지 전송 조건 미충족:', {
-      isLoggedIn: isLoggedIn.value,
-      hasMessage: newMessage.value.trim() !== '',
-      isConnected: stompClient.connected
-    })
     return
   }
 
@@ -683,7 +670,6 @@ const sendMessage = () => {
     userId: userState.userId
   }
 
-  console.log('📤 메시지 전송 (사용자 페이지):', payload)
   stompClient.publish({ destination: '/app/sendMessage', body: JSON.stringify(payload) })
   newMessage.value = ''
   focusInput()
@@ -699,7 +685,6 @@ const sendSticker = key => {
     broadcastId: route.params.broadcastId,
     userId: userState.userId
   }
-  console.log('📤 스티커 전송 (사용자 페이지):', payload)
   stompClient.publish({ destination: '/app/sendMessage', body: JSON.stringify(payload) })
   focusInput()
   scrollToBottom()
@@ -855,5 +840,7 @@ onUnmounted(() => {
   }
 })
 </script>
+
+
 
 <style scoped src="@/assets/css/broadcastViewer.css"></style>

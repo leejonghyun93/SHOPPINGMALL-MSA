@@ -2,6 +2,43 @@ version: '3.8'
 
 services:
   # ======================
+  # 데이터베이스
+  # ======================
+
+  # MariaDB - 메인 데이터베이스
+  mariadb:
+    image: mariadb:10.11
+    container_name: mariadb
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD:-rootpassword123}
+      - MYSQL_DATABASE=${DB_NAME:-shoppingmall_db}
+      - MYSQL_USER=${DB_USERNAME:-shopmall_user}
+      - MYSQL_PASSWORD=${DB_PASSWORD:-shopmall_pass123}
+      - MYSQL_CHARACTER_SET_SERVER=utf8mb4
+      - MYSQL_COLLATION_SERVER=utf8mb4_unicode_ci
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ./init-db:/docker-entrypoint-initdb.d:ro  # 초기 SQL 스크립트
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.3'
+        reservations:
+          memory: 128M
+    networks:
+      - msa-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD:-rootpassword123}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # ======================
   # 인프라 서비스들
   # ======================
 
@@ -169,6 +206,10 @@ services:
       - SPRING_CONFIG_IMPORT=optional:configserver:http://config-service:8888
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
+      # DB 연결 정보 (내부 MariaDB 사용)
+      - SPRING_DATASOURCE_URL=jdbc:mariadb://mariadb:3306/${DB_NAME:-shoppingmall_db}
+      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME:-shopmall_user}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:-shopmall_pass123}
       # 환경별 환경변수 주입
       - PROD_REDIS_HOST=${PROD_REDIS_HOST:-redis}
       - PROD_REDIS_PASSWORD=${PROD_REDIS_PASSWORD:-}
@@ -184,6 +225,8 @@ services:
         reservations:
           memory: 56M
     depends_on:
+      mariadb:
+        condition: service_healthy
       eureka-service:
         condition: service_healthy
       config-service:
@@ -215,10 +258,11 @@ services:
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      # DB 연결 정보 (내부 MariaDB 사용)
+      - SPRING_DATASOURCE_URL=jdbc:mariadb://mariadb:3306/${DB_NAME:-shoppingmall_db}
+      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME:-shopmall_user}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:-shopmall_pass123}
       # 환경별 환경변수 주입
-      - PROD_DB_URL=${PROD_DB_URL}
-      - PROD_DB_USERNAME=${PROD_DB_USERNAME}
-      - PROD_DB_PASSWORD=${PROD_DB_PASSWORD}
       - PROD_REDIS_HOST=${PROD_REDIS_HOST:-redis}
       - PROD_REDIS_PASSWORD=${PROD_REDIS_PASSWORD:-}
       - PROD_KAFKA_SERVERS=${PROD_KAFKA_SERVERS:-kafka:9092}
@@ -232,6 +276,8 @@ services:
         reservations:
           memory: 56M
     depends_on:
+      mariadb:
+        condition: service_healthy
       eureka-service:
         condition: service_healthy
       config-service:
@@ -265,10 +311,11 @@ services:
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      # DB 연결 정보 (내부 MariaDB 사용)
+      - SPRING_DATASOURCE_URL=jdbc:mariadb://mariadb:3306/${DB_NAME:-shoppingmall_db}
+      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME:-shopmall_user}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:-shopmall_pass123}
       # 환경별 환경변수 주입
-      - PROD_DB_URL=${PROD_DB_URL}
-      - PROD_DB_USERNAME=${PROD_DB_USERNAME}
-      - PROD_DB_PASSWORD=${PROD_DB_PASSWORD}
       - PROD_REDIS_HOST=${PROD_REDIS_HOST:-redis}
       - PROD_REDIS_PASSWORD=${PROD_REDIS_PASSWORD:-}
       - PROD_KAFKA_SERVERS=${PROD_KAFKA_SERVERS:-kafka:9092}
@@ -285,6 +332,8 @@ services:
         reservations:
           memory: 64M
     depends_on:
+      mariadb:
+        condition: service_healthy
       eureka-service:
         condition: service_healthy
       config-service:
@@ -318,6 +367,10 @@ services:
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      # DB 연결 정보 (내부 MariaDB 사용) - 라이브 서비스도 DB 필요하다면
+      - SPRING_DATASOURCE_URL=jdbc:mariadb://mariadb:3306/${DB_NAME:-shoppingmall_db}
+      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME:-shopmall_user}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:-shopmall_pass123}
       # 환경별 환경변수 주입 (기본 공통 설정 사용)
       - PROD_REDIS_HOST=${PROD_REDIS_HOST:-redis}
       - PROD_REDIS_PASSWORD=${PROD_REDIS_PASSWORD:-}
@@ -331,6 +384,8 @@ services:
         reservations:
           memory: 80M
     depends_on:
+      mariadb:
+        condition: service_healthy
       eureka-service:
         condition: service_healthy
       config-service:
@@ -479,6 +534,8 @@ networks:
         - subnet: 172.20.0.0/16
 
 volumes:
+  mariadb_data:
+    driver: local
   redis_data:
     driver: local
   kafka_data:
@@ -496,4 +553,13 @@ volumes:
 # 사용법:
 # 기본 실행 (MSA 서비스만): docker-compose up -d
 # 모니터링 포함: docker-compose --profile monitoring up -d
+# ======================
+
+# ======================
+# 필요한 .env 파일 예시:
+# DB_ROOT_PASSWORD=rootpassword123
+# DB_NAME=shoppingmall_db
+# DB_USERNAME=shopmall_user
+# DB_PASSWORD=shopmall_pass123
+# PROD_JWT_SECRET_KEY=your-jwt-secret-key
 # ======================
