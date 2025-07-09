@@ -42,7 +42,7 @@ public class ChatController {
         messagingTemplate.convertAndSend("/topic/public", message);
     }
 
-    @GetMapping("/chat/history/{broadcastId}")
+    @GetMapping("/api/chat/history/{broadcastId}")
     public ResponseEntity<List<ChatMessageDTO>> getChatHistory(@PathVariable Long broadcastId) {
         return ResponseEntity.ok(chatService.getHistoryByBroadcastId(broadcastId));
     }

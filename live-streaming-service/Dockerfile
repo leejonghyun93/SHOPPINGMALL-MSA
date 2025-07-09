@@ -7,7 +7,7 @@ COPY src src
 RUN chmod +x ./mvnw
 RUN ./mvnw clean package -DskipTests -Dmaven.javadoc.skip=true
 
-FROM amazoncorretto:17-alpine-jdk
+FROM eclipse-temurin:17-jre-alpine
 RUN apk add --no-cache curl && \
     rm -rf /var/cache/apk/* && \
     addgroup -g 1000 appuser && \

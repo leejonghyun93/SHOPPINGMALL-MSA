@@ -53,7 +53,7 @@
             @keyup.enter="sendMessage"
             :placeholder="isLoggedIn.value ? '메시지를 입력하세요' : '로그인 후 사용가능'"
         />
-        <button @click="sendMessage">전송</button>
+        <button @click="sendMessage" :disabled="!isLoggedIn || !newMessage.trim()">전송</button>
         <button @click="toggleTools" class="tools-toggle">😎</button>
       </div>
 
@@ -92,18 +92,32 @@
 </template>
 
 <script setup>
-import { ref, nextTick, onMounted, computed, defineExpose } from 'vue';
+import { ref, nextTick, onMounted, onUnmounted, computed, defineExpose } from 'vue';
 import SockJS from 'sockjs-client';
 import { Client } from '@stomp/stompjs';
 import { stickerMap } from './EmojiMap';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
-import { userState } from './UserState';
+import { userState } from '@/stores/userState';  // stores 폴더의 userState
+import userStateBridge from '@/stores/userStateBridge';  // 🌉 브리지 import (stores 폴더에 있음)
 
 const props = defineProps({
   class: String,
-  broadcastId: Number,
-  role: { type: String, default: 'user' } // future use
+  broadcastId: {
+    type: [Number, String],
+    required: true,
+    default: 0
+  },
+  role: {
+    type: String,
+    default: 'user'
+  }
+});
+
+const broadcastIdNum = computed(() => {
+  const id = typeof props.broadcastId === 'string' ? parseInt(props.broadcastId) : props.broadcastId;
+  console.log('📌 broadcastId 변환:', props.broadcastId, '->', id);
+  return id;
 });
 
 const router = useRouter();
@@ -117,11 +131,28 @@ const showTools = ref(false);
 const showScrollToBottom = ref(false);
 const loading = ref(true);
 const activeTab = ref('bear');
+const noticeMessage = ref('');
+const isNoticeExpanded = ref(false);
+
+// WebSocket 연결 상태 관리
+const isConnecting = ref(false);
+const connectionRetries = ref(0);
+const maxRetries = 5;
+const connectionStatus = ref('disconnected');
+
+// 🔄 브리지된 사용자 정보 사용
+const currentUser = computed(() => {
+  // 우선순위: currentUser > name
+  return userState.currentUser || userState.name || null;
+});
+
+const currentUserId = computed(() => {
+  // 우선순위: userId > id
+  return userState.userId || userState.id || null;
+});
 
 const normalize = str => String(str || '').trim();
-const isMyMessage = msg => normalize(msg.from) === normalize(userState.currentUser);
-
-const noticeMessage = ref('') // 공지사항 메시지
+const isMyMessage = msg => normalize(msg.from) === normalize(currentUser.value);
 
 const filteredStickers = computed(() => {
   return Object.fromEntries(
@@ -129,115 +160,389 @@ const filteredStickers = computed(() => {
   );
 });
 
-const socket = new SockJS('http://localhost:8080/ws-chat');
-const stompClient = new Client({
-  webSocketFactory: () => socket,
-  reconnectDelay: 5000,
-  onConnect: () => {
-    messages.value.push({ text: '채팅방에 입장하셨습니다.', systemOnly: true });
-
-    stompClient.subscribe('/topic/public', msg => {
-      const received = JSON.parse(msg.body);
-
-      if (received.type === 'notice') {
-        noticeMessage.value = received.text.trim() || '';
-        return;
-      }
-
-      messages.value.push(received);
-
-      nextTick(() => {
-        isScrolledToBottom() ? scrollToBottom() : (showScrollToBottom.value = true);
-      });
-    });
-  }
+const shouldShowMoreBtn = computed(() => {
+  return noticeMessage.value.length > 10;
 });
 
-onMounted(async () => {
-  stompClient.activate();
+const displayNotice = computed(() => {
+  return noticeMessage.value.trim() !== '' ? noticeMessage.value : '등록된 공지사항이 없습니다.';
+});
+
+// WebSocket 연결 설정
+let socket = null;
+let stompClient = null;
+
+const createWebSocketConnection = () => {
+  console.log('🔄 WebSocket 연결 시도 중... (시도 횟수:', connectionRetries.value + 1, ')');
+
+  if (connectionStatus.value === 'connecting') {
+    console.log('⏳ 이미 연결 중입니다.');
+    return;
+  }
+
+  connectionStatus.value = 'connecting';
+  isConnecting.value = true;
+
+  if (stompClient) {
+    try {
+      stompClient.deactivate();
+    } catch (error) {
+      console.warn('⚠️ 기존 연결 정리 중 오류:', error);
+    }
+  }
+  const wsUrl = 'http://***.***.*.***:****/ws-chat';
+
+  console.log('🌐 WebSocket URL:', wsUrl);
 
   try {
-    const res = await axios.get(`/api/chat/history/${props.broadcastId}`);
+    socket = new SockJS(wsUrl);
+
+    stompClient = new Client({
+      webSocketFactory: () => {
+        console.log("🛰️ [WebSocketFactory] SockJS 연결 생성");
+        return socket;
+      },
+
+      reconnectDelay: 5000,
+      heartbeatIncoming: 4000,
+      heartbeatOutgoing: 4000,
+
+      onConnect: (frame) => {
+        console.log("✅ [STOMP] 연결 성공!", frame);
+        connectionStatus.value = 'connected';
+        isConnecting.value = false;
+        connectionRetries.value = 0;
+
+        messages.value.push({
+          text: '✅ 채팅방에 연결되었습니다.',
+          systemOnly: true
+        });
+
+        stompClient.subscribe('/topic/public', (msg) => {
+          console.log("📩 [STOMP] 수신 메시지:", msg.body);
+
+          try {
+            const received = JSON.parse(msg.body);
+
+            if (received.type === 'notice') {
+              console.log("📢 [공지 메시지 수신]", received.text);
+              noticeMessage.value = received.text.trim() || '';
+              return;
+            }
+
+            messages.value.push(received);
+
+            nextTick(() => {
+              isScrolledToBottom()
+                  ? scrollToBottom()
+                  : (showScrollToBottom.value = true);
+            });
+          } catch (error) {
+            console.error('❌ 메시지 파싱 오류:', error);
+          }
+        });
+      },
+
+      onStompError: (frame) => {
+        console.error("❌ [STOMP ERROR]", frame);
+        connectionStatus.value = 'failed';
+        isConnecting.value = false;
+
+        if (connectionRetries.value < maxRetries) {
+          connectionRetries.value++;
+          console.log(`🔄 재연결 시도 ${connectionRetries.value}/${maxRetries} (5초 후)`);
+
+          messages.value.push({
+            text: `🔄 채팅 서버 재연결 시도 중... (${connectionRetries.value}/${maxRetries})`,
+            systemOnly: true
+          });
+
+          setTimeout(() => {
+            createWebSocketConnection();
+          }, 5000);
+        } else {
+          console.error('❌ 최대 재연결 시도 횟수 초과');
+          connectionStatus.value = 'failed';
+          messages.value.push({
+            text: '❌ 채팅 서버 연결에 실패했습니다. 페이지를 새로고침 해주세요.',
+            systemOnly: true
+          });
+        }
+      },
+
+      onWebSocketError: (error) => {
+        console.error("❌ [WebSocket ERROR]", error);
+        connectionStatus.value = 'failed';
+        isConnecting.value = false;
+      },
+
+      onDisconnect: (frame) => {
+        console.log("🔌 [STOMP] 연결 종료", frame);
+        connectionStatus.value = 'disconnected';
+        isConnecting.value = false;
+
+        messages.value.push({
+          text: '🔌 채팅 서버 연결이 끊어졌습니다.',
+          systemOnly: true
+        });
+      }
+    });
+
+    stompClient.activate();
+
+  } catch (error) {
+    console.error('❌ WebSocket 연결 생성 실패:', error);
+    connectionStatus.value = 'failed';
+    isConnecting.value = false;
+  }
+};
+
+// 🔄 브리지 기반 사용자 정보 로드
+const loadUserInfo = async () => {
+  console.log('🔍 사용자 정보 로드 시작');
+
+  // 1. 브리지 상태 확인
+  userStateBridge.checkSync();
+
+  // 2. 이미 동기화된 상태에서 사용자 정보가 있다면 바로 사용
+  if (currentUser.value && currentUserId.value) {
+    console.log('✅ 브리지에서 사용자 정보 확인됨:', currentUser.value);
+    isLoggedIn.value = true;
+    return;
+  }
+
+  const token = localStorage.getItem('jwt') || sessionStorage.getItem('jwt');
+  console.log('🔍 토큰 존재:', !!token);
+
+  if (token) {
+    try {
+      console.log('📡 사용자 프로필 API 호출');
+      const res = await axios.get('/api/users/profile', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      console.log('📡 API 응답:', res.data);
+
+      if (res.data) {
+        let userData = res.data;
+
+        // 중첩된 data 구조 처리
+        if (res.data.success && res.data.data) {
+          userData = res.data.data;
+        }
+
+        // 사용자 정보 추출
+        const nickname = userData.nickname || userData.name || userData.username || userData.userName;
+        const userId = userData.userId || userData.id || userData.user_id;
+
+        console.log('🔍 추출된 정보:');
+        console.log('- nickname:', nickname);
+        console.log('- userId:', userId);
+
+        if (nickname) {
+          // 🌉 브리지를 통해 양쪽 상태 모두 업데이트
+          userState.currentUser = nickname;
+          userState.userId = userId;
+          userState.name = nickname;
+          userState.id = userId;
+          userState.email = userData.email;
+          userState.role = userData.role || 'USER';
+          userState.phone = userData.phone;
+
+          isLoggedIn.value = true;
+          console.log('✅ 사용자 정보 설정 성공 (브리지 통해):', nickname);
+
+          // 브리지 강제 동기화
+          userStateBridge.forceSync();
+        } else {
+          console.error('❌ 사용자 닉네임을 찾을 수 없음');
+          console.log('📋 사용 가능한 필드:', Object.keys(userData));
+        }
+      } else {
+        console.error('❌ 빈 응답 데이터');
+      }
+    } catch (err) {
+      console.error('❌ 사용자 정보 조회 실패:', err);
+
+      if (err.response?.status === 401) {
+        console.log('🗑️ 만료된 토큰 제거');
+        localStorage.removeItem('jwt');
+        sessionStorage.removeItem('jwt');
+        isLoggedIn.value = false;
+      }
+    }
+  } else {
+    console.log('⚠️ 토큰 없음 - 로그인 필요');
+    isLoggedIn.value = false;
+  }
+
+  console.log('✅ 사용자 정보 로드 완료:');
+  console.log('- currentUser:', currentUser.value);
+  console.log('- currentUserId:', currentUserId.value);
+  console.log('- isLoggedIn:', isLoggedIn.value);
+};
+
+// 채팅 히스토리 로드
+const loadChatHistory = async () => {
+  try {
+    const res = await axios.get(`/api/chat/history/${broadcastIdNum.value}`);
     const history = res.data || [];
 
-    // ✅ 1. 일반 메시지만 messages 배열에 추가
     messages.value.push(...history.filter(msg => msg.type !== 'notice'));
 
-    // ✅ 2. 마지막 공지 메시지 추출해서 noticeMessage에 반영
     const lastNotice = [...history].reverse().find(msg => msg.type === 'notice');
     if (lastNotice && lastNotice.text.trim()) {
       noticeMessage.value = lastNotice.text.trim();
     }
 
+    console.log('✅ 채팅 히스토리 로드 성공:', history.length, '개 메시지');
   } catch (err) {
     console.error('❌ 채팅 기록 조회 실패:', err);
   }
+};
 
-  // ✅ 로그인 유저 정보 확인
-  const token = localStorage.getItem('jwt') || sessionStorage.getItem('jwt');
-  if (token) {
-    try {
-      const res = await axios.get('/api/members/me', {
-        headers: { Authorization: `Bearer ${token}` },
+// 메시지 전송 함수
+const sendMessage = () => {
+  console.log('🔍 sendMessage 호출');
+  console.log('- 연결 상태:', connectionStatus.value);
+  console.log('- STOMP 연결:', stompClient?.connected);
+  console.log('- 사용자 정보:', currentUser.value);
+  console.log('- 로그인 상태:', isLoggedIn.value);
+
+  if (!newMessage.value.trim()) {
+    console.log('❌ 빈 메시지');
+    return;
+  }
+
+  if (!isLoggedIn.value) {
+    console.log('❌ 로그인 안됨 - 로그인 모달 표시');
+    showLoginModal.value = true;
+    return;
+  }
+
+  // 🌉 브리지 상태 확인 후 사용자 정보 재확인
+  if (!currentUser.value) {
+    console.log('❌ 사용자 정보 없음 - 브리지 상태 확인');
+    userStateBridge.checkSync();
+
+    if (!currentUser.value) {
+      console.log('❌ 브리지 후에도 사용자 정보 없음 - 재로드 시도');
+
+      loadUserInfo().then(() => {
+        console.log('🔄 사용자 정보 재로드 완료:', currentUser.value);
+
+        if (currentUser.value) {
+          console.log('✅ 재로드 성공 - 메시지 전송 재시도');
+          sendMessage();
+        } else {
+          console.log('❌ 재로드 실패 - 로그인 필요');
+          showLoginModal.value = true;
+        }
       });
-      userState.currentUser = res.data.nickname;
-      userState.userId = res.data.userId;
-      isLoggedIn.value = true;
-    } catch (err) {
-      console.warn('❌ 사용자 정보 조회 실패 (토큰 만료 등):', err);
-      localStorage.removeItem('jwt');
-      sessionStorage.removeItem('jwt');
+      return;
     }
   }
 
-  loading.value = false;
-  scrollToBottom();
-});
+  if (connectionStatus.value !== 'connected' || !stompClient || !stompClient.connected) {
+    console.error('❌ WebSocket 연결 안됨 - 상태:', connectionStatus.value);
 
-const sendMessage = () => {
-  if (!isLoggedIn.value || newMessage.value.trim() === '' || !stompClient.connected) return;
+    if (connectionStatus.value !== 'connecting') {
+      console.log('🔄 재연결 시도');
+      createWebSocketConnection();
+    }
+
+    messages.value.push({
+      text: '🔄 채팅 서버에 연결 중입니다. 잠시 후 다시 시도해주세요.',
+      systemOnly: true
+    });
+    return;
+  }
+
   const payload = {
-    from: userState.currentUser,
-    text: newMessage.value,
+    from: currentUser.value,
+    text: newMessage.value.trim(),
     type: 'text',
-    broadcastId: props.broadcastId,
-    userId: userState.userId
+    broadcastId: broadcastIdNum.value,
+    userId: currentUserId.value
   };
-  stompClient.publish({ destination: '/app/sendMessage', body: JSON.stringify(payload) });
-  newMessage.value = '';
-  focusInput();
-  scrollToBottom();
+
+  console.log('📤 메시지 전송:', payload);
+
+  try {
+    stompClient.publish({
+      destination: '/app/sendMessage',
+      body: JSON.stringify(payload)
+    });
+
+    newMessage.value = '';
+    focusInput();
+
+    console.log('✅ 메시지 전송 성공');
+  } catch (error) {
+    console.error('❌ 메시지 전송 실패:', error);
+
+    messages.value.push({
+      text: '❌ 메시지 전송에 실패했습니다. 다시 시도해주세요.',
+      systemOnly: true
+    });
+  }
 };
 
-const sendSticker = key => {
-  if (!isLoggedIn.value || !stompClient.connected) return;
-  const payload = {
-    from: userState.currentUser,
-    type: 'sticker',
-    text: key,
-    broadcastId: props.broadcastId,
-    userId: userState.userId
-  };
-  stompClient.publish({ destination: '/app/sendMessage', body: JSON.stringify(payload) });
-  focusInput();
-  scrollToBottom();
-};
-
+// 공지사항 전송
 const sendNotice = (text) => {
-  if (!stompClient.connected) return;
+  if (connectionStatus.value !== 'connected' || !stompClient || !stompClient.connected) {
+    console.error('❌ WebSocket 연결 안됨 - 공지사항 전송 불가');
+    return;
+  }
+
   const payload = {
-    from: userState.currentUser,
+    from: currentUser.value,
     type: 'notice',
     text: text || '',
-    broadcastId: props.broadcastId,
-    userId: userState.userId,
+    broadcastId: broadcastIdNum.value,
+    userId: currentUserId.value,
   };
+
+  console.log('📢 공지사항 전송:', payload);
+
   stompClient.publish({
     destination: '/app/sendMessage',
     body: JSON.stringify(payload),
   });
 };
 
+// 스티커 전송
+const sendSticker = (stickerKey) => {
+  if (!isLoggedIn.value) {
+    showLoginModal.value = true;
+    return;
+  }
+
+  if (connectionStatus.value !== 'connected' || !stompClient || !stompClient.connected) {
+    console.error('❌ WebSocket 연결 안됨 - 스티커 전송 불가');
+    return;
+  }
+
+  const payload = {
+    from: currentUser.value,
+    type: 'sticker',
+    text: stickerKey,
+    broadcastId: broadcastIdNum.value,
+    userId: currentUserId.value,
+  };
+
+  console.log('📤 스티커 전송:', payload);
+
+  stompClient.publish({
+    destination: '/app/sendMessage',
+    body: JSON.stringify(payload),
+  });
+
+  showTools.value = false;
+  focusInput();
+};
+
+// 나머지 함수들 (기존과 동일)
 const focusInput = () => nextTick(() => inputRef.value?.focus());
 const scrollToBottom = () => {
   nextTick(() => {
@@ -252,10 +557,15 @@ const isScrolledToBottom = (threshold = 200) => {
   const el = messagesContainer.value;
   return !el || el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
 };
-const handleScroll = () => { showScrollToBottom.value = !isScrolledToBottom(200); };
-const toggleTools = () => { showTools.value = !showTools.value; focusInput();
+const handleScroll = () => {
+  showScrollToBottom.value = !isScrolledToBottom(200);
+};
+const toggleTools = () => {
+  showTools.value = !showTools.value;
+  focusInput();
   if (showTools.value) {
-    scrollToBottom();}
+    scrollToBottom();
+  }
 };
 const goToLogin = () => router.push('/login');
 const handleInputFocus = e => {
@@ -264,26 +574,96 @@ const handleInputFocus = e => {
     showLoginModal.value = true;
   }
 };
-
-const isNoticeExpanded = ref(false) // 공지사항 확장 상태
-
-const shouldShowMoreBtn = computed(() => {
-  return noticeMessage.value.length > 10;
-});
-
-const displayNotice = computed(() => {
-  return noticeMessage.value.trim() !== '' ? noticeMessage.value : '등록된 공지사항이 없습니다.';
-});
-
 const toggleNotice = () => {
   isNoticeExpanded.value = !isNoticeExpanded.value;
 };
 
-defineExpose({
-  sendNotice
+// 디버깅 함수
+const checkWebSocketConnection = () => {
+  console.log('🔍 WebSocket 연결 상태:');
+  console.log('- connectionStatus:', connectionStatus.value);
+  console.log('- stompClient exists:', !!stompClient);
+  console.log('- stompClient.connected:', stompClient?.connected);
+  console.log('- isConnecting:', isConnecting.value);
+  console.log('- connectionRetries:', connectionRetries.value);
+  console.log('- currentUser:', currentUser.value);
+  console.log('- currentUserId:', currentUserId.value);
+  console.log('- isLoggedIn:', isLoggedIn.value);
+  console.log('- broadcastId:', broadcastIdNum.value);
+
+  // 🌉 브리지 상태도 확인
+  userStateBridge.checkSync();
+};
+
+const reconnect = () => {
+  console.log('🔄 수동 재연결 시도');
+  connectionRetries.value = 0;
+  connectionStatus.value = 'disconnected';
+  createWebSocketConnection();
+};
+
+// 컴포넌트 마운트
+onMounted(async () => {
+  console.log('🚀 ChatCommon 마운트 시작 - broadcastId:', broadcastIdNum.value);
+
+  // 🌉 브리지 초기화 확인
+  userStateBridge.forceSync();
+
+  // 사용자 정보 로드
+  await loadUserInfo();
+
+  // 채팅 히스토리 로드
+  await loadChatHistory();
+
+  // WebSocket 연결 (약간 지연)
+  setTimeout(() => {
+    createWebSocketConnection();
+  }, 1000);
+
+  loading.value = false;
+  scrollToBottom();
+
+  console.log('✅ 마운트 완료 - 사용자 정보:', currentUser.value);
 });
 
+// 컴포넌트 언마운트
+onUnmounted(() => {
+  console.log('🧹 ChatCommon 언마운트 - 연결 정리');
+  connectionStatus.value = 'disconnected';
+  if (stompClient) {
+    stompClient.deactivate();
+  }
+});
+
+defineExpose({
+  sendNotice,
+  checkWebSocketConnection,
+  reconnect
+});
+
+// 개발자 도구 디버깅
+if (typeof window !== 'undefined') {
+  window.chatDebug = {
+    checkWebSocketConnection,
+    reconnect,
+    sendMessage,
+    stompClient: () => stompClient,
+    userState,
+    currentUser,
+    currentUserId,
+    isLoggedIn,
+    newMessage,
+    connectionStatus,
+    isConnecting,
+    connectionRetries,
+    // 🌉 브리지 디버깅
+    bridge: userStateBridge,
+    forceSync: () => userStateBridge.forceSync(),
+    checkSync: () => userStateBridge.checkSync()
+  };
+}
 </script>
+
 
 <style scoped>
 .chat-container {

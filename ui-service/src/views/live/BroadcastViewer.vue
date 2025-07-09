@@ -31,20 +31,6 @@
             </div>
           </div>
         </div>
-        <div class="header-actions">
-          <button class="action-btn" @click="scrollToProducts">
-            상품목록
-          </button>
-          <button class="action-btn" @click="showBroadcastInfo">
-            라이브 소개
-          </button>
-          <button class="action-btn" @click="likeBroadcast">
-            좋아요 ({{ broadcast.like_count }})
-          </button>
-          <button class="action-btn" @click="shareBroadcast">
-            공유
-          </button>
-        </div>
       </div>
 
       <div class="main-content">
@@ -61,6 +47,7 @@
                 muted
                 playsinline
                 @loadstart="onVideoLoadStart"
+                @loadedmetadata="onVideoLoadedMetadata"
                 @canplay="onVideoCanPlay"
                 @error="onVideoError"
                 @play="onPlay"
@@ -78,164 +65,46 @@
               </div>
             </div>
           </div>
-
-          <!-- 상품 정보 섹션 -->
-          <div v-if="featuredProduct" class="product-info-section">
-            <div class="product-card">
-              <img
-                  :src="featuredProduct.mainImage || getDefaultProductImage(featuredProduct.productId)"
-                  :alt="featuredProduct.name"
-                  class="product-image"
-              />
-              <div class="product-details">
-                <h3 class="product-title">{{ featuredProduct.name }}</h3>
-                <div class="product-pricing">
-                  <div class="discount-info">
-                    <span class="original-price">정가 {{ formatPrice(featuredProduct.price) }}원</span>
-                  </div>
-                  <div class="special-offer">
-                    <span class="live-special">라이브 특가 {{ featuredProduct.getDiscountPercent() }}% 할인</span>
-                    <span class="special-price">{{ formatPrice(featuredProduct.salePrice) }}원</span>
-                  </div>
-                  <div class="final-price">
-                    <span class="final-label">최대혜택가</span>
-                    <span class="final-amount">{{ formatPrice(featuredProduct.getFinalPrice()) }}원</span>
-                  </div>
-                </div>
-              </div>
-              <div class="product-actions">
-                <button class="heart-btn" @click="likeProduct(featuredProduct.productId)">
-                  ❤️ {{ featuredProduct.viewCount || 0 }}
-                </button>
-                <button class="share-btn" @click="shareProduct(featuredProduct)">
-                  공유
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
 
-        <!-- 🔥 오른쪽: 사이드바 (상품목록 + 채팅) -->
+        <!-- 오른쪽: 사이드바 (상품목록 + 채팅) -->
         <div class="sidebar">
-          <!-- 🔥 상품 목록 - 사이드바 상단 -->
+          <!--  상품 목록 - 사이드바 상단 -->
           <div class="product-list" ref="productList">
             <div class="section-header">
               <h3>방송 상품 ({{ products.length }}개)</h3>
             </div>
 
-            <div class="product-item" v-for="product in products" :key="product.productId" @click="selectProduct(product)">
-              <div v-if="product.getDiscountPercent() > 0" class="product-badge">{{ product.getDiscountPercent() }}%</div>
-              <img
-                  :src="product.mainImage || getDefaultProductImage(product.productId)"
-                  :alt="product.name"
-                  class="product-thumb"
-              />
+            <!--  상품 아이템 - 클릭 이벤트 분리 -->
+            <div
+                class="product-item"
+                v-for="product in products"
+                :key="product.productId"
+                @click="goToProductDetail(product)"
+                style="cursor: pointer;"
+            >
+              <!-- 할인 배지 -->
+              <div v-if="product.getDiscountPercent() > 0" class="product-badge">
+                {{ product.getDiscountPercent() }}%
+              </div>
+
+              <!-- 상품 정보 - selectProduct 함수 제거하고 전체 클릭으로 상세페이지 이동 -->
               <div class="product-info">
                 <h4 class="product-name">{{ product.name }}</h4>
                 <div class="product-price">
-                  <span class="discount-rate">{{ product.getDiscountPercent() }}%</span>
                   <span class="price">{{ formatPrice(product.getFinalPrice()) }}원</span>
                 </div>
-                <div class="shipping-info">무료배송</div>
               </div>
             </div>
 
-            <button v-if="products.length > 0" class="view-more-btn">
+            <!-- 전체 상품 보기 버튼 -->
+            <button v-if="products.length > 0" class="view-more-btn" @click="goToAllProducts">
               상품 {{ products.length }}개 전체 보기
             </button>
           </div>
 
-          <!-- 🔥 채팅 컨테이너 - 사이드바 하단 (sidebar 안으로 이동) -->
-          <div class="chat-container">
-            <!-- 공지 영역 -->
-            <div class="notice-banner" :class="{ expanded: isNoticeExpanded }">
-              <div class="notice-text" :class="{ expanded: isNoticeExpanded }">
-                📢 {{ displayNotice }}
-              </div>
-              <button
-                  v-if="shouldShowMoreBtn"
-                  class="notice-toggle-btn"
-                  @click="toggleNotice"
-              >
-                {{ isNoticeExpanded ? '접기' : '더보기' }}
-              </button>
-            </div>
-
-            <!-- 메시지 + 입력창 묶음 -->
-            <div class="chat-main">
-              <div class="chat-messages" ref="messagesContainer" @scroll="handleScroll">
-                <div
-                    v-for="(msg, index) in messages"
-                    :key="index"
-                    :class="['chat-message', msg.systemOnly ? 'system-message' : (isMyMessage(msg) ? 'my-message' : 'other-message')]"
-                >
-                  <template v-if="msg.systemOnly">
-                    <div class="system-box">{{ msg.text }}</div>
-                  </template>
-                  <template v-else>
-                    <div class="chat-line">
-                      <template v-if="!isMyMessage(msg)">
-                        <div class="nickname">{{ msg.from }}</div>
-                      </template>
-                      <div class="bubble">
-                        <img v-if="msg.type === 'sticker'" :src="stickerMap[msg.text]" class="chat-sticker" />
-                        <span v-else class="chat-content">{{ msg.text }}</span>
-                      </div>
-                    </div>
-                  </template>
-                </div>
-              </div>
-
-              <!-- 최근 메시지로 이동 -->
-              <div v-if="showScrollToBottom" class="scroll-to-bottom" @click="scrollToBottom">
-                최근 메시지로 이동
-              </div>
-
-              <!-- 입력창 -->
-              <div class="chat-input">
-                <input
-                    ref="inputRef"
-                    v-model="newMessage"
-                    @focus="handleInputFocus"
-                    @keyup.enter="sendMessage"
-                    :placeholder="isLoggedIn ? '메시지를 입력하세요' : '로그인 후 사용가능'"
-                />
-                <button @click="sendMessage">전송</button>
-                <button @click="toggleTools" class="tools-toggle">😎</button>
-              </div>
-
-              <!-- 도구창 -->
-              <div v-if="showTools" class="chat-tools">
-                <div class="tools-header">
-                  <div class="tab-buttons">
-                    <button :class="{ active: activeTab === 'bear' }" @click="activeTab = 'bear'">🐻</button>
-                    <button :class="{ active: activeTab === 'rabbit' }" @click="activeTab = 'rabbit'">🐰</button>
-                  </div>
-                  <button class="close-tools" @click="showTools = false">✖</button>
-                </div>
-                <div class="sticker-list">
-                  <img
-                      v-for="(src, key) in filteredStickers"
-                      :key="key"
-                      :src="src"
-                      class="sticker-item"
-                      @click="() => sendSticker(key)"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <!-- 로그인 안내 -->
-            <div v-if="showLoginModal" class="login-popup-overlay">
-              <div class="login-popup">
-                <p>로그인 후 채팅이 가능합니다.</p>
-                <div class="popup-buttons">
-                  <button @click="goToLogin">로그인 하고 채팅 참여하기</button>
-                  <button @click="showLoginModal = false">로그인 없이 방송 시청하기</button>
-                </div>
-              </div>
-            </div>
-          </div>
+          <!-- 채팅 컨테이너 -->
+          <ChatCommon :broadcast-id="broadcastId" />
         </div>
       </div>
     </div>
@@ -247,14 +116,11 @@ import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import apiClient from '@/api/axiosInstance.js'
 import axios from 'axios'
-import SockJS from 'sockjs-client'
-import { Client } from '@stomp/stompjs'
-import { stickerMap } from './chat/EmojiMap'
-import { userState } from './chat/UserState'
-import { getWebSocketUrl, getApiBaseUrl } from '@/config/websocket' // 🔥 추가
+import ChatCommon from '@/views/live/chat/ChatCommon.vue';
+
 const route = useRoute()
 const router = useRouter()
-
+const broadcastId = Number(route.params.broadcastId)
 // 상태 관리
 const loading = ref(true)
 const error = ref(null)
@@ -276,73 +142,150 @@ let hlsPlayer = null
 // 인터벌 참조
 let statusInterval = null
 
-// 채팅 관련 상태
-const isLoggedIn = ref(false)
-const showLoginModal = ref(false)
-const messages = ref([])
-const newMessage = ref('')
-const messagesContainer = ref(null)
-const inputRef = ref(null)
-const showTools = ref(false)
-const showScrollToBottom = ref(false)
-const activeTab = ref('bear')
-const noticeMessage = ref('')
-const isNoticeExpanded = ref(false)
-
 // 계산된 속성
 const featuredProduct = computed(() => {
   return products.value.find(p => p.isFeatured) || products.value[0] || null
 })
 
-const filteredStickers = computed(() => {
-  return Object.fromEntries(
-      Object.entries(stickerMap).filter(([key]) => key.startsWith(activeTab.value))
-  );
-})
+// 환경별 설정 함수
+const getServiceConfig = () => {
+  return {
+    // 게이트웨이가 모든 라우팅을 처리하므로 단순하게 설정
+    useRouter: true,        // 항상 라우터 사용
+    openInNewTab: false,    // 같은 탭에서 이동
+    apiBaseUrl: ''          // 상대 경로 사용 (게이트웨이가 처리)
+  }
+}
 
-const shouldShowMoreBtn = computed(() => {
-  return noticeMessage.value.length > 10;
-})
+// 상품 관련 함수들
+const selectProduct = (product) => {
+  const index = products.value.findIndex(p => p.productId === product.productId)
+  if (index > -1) {
+    products.value.forEach(p => p.isFeatured = false)
+    products.value[index].isFeatured = true
+  }
+}
 
-const displayNotice = computed(() => {
-  return noticeMessage.value.trim() !== '' ? noticeMessage.value : '등록된 공지사항이 없습니다.';
-})
+const goToProductDetail = (product) => {
+  if (!product || !product.productId) {
+    console.error('상품 정보가 없습니다:', product)
+    alert('상품 정보를 찾을 수 없습니다.')
+    return
+  }
 
-// 채팅 유틸리티 함수
-const normalize = str => String(str || '').trim()
-const isMyMessage = msg => normalize(msg.from) === normalize(userState.currentUser)
+  console.log('상품 상세페이지로 이동:', product.productId)
 
-// WebSocket 연결 설정
-const socket = new SockJS('http://localhost:8080/ws-chat');
-const stompClient = new Client({
-  webSocketFactory: () => socket,
-  reconnectDelay: 5000,
-  onConnect: () => {
-    messages.value.push({ text: '채팅방에 입장하셨습니다.', systemOnly: true })
+  try {
+    // ✅ 게이트웨이가 자동으로 커머스 서비스로 라우팅
+    router.push(`/product/${product.productId}`)
+  } catch (error) {
+    console.error('라우터 이동 실패:', error)
+    // 폴백: 직접 URL 이동
+    window.location.href = `/product/${product.productId}`
+  }
+}
 
-    stompClient.subscribe('/topic/public', msg => {
-      const received = JSON.parse(msg.body)
+const goToAllProducts = () => {
+  try {
+    router.push('/products')
+  } catch (error) {
+    console.error('전체 상품 페이지 이동 실패:', error)
+    window.location.href = '/products'
+  }
+}
 
-      if (received.type === 'notice') {
-        noticeMessage.value = received.text.trim() || ''
-        return
+const likeProduct = async (productId) => {
+  const token = localStorage.getItem('jwt') || sessionStorage.getItem('jwt')
+  if (!token) {
+    alert('로그인이 필요합니다.')
+    return
+  }
+
+  try {
+    //  게이트웨이가 자동으로 커머스 서비스로 라우팅
+    const response = await axios.post(`/api/products/${productId}/like`, {}, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      timeout: 5000
+    })
+
+    if (response.data.success) {
+      // 상품 목록에서 해당 상품의 좋아요 수 업데이트
+      const productIndex = products.value.findIndex(p => p.productId === productId)
+      if (productIndex > -1) {
+        products.value[productIndex].viewCount = (products.value[productIndex].viewCount || 0) + 1
       }
 
-      messages.value.push(received)
-
-      nextTick(() => {
-        isScrolledToBottom() ? scrollToBottom() : (showScrollToBottom.value = true)
-      })
-    })
-  },
-  onDisconnect: () => {
-    // 연결 해제
-  },
-  onStompError: (frame) => {
-    // 에러 처리
+      alert('상품을 좋아요 했습니다! ❤️')
+    } else {
+      alert('좋아요 처리에 실패했습니다.')
+    }
+  } catch (error) {
+    console.error('상품 좋아요 실패:', error)
+    alert('좋아요 처리 중 오류가 발생했습니다.')
   }
-})
+}
 
+const handleProductImageError = (event, product) => {
+  if (event.target.dataset.errorHandled) return
+  event.target.dataset.errorHandled = 'true'
+
+  // 기본 이미지로 대체
+  event.target.src = getDefaultProductImage(product.productId)
+
+  // 기본 이미지도 실패하면 플레이스홀더 표시
+  event.target.onerror = () => {
+    event.target.style.display = 'none'
+    const placeholder = document.createElement('div')
+    placeholder.className = 'product-image-placeholder'
+    placeholder.style.cssText = `
+      width: 100%;
+      height: 150px;
+      background: #f5f5f5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #999;
+      font-size: 14px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    `
+    placeholder.innerHTML = '이미지 없음'
+    event.target.parentNode.appendChild(placeholder)
+  }
+}
+
+const scrollToProducts = () => {
+  const productList = document.querySelector('.product-list')
+  if (productList) {
+    productList.scrollIntoView({ behavior: 'smooth' })
+  }
+}
+const onVideoLoadedMetadata = () => {
+  if (videoPlayer.value) {
+    const video = videoPlayer.value
+    const aspectRatio = video.videoWidth / video.videoHeight
+
+    // 비율에 따라 세로/가로 구분 (0.75 기준)
+    if (aspectRatio < 0.75) {
+      videoAspectRatio.value = 'vertical'
+    } else {
+      videoAspectRatio.value = 'horizontal'
+    }
+
+    // 비디오 플레이어 컨테이너에 클래스 추가
+    const playerContainer = video.closest('.video-player')
+    if (playerContainer) {
+      // 기존 클래스 제거
+      playerContainer.classList.remove('vertical-video', 'horizontal-video')
+      // 새 클래스 추가
+      playerContainer.classList.add(`${videoAspectRatio.value}-video`)
+    }
+
+    streamInfo.value.status = 'connected'
+  }
+}
 // 스트림 URL 생성 함수
 const generateStreamUrls = (broadcast) => {
   if (!broadcast) return
@@ -484,9 +427,6 @@ const loadBroadcastData = async () => {
     // 자동 새로고침 시작
     startAutoRefresh()
 
-    // 채팅 초기화
-    await initializeChat()
-
   } catch (err) {
     if (err.response?.status === 401) {
       // 인증되지 않은 사용자 - 방송 시청만 가능
@@ -498,44 +438,6 @@ const loadBroadcastData = async () => {
   }
 }
 
-// 채팅 초기화
-const initializeChat = async () => {
-  try {
-    stompClient.activate()
-  } catch (err) {
-    // 에러 처리
-  }
-
-  // 채팅 히스토리는 빈 상태로 시작
-  messages.value = []
-  noticeMessage.value = ''
-
-  // 로그인 유저 정보 확인
-  const token = localStorage.getItem('jwt') || sessionStorage.getItem('jwt')
-  if (token) {
-    try {
-      const res = await axios.get('/api/users/profile', {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-
-      if (res.data && res.data.success && res.data.data) {
-        const userData = res.data.data
-        userState.currentUser = userData.nickname
-        userState.userId = userData.userId
-        isLoggedIn.value = true
-      } else {
-        localStorage.removeItem('jwt')
-        sessionStorage.removeItem('jwt')
-      }
-    } catch (err) {
-      localStorage.removeItem('jwt')
-      sessionStorage.removeItem('jwt')
-    }
-  }
-
-  scrollToBottom()
-}
-
 // 비디오 이벤트 핸들러들
 const onVideoLoadStart = () => {
   streamInfo.value.status = 'connecting'
@@ -543,6 +445,10 @@ const onVideoLoadStart = () => {
 
 const onVideoCanPlay = () => {
   streamInfo.value.status = 'connected'
+  // 메타데이터가 로드되지 않았다면 다시 체크
+  if (videoAspectRatio.value === 'unknown') {
+    onVideoLoadedMetadata()
+  }
 }
 
 const onVideoError = (event) => {
@@ -604,39 +510,6 @@ const stopAutoRefresh = () => {
   }
 }
 
-// 상품 관련
-const selectProduct = (product) => {
-  const index = products.value.findIndex(p => p.productId === product.productId)
-  if (index > -1) {
-    products.value.forEach(p => p.isFeatured = false)
-    products.value[index].isFeatured = true
-  }
-}
-
-const scrollToProducts = () => {
-  const productList = document.querySelector('.product-list')
-  if (productList) {
-    productList.scrollIntoView({ behavior: 'smooth' })
-  }
-}
-
-const likeProduct = (productId) => {
-  alert(`상품 ${productId} 좋아요!`)
-}
-
-const shareProduct = (product) => {
-  if (navigator.share) {
-    navigator.share({
-      title: product.name,
-      text: `${product.name} - 라이브 특가!`,
-      url: window.location.href
-    })
-  } else {
-    navigator.clipboard.writeText(window.location.href)
-    alert('링크가 클립보드에 복사되었습니다!')
-  }
-}
-
 const showBroadcastInfo = () => {
   if (broadcast.value) {
     alert(`방송 정보:\n제목: ${broadcast.value.title}\n설명: ${broadcast.value.description || '설명 없음'}\n방송자: ${broadcast.value.broadcaster_name}`)
@@ -654,82 +527,6 @@ const shareBroadcast = () => {
     navigator.clipboard.writeText(window.location.href)
     alert('방송 링크가 클립보드에 복사되었습니다!')
   }
-}
-
-// 채팅 관련 함수들
-const sendMessage = () => {
-  if (!isLoggedIn.value || newMessage.value.trim() === '' || !stompClient.connected) {
-    return
-  }
-
-  const payload = {
-    from: userState.currentUser,
-    text: newMessage.value,
-    type: 'text',
-    broadcastId: route.params.broadcastId,
-    userId: userState.userId
-  }
-
-  stompClient.publish({ destination: '/app/sendMessage', body: JSON.stringify(payload) })
-  newMessage.value = ''
-  focusInput()
-  scrollToBottom()
-}
-
-const sendSticker = key => {
-  if (!isLoggedIn.value || !stompClient.connected) return
-  const payload = {
-    from: userState.currentUser,
-    type: 'sticker',
-    text: key,
-    broadcastId: route.params.broadcastId,
-    userId: userState.userId
-  }
-  stompClient.publish({ destination: '/app/sendMessage', body: JSON.stringify(payload) })
-  focusInput()
-  scrollToBottom()
-}
-
-const focusInput = () => nextTick(() => inputRef.value?.focus())
-
-const scrollToBottom = () => {
-  nextTick(() => {
-    const el = messagesContainer.value
-    if (el) {
-      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
-      showScrollToBottom.value = false
-    }
-  })
-}
-
-const isScrolledToBottom = (threshold = 200) => {
-  const el = messagesContainer.value
-  return !el || el.scrollHeight - el.scrollTop - el.clientHeight < threshold
-}
-
-const handleScroll = () => {
-  showScrollToBottom.value = !isScrolledToBottom(200)
-}
-
-const toggleTools = () => {
-  showTools.value = !showTools.value
-  focusInput()
-  if (showTools.value) {
-    scrollToBottom()
-  }
-}
-
-const goToLogin = () => router.push('/login')
-
-const handleInputFocus = e => {
-  if (!isLoggedIn.value) {
-    e.target.blur()
-    showLoginModal.value = true
-  }
-}
-
-const toggleNotice = () => {
-  isNoticeExpanded.value = !isNoticeExpanded.value
 }
 
 // 스트림 상태 텍스트
@@ -833,14 +630,7 @@ onUnmounted(() => {
   }
 
   stopAutoRefresh()
-
-  // WebSocket 연결 해제
-  if (stompClient.connected) {
-    stompClient.deactivate()
-  }
 })
 </script>
-
-
 
 <style scoped src="@/assets/css/broadcastViewer.css"></style>

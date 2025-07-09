@@ -180,7 +180,7 @@ const routes = [
         props: true,
         meta: {
             title: '라이브 방송 시청',
-            requiresAuth: false // 로그인 없이도 시청 가능
+            requiresAuth: false
         }
     },
     {

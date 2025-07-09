@@ -8,7 +8,7 @@ services:
   # MariaDB - 메인 데이터베이스
   mariadb:
     image: mariadb:10.11
-    container_name: mariadb
+    container_name: shopmall-mariadb
     ports:
       - "3306:3306"
     environment:
@@ -45,7 +45,7 @@ services:
   # Redis - 캐시 및 세션 저장소
   redis:
     image: redis:7-alpine
-    container_name: redis
+    container_name: shopmall-redis
     ports:
       - "6379:6379"
     command: redis-server --maxmemory 64mb --maxmemory-policy allkeys-lru
@@ -70,7 +70,7 @@ services:
   # Zookeeper - Kafka용
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.0
-    container_name: zookeeper
+    container_name: shopmall-zookeeper
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
@@ -91,7 +91,7 @@ services:
   # Kafka - 메시지 큐
   kafka:
     image: confluentinc/cp-kafka:7.4.0
-    container_name: kafka
+    container_name: shopmall-kafka
     depends_on:
       - zookeeper
     ports:
@@ -132,7 +132,7 @@ services:
     build:
       context: ./eureka-service
       dockerfile: Dockerfile
-    container_name: eureka-service
+    container_name: shopmall-eureka
     ports:
       - "8761:8761"
     environment:
@@ -160,7 +160,7 @@ services:
     build:
       context: ./config-service
       dockerfile: Dockerfile
-    container_name: config-service
+    container_name: shopmall-config
     ports:
       - "8888:8888"
     environment:
@@ -197,7 +197,7 @@ services:
     build:
       context: ./auth-service
       dockerfile: Dockerfile
-    container_name: auth-service
+    container_name: shopmall-auth
     ports:
       - "8082:8082"
     environment:
@@ -248,7 +248,7 @@ services:
     build:
       context: ./user-service
       dockerfile: Dockerfile
-    container_name: user-service
+    container_name: shopmall-user
     ports:
       - "8103:8103"
     environment:
@@ -301,7 +301,7 @@ services:
     build:
       context: ./commerce-service
       dockerfile: Dockerfile
-    container_name: commerce-service
+    container_name: shopmall-commerce
     ports:
       - "8090:8090"
     environment:
@@ -357,7 +357,7 @@ services:
     build:
       context: ./live-streaming-service
       dockerfile: Dockerfile
-    container_name: live-streaming-service
+    container_name: shopmall-live
     ports:
       - "8096:8096"
     environment:
@@ -409,7 +409,7 @@ services:
     build:
       context: ./apigateway-service
       dockerfile: Dockerfile
-    container_name: apigateway-service
+    container_name: shopmall-gateway
     ports:
       - "8080:8080"
     environment:
@@ -460,7 +460,7 @@ services:
   # Prometheus - 메트릭 수집
   prometheus:
     image: prom/prometheus:v2.45.0
-    container_name: prometheus
+    container_name: shopmall-prometheus
     ports:
       - "9090:9090"
     command:
@@ -495,7 +495,7 @@ services:
   # Grafana - 메트릭 시각화
   grafana:
     image: grafana/grafana:10.0.0
-    container_name: grafana
+    container_name: shopmall-grafana
     ports:
       - "3000:3000"
     environment:
