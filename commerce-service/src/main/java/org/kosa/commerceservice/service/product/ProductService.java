@@ -1,5 +1,8 @@
 package org.kosa.commerceservice.service.product;
 
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
+import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -18,6 +21,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -31,6 +35,14 @@ public class ProductService {
     private final CategoryService categoryService;
     private final ProductImageService productImageService;
     private final RedisTemplate<String, Object> redisTemplate;
+
+    @CircuitBreaker(name = "productService", fallbackMethod = "getProductByIdFallback")
+    @Retry(name = "productService")
+    @TimeLimiter(name = "productService")
+    @Cacheable(value = "productDetail", key = "#productId", unless = "#result == null")
+    public CompletableFuture<ProductDTO> getProductByIdAsync(Integer productId) {
+        return CompletableFuture.supplyAsync(() -> getProductById(productId));
+    }
 
     @Cacheable(value = "productDetail", key = "#productId", unless = "#result == null")
     public ProductDTO getProductById(Integer productId) {
@@ -54,6 +66,8 @@ public class ProductService {
         throw new RuntimeException("상품을 찾을 수 없습니다: " + productId);
     }
 
+    @CircuitBreaker(name = "productService", fallbackMethod = "getRelatedProductsFallback")
+    @Retry(name = "productService")
     @Cacheable(value = "relatedProducts", key = "#productId + ':' + #limit")
     public List<ProductDTO> getRelatedProducts(Integer productId, int limit) {
         log.info("관련 상품 조회: {}, limit: {}", productId, limit);
@@ -78,6 +92,8 @@ public class ProductService {
         return result;
     }
 
+    @CircuitBreaker(name = "productService", fallbackMethod = "getAllProductsFallback")
+    @Retry(name = "productService")
     @Cacheable(value = "productList", key = "'all:' + #limit")
     public List<ProductDTO> getAllProducts(int limit) {
         try {
@@ -91,49 +107,49 @@ public class ProductService {
             return result;
         } catch (Exception e) {
             log.error("전체 상품 조회 실패:", e);
-            return new ArrayList<>();
+            throw new RuntimeException("전체 상품 조회 중 오류가 발생했습니다.");
         }
     }
 
+    @CircuitBreaker(name = "productService", fallbackMethod = "getProductsByCategoryFallback")
+    @Retry(name = "productService")
     @Cacheable(value = "productsByCategory", key = "#categoryId + ':' + #limit")
     public List<ProductDTO> getProductsByCategory(Integer categoryId, int limit) {
         try {
-            log.info("🔍 카테고리별 상품 조회 - categoryId: {}, limit: {}", categoryId, limit);
+            log.info("카테고리별 상품 조회 - categoryId: {}, limit: {}", categoryId, limit);
 
             Pageable pageable = PageRequest.of(0, limit);
             List<Product> products = new ArrayList<>();
 
-            // 🔥 메인 카테고리 체크 로직 수정
             if (isMainCategory(categoryId)) {
-                log.info("📂 메인 카테고리 감지: {}", categoryId);
+                log.info("메인 카테고리 감지: {}", categoryId);
 
                 try {
                     List<Integer> childrenCategoryIds = getCachedChildrenCategoryIds(categoryId);
-                    log.info("🔗 하위 카테고리 ID들: {}", childrenCategoryIds);
+                    log.info("하위 카테고리 ID들: {}", childrenCategoryIds);
 
                     if (childrenCategoryIds != null && !childrenCategoryIds.isEmpty()) {
                         List<Integer> allCategoryIds = new ArrayList<>();
                         allCategoryIds.add(categoryId);
                         allCategoryIds.addAll(childrenCategoryIds);
 
-                        log.info("🎯 통합 카테고리 조회 대상: {}", allCategoryIds);
+                        log.info("통합 카테고리 조회 대상: {}", allCategoryIds);
                         products = productRepository.findByMultipleCategoriesActive(allCategoryIds, pageable);
                     } else {
-                        log.info("📁 하위 카테고리 없음. 메인 카테고리만 조회: {}", categoryId);
+                        log.info("하위 카테고리 없음. 메인 카테고리만 조회: {}", categoryId);
                         products = productRepository.findByCategoryIdActive(categoryId, pageable);
                     }
                 } catch (Exception e) {
-                    log.error("❌ 카테고리 서비스 호출 실패. 단일 카테고리 조회: {}", categoryId, e);
+                    log.error("카테고리 서비스 호출 실패. 단일 카테고리 조회: {}", categoryId, e);
                     products = productRepository.findByCategoryIdActive(categoryId, pageable);
                 }
             } else {
-                log.info("📄 하위/일반 카테고리 조회: {}", categoryId);
+                log.info("하위/일반 카테고리 조회: {}", categoryId);
                 products = productRepository.findByCategoryIdActive(categoryId, pageable);
             }
 
-            // 🔥 실제 조회된 상품들의 카테고리 확인 (디버깅)
             if (!products.isEmpty()) {
-                log.info("📊 DB에서 조회된 상품 {}개:", products.size());
+                log.info("DB에서 조회된 상품 {}개:", products.size());
                 Map<Integer, Long> categoryCount = products.stream()
                         .collect(Collectors.groupingBy(Product::getCategoryId, Collectors.counting()));
 
@@ -141,17 +157,15 @@ public class ProductService {
                         log.info("  - 카테고리 {}: {}개", catId, count)
                 );
 
-                // 요청한 카테고리와 다른 상품이 있는지 확인
                 if (!isMainCategory(categoryId)) {
                     long wrongCategoryCount = products.stream()
                             .filter(p -> !p.getCategoryId().equals(categoryId))
                             .count();
 
                     if (wrongCategoryCount > 0) {
-                        log.error("🚨 심각한 문제: 카테고리 {} 요청했는데 다른 카테고리 상품 {}개가 조회됨!",
+                        log.error("심각한 문제: 카테고리 {} 요청했는데 다른 카테고리 상품 {}개가 조회됨!",
                                 categoryId, wrongCategoryCount);
 
-                        // 잘못된 상품들 로깅
                         products.stream()
                                 .filter(p -> !p.getCategoryId().equals(categoryId))
                                 .limit(5)
@@ -160,20 +174,21 @@ public class ProductService {
                     }
                 }
             } else {
-                log.warn("⚠️ 카테고리 {}에서 조회된 상품이 없습니다", categoryId);
+                log.warn("카테고리 {}에서 조회된 상품이 없습니다", categoryId);
             }
 
             List<ProductDTO> result = convertToDtoList(products);
-            log.info("✅ 카테고리별 상품 조회 완료: {}개", result.size());
+            log.info("카테고리별 상품 조회 완료: {}개", result.size());
             return result;
 
         } catch (Exception e) {
-            log.error("❌ 카테고리별 상품 조회 실패 - categoryId: {}", categoryId, e);
-            return new ArrayList<>();
+            log.error("카테고리별 상품 조회 실패 - categoryId: {}", categoryId, e);
+            throw new RuntimeException("카테고리별 상품 조회 중 오류가 발생했습니다.");
         }
     }
 
-
+    @CircuitBreaker(name = "productService", fallbackMethod = "getProductsByHostFallback")
+    @Retry(name = "productService")
     @Cacheable(value = "productsByHost", key = "#hostId + ':' + #limit")
     public List<ProductDTO> getProductsByHost(Long hostId, int limit) {
         try {
@@ -187,10 +202,12 @@ public class ProductService {
             return result;
         } catch (Exception e) {
             log.error("HOST별 상품 조회 실패:", e);
-            return new ArrayList<>();
+            throw new RuntimeException("HOST별 상품 조회 중 오류가 발생했습니다.");
         }
     }
 
+    @CircuitBreaker(name = "productService", fallbackMethod = "getProductsInStockFallback")
+    @Retry(name = "productService")
     @Cacheable(value = "productsInStock", key = "'inStock:' + #limit")
     public List<ProductDTO> getProductsInStock(int limit) {
         try {
@@ -204,10 +221,12 @@ public class ProductService {
             return result;
         } catch (Exception e) {
             log.error("재고 있는 상품 조회 실패:", e);
-            return new ArrayList<>();
+            throw new RuntimeException("재고 있는 상품 조회 중 오류가 발생했습니다.");
         }
     }
 
+    @CircuitBreaker(name = "productService", fallbackMethod = "getDiscountedProductsFallback")
+    @Retry(name = "productService")
     @Cacheable(value = "discountedProducts", key = "'discount:' + #limit")
     public List<ProductDTO> getDiscountedProducts(int limit) {
         try {
@@ -221,10 +240,12 @@ public class ProductService {
             return result;
         } catch (Exception e) {
             log.error("할인 상품 조회 실패:", e);
-            return new ArrayList<>();
+            throw new RuntimeException("할인 상품 조회 중 오류가 발생했습니다.");
         }
     }
 
+    @CircuitBreaker(name = "productService", fallbackMethod = "getPopularProductsFallback")
+    @Retry(name = "productService")
     @Cacheable(value = "popularProducts", key = "'popular:' + #limit")
     public List<ProductDTO> getPopularProducts(int limit) {
         try {
@@ -238,10 +259,12 @@ public class ProductService {
             return result;
         } catch (Exception e) {
             log.error("인기 상품 조회 실패:", e);
-            return new ArrayList<>();
+            throw new RuntimeException("인기 상품 조회 중 오류가 발생했습니다.");
         }
     }
 
+    @CircuitBreaker(name = "categoryService", fallbackMethod = "getCachedChildrenCategoryIdsFallback")
+    @Retry(name = "categoryService")
     private List<Integer> getCachedChildrenCategoryIds(Integer categoryId) {
         String cacheKey = "category:children:" + categoryId;
 
@@ -265,7 +288,7 @@ public class ProductService {
 
         } catch (Exception e) {
             log.error("하위 카테고리 ID 조회 실패: {}", categoryId, e);
-            return null;
+            throw new RuntimeException("하위 카테고리 조회 중 오류가 발생했습니다.");
         }
     }
 
@@ -277,7 +300,6 @@ public class ProductService {
         });
     }
 
-    // 통계 및 카운팅 메서드들
     public Long getProductCountByCategory(Integer categoryId) {
         return productRepository.countByCategoryActive(categoryId);
     }
@@ -306,7 +328,86 @@ public class ProductService {
         return products.stream().map(this::convertToProductDetailDTO).collect(Collectors.toList());
     }
 
-    // 이미지 처리 메서드들
+    // Fallback Methods
+    public CompletableFuture<ProductDTO> getProductByIdFallback(Integer productId, Exception ex) {
+        log.error("상품 조회 서킷브레이커 동작 - productId: {}, error: {}", productId, ex.getMessage());
+
+        ProductDTO fallbackProduct = ProductDTO.builder()
+                .productId(productId)
+                .name("일시적으로 조회할 수 없는 상품")
+                .price(0)
+                .productStatus("일시중단")
+                .image("https://via.placeholder.com/300x200?text=No+Image")
+                .build();
+
+        return CompletableFuture.completedFuture(fallbackProduct);
+    }
+
+    public List<ProductDTO> getRelatedProductsFallback(Integer productId, int limit, Exception ex) {
+        log.error("관련 상품 조회 서킷브레이커 동작 - productId: {}, error: {}", productId, ex.getMessage());
+
+        return List.of(ProductDTO.builder()
+                .productId(0)
+                .name("관련 상품을 일시적으로 불러올 수 없습니다")
+                .price(0)
+                .productStatus("서비스 점검중")
+                .build());
+    }
+
+    public List<ProductDTO> getAllProductsFallback(int limit, Exception ex) {
+        log.error("전체 상품 조회 서킷브레이커 동작 - limit: {}, error: {}", limit, ex.getMessage());
+
+        return List.of(ProductDTO.builder()
+                .productId(0)
+                .name("상품을 일시적으로 불러올 수 없습니다")
+                .price(0)
+                .productStatus("서비스 점검중")
+                .build());
+    }
+
+    public List<ProductDTO> getProductsByCategoryFallback(Integer categoryId, int limit, Exception ex) {
+        log.error("카테고리별 상품 조회 서킷브레이커 동작 - categoryId: {}, error: {}", categoryId, ex.getMessage());
+
+        return List.of(ProductDTO.builder()
+                .productId(0)
+                .name("카테고리 상품을 일시적으로 불러올 수 없습니다")
+                .price(0)
+                .productStatus("서비스 점검중")
+                .build());
+    }
+
+    public List<ProductDTO> getProductsByHostFallback(Long hostId, int limit, Exception ex) {
+        log.error("HOST별 상품 조회 서킷브레이커 동작 - hostId: {}, error: {}", hostId, ex.getMessage());
+
+        return List.of(ProductDTO.builder()
+                .productId(0)
+                .name("HOST 상품을 일시적으로 불러올 수 없습니다")
+                .price(0)
+                .productStatus("서비스 점검중")
+                .build());
+    }
+
+    public List<ProductDTO> getProductsInStockFallback(int limit, Exception ex) {
+        log.error("재고 상품 조회 서킷브레이커 동작 - limit: {}, error: {}", limit, ex.getMessage());
+        return new ArrayList<>();
+    }
+
+    public List<ProductDTO> getDiscountedProductsFallback(int limit, Exception ex) {
+        log.error("할인 상품 조회 서킷브레이커 동작 - limit: {}, error: {}", limit, ex.getMessage());
+        return new ArrayList<>();
+    }
+
+    public List<ProductDTO> getPopularProductsFallback(int limit, Exception ex) {
+        log.error("인기 상품 조회 서킷브레이커 동작 - limit: {}, error: {}", limit, ex.getMessage());
+        return new ArrayList<>();
+    }
+
+    public List<Integer> getCachedChildrenCategoryIdsFallback(Integer categoryId, Exception ex) {
+        log.error("하위 카테고리 조회 서킷브레이커 동작 - categoryId: {}, error: {}", categoryId, ex.getMessage());
+        return new ArrayList<>();
+    }
+
+    // Image processing methods
     public void attachImagesToProduct(ProductDTO product) {
         try {
             Integer productId = product.getProductId();
@@ -351,14 +452,12 @@ public class ProductService {
         });
     }
 
-    // 유틸리티 메서드들
+    // Utility methods
     private boolean isMainCategory(Integer categoryId) {
         if (categoryId == null) {
             return false;
         }
-        // 메인 카테고리는 보통 1~9 또는 100단위
-        // 실제 데이터에 맞게 조정 필요
-        return categoryId < 100; // 100 미만은 메인 카테고리로 간주
+        return categoryId < 100;
     }
 
     private ProductDTO convertToDto(Product product) {

@@ -100,7 +100,14 @@
       <!-- 생년월일 -->
       <div class="form-row">
         <label>생년월일</label>
-        <input type="date" v-model="form.birthDate" />
+        <input
+            type="text"
+            v-model="form.birthDate"
+            placeholder="YYYY-MM-DD (예: 1990-01-01)"
+            pattern="\d{4}-\d{2}-\d{2}"
+            maxlength="10"
+            @input="formatBirthDate"
+        />
       </div>
 
       <!-- 성별 -->
@@ -116,38 +123,6 @@
           <label :class="{ active: form.gender === 'U' }">
             <input type="radio" value="U" v-model="form.gender" /> 선택 안 함
           </label>
-        </div>
-      </div>
-
-      <!-- 이용약관 동의 -->
-      <div class="form-row">
-        <label>이용약관</label>
-        <div class="terms-wrap">
-          <div class="checkbox-inline">
-            <input type="checkbox" v-model="form.agreeAll" @change="toggleAllAgreements" />
-            <span>전체 동의합니다</span>
-          </div>
-
-          <div class="checkbox-inline">
-            <input type="checkbox" v-model="form.agreeTermsRequired" />
-            <span>이용약관 동의 (필수)</span>
-            <button type="button" @click="toggleTerms('terms')">보기</button>
-          </div>
-          <div v-if="show.terms" class="terms-content">여기에 이용약관 내용이 표시됩니다.</div>
-
-          <div class="checkbox-inline">
-            <input type="checkbox" v-model="form.agreePrivacy" />
-            <span>개인정보 수집 및 이용 동의 (필수)</span>
-            <button type="button" @click="toggleTerms('privacy')">보기</button>
-          </div>
-          <div v-if="show.privacy" class="terms-content">여기에 개인정보 수집 내용이 표시됩니다.</div>
-
-          <div class="checkbox-inline">
-            <input type="checkbox" v-model="form.agreeMarketing" />
-            <span>마케팅 수신 동의 (선택)</span>
-            <button type="button" @click="toggleTerms('marketing')">보기</button>
-          </div>
-          <div v-if="show.marketing" class="terms-content">여기에 마케팅 수신 내용이 표시됩니다.</div>
         </div>
       </div>
     </div>
@@ -175,17 +150,7 @@ const form = reactive({
   userAddress: '',
   detailAddress: '',
   birthDate: '',
-  gender: 'U',
-  agreeTermsRequired: false,
-  agreePrivacy: false,
-  agreeMarketing: false,
-  agreeAll: false,
-});
-
-const show = reactive({
-  terms: false,
-  privacy: false,
-  marketing: false,
+  gender: 'U'
 });
 
 const userIdMessage = ref('');
@@ -202,6 +167,7 @@ const passwordMismatch = computed(() => {
   return form.confirmPwd && form.userPwd !== form.confirmPwd;
 });
 
+// 🔥 이용약관 관련 조건 제거된 폼 유효성 검사
 const isFormValid = computed(() => {
   return form.userid &&
       form.userPwd &&
@@ -212,9 +178,7 @@ const isFormValid = computed(() => {
       form.emailId &&
       form.emailDomain &&
       userIdChecked.value &&
-      isPhoneVerified.value &&
-      form.agreeTermsRequired &&
-      form.agreePrivacy;
+      isPhoneVerified.value;
 });
 
 onMounted(() => {
@@ -333,15 +297,21 @@ function execDaumPostcode() {
   }).open();
 }
 
-function toggleAllAgreements() {
-  const checked = form.agreeAll;
-  form.agreeTermsRequired = checked;
-  form.agreePrivacy = checked;
-  form.agreeMarketing = checked;
-}
+// 🔥 생년월일 자동 포맷팅 함수 추가
+function formatBirthDate(event) {
+  let value = event.target.value.replace(/\D/g, ''); // 숫자만 남기기
 
-function toggleTerms(type) {
-  show[type] = !show[type];
+  if (value.length >= 4) {
+    value = value.substring(0, 4) + '-' + value.substring(4);
+  }
+  if (value.length >= 7) {
+    value = value.substring(0, 7) + '-' + value.substring(7);
+  }
+  if (value.length > 10) {
+    value = value.substring(0, 10);
+  }
+
+  form.birthDate = value;
 }
 
 async function submitForm() {
@@ -363,7 +333,7 @@ async function submitForm() {
       myAddress: form.detailAddress || null,
       birthDate: form.birthDate,
       gender: form.gender,
-      marketingAgree: form.agreeMarketing ? 'Y' : 'N'
+      marketingAgree: 'N' // 🔥 기본값으로 설정
     };
 
     const response = await fetch(`${API_BASE_URL}/api/users/register`, {

@@ -1,5 +1,8 @@
 package org.kosa.commerceservice.service.cart;
 
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
+import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -20,6 +23,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 @Service
@@ -31,6 +35,14 @@ public class CartService {
     private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
     private final ProductServiceClient productServiceClient;
+
+    @CircuitBreaker(name = "cartService", fallbackMethod = "addToCartFallback")
+    @Retry(name = "cartService")
+    @TimeLimiter(name = "cartService")
+    @Transactional
+    public CompletableFuture<CartItemDTO> addToCartAsync(String userId, CartRequestDTO request) {
+        return CompletableFuture.supplyAsync(() -> addToCart(userId, request));
+    }
 
     @Transactional
     public CartItemDTO addToCart(String userId, CartRequestDTO request) {
@@ -123,6 +135,8 @@ public class CartService {
         }
     }
 
+    @CircuitBreaker(name = "productService", fallbackMethod = "getCartFallback")
+    @Retry(name = "productService")
     @Transactional(readOnly = true)
     public CartDTO getCart(String userId) {
         Cart cart = cartRepository.findActiveCartByUserId(userId).orElse(null);
@@ -144,9 +158,10 @@ public class CartService {
         List<CartItemDTO> cartItemDTOs = cartItems.stream()
                 .map(item -> {
                     try {
-                        ProductDTO product = productServiceClient.getProduct(item.getProductId());
+                        ProductDTO product = getProductWithCircuitBreaker(item.getProductId());
                         return convertToCartItemDTO(item, product);
                     } catch (Exception e) {
+                        log.warn("상품 정보 조회 실패, 기본값 사용: productId={}", item.getProductId());
                         return convertToCartItemDTOWithoutProduct(item);
                     }
                 })
@@ -156,24 +171,25 @@ public class CartService {
         return result;
     }
 
-    /**
-     * 🔥 장바구니 아이템 수량 업데이트 (기존 메서드 수정)
-     */
+    @CircuitBreaker(name = "productService", fallbackMethod = "getProductFallback")
+    @Retry(name = "productService")
+    private ProductDTO getProductWithCircuitBreaker(Integer productId) {
+        return productServiceClient.getProduct(productId);
+    }
+
     @Transactional
     public void updateCartItemQuantity(String userId, String cartItemId, Integer newQuantity) {
         try {
-            log.info("📝 장바구니 수량 변경 - userId: {}, cartItemId: {}, newQuantity: {}",
+            log.info("장바구니 수량 변경 - userId: {}, cartItemId: {}, newQuantity: {}",
                     userId, cartItemId, newQuantity);
 
-            // 1단계: 직접 cartItemId로 조회
             Optional<CartItem> cartItemOpt = cartItemRepository.findById(cartItemId);
 
             if (cartItemOpt.isEmpty()) {
-                log.warn("⚠️ cartItemId로 조회 실패, 대안 조회 시도");
+                log.warn("cartItemId로 조회 실패, 대안 조회 시도");
 
-                // 2단계: 사용자 기반 조회
                 List<CartItem> userCartItems = cartItemRepository.findByUserId(userId);
-                log.info("🔍 사용자 장바구니 아이템 수: {}", userCartItems.size());
+                log.info("사용자 장바구니 아이템 수: {}", userCartItems.size());
 
                 for (CartItem item : userCartItems) {
                     log.debug("- cartItemId: {}, productId: {}",
@@ -186,33 +202,31 @@ public class CartService {
             }
 
             if (cartItemOpt.isEmpty()) {
-                log.error("💥 장바구니 아이템 조회 완전 실패 - cartItemId: {}", cartItemId);
+                log.error("장바구니 아이템 조회 완전 실패 - cartItemId: {}", cartItemId);
                 throw new IllegalArgumentException("해당 장바구니 상품을 찾을 수 없습니다: " + cartItemId);
             }
 
             CartItem cartItem = cartItemOpt.get();
 
-            // 권한 확인
             Cart cart = cartRepository.findById(cartItem.getCartId())
                     .orElseThrow(() -> new IllegalArgumentException("장바구니를 찾을 수 없습니다."));
 
             if (!cart.getUserId().equals(userId)) {
-                log.error("🚫 권한 없음: cart.userId={}, request.userId={}",
+                log.error("권한 없음: cart.userId={}, request.userId={}",
                         cart.getUserId(), userId);
                 throw new IllegalArgumentException("접근 권한이 없습니다.");
             }
 
-            // 수량 업데이트
             Integer oldQuantity = cartItem.getQuantity();
             cartItem.setQuantity(newQuantity);
 
             CartItem savedItem = cartItemRepository.save(cartItem);
 
-            log.info("✅ 수량 변경 완료 - cartItemId: {}, {}개 → {}개",
+            log.info("수량 변경 완료 - cartItemId: {}, {}개 → {}개",
                     cartItemId, oldQuantity, savedItem.getQuantity());
 
         } catch (Exception e) {
-            log.error("💥 수량 변경 실패: userId={}, cartItemId={}, error={}",
+            log.error("수량 변경 실패: userId={}, cartItemId={}, error={}",
                     userId, cartItemId, e.getMessage(), e);
             throw new RuntimeException("수량 변경에 실패했습니다: " + e.getMessage(), e);
         }
@@ -259,7 +273,6 @@ public class CartService {
 
             Cart cart = cartOpt.get();
 
-            // CartItemRepository를 사용하여 수량의 합 조회
             Integer totalQuantity = cartItemRepository.sumQuantityByCartId(cart.getCartId());
 
             int count = (totalQuantity != null) ? totalQuantity : 0;
@@ -270,7 +283,7 @@ public class CartService {
 
         } catch (Exception e) {
             log.error("장바구니 개수 조회 실패: userId={}, error={}", userId, e.getMessage());
-            return 0; // 에러 시 0 반환
+            return 0;
         }
     }
 
@@ -288,19 +301,15 @@ public class CartService {
         cartItemRepository.delete(cartItem);
     }
 
-    /**
-     * 🔥 다중 장바구니 아이템 제거 메서드
-     */
     @Transactional
     public void removeCartItems(String userId, List<String> cartItemIds) {
         try {
-            log.info("🗑️ 다중 장바구니 아이템 제거 - userId: {}, cartItemIds: {}", userId, cartItemIds);
+            log.info("다중 장바구니 아이템 제거 - userId: {}, cartItemIds: {}", userId, cartItemIds);
 
             if (cartItemIds == null || cartItemIds.isEmpty()) {
                 throw new IllegalArgumentException("삭제할 상품이 선택되지 않았습니다.");
             }
 
-            // 사용자의 활성 장바구니 조회
             Optional<Cart> cartOpt = cartRepository.findByUserIdAndStatus(userId, "ACTIVE");
 
             if (cartOpt.isEmpty()) {
@@ -310,20 +319,18 @@ public class CartService {
             Cart cart = cartOpt.get();
             String cartId = cart.getCartId();
 
-            // 각 아이템이 해당 사용자의 것인지 확인 후 삭제
             for (String cartItemId : cartItemIds) {
                 try {
                     removeCartItem(userId, cartItemId);
                 } catch (Exception e) {
                     log.warn("개별 아이템 삭제 실패: cartItemId={}, error={}", cartItemId, e.getMessage());
-                    // 개별 실패는 무시하고 계속 진행
                 }
             }
 
-            log.info("✅ 다중 장바구니 아이템 제거 시도 완료");
+            log.info("다중 장바구니 아이템 제거 시도 완료");
 
         } catch (Exception e) {
-            log.error("💥 다중 장바구니 아이템 제거 실패: userId={}, error={}", userId, e.getMessage(), e);
+            log.error("다중 장바구니 아이템 제거 실패: userId={}, error={}", userId, e.getMessage(), e);
             throw new RuntimeException("장바구니 아이템 제거에 실패했습니다: " + e.getMessage(), e);
         }
     }
@@ -336,27 +343,24 @@ public class CartService {
         cartItemRepository.deleteAll(cartItems);
     }
 
-    /**
-     * 🔥 구매 완료 상품들을 장바구니에서 제거하는 메서드 (수정된 버전)
-     */
+    @CircuitBreaker(name = "cartService", fallbackMethod = "removePurchasedItemsFallback")
+    @Retry(name = "cartService")
     @Transactional
     public int removePurchasedItems(String userId, List<Integer> productIds) {
         try {
-            log.info("🛒 구매 완료 상품 제거 시작 - userId: {}, productIds: {}", userId, productIds);
+            log.info("구매 완료 상품 제거 시작 - userId: {}, productIds: {}", userId, productIds);
 
             if (productIds == null || productIds.isEmpty()) {
-                log.warn("⚠️ 제거할 상품 ID 목록이 비어있음");
+                log.warn("제거할 상품 ID 목록이 비어있음");
                 return 0;
             }
 
-            // 1. 사용자의 활성 장바구니 조회
             Optional<Cart> cartOpt = cartRepository.findByUserIdAndStatus(userId, "ACTIVE");
 
             if (cartOpt.isEmpty()) {
-                // 활성 장바구니가 없으면 일반 장바구니 조회
                 cartOpt = cartRepository.findByUserId(userId);
                 if (cartOpt.isEmpty()) {
-                    log.info("📭 사용자의 장바구니가 없음 - userId: {}", userId);
+                    log.info("사용자의 장바구니가 없음 - userId: {}", userId);
                     return 0;
                 }
             }
@@ -364,7 +368,6 @@ public class CartService {
             Cart cart = cartOpt.get();
             String cartId = cart.getCartId();
 
-            // 2. 장바구니에서 구매된 상품들 찾기
             List<CartItem> cartItems = cartItemRepository.findByCartId(cartId);
 
             List<CartItem> itemsToRemove = cartItems.stream()
@@ -372,25 +375,22 @@ public class CartService {
                     .collect(Collectors.toList());
 
             if (itemsToRemove.isEmpty()) {
-                log.info("🔍 장바구니에서 제거할 상품이 없음 - userId: {}", userId);
+                log.info("장바구니에서 제거할 상품이 없음 - userId: {}", userId);
                 return 0;
             }
 
-            log.info("🗑️ 제거할 장바구니 아이템들: {}",
+            log.info("제거할 장바구니 아이템들: {}",
                     itemsToRemove.stream()
                             .map(item -> "productId:" + item.getProductId() + ",cartItemId:" + item.getCartItemId())
                             .collect(Collectors.toList()));
 
-            // 3. 실제 삭제 수행
             int removedCount = 0;
             for (CartItem item : itemsToRemove) {
                 try {
-                    // 엔티티 관계에서 제거
                     if (cart.getCartItems() != null) {
                         cart.getCartItems().remove(item);
                     }
 
-                    // 데이터베이스에서 삭제
                     cartItemRepository.delete(item);
                     removedCount++;
 
@@ -403,42 +403,62 @@ public class CartService {
                 }
             }
 
-            // 4. 장바구니 업데이트 시간 갱신
             cart.setUpdatedDate(LocalDateTime.now());
             cartRepository.save(cart);
 
-            log.info("✅ {}개 상품이 장바구니에서 제거됨 - userId: {}", removedCount, userId);
+            log.info("{}개 상품이 장바구니에서 제거됨 - userId: {}", removedCount, userId);
 
             return removedCount;
 
         } catch (Exception e) {
-            log.error("💥 구매 완료 상품 제거 중 오류: userId={}, error={}", userId, e.getMessage(), e);
+            log.error("구매 완료 상품 제거 중 오류: userId={}, error={}", userId, e.getMessage(), e);
             throw new RuntimeException("구매 완료 상품 제거에 실패했습니다: " + e.getMessage(), e);
         }
     }
 
-    /**
-     * 🔥 기존 removePurchasedItems 메서드 (Long 타입 지원을 위해 유지)
-     */
-//    @Transactional
-//    public void removePurchasedItems(String userId, List<Long> productIds) {
-//        if (productIds == null || productIds.isEmpty()) {
-//            return;
-//        }
-//
-//        try {
-//            // Long 타입을 Integer 타입으로 변환
-//            List<Integer> integerProductIds = productIds.stream()
-//                    .map(Long::intValue)
-//                    .collect(Collectors.toList());
-//
-//            removePurchasedItems(userId, integerProductIds);
-//
-//        } catch (Exception e) {
-//            log.error("💥 구매 완료 상품 제거 실패 (Long 버전): userId={}, error={}", userId, e.getMessage(), e);
-//            throw new RuntimeException("장바구니 정리 중 오류가 발생했습니다.", e);
-//        }
-//    }
+    // Fallback Methods
+    public CompletableFuture<CartItemDTO> addToCartFallback(String userId, CartRequestDTO request, Exception ex) {
+        log.error("장바구니 추가 서킷브레이커 동작 - userId: {}, error: {}", userId, ex.getMessage());
+
+        CartItemDTO fallbackItem = CartItemDTO.builder()
+                .productId(request.getProductId())
+                .quantity(request.getQuantity())
+                .productName("일시적으로 처리할 수 없는 상품")
+                .build();
+
+        return CompletableFuture.completedFuture(fallbackItem);
+    }
+
+    public CartDTO getCartFallback(String userId, Exception ex) {
+        log.error("장바구니 조회 서킷브레이커 동작 - userId: {}, error: {}", userId, ex.getMessage());
+
+        return CartDTO.builder()
+                .userId(userId)
+                .cartItems(List.of())
+                .totalItems(0)
+                .totalPrice(0)
+                .totalDiscountPrice(0)
+                .finalPrice(0)
+                .deliveryFee(0)
+                .build();
+    }
+
+    public ProductDTO getProductFallback(Integer productId, Exception ex) {
+        log.error("상품 정보 조회 서킷브레이커 동작 - productId: {}, error: {}", productId, ex.getMessage());
+
+        return ProductDTO.builder()
+                .productId(productId)
+                .name("일시적으로 조회할 수 없는 상품")
+                .price(0)
+                .salePrice(0)
+                .productStatus("일시중단")
+                .build();
+    }
+
+    public int removePurchasedItemsFallback(String userId, List<Integer> productIds, Exception ex) {
+        log.error("구매 완료 상품 제거 서킷브레이커 동작 - userId: {}, error: {}", userId, ex.getMessage());
+        return 0;
+    }
 
     // Helper Methods
     private CartItemDTO convertToCartItemDTO(CartItem cartItem, ProductDTO product) {

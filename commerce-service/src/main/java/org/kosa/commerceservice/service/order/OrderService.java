@@ -1,5 +1,8 @@
 package org.kosa.commerceservice.service.order;
 
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
+import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.kosa.commerceservice.dto.order.*;
@@ -23,6 +26,7 @@ import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 @Service
@@ -42,6 +46,7 @@ public class OrderService {
 
     private static final String CANCELLED_STATUS = "CANCELLED";
     private static final String CANCELLED_BY_WITHDRAWAL_STATUS = "CANCELLED_BY_WITHDRAWAL";
+
     @Transactional(readOnly = true)
     public int getOrderCount(String userId) {
         try {
@@ -56,9 +61,18 @@ public class OrderService {
 
         } catch (Exception e) {
             log.error("주문 개수 조회 실패: userId={}, error={}", userId, e.getMessage());
-            return 0; // 에러 시 0 반환
+            return 0;
         }
     }
+
+    @CircuitBreaker(name = "orderService", fallbackMethod = "createOrderFallback")
+    @Retry(name = "orderService")
+    @TimeLimiter(name = "orderService")
+    @Transactional
+    public CompletableFuture<OrderResponseDTO> createOrderAsync(CheckoutRequestDTO request) {
+        return CompletableFuture.supplyAsync(() -> createOrder(request));
+    }
+
     @Transactional
     public OrderResponseDTO createOrder(CheckoutRequestDTO request) {
         try {
@@ -125,6 +139,8 @@ public class OrderService {
         }
     }
 
+    @CircuitBreaker(name = "paymentService", fallbackMethod = "cancelOrderFallback")
+    @Retry(name = "paymentService")
     @Transactional
     public OrderCancelResponseDTO cancelOrder(OrderCancelRequestDTO request) {
         try {
@@ -208,6 +224,7 @@ public class OrderService {
             throw new RuntimeException("주문 취소 처리 실패: " + e.getMessage());
         }
     }
+
     @Transactional(readOnly = true)
     public List<OrderDTO> getActiveUserOrders(String userId) {
         try {
@@ -220,6 +237,7 @@ public class OrderService {
             throw new RuntimeException("활성 주문 조회 중 오류가 발생했습니다.");
         }
     }
+
     public void updateOrderStatus(String orderId, String newStatus) {
         try {
             log.info("주문 상태 변경: orderId={}, newStatus={}", orderId, newStatus);
@@ -281,6 +299,31 @@ public class OrderService {
         return convertToOrderDTOWithItems(order, orderItems);
     }
 
+    // Fallback Methods
+    public CompletableFuture<OrderResponseDTO> createOrderFallback(CheckoutRequestDTO request, Exception ex) {
+        log.error("주문 생성 서킷브레이커 동작 - userId: {}, error: {}", request.getUserId(), ex.getMessage());
+
+        OrderResponseDTO fallbackResponse = OrderResponseDTO.builder()
+                .orderId("TEMP_" + System.currentTimeMillis())
+                .orderStatus("PENDING_RETRY")
+                .totalAmount(0)
+                .message("주문이 임시로 접수되었습니다. 처리 상황을 확인해주세요.")
+                .build();
+
+        return CompletableFuture.completedFuture(fallbackResponse);
+    }
+
+    public OrderCancelResponseDTO cancelOrderFallback(OrderCancelRequestDTO request, Exception ex) {
+        log.error("주문 취소 서킷브레이커 동작 - orderId: {}, error: {}", request.getOrderId(), ex.getMessage());
+
+        return OrderCancelResponseDTO.builder()
+                .orderId(request.getOrderId())
+                .userId(request.getUserId())
+                .message("주문 취소 요청이 접수되었습니다. 고객센터에서 처리해드리겠습니다.")
+                .build();
+    }
+
+    // Private Helper Methods
     private void updateOrderAndItemsStatus(Order order, String newStatus) {
         order.setOrderStatus(newStatus);
         order.setUpdatedDate(LocalDateTime.now());

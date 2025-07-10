@@ -20,7 +20,7 @@ public class BroadcastViewerController {
     private final BroadcastViewerService broadcastViewerService;
 
     /**
-     * 방송 상세 정보 조회 - 🔥 ViewerResponse 사용
+     * 방송 상세 정보 조회 -  ViewerResponse 사용
      */
     @GetMapping("/{broadcastId}")
     public ResponseEntity<ViewerResponse> getBroadcastDetail(@PathVariable Long broadcastId) {

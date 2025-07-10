@@ -33,7 +33,7 @@ public class NotificationController {
     private final BroadcastService broadcastService;
 
     // ================================
-    // 🔥 헬스체크 (하나로 통합)
+    //  헬스체크 (하나로 통합)
     // ================================
 
     @GetMapping("/health")
@@ -47,7 +47,7 @@ public class NotificationController {
     }
 
     // ================================
-    // 🔥 방송 스케줄 관련
+    // 방송 스케줄 관련
     // ================================
 
     /**
@@ -79,7 +79,7 @@ public class NotificationController {
     }
 
     // ================================
-    // 🔥 알림 생성 관련
+    //  알림 생성 관련
     // ================================
 
     /**
@@ -119,7 +119,7 @@ public class NotificationController {
     }
 
     // ================================
-    // 🔥 알림 조회 관련
+    //  알림 조회 관련
     // ================================
 
     /**
@@ -152,11 +152,11 @@ public class NotificationController {
     }
 
     // ================================
-    // 🔥 헤더용 API (새로 추가)
+    //  헤더용 API (새로 추가)
     // ================================
 
     /**
-     * 🔥 헤더용 - 읽지 않은 알림 개수 조회
+     *  헤더용 - 읽지 않은 알림 개수 조회
      */
     @GetMapping("/unread-count")
     public ResponseEntity<?> getUnreadCount(@RequestParam String userId) {
@@ -176,7 +176,7 @@ public class NotificationController {
     }
 
     /**
-     * 🔥 헤더용 - 최근 알림 목록 조회 (드롭다운용, 최대 10개)
+     *  헤더용 - 최근 알림 목록 조회 (드롭다운용, 최대 10개)
      */
     @GetMapping("/recent")
     public ResponseEntity<?> getRecentNotifications(
@@ -196,11 +196,11 @@ public class NotificationController {
     }
 
     // ================================
-    // 🔥 알림 읽음 처리 관련
+    //  알림 읽음 처리 관련
     // ================================
 
     /**
-     * 🔥 특정 알림 읽음 처리 (헤더용 + 기존용 통합)
+     *  특정 알림 읽음 처리 (헤더용 + 기존용 통합)
      */
     @PatchMapping("/{notificationId}/read")
     public ResponseEntity<?> markAsRead(
@@ -225,7 +225,7 @@ public class NotificationController {
     }
 
     /**
-     * 🔥 모든 알림 읽음 처리 (헤더용)
+     *  모든 알림 읽음 처리 (헤더용)
      */
     @PatchMapping("/mark-all-read")
     public ResponseEntity<?> markAllAsRead(@RequestParam String userId) {
@@ -246,7 +246,7 @@ public class NotificationController {
     }
 
     // ================================
-    // 🔥 알림 구독 관리
+    //  알림 구독 관리
     // ================================
 
     /**

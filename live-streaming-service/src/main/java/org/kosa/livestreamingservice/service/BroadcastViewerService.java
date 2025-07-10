@@ -23,7 +23,7 @@ public class BroadcastViewerService {
     private final BroadcastViewerRepository broadcastViewerRepository;
 
     /**
-     * 방송 상세 정보 조회 - 🔥 별도 ViewerResponse 사용
+     * 방송 상세 정보 조회 -  별도 ViewerResponse 사용
      */
     public ViewerResponse getBroadcastDetail(Long broadcastId) {
         BroadcastEntity broadcast = broadcastRepository.findById(broadcastId)
@@ -50,13 +50,13 @@ public class BroadcastViewerService {
                 .peakViewers(broadcast.getPeakViewers())
                 .likeCount(broadcast.getLikeCount())
                 .thumbnailUrl(broadcast.getThumbnailUrl())
-                .streamUrl(broadcast.getStreamUrl()) // 🔥 DB에서 그대로 사용
+                .streamUrl(broadcast.getStreamUrl()) //  DB에서 그대로 사용
                 .categoryId(broadcast.getCategoryId())
                 .categoryName(categoryName)
                 .tags(broadcast.getTags())
                 .isPublic(broadcast.getIsPublic())
                 .createdAt(broadcast.getCreatedAt())
-                // 🔥 스트림 정보도 DB에서 그대로
+                // 스트림 정보도 DB에서 그대로
                 .streamKey(broadcast.getStreamKey())
                 .nginxHost(broadcast.getNginxHost())
                 .obsHost(broadcast.getObsHost())

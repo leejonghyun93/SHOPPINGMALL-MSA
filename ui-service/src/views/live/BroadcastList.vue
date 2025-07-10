@@ -11,17 +11,17 @@
             @click="selectCategory(category.categoryId)"
         >
           <div class="category-icon">
-            <!-- 🔥 아이콘 표시 로직 수정 -->
-            <img v-if="category.iconUrl" :src="category.iconUrl" :alt="category.name" class="icon-image" />
-            <i v-else-if="category.icon" :class="category.icon" class="icon-image"></i>
-            <i v-else class="fas fa-th-large all-icon"></i>
+            <!-- 🔥 아이콘 표시 로직 수정 - 카테고리 페이지와 동일하게 -->
+            <img v-if="category.icon" :src="category.icon" :alt="category.name" class="icon-image" />
+            <svg v-else width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M9 11H15M9 15H15M17 21H7C5.89543 21 5 20.1046 5 19V5C5 3.89543 5.89543 3 7 3H12.5858C12.851 3 13.1054 3.10536 13.2929 3.29289L19.7071 9.70711C19.8946 9.89464 20 10.149 20 10.4142V19C20 20.1046 19.1046 21 18 21H17Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
           </div>
           <span class="category-name">{{ category.name }}</span>
         </div>
       </div>
     </div>
 
-    <!-- 나머지 템플릿 코드는 동일... -->
     <!-- 하위 카테고리 섹션 -->
     <div v-if="subCategories.length > 0" class="sub-category-container">
       <div class="sub-category-list">
@@ -175,7 +175,7 @@ const refreshInterval = ref(null)
 
 // 초기 카테고리 데이터
 const categories = ref([
-  { categoryId: 'ALL', name: '전체', categoryDisplayOrder: 0 }
+  { categoryId: 'ALL', name: '전체', icon: null, categoryDisplayOrder: 0 }
 ])
 
 // 계산된 속성
@@ -189,6 +189,36 @@ const selectedCategoryName = computed(() => {
   return category ? category.name : '전체'
 })
 
+// 🔥 아이콘 처리 함수 추가 (카테고리 페이지와 동일)
+const getIconForCategory = (category) => {
+  if (category.iconUrl && category.iconUrl.trim() !== '') {
+    return category.iconUrl.trim();
+  }
+
+  if (category.icon && category.icon.trim() !== '') {
+    return category.icon.trim();
+  }
+
+  if (category.categoryIcon && category.categoryIcon.trim() !== '') {
+    const iconMap = {
+      'vegetables': 'vegetables.svg',
+      'canned': 'canned-food.svg',
+      'meal': 'meal-box.svg',
+      'bread': 'bread.svg',
+      'milk': 'milk.svg',
+      'medicine': 'medicine.svg',
+      'cooking': 'cooking.svg',
+      'tissue': 'tissue.svg',
+      'baby': 'baby-bottle.svg'
+    };
+
+    const iconFile = iconMap[category.categoryIcon] || category.categoryIcon + '.svg';
+    return `/icons/${iconFile}`;
+  }
+
+  return null;
+};
+
 /**
  * 메인 카테고리 조회
  */
@@ -200,6 +230,7 @@ const fetchMainCategories = async () => {
       const allCategory = {
         categoryId: 'ALL',
         name: '전체',
+        icon: null, // 🔥 아이콘 필드 추가
         categoryDisplayOrder: 0
       }
 
@@ -209,7 +240,10 @@ const fetchMainCategories = async () => {
           .map(cat => ({
             categoryId: String(cat.categoryId),
             name: cat.name,
-            categoryDisplayOrder: cat.categoryDisplayOrder
+            icon: getIconForCategory(cat), // 🔥 아이콘 처리 함수 사용
+            categoryDisplayOrder: cat.categoryDisplayOrder,
+            categoryIcon: cat.categoryIcon,
+            iconUrl: cat.iconUrl
           }))
 
       categories.value = [allCategory, ...serverCategories]
@@ -218,6 +252,7 @@ const fetchMainCategories = async () => {
     categories.value = [{
       categoryId: 'ALL',
       name: '전체',
+      icon: null,
       categoryDisplayOrder: 0
     }]
   }

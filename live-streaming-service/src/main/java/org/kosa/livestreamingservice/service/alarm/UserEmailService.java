@@ -1,5 +1,7 @@
 package org.kosa.livestreamingservice.service.alarm;
 
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.kosa.livestreamingservice.client.alarm.UserServiceClient;
@@ -12,11 +14,13 @@ public class UserEmailService {
 
     private final UserServiceClient userServiceClient;
 
+    @CircuitBreaker(name = "user-service", fallbackMethod = "getUserEmailFallback")
+    @Retry(name = "user-service")
     public String getUserEmail(String userId) {
         log.debug("사용자 이메일 조회: userId={}", userId);
 
         try {
-            // 🔥 실제 UserServiceClient 호출
+            //  기존 UserServiceClient 그대로 사용
             String email = userServiceClient.getUserEmail(userId);
 
             if (email != null && !email.isEmpty()) {
@@ -25,18 +29,20 @@ public class UserEmailService {
                 return email;
             }
 
-            log.warn("UserServiceClient에서 이메일을 못 가져옴, 기본값 사용: userId={}", userId);
+            log.warn("UserServiceClient에서 이메일을 못 가져옴: userId={}", userId);
+            return null;
 
         } catch (Exception e) {
             log.error("UserServiceClient 호출 실패: userId={}, error={}", userId, e.getMessage());
+            throw e;  // Circuit Breaker가 처리
         }
-
-        // 🔥 UserService에서 이메일을 가져오지 못한 경우 null 반환
-        log.warn("사용자 이메일을 가져올 수 없습니다: userId={}", userId);
-        return null;
     }
 
-
+    public String getUserEmailFallback(String userId, Exception ex) {
+        log.warn(" User Service 장애 - 이메일 조회 실패: userId={}, error={}",
+                userId, ex.getMessage());
+        return null;  // 이메일 발송 스킵
+    }
 
     private String maskEmail(String email) {
         if (email == null || !email.contains("@")) return email;

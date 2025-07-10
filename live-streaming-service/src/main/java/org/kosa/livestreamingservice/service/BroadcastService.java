@@ -9,7 +9,6 @@ import org.kosa.livestreamingservice.repository.alarm.BroadcastRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,48 +27,329 @@ public class BroadcastService {
 
     private final BroadcastRepository broadcastRepository;
 
-    // ============ 기존 알림 서비스용 메소드 ============
+    // ============ 알림 서비스용 메소드 ============
 
     /**
-     * 날짜별 방송 스케줄 조회 (기존)
+     * 날짜별 방송 스케줄 조회
      */
     public List<BroadcastScheduleDto> getBroadcastScheduleByDate(LocalDate date) {
-        List<BroadcastEntity> broadcasts = broadcastRepository.findByScheduledDate(date);
+        try {
+            LocalDateTime startOfDay = date.atStartOfDay();
+            LocalDateTime nextDay = date.plusDays(1).atStartOfDay();
 
-        // 시간대별로 그룹핑
-        Map<String, List<BroadcastDto.AlarmDto>> groupedByTime = broadcasts.stream()
-                .collect(Collectors.groupingBy(
-                        broadcast -> broadcast.getScheduledStartTime().format(DateTimeFormatter.ofPattern("HH:mm")),
-                        LinkedHashMap::new,
-                        Collectors.mapping(this::convertToAlarmDto, Collectors.toList())
-                ));
+            List<BroadcastEntity> broadcasts = broadcastRepository.findBroadcastsByDateRange(
+                    startOfDay, nextDay);
 
-        return groupedByTime.entrySet().stream()
-                .map(entry -> BroadcastScheduleDto.builder()
-                        .time(entry.getKey())
-                        .broadcasts(entry.getValue())
-                        .build())
+            // 시간대별로 그룹핑
+            Map<String, List<BroadcastDto.AlarmDto>> groupedByTime = broadcasts.stream()
+                    .collect(Collectors.groupingBy(
+                            broadcast -> broadcast.getScheduledStartTime().format(DateTimeFormatter.ofPattern("HH:mm")),
+                            LinkedHashMap::new,
+                            Collectors.mapping(this::convertToAlarmDto, Collectors.toList())
+                    ));
+
+            List<BroadcastScheduleDto> result = groupedByTime.entrySet().stream()
+                    .map(entry -> BroadcastScheduleDto.builder()
+                            .time(entry.getKey())
+                            .broadcasts(entry.getValue())
+                            .build())
+                    .collect(Collectors.toList());
+
+            return result;
+
+        } catch (Exception e) {
+            log.error("방송 스케줄 조회 중 오류 발생: {}", e.getMessage(), e);
+            return Collections.emptyList();
+        }
+    }
+
+    // ============ 관리자용 방송 상태 관리 메서드들 ============
+
+    /**
+     * 관리자용: 방송 시작 (scheduled/starting → live)
+     */
+    @Transactional
+    public void adminStartBroadcast(Long broadcastId, String adminId) {
+        log.info("관리자 방송 시작 요청: broadcastId={}, adminId={}", broadcastId, adminId);
+
+        BroadcastEntity broadcast = broadcastRepository.findById(broadcastId)
+                .orElseThrow(() -> new IllegalArgumentException("방송을 찾을 수 없습니다: " + broadcastId));
+
+        if (!Arrays.asList("schedule", "starting").contains(broadcast.getBroadcastStatus())) {
+            throw new IllegalStateException("시작할 수 없는 방송 상태입니다: " + broadcast.getBroadcastStatus());
+        }
+
+        int updated = broadcastRepository.updateBroadcastToLive(broadcastId);
+
+        if (updated > 0) {
+            log.info("관리자 방송 시작 완료: broadcastId={}, adminId={}", broadcastId, adminId);
+        } else {
+            throw new RuntimeException("방송 시작에 실패했습니다");
+        }
+    }
+
+    /**
+     * 관리자용: 방송 종료 (live/paused/starting → ended)
+     */
+    @Transactional
+    public void adminEndBroadcast(Long broadcastId, String adminId) {
+        log.info("관리자 방송 종료 요청: broadcastId={}, adminId={}", broadcastId, adminId);
+
+        BroadcastEntity broadcast = broadcastRepository.findById(broadcastId)
+                .orElseThrow(() -> new IllegalArgumentException("방송을 찾을 수 없습니다: " + broadcastId));
+
+        if ("ended".equals(broadcast.getBroadcastStatus())) {
+            throw new IllegalStateException("이미 종료된 방송입니다");
+        }
+
+        int updated = broadcastRepository.updateBroadcastToEnded(broadcastId);
+
+        if (updated > 0) {
+            log.info("관리자 방송 종료 완료: broadcastId={}, adminId={}", broadcastId, adminId);
+        } else {
+            throw new RuntimeException("방송 종료에 실패했습니다");
+        }
+    }
+
+    /**
+     * 관리자용: 방송 일시정지 (live → paused)
+     */
+    @Transactional
+    public void adminPauseBroadcast(Long broadcastId, String adminId) {
+        log.info("관리자 방송 일시정지 요청: broadcastId={}, adminId={}", broadcastId, adminId);
+
+        int updated = broadcastRepository.updateBroadcastToPaused(broadcastId);
+
+        if (updated > 0) {
+            log.info("관리자 방송 일시정지 완료: broadcastId={}, adminId={}", broadcastId, adminId);
+        } else {
+            throw new RuntimeException("방송 일시정지에 실패했습니다. 현재 LIVE 상태인지 확인하세요.");
+        }
+    }
+
+    /**
+     * 관리자용: 방송 재개 (paused → live)
+     */
+    @Transactional
+    public void adminResumeBroadcast(Long broadcastId, String adminId) {
+        log.info("관리자 방송 재개 요청: broadcastId={}, adminId={}", broadcastId, adminId);
+
+        int updated = broadcastRepository.updateBroadcastToResume(broadcastId);
+
+        if (updated > 0) {
+            log.info("관리자 방송 재개 완료: broadcastId={}, adminId={}", broadcastId, adminId);
+        } else {
+            throw new RuntimeException("방송 재개에 실패했습니다. 현재 PAUSED 상태인지 확인하세요.");
+        }
+    }
+
+    /**
+     * 관리자용: 방송 상태 직접 변경 (범용)
+     */
+    @Transactional
+    public void adminChangeBroadcastStatus(Long broadcastId, String newStatus, String adminId) {
+        log.info("관리자 방송 상태 변경 요청: broadcastId={}, newStatus={}, adminId={}",
+                broadcastId, newStatus, adminId);
+
+        List<String> validStatuses = Arrays.asList("schedule", "starting", "live", "paused", "ended");
+        if (!validStatuses.contains(newStatus)) {
+            throw new IllegalArgumentException("유효하지 않은 방송 상태입니다: " + newStatus);
+        }
+
+        int updated = broadcastRepository.updateBroadcastStatus(broadcastId, newStatus);
+
+        if (updated > 0) {
+            log.info("관리자 방송 상태 변경 완료: broadcastId={}, newStatus={}, adminId={}",
+                    broadcastId, newStatus, adminId);
+        } else {
+            throw new RuntimeException("방송 상태 변경에 실패했습니다");
+        }
+    }
+
+    /**
+     * 관리자용: 여러 방송 일괄 종료
+     */
+    @Transactional
+    public void adminEndMultipleBroadcasts(List<Long> broadcastIds, String adminId) {
+        log.info("관리자 여러 방송 일괄 종료 요청: count={}, adminId={}", broadcastIds.size(), adminId);
+
+        if (broadcastIds.isEmpty()) {
+            throw new IllegalArgumentException("종료할 방송이 선택되지 않았습니다");
+        }
+
+        int updated = broadcastRepository.updateMultipleBroadcastsToEnded(broadcastIds);
+
+        log.info("관리자 여러 방송 일괄 종료 완료: 요청={}, 처리={}, adminId={}",
+                broadcastIds.size(), updated, adminId);
+    }
+
+    /**
+     * 관리자용: 방송 상태별 통계 조회
+     */
+    public Map<String, Object> getAdminBroadcastStats() {
+        Map<String, Object> stats = new HashMap<>();
+
+        long scheduledCount = broadcastRepository.countByBroadcastStatus("schedule");
+        long startingCount = broadcastRepository.countByBroadcastStatus("starting");
+        long liveCount = broadcastRepository.countByBroadcastStatus("live");
+        long pausedCount = broadcastRepository.countByBroadcastStatus("paused");
+        long endedCount = broadcastRepository.countByBroadcastStatus("ended");
+
+        stats.put("schedule", scheduledCount);
+        stats.put("starting", startingCount);
+        stats.put("live", liveCount);
+        stats.put("paused", pausedCount);
+        stats.put("ended", endedCount);
+        stats.put("total", scheduledCount + startingCount + liveCount + pausedCount + endedCount);
+        stats.put("timestamp", LocalDateTime.now());
+
+        return stats;
+    }
+
+    // ============ 방송자용 메서드들 ============
+
+    /**
+     * 방송 시작 (방송자가 실제로 방송을 시작할 때)
+     */
+    @Transactional
+    public void startBroadcast(Long broadcastId, String broadcasterId) {
+        BroadcastEntity broadcast = broadcastRepository.findById(broadcastId)
+                .orElseThrow(() -> new IllegalArgumentException("방송을 찾을 수 없습니다: " + broadcastId));
+
+        if (!broadcast.getBroadcasterId().equals(broadcasterId)) {
+            throw new IllegalArgumentException("방송을 시작할 권한이 없습니다");
+        }
+
+        if (!Arrays.asList("schedule", "starting").contains(broadcast.getBroadcastStatus())) {
+            throw new IllegalStateException("시작할 수 없는 방송 상태입니다: " + broadcast.getBroadcastStatus());
+        }
+
+        broadcast.setBroadcastStatus("live");
+        broadcast.setActualStartTime(LocalDateTime.now());
+        broadcast.setUpdatedAt(LocalDateTime.now());
+
+        broadcastRepository.save(broadcast);
+        log.info("방송 시작 완료: broadcastId={}, broadcasterId={}", broadcastId, broadcasterId);
+    }
+
+    /**
+     * 방송 종료 (방송자가 방송을 종료할 때)
+     */
+    @Transactional
+    public void endBroadcast(Long broadcastId, String broadcasterId) {
+        BroadcastEntity broadcast = broadcastRepository.findById(broadcastId)
+                .orElseThrow(() -> new IllegalArgumentException("방송을 찾을 수 없습니다: " + broadcastId));
+
+        if (!broadcast.getBroadcasterId().equals(broadcasterId)) {
+            throw new IllegalArgumentException("방송을 종료할 권한이 없습니다");
+        }
+
+        if (!Arrays.asList("live", "paused", "starting").contains(broadcast.getBroadcastStatus())) {
+            throw new IllegalStateException("종료할 수 없는 방송 상태입니다: " + broadcast.getBroadcastStatus());
+        }
+
+        broadcast.setBroadcastStatus("ended");
+        broadcast.setActualEndTime(LocalDateTime.now());
+        broadcast.setUpdatedAt(LocalDateTime.now());
+
+        broadcastRepository.save(broadcast);
+        log.info("방송 종료 완료: broadcastId={}, broadcasterId={}", broadcastId, broadcasterId);
+    }
+
+    /**
+     * 방송 일시정지
+     */
+    @Transactional
+    public void pauseBroadcast(Long broadcastId, String broadcasterId) {
+        BroadcastEntity broadcast = broadcastRepository.findById(broadcastId)
+                .orElseThrow(() -> new IllegalArgumentException("방송을 찾을 수 없습니다: " + broadcastId));
+
+        if (!broadcast.getBroadcasterId().equals(broadcasterId)) {
+            throw new IllegalArgumentException("방송을 일시정지할 권한이 없습니다");
+        }
+
+        if (!"live".equals(broadcast.getBroadcastStatus())) {
+            throw new IllegalStateException("일시정지할 수 없는 방송 상태입니다: " + broadcast.getBroadcastStatus());
+        }
+
+        broadcast.setBroadcastStatus("paused");
+        broadcast.setUpdatedAt(LocalDateTime.now());
+        broadcastRepository.save(broadcast);
+
+        log.info("방송 일시정지: broadcastId={}", broadcastId);
+    }
+
+    /**
+     * 방송 재개
+     */
+    @Transactional
+    public void resumeBroadcast(Long broadcastId, String broadcasterId) {
+        BroadcastEntity broadcast = broadcastRepository.findById(broadcastId)
+                .orElseThrow(() -> new IllegalArgumentException("방송을 찾을 수 없습니다: " + broadcastId));
+
+        if (!broadcast.getBroadcasterId().equals(broadcasterId)) {
+            throw new IllegalArgumentException("방송을 재개할 권한이 없습니다");
+        }
+
+        if (!"paused".equals(broadcast.getBroadcastStatus())) {
+            throw new IllegalStateException("재개할 수 없는 방송 상태입니다: " + broadcast.getBroadcastStatus());
+        }
+
+        broadcast.setBroadcastStatus("live");
+        broadcast.setUpdatedAt(LocalDateTime.now());
+        broadcastRepository.save(broadcast);
+
+        log.info("방송 재개: broadcastId={}", broadcastId);
+    }
+
+    /**
+     * 현재 진행 중인 방송 목록 조회
+     */
+    public List<BroadcastDto.Response> getCurrentActiveBroadcasts() {
+        List<BroadcastEntity> broadcasts = broadcastRepository.findCurrentActiveBroadcasts();
+
+        return broadcasts.stream()
+                .map(this::convertToResponseDto)
                 .collect(Collectors.toList());
     }
 
-    // ============ 프론트엔드용 새로운 메소드들 ============
+    /**
+     * 특정 방송의 현재 상태 조회
+     */
+    public Map<String, Object> getBroadcastStatus(Long broadcastId) {
+        BroadcastEntity broadcast = broadcastRepository.findById(broadcastId)
+                .orElseThrow(() -> new IllegalArgumentException("방송을 찾을 수 없습니다: " + broadcastId));
+
+        Map<String, Object> status = new HashMap<>();
+        status.put("broadcastId", broadcast.getBroadcastId());
+        status.put("status", broadcast.getBroadcastStatus());
+        status.put("scheduledStartTime", broadcast.getScheduledStartTime());
+        status.put("actualStartTime", broadcast.getActualStartTime());
+        status.put("actualEndTime", broadcast.getActualEndTime());
+        status.put("currentViewers", broadcast.getCurrentViewers());
+        status.put("isLive", "live".equals(broadcast.getBroadcastStatus()));
+        status.put("isPaused", "paused".equals(broadcast.getBroadcastStatus()));
+        status.put("isEnded", "ended".equals(broadcast.getBroadcastStatus()));
+        status.put("updatedAt", broadcast.getUpdatedAt());
+
+        return status;
+    }
+
+    // ============ 프론트엔드용 메소드들 ============
 
     /**
-     * 진행 중인 라이브 방송 목록 조회 (프론트엔드용) - 상품 카테고리 기반 필터링
+     * 진행 중인 라이브 방송 목록 조회 (프론트엔드용)
      */
     public List<BroadcastDto.Response> getLiveBroadcasts(String broadcastStatus, Integer isPublic, Integer categoryId, int limit) {
         try {
-            // 기본값 설정
             String status = broadcastStatus != null ? broadcastStatus : "live";
             Boolean publicFilter = isPublic != null ? (isPublic == 1) : true;
 
             List<BroadcastDto.Response> result;
 
             if (categoryId != null) {
-                // 상품 카테고리 기준으로 필터링 - 개선된 로직 사용
                 result = getBroadcastsByProductCategoryImproved(categoryId, status, publicFilter, limit);
             } else {
-                // 전체 조회 - Native Query 사용
                 List<BroadcastEntity> broadcasts = broadcastRepository.findLiveBroadcastsForFrontendNative(
                         status, publicFilter, limit, 0);
                 result = broadcasts.stream()
@@ -90,18 +370,15 @@ public class BroadcastService {
      */
     private List<BroadcastDto.Response> getBroadcastsByProductCategoryImproved(Integer categoryId, String status, Boolean isPublic, int limit) {
         try {
-            // 먼저 해당 카테고리에 하위 카테고리가 있는지 확인
             List<Object[]> subCategories = broadcastRepository.findSubCategoriesByParentId(categoryId);
             boolean isParentCategory = !subCategories.isEmpty();
 
             List<BroadcastEntity> broadcasts = new ArrayList<>();
 
             if (isParentCategory) {
-                // 대분류인 경우: 하위 카테고리의 상품들이 포함된 방송 조회
                 broadcasts = broadcastRepository.findLiveBroadcastsByParentCategoryNative(
                         status, isPublic, categoryId, limit, 0);
             } else {
-                // 소분류인 경우: 직접 해당 카테고리의 상품이 포함된 방송 조회
                 broadcasts = broadcastRepository.findLiveBroadcastsByProductCategoryForFrontendNative(
                         status, isPublic, categoryId, limit, 0);
             }
@@ -113,7 +390,6 @@ public class BroadcastService {
         } catch (Exception e) {
             log.error("개선된 상품 카테고리 기반 조회 실패 - categoryId: {}", categoryId, e);
 
-            // fallback: 기본 조회 (방송 자체의 카테고리로 필터링)
             try {
                 List<BroadcastEntity> fallbackBroadcasts = broadcastRepository.findLiveBroadcastsByCategoryForFrontendNative(
                         status, isPublic, categoryId, limit, 0);
@@ -128,32 +404,6 @@ public class BroadcastService {
     }
 
     /**
-     * 상품 카테고리 기반 방송 조회 (Native Query 사용) - 호환성 유지
-     */
-    private List<BroadcastDto.Response> getBroadcastsByProductCategoryNative(Integer categoryId, String status, Boolean isPublic, int limit) {
-        try {
-            // Native Query를 사용하여 상품 카테고리 기준 방송 조회
-            List<BroadcastEntity> broadcasts = broadcastRepository.findLiveBroadcastsByProductCategoryForFrontendNative(
-                    status, isPublic, categoryId, limit, 0);
-
-            return broadcasts.stream()
-                    .map(this::convertToResponseDto)
-                    .collect(Collectors.toList());
-
-        } catch (Exception e) {
-            log.warn("상품 카테고리 기반 조회 실패 (Native Query), 기본 조회로 fallback - categoryId: {}", categoryId, e);
-
-            // fallback: 기본 조회 (방송 자체의 카테고리로 필터링)
-            List<BroadcastEntity> fallbackBroadcasts = broadcastRepository.findLiveBroadcastsByCategoryForFrontendNative(
-                    status, isPublic, categoryId, limit, 0);
-
-            return fallbackBroadcasts.stream()
-                    .map(this::convertToResponseDto)
-                    .collect(Collectors.toList());
-        }
-    }
-
-    /**
      * 방송 상세 조회
      */
     public BroadcastDto.DetailResponse getBroadcastDetail(Long broadcastId) {
@@ -164,7 +414,7 @@ public class BroadcastService {
     }
 
     /**
-     * 카테고리별 방송 목록 조회 (상품 카테고리 기준) - 개선된 로직 사용
+     * 카테고리별 방송 목록 조회 (상품 카테고리 기준)
      */
     public List<BroadcastDto.Response> getBroadcastsByCategory(Integer categoryId, String broadcastStatus, int limit) {
         String status = broadcastStatus != null ? broadcastStatus : "live";
@@ -193,7 +443,6 @@ public class BroadcastService {
             List<BroadcastEntity> broadcasts = broadcastRepository.findBroadcastScheduleByDateRange(
                     startOfDay, endOfDay);
 
-            // 시간별로 그룹핑
             Map<String, List<BroadcastDto.Response>> groupedByTime = broadcasts.stream()
                     .collect(Collectors.groupingBy(
                             broadcast -> {
@@ -229,12 +478,10 @@ public class BroadcastService {
         Map<String, Object> stats = new HashMap<>();
 
         try {
-            // 전체 통계
             long totalBroadcasts = broadcastRepository.count();
             long liveBroadcasts = broadcastRepository.countByBroadcastStatus("live");
             Long totalViewers = broadcastRepository.sumCurrentViewers();
 
-            // 카테고리별 통계 (상품 카테고리 기준)
             List<Object[]> categoryStats = broadcastRepository.findBroadcastCountByProductCategory();
 
             stats.put("totalBroadcasts", totalBroadcasts);
@@ -261,7 +508,6 @@ public class BroadcastService {
 
         broadcast.setCurrentViewers(viewerCount);
 
-        // 최대 시청자 수 업데이트
         if (viewerCount > broadcast.getPeakViewers()) {
             broadcast.setPeakViewers(viewerCount);
         }
@@ -314,22 +560,18 @@ public class BroadcastService {
         Map<String, Object> debugInfo = new HashMap<>();
 
         try {
-            // 1. 선택된 카테고리 정보 확인
             Optional<String> categoryName = broadcastRepository.findCategoryNameById(categoryId);
             debugInfo.put("selectedCategory", Map.of(
                     "categoryId", categoryId,
                     "categoryName", categoryName.orElse("없음")
             ));
 
-            // 2. 해당 카테고리의 상품 개수 확인
             Integer productCount = broadcastRepository.countProductsByCategory(categoryId);
             debugInfo.put("productCount", productCount);
 
-            // 3. 해당 카테고리 상품이 포함된 방송 개수 확인
             Integer broadcastCount = broadcastRepository.countBroadcastsByProductCategory(categoryId);
             debugInfo.put("broadcastCount", broadcastCount);
 
-            // 4. 실제 방송-상품-카테고리 매핑 데이터 확인
             List<Object[]> sampleData = broadcastRepository.findSampleBroadcastProductMapping(categoryId);
 
             List<Map<String, Object>> sampleMappings = sampleData.stream()
@@ -346,7 +588,6 @@ public class BroadcastService {
                     .collect(Collectors.toList());
             debugInfo.put("sampleMappings", sampleMappings);
 
-            // 5. 하위 카테고리가 있는지 확인
             List<Object[]> subCategories = broadcastRepository.findSubCategoriesByParentId(categoryId);
             debugInfo.put("subCategories", subCategories.stream()
                     .map(row -> {
@@ -357,7 +598,6 @@ public class BroadcastService {
                     })
                     .collect(Collectors.toList()));
 
-            // 6. 만약 대분류라면 하위 카테고리들의 상품이 포함된 방송도 확인
             if (!subCategories.isEmpty()) {
                 Integer subCategoryBroadcastCount = broadcastRepository.countBroadcastsByParentCategory(categoryId);
                 debugInfo.put("subCategoryBroadcastCount", subCategoryBroadcastCount);
@@ -375,14 +615,24 @@ public class BroadcastService {
     // ============ 변환 메소드들 ============
 
     /**
-     * 기존 DTO 변환 (알림 서비스용)
+     * 개선된 시간 표시 로직
+     */
+    private String getDisplayTime(BroadcastEntity broadcast) {
+        LocalDateTime displayTime = broadcast.getActualStartTime() != null ?
+                broadcast.getActualStartTime() : broadcast.getScheduledStartTime();
+
+        return displayTime.format(DateTimeFormatter.ofPattern("HH:mm"));
+    }
+
+    /**
+     * 개선된 AlarmDto 변환 (방송 상태 포함)
      */
     private BroadcastDto.AlarmDto convertToAlarmDto(BroadcastEntity entity) {
         return BroadcastDto.AlarmDto.builder()
                 .id(entity.getBroadcastId())
                 .title(entity.getTitle())
                 .thumbnailUrl(entity.getThumbnailUrl())
-                .broadcasterName("방송자" + entity.getBroadcasterId())
+                .broadcasterName(getBroadcasterName(entity.getBroadcasterId()))
                 .productName(entity.getDescription())
                 .salePrice(generateRandomPrice())
                 .status(entity.getBroadcastStatus())
@@ -412,30 +662,6 @@ public class BroadcastService {
                 .peakViewers(entity.getPeakViewers())
                 .build();
     }
-
-    /**
-     * 카테고리명이 이미 조회된 경우 사용하는 변환 메소드
-     */
-    private BroadcastDto.Response convertToResponseDtoWithCategory(BroadcastEntity entity, String categoryName) {
-        return BroadcastDto.Response.builder()
-                .broadcastId(entity.getBroadcastId())
-                .broadcasterId(entity.getBroadcasterId())
-                .broadcasterName(getBroadcasterName(entity.getBroadcasterId()))
-                .title(entity.getTitle())
-                .description(entity.getDescription())
-                .broadcastStatus(entity.getBroadcastStatus())
-                .actualStartTime(entity.getActualStartTime())
-                .currentViewers(entity.getCurrentViewers())
-                .likeCount(entity.getLikeCount())
-                .categoryId(entity.getCategoryId())
-                .categoryName(categoryName) // 이미 조회된 카테고리명 사용
-                .tags(entity.getTags())
-                .thumbnailUrl(entity.getThumbnailUrl())
-                .totalViewers(entity.getTotalViewers())
-                .peakViewers(entity.getPeakViewers())
-                .build();
-    }
-
 
     /**
      * 프론트엔드용 DetailResponse DTO 변환
@@ -471,7 +697,6 @@ public class BroadcastService {
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .build();
-
     }
 
     /**
@@ -498,7 +723,6 @@ public class BroadcastService {
         if (categoryId == null) return "일반";
 
         try {
-            // 실제 카테고리 정보를 조회하는 쿼리 실행
             Optional<String> categoryName = broadcastRepository.findCategoryNameById(categoryId);
             return categoryName.orElse("카테고리" + categoryId);
         } catch (Exception e) {

@@ -192,14 +192,14 @@ services:
       retries: 3
       start_period: 60s
 
-  # 인증 서비스
+  # 인증 서비스 (3개 인스턴스)
   auth-service:
     build:
       context: ./auth-service
       dockerfile: Dockerfile
-    container_name: shopmall-auth
+    # container_name 제거됨 - 다중 인스턴스용
     ports:
-      - "8082:8082"
+      - "8082-8084:8082"  # 3개 인스턴스용 포트 범위
     environment:
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
       - EUREKA_CLIENT_SERVICE_URL=http://eureka-service:8761/eureka
@@ -218,6 +218,7 @@ services:
       - PROD_JWT_SECRET_KEY=${PROD_JWT_SECRET_KEY}
       - JAVA_OPTS=-Xmx80m -Xms40m -XX:+UseG1GC
     deploy:
+      replicas: 3  # 3개 인스턴스
       resources:
         limits:
           memory: 112M
@@ -243,14 +244,14 @@ services:
       retries: 3
       start_period: 60s
 
-  # 사용자 서비스
+  # 사용자 서비스 (3개 인스턴스)
   user-service:
     build:
       context: ./user-service
       dockerfile: Dockerfile
-    container_name: shopmall-user
+    # container_name 제거됨 - 다중 인스턴스용
     ports:
-      - "8103:8103"
+      - "8103-8105:8103"  # 3개 인스턴스용 포트 범위
     environment:
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
       - EUREKA_CLIENT_SERVICE_URL=http://eureka-service:8761/eureka
@@ -269,6 +270,7 @@ services:
       - PROD_AUTH_SERVICE_URL=${PROD_AUTH_SERVICE_URL:-http://auth-service}
       - JAVA_OPTS=-Xmx80m -Xms40m -XX:+UseG1GC
     deploy:
+      replicas: 3  # 3개 인스턴스
       resources:
         limits:
           memory: 112M
@@ -296,14 +298,14 @@ services:
       retries: 3
       start_period: 60s
 
-  # 커머스 서비스
+  # 커머스 서비스 (3개 인스턴스)
   commerce-service:
     build:
       context: ./commerce-service
       dockerfile: Dockerfile
-    container_name: shopmall-commerce
+    # container_name 제거됨 - 다중 인스턴스용
     ports:
-      - "8090:8090"
+      - "8090-8092:8090"  # 3개 인스턴스용 포트 범위
     environment:
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
       - EUREKA_CLIENT_SERVICE_URL=http://eureka-service:8761/eureka
@@ -325,6 +327,7 @@ services:
       - PROD_IMAGE_BASE_URL=${PROD_IMAGE_BASE_URL}
       - JAVA_OPTS=-Xmx96m -Xms48m -XX:+UseG1GC
     deploy:
+      replicas: 3  # 3개 인스턴스
       resources:
         limits:
           memory: 128M
@@ -352,14 +355,14 @@ services:
       retries: 3
       start_period: 60s
 
-  # 라이브 스트리밍 서비스
+  # 라이브 스트리밍 서비스 (2개 인스턴스)
   live-streaming-service:
     build:
       context: ./live-streaming-service
       dockerfile: Dockerfile
-    container_name: shopmall-live
+    # container_name 제거됨 - 다중 인스턴스용
     ports:
-      - "8096:8096"
+      - "8096-8097:8096"  # 2개 인스턴스용 포트 범위
     environment:
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
       - EUREKA_CLIENT_SERVICE_URL=http://eureka-service:8761/eureka
@@ -377,6 +380,7 @@ services:
       - PROD_KAFKA_SERVERS=${PROD_KAFKA_SERVERS:-kafka:9092}
       - JAVA_OPTS=-Xmx128m -Xms64m -XX:+UseG1GC
     deploy:
+      replicas: 2  # 2개 인스턴스 (WebSocket 특성상 적게 설정)
       resources:
         limits:
           memory: 160M
@@ -404,7 +408,7 @@ services:
       retries: 3
       start_period: 60s
 
-  # API Gateway
+  # API Gateway (단일 인스턴스 유지)
   apigateway-service:
     build:
       context: ./apigateway-service
@@ -436,13 +440,13 @@ services:
       config-service:
         condition: service_healthy
       auth-service:
-        condition: service_healthy
+        condition: service_started
       user-service:
-        condition: service_healthy
+        condition: service_started
       commerce-service:
-        condition: service_healthy
+        condition: service_started
       live-streaming-service:
-        condition: service_healthy
+        condition: service_started
     networks:
       - msa-network
     restart: unless-stopped
@@ -553,6 +557,7 @@ volumes:
 # 사용법:
 # 기본 실행 (MSA 서비스만): docker-compose up -d
 # 모니터링 포함: docker-compose --profile monitoring up -d
+# 특정 서비스 스케일 조정: docker-compose up -d --scale auth-service=5
 # ======================
 
 # ======================

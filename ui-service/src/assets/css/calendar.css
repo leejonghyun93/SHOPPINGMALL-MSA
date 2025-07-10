@@ -1,29 +1,36 @@
+/* ===== 기존 스타일 유지 및 개선 ===== */
+
 .calendar-container {
     background-color: #f8f9fa;
     border-bottom: 1px solid #dee2e6;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .calendar-date-item {
     border: 1px solid transparent;
     background-color: white;
     margin: 0 1px;
+    transition: all 0.2s ease;
 }
 
 .calendar-date-item:hover {
     background-color: #e9ecef;
     border-color: #ced4da;
+    transform: translateY(-1px);
 }
 
 .today-date {
     background-color: white !important;
     color: #dc3545 !important;
     border-color: #dc3545 !important;
+    font-weight: bold;
 }
 
 .selected-date {
     background-color: #dc3545 !important;
     color: white !important;
     border-color: #dc3545 !important;
+    font-weight: bold;
 }
 
 .normal-date {
@@ -40,14 +47,35 @@
     min-height: 400px;
 }
 
+/* ===== 🔥 방송 아이템 개선 ===== */
+
 .broadcast-item {
     cursor: pointer;
     transition: all 0.2s ease;
     border-bottom: 1px solid #e9ecef;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    background-color: white;
 }
 
 .broadcast-item:hover {
     background-color: #f8f9fa;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    transform: translateY(-1px);
+}
+
+/* 🔥 라이브 방송 스타일 */
+.broadcast-item.live-broadcast {
+    border-left: 4px solid #dc3545 !important;
+    background: linear-gradient(135deg, #fff 0%, #fff5f5 100%);
+    animation: pulse-border 2s infinite;
+}
+
+@keyframes pulse-border {
+    0% { border-left-color: #dc3545; }
+    50% { border-left-color: #ff6b6b; }
+    100% { border-left-color: #dc3545; }
 }
 
 .broadcast-item.past-broadcast {
@@ -57,7 +85,10 @@
 
 .broadcast-item.past-broadcast:hover {
     background-color: #e9ecef !important;
+    opacity: 0.9;
 }
+
+/* ===== 시간 표시 영역 개선 ===== */
 
 .time-display {
     width: 70px;
@@ -65,12 +96,43 @@
     background-color: white;
     border-right: 1px solid #e9ecef;
     position: relative;
+    border-radius: 6px 0 0 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
 }
 
 .time-text {
     font-size: 18px;
     font-weight: bold;
     color: #333;
+}
+
+/* 🔥 상태 표시기 개선 */
+.status-indicator {
+    margin-top: 4px;
+}
+
+.status-indicator .text-danger {
+    color: #dc3545 !important;
+    font-weight: bold;
+    animation: blink 1.5s infinite;
+}
+
+@keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0.6; }
+}
+
+.status-indicator .text-warning {
+    color: #ffc107 !important;
+    font-weight: bold;
+}
+
+.status-indicator .text-muted {
+    color: #6c757d !important;
 }
 
 .past-indicator {
@@ -80,17 +142,59 @@
     transform: translateX(-50%);
 }
 
+/* ===== 썸네일 영역 개선 ===== */
+
 .broadcast-thumbnail {
     position: relative;
     width: 160px;
     height: 120px;
     flex-shrink: 0;
+    border-radius: 6px;
+    overflow: hidden;
 }
 
 .broadcast-thumbnail img {
     width: 100%;
     height: 100%;
     object-fit: cover;
+}
+
+/* 🔥 썸네일 오버레이 개선 */
+.live-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(220, 53, 69, 0.9) 0%, rgba(255, 107, 107, 0.9) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 14px;
+    color: white;
+    animation: live-pulse 2s infinite;
+}
+
+@keyframes live-pulse {
+    0% { background: rgba(220, 53, 69, 0.9); }
+    50% { background: rgba(255, 107, 107, 0.9); }
+    100% { background: rgba(220, 53, 69, 0.9); }
+}
+
+.paused-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 193, 7, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 14px;
+    color: white;
 }
 
 .past-overlay {
@@ -104,7 +208,10 @@
     align-items: center;
     justify-content: center;
     font-size: 1.2rem;
+    color: white;
 }
+
+/* ===== 방송 정보 영역 개선 ===== */
 
 .broadcast-info {
     padding: 12px 16px;
@@ -122,21 +229,39 @@
     line-height: 1.3;
 }
 
+/* 🔥 라이브 방송 제목 스타일 */
+.broadcast-title.text-danger {
+    color: #dc3545 !important;
+}
+
+/* 🔥 액션 버튼 영역 개선 */
+.broadcast-action {
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* ===== 알림 버튼 개선 ===== */
+
 .notification-btn-new {
     border: 1px solid #ff6b6b;
     background-color: white;
     color: #ff6b6b;
-    padding: 4px 12px;
+    padding: 6px 12px;
     border-radius: 20px;
     font-size: 12px;
-    margin-bottom: 12px;
+    font-weight: 500;
     align-self: flex-start;
     transition: all 0.2s ease;
+    cursor: pointer;
 }
 
 .notification-btn-new:hover {
     background-color: #ff6b6b;
     color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(255, 107, 107, 0.3);
 }
 
 .notification-btn-new.notification-active {
@@ -145,14 +270,99 @@
     color: white;
 }
 
+.notification-btn-new.notification-active:hover {
+    background-color: #1e7e34;
+    border-color: #1e7e34;
+}
+
 .notification-btn-new:disabled {
     opacity: 0.6;
     cursor: not-allowed;
 }
 
+.notification-btn-new:disabled:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+/* 🔥 시청하기 버튼 */
+.btn-danger {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    border: none;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    padding: 6px 12px;
+    font-size: 12px;
+    border-radius: 4px;
+}
+
+.btn-danger:hover {
+    background: linear-gradient(135deg, #c82333 0%, #a71e2a 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(220,53,69,0.3);
+}
+
+/* 🔥 다시보기 버튼 */
+.btn-outline-primary {
+    border-color: #007bff;
+    color: #007bff;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    padding: 4px 8px;
+    font-size: 11px;
+    border-radius: 4px;
+}
+
+.btn-outline-primary:hover {
+    background-color: #007bff;
+    border-color: #007bff;
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,123,255,0.3);
+}
+
+/* ===== 상태 뱃지 개선 ===== */
+
+.badge {
+    font-size: 11px;
+    font-weight: 500;
+    padding: 4px 8px;
+    border-radius: 12px;
+}
+
+.badge.bg-danger {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%) !important;
+    animation: live-badge-pulse 2s infinite;
+}
+
+@keyframes live-badge-pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.badge.bg-warning {
+    background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%) !important;
+    color: #212529 !important;
+}
+
+.badge.bg-secondary {
+    background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%) !important;
+}
+
+/* ===== 기존 상품/방송자 정보 유지 ===== */
+
 .past-broadcast-status {
-    margin-bottom: 12px;
     align-self: flex-start;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.paused-broadcast-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .product-section {
@@ -180,4 +390,138 @@
 .broadcaster-name {
     font-size: 12px;
     color: #666;
+}
+
+/* ===== 🔥 방송 없음 상태 개선 ===== */
+
+.no-broadcasts {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 12px;
+    margin: 20px 0;
+    padding: 40px 20px;
+    text-align: center;
+}
+
+.no-broadcasts .display-4 {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+/* ===== 반응형 디자인 ===== */
+
+@media (max-width: 768px) {
+    .broadcast-item {
+        padding: 8px;
+        margin-bottom: 8px;
+    }
+
+    .broadcast-thumbnail {
+        width: 120px;
+        height: 90px;
+    }
+
+    .time-display {
+        width: 60px;
+        height: 90px;
+        padding: 6px;
+    }
+
+    .time-text {
+        font-size: 14px;
+    }
+
+    .broadcast-title {
+        font-size: 14px;
+    }
+
+    .notification-btn-new {
+        padding: 4px 8px;
+        font-size: 11px;
+    }
+
+    .calendar-date-item {
+        min-width: 45px;
+        height: 60px;
+    }
+}
+
+@media (max-width: 576px) {
+    .broadcast-thumbnail {
+        width: 100px;
+        height: 75px;
+    }
+
+    .time-display {
+        width: 50px;
+        height: 75px;
+    }
+
+    .time-text {
+        font-size: 12px;
+    }
+
+    .broadcast-info {
+        padding: 8px 12px;
+    }
+}
+
+/* ===== 접근성 및 사용자 경험 개선 ===== */
+
+/* 포커스 표시 (키보드 접근성) */
+.broadcast-item:focus,
+.notification-btn-new:focus,
+.calendar-date-item:focus {
+    outline: 2px solid #007bff;
+    outline-offset: 2px;
+}
+
+/* 애니메이션 줄이기 옵션 */
+@media (prefers-reduced-motion: reduce) {
+    .broadcast-item,
+    .notification-btn-new,
+    .calendar-date-item {
+        transition: none !important;
+        animation: none !important;
+    }
+
+    .live-broadcast {
+        animation: none !important;
+    }
+
+    .live-overlay {
+        animation: none !important;
+    }
+
+    .badge.bg-danger {
+        animation: none !important;
+    }
+}
+
+/* 터치 디바이스 최적화 */
+@media (hover: none) and (pointer: coarse) {
+    .notification-btn-new {
+        padding: 8px 16px;
+        font-size: 14px;
+        min-height: 44px; /* 터치 타겟 최소 크기 */
+    }
+
+    .btn-danger {
+        padding: 8px 16px;
+        font-size: 14px;
+        min-height: 44px;
+    }
+
+    .calendar-date-item {
+        min-width: 60px;
+        height: 75px;
+    }
+}
+
+/* 로딩 상태 */
+.spinner-border {
+    animation: spinner-border 0.75s linear infinite;
+}
+
+@keyframes spinner-border {
+    to { transform: rotate(360deg); }
 }

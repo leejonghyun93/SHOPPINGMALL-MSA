@@ -92,69 +92,71 @@
     </div>
   </div>
 
+  <!-- 🔥 실제 데이터로 변경된 방송 리스트 -->
   <div class="broadcast-scroll-container">
-    <div class="broadcast-list">
+    <!-- 로딩 상태 -->
+    <div v-if="broadcastsLoading" class="broadcasts-loading">
+      <div class="loading-spinner"></div>
+      <p>라이브 방송을 불러오는 중...</p>
+    </div>
+
+    <!-- 방송 리스트 -->
+    <div v-else-if="liveBroadcasts.length > 0" class="broadcast-list">
       <div
           v-for="broadcast in liveBroadcasts.slice(0, 10)"
-          :key="broadcast.broadcast_id"
+          :key="broadcast.broadcastId || broadcast.broadcast_id"
           class="broadcast-card"
-          @click="goToBroadcast(broadcast.broadcast_id)"
+          @click="goToBroadcast(broadcast)"
       >
         <div class="broadcast-thumbnail">
           <img
-              :src="broadcast.thumbnail_url || `https://picsum.photos/seed/${broadcast.broadcast_id}/300/200`"
+              :src="broadcast.thumbnailUrl || getDefaultThumbnail(broadcast.broadcastId || broadcast.broadcast_id)"
               :alt="broadcast.title"
               class="thumbnail-image"
+              @error="handleImageError"
           />
 
           <div class="live-badge">
             <span class="live-dot"></span>
-            LIVE
+            {{ getBroadcastStatusText(broadcast.broadcastStatus) }}
           </div>
 
           <div class="viewer-count">
-            <span class="viewer-icon">👥</span>
-            {{ formatViewerCount(broadcast.current_viewers) }}
+            <i class="fas fa-users viewer-icon"></i>
+            {{ formatViewerCount(broadcast.currentViewers) }}
           </div>
 
-          <div class="broadcast-time">
-            {{ getBroadcastDuration(broadcast.actual_start_time) }}
-          </div>
         </div>
 
         <div class="broadcast-info">
           <h3 class="broadcast-title">{{ broadcast.title }}</h3>
-          <p class="broadcast-description">{{ broadcast.description }}</p>
+          <p class="broadcast-description">{{ broadcast.description || '방송 설명이 없습니다.' }}</p>
 
           <div class="broadcaster-info">
             <div class="broadcaster-avatar">
               <img
-                  :src="`https://picsum.photos/seed/user${broadcast.broadcaster_id}/40/40`"
-                  :alt="broadcast.broadcaster_name"
+                  :src="getBroadcasterAvatar(broadcast.broadcasterId)"
+                  :alt="broadcast.broadcasterName"
                   class="avatar-image"
+                  @error="handleAvatarError"
               />
             </div>
-            <span class="broadcaster-name">{{ broadcast.broadcaster_name }}</span>
+            <span class="broadcaster-name">{{ broadcast.broadcasterName || '방송자' }}</span>
           </div>
 
           <div class="broadcast-tags">
-            <span class="category-tag">{{ broadcast.category }}</span>
+            <span class="category-tag">{{ broadcast.categoryName || '일반' }}</span>
             <span v-if="broadcast.tags" class="tags">
-            {{ broadcast.tags.split(',').slice(0, 2).join(', ') }}
-          </span>
+              {{ formatTags(broadcast.tags) }}
+            </span>
           </div>
 
-          <div class="broadcast-stats">
-          <span class="like-count">
-            <span class="heart-icon">❤️</span>
-            {{ broadcast.like_count }}
-          </span>
-          </div>
         </div>
       </div>
     </div>
 
-    <div v-if="liveBroadcasts.length === 0" class="no-broadcasts">
+    <!-- 방송이 없을 때 -->
+    <div v-else class="no-broadcasts">
       <div class="no-broadcast-icon">📺</div>
       <h3>현재 진행 중인 라이브 방송이 없습니다</h3>
       <p>잠시 후 다시 확인해주세요!</p>
@@ -238,85 +240,14 @@ const categories = ref([])
 const popularProducts = ref([])
 const productsLoading = ref(false)
 
-const images = ref([
-  { src: "https://picsum.photos/seed/1/800/400", alt: "특별 이벤트", title: "6/13 라이브" },
-  { src: "https://picsum.photos/seed/2/800/400", alt: "신제품 출시", title: "다우니 신제품" },
-  { src: "https://picsum.photos/seed/3/800/400", alt: "무료배송", title: "무료배송 이벤트" },
-  { src: "https://picsum.photos/seed/4/800/400", alt: "회원 혜택", title: "회원 전용 할인" },
-  { src: "https://picsum.photos/seed/5/800/400", alt: "할인 상품", title: "타임세일" },
-])
+// 🔥 실제 방송 데이터 관련 상태
+const liveBroadcasts = ref([])
+const broadcastsLoading = ref(false)
 
-const liveBroadcasts = ref([
-  {
-    broadcast_id: 1,
-    broadcaster_id: 101,
-    broadcaster_name: "라이프 쇼핑",
-    title: "삼에서 먹어도 제맛! 전복죽 달인",
-    description: "전복죽 만들기의 모든 것! 지금 특가로 만나보세요",
-    broadcast_status: "live",
-    actual_start_time: "2025-06-24T14:30:00",
-    current_viewers: 134,
-    like_count: 89,
-    category: "푸드",
-    tags: "전복죽,간편식,건강식",
-    thumbnail_url: null
-  },
-  {
-    broadcast_id: 2,
-    broadcaster_id: 102,
-    broadcaster_name: "닥터안에그",
-    title: "[1+1]닥터안에그 무황성계 30구",
-    description: "신선한 계란을 특가로! 지금 주문하면 1+1 혜택",
-    broadcast_status: "live",
-    actual_start_time: "2025-06-24T15:00:00",
-    current_viewers: 89,
-    like_count: 45,
-    category: "신선식품",
-    tags: "계란,1+1,특가",
-    thumbnail_url: null
-  },
-  {
-    broadcast_id: 3,
-    broadcaster_id: 103,
-    broadcaster_name: "라이브 특가",
-    title: "엄마 손맛 그 자체! 순두부찌개",
-    description: "집에서 쉽게 만드는 순두부찌개 레시피와 재료 세트",
-    broadcast_status: "live",
-    actual_start_time: "2025-06-24T13:45:00",
-    current_viewers: 71,
-    like_count: 112,
-    category: "간편식",
-    tags: "순두부찌개,집밥,간편식",
-    thumbnail_url: null
-  },
-  {
-    broadcast_id: 4,
-    broadcaster_id: 104,
-    broadcaster_name: "글램핑 한돈깔비",
-    title: "글램핑 한돈깔비❤️ 특가방송",
-    description: "프리미엄 한돈으로 만든 깔비! 글램핑 분위기까지",
-    broadcast_status: "live",
-    actual_start_time: "2025-06-24T16:15:00",
-    current_viewers: 156,
-    like_count: 203,
-    category: "정육",
-    tags: "한돈,깔비,글램핑,특가",
-    thumbnail_url: null
-  },
-  {
-    broadcast_id: 5,
-    broadcaster_id: 105,
-    broadcaster_name: "쪽쪽쪽주",
-    title: "[쪽쪽쪽주] 우욱짬 인기상품",
-    description: "인기 상품들을 한번에! 쪽쪽쪽주 스페셜 라이브",
-    broadcast_status: "live",
-    actual_start_time: "2025-06-24T14:00:00",
-    current_viewers: 267,
-    like_count: 89,
-    category: "종합",
-    tags: "인기상품,스페셜,할인",
-    thumbnail_url: null
-  }
+const images = ref([
+  { src: "/images/banners/1.jpg", alt: "특별 이벤트", title: "7/23일 행사" },
+  { src: "/images/banners/2.jpg", alt: "신제품 출시", title: "피자 할인" },
+  { src: "/images/banners/3.jpg", alt: "무료배송", title: "핫 이벤트" },
 ])
 
 const prevIndex = computed(() => (currentIndex.value - 1 + images.value.length) % images.value.length)
@@ -352,6 +283,94 @@ const getIconForCategory = (category) => {
   return null;
 };
 
+// 🔥 실제 라이브 방송 데이터 가져오기
+const fetchLiveBroadcasts = async () => {
+  try {
+    broadcastsLoading.value = true
+
+    // 라이브 스트리밍 서비스 API 호출
+    const response = await apiClient.get('/api/broadcasts/live', {
+      params: {
+        broadcast_status: 'live',
+        is_public: 1,
+        limit: 10
+      },
+      withAuth: false
+    })
+
+    if (response.data && Array.isArray(response.data)) {
+      // 시청자 수 높은 순으로 정렬 (이미 백엔드에서 정렬되어 오지만 확실히 하기 위해)
+      liveBroadcasts.value = response.data
+          .sort((a, b) => (b.currentViewers || 0) - (a.currentViewers || 0))
+          .slice(0, 10) // 상위 10개만
+
+      console.log('라이브 방송 데이터 로드 완료:', liveBroadcasts.value.length, '개')
+    } else {
+      liveBroadcasts.value = []
+    }
+  } catch (error) {
+    console.error('라이브 방송 데이터 로드 실패:', error)
+    liveBroadcasts.value = []
+  } finally {
+    broadcastsLoading.value = false
+  }
+}
+
+// 🔥 방송 관련 유틸리티 함수들
+const getBroadcastStatusText = (status) => {
+  const statusMap = {
+    'live': 'LIVE',
+    'starting': '시작중',
+    'paused': '일시정지',
+    'scheduled': '예정',
+    'ended': '종료',
+    'cancelled': '취소'
+  }
+  return statusMap[status] || 'LIVE'
+}
+
+const getDefaultThumbnail = (broadcastId) => {
+  return `https://picsum.photos/seed/${broadcastId}/300/200`
+}
+
+const getBroadcasterAvatar = (broadcasterId) => {
+  return `https://picsum.photos/seed/user${broadcasterId}/40/40`
+}
+
+const formatTags = (tags) => {
+  if (!tags) return ''
+  return tags.split(',').slice(0, 2).join(', ')
+}
+
+const getBroadcastDuration = (startTime) => {
+  if (!startTime) return '진행 중'
+
+  const start = new Date(startTime)
+  const now = new Date()
+  const diffMinutes = Math.floor((now - start) / (1000 * 60))
+
+  if (diffMinutes < 60) {
+    return `${diffMinutes}분`
+  } else {
+    const hours = Math.floor(diffMinutes / 60)
+    const minutes = diffMinutes % 60
+    return `${hours}시간 ${minutes}분`
+  }
+}
+
+const goToBroadcast = (broadcast) => {
+  const broadcastId = broadcast.broadcastId || broadcast.broadcast_id
+  if (broadcastId) {
+    router.push({
+      name: 'LiveBroadcastViewer',
+      params: { broadcastId: String(broadcastId) }
+    })
+  } else {
+    alert('방송 정보를 찾을 수 없습니다.')
+  }
+}
+
+// 캐러셀 관련 함수들
 const nextSlide = () => {
   currentIndex.value = nextIndex.value
 }
@@ -502,6 +521,10 @@ const handleImageError = (event) => {
   img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzZiNzI4MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIEVycm9yPC90ZXh0Pjwvc3ZnPg=='
 }
 
+const handleAvatarError = (event) => {
+  event.target.src = '/default-avatar.jpg'
+}
+
 const goToCategory = (categoryId) => {
   if (categoryId === 'ALL') {
     router.push('/category/')
@@ -514,9 +537,6 @@ const goToProduct = (product) => {
   router.push(`/product/${product.id}`)
 }
 
-const goToBroadcast = (broadcastId) => {
-}
-
 const formatPrice = (price) => {
   return (price || 0).toLocaleString()
 }
@@ -525,34 +545,42 @@ const formatViewerCount = (count) => {
   if (count >= 1000) {
     return `${(count / 1000).toFixed(1)}k`
   }
-  return count.toString()
+  return count?.toString() || '0'
 }
 
-const getBroadcastDuration = (startTime) => {
-  const start = new Date(startTime)
-  const now = new Date()
-  const diffMinutes = Math.floor((now - start) / (1000 * 60))
+// 🔥 자동 새로고침 추가 (방송 데이터용)
+let broadcastRefreshInterval = null
 
-  if (diffMinutes < 60) {
-    return `${diffMinutes}분`
-  } else {
-    const hours = Math.floor(diffMinutes / 60)
-    const minutes = diffMinutes % 60
-    return `${hours}시간 ${minutes}분`
+const startBroadcastAutoRefresh = () => {
+  broadcastRefreshInterval = setInterval(() => {
+    fetchLiveBroadcasts()
+  }, 30000) // 30초마다 방송 데이터 새로고침
+}
+
+const stopBroadcastAutoRefresh = () => {
+  if (broadcastRefreshInterval) {
+    clearInterval(broadcastRefreshInterval)
+    broadcastRefreshInterval = null
   }
 }
 
 onMounted(async () => {
   if (isAutoPlay.value) startAutoPlay()
 
+  // 🔥 모든 데이터 로드 (방송 데이터 추가)
   await Promise.all([
     fetchCategories(),
-    fetchPopularProducts()
+    fetchPopularProducts(),
+    fetchLiveBroadcasts() // 실제 방송 데이터 로드
   ])
+
+  // 🔥 방송 데이터 자동 새로고침 시작
+  startBroadcastAutoRefresh()
 })
 
 onUnmounted(() => {
   stopAutoPlay()
+  stopBroadcastAutoRefresh() // 🔥 방송 자동 새로고침 정리
 })
 </script>
 

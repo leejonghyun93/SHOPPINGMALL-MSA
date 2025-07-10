@@ -1,5 +1,9 @@
 package org.kosa.authservice.service;
 
+
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
+import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.kosa.authservice.dto.*;
@@ -13,6 +17,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
@@ -28,6 +33,13 @@ public class AuthService {
     private final RestTemplate restTemplate;
 
     private final Map<String, String> resetCodes = new ConcurrentHashMap<>();
+
+    @CircuitBreaker(name = "authService", fallbackMethod = "loginFallback")
+    @Retry(name = "authService")
+    @TimeLimiter(name = "authService")
+    public CompletableFuture<AuthResponse> loginAsync(String userId, String password) {
+        return CompletableFuture.supplyAsync(() -> login(userId, password));
+    }
 
     public AuthResponse login(String userId, String password) {
         try {
@@ -62,9 +74,8 @@ public class AuthService {
 
             cacheUserSessionInUserService(userId);
 
-            // 🔥 이름을 포함하여 토큰 생성
             String actualName = determineUserName(user);
-            log.info("🔍 일반 로그인 토큰 생성 - userId: {}, name: '{}'", user.getUserId(), actualName);
+            log.info("일반 로그인 토큰 생성 - userId: {}, name: '{}'", user.getUserId(), actualName);
 
             String accessToken = jwtUtil.generateToken(user.getUserId(), "USER", actualName);
             String refreshToken = jwtUtil.generateRefreshToken(user.getUserId());
@@ -75,34 +86,28 @@ public class AuthService {
                     .token(accessToken)
                     .userId(userId)
                     .username(user.getUserId())
-                    .name(actualName) // 🔥 응답에도 이름 포함
+                    .name(actualName)
                     .email(user.getEmail())
                     .phone(user.getPhone())
                     .build();
 
         } catch (Exception e) {
             log.error("로그인 처리 실패: userId={}, error={}", userId, e.getMessage(), e);
-            return AuthResponse.builder()
-                    .success(false)
-                    .message("로그인 처리 중 오류가 발생했습니다.")
-                    .build();
+            throw new RuntimeException("로그인 처리 중 오류가 발생했습니다.");
         }
     }
 
-    /**
-     * 🔥 사용자 이름 결정 로직
-     */
     private String determineUserName(UserDto user) {
-        // 1. DB에서 가져온 이름이 유효하면 사용
         if (user.getName() != null && !user.getName().trim().isEmpty() &&
                 !user.getName().equals("사용자") && !user.getName().equals("소셜사용자")) {
             return user.getName().trim();
         }
 
-        // 2. 이름이 없으면 userId를 이름으로 사용
         return user.getUserId();
     }
 
+    @CircuitBreaker(name = "userService", fallbackMethod = "cacheUserSessionInUserServiceFallback")
+    @Retry(name = "userService")
     private void cacheUserSessionInUserService(String userId) {
         try {
             String url = userServiceUrl + "/api/users/cache/" + userId;
@@ -123,9 +128,12 @@ public class AuthService {
             }
         } catch (Exception e) {
             log.error("User Service 캐시 저장 요청 실패: userId={}, error={}", userId, e.getMessage());
+            throw new RuntimeException("사용자 세션 캐시 저장 실패: " + e.getMessage());
         }
     }
 
+    @CircuitBreaker(name = "authService", fallbackMethod = "validateTokenFallback")
+    @Retry(name = "authService")
     public AuthResponse validateToken(String token) {
         try {
             if (token == null || token.trim().isEmpty()) {
@@ -187,13 +195,12 @@ public class AuthService {
             }
         } catch (Exception e) {
             log.error("토큰 검증 실패: {}", e.getMessage());
-            return AuthResponse.builder()
-                    .success(false)
-                    .message("토큰 검증 중 오류가 발생했습니다")
-                    .build();
+            throw new RuntimeException("토큰 검증 중 오류가 발생했습니다");
         }
     }
 
+    @CircuitBreaker(name = "userService", fallbackMethod = "getUserFromUserServiceSessionFallback")
+    @Retry(name = "userService")
     private UserDto getUserFromUserServiceSession(String userId) {
         try {
             String url = userServiceUrl + "/api/users/session/" + userId;
@@ -230,10 +237,12 @@ public class AuthService {
 
         } catch (Exception e) {
             log.error("세션 조회 중 오류: userId={}, error={}", userId, e.getMessage());
-            return null;
+            throw new RuntimeException("세션 조회 실패: " + e.getMessage());
         }
     }
 
+    @CircuitBreaker(name = "authService", fallbackMethod = "refreshTokenFallback")
+    @Retry(name = "authService")
     public AuthResponse refreshToken(String refreshToken) {
         try {
             if (refreshToken == null || refreshToken.trim().isEmpty()) {
@@ -255,10 +264,7 @@ public class AuthService {
                     .build();
         } catch (Exception e) {
             log.error("토큰 갱신 실패: {}", e.getMessage());
-            return AuthResponse.builder()
-                    .success(false)
-                    .message("토큰 갱신에 실패했습니다")
-                    .build();
+            throw new RuntimeException("토큰 갱신에 실패했습니다");
         }
     }
 
@@ -281,6 +287,8 @@ public class AuthService {
         }
     }
 
+    @CircuitBreaker(name = "userService", fallbackMethod = "getUserProfileFallback")
+    @Retry(name = "userService")
     public AuthResponse getUserProfile(String userId) {
         try {
             if (userId == null || userId.trim().isEmpty()) {
@@ -309,13 +317,12 @@ public class AuthService {
             }
         } catch (Exception e) {
             log.error("사용자 정보 조회 실패: {}", e.getMessage());
-            return AuthResponse.builder()
-                    .success(false)
-                    .message("사용자 정보 조회 중 오류가 발생했습니다")
-                    .build();
+            throw new RuntimeException("사용자 정보 조회 중 오류가 발생했습니다");
         }
     }
 
+    @CircuitBreaker(name = "userService", fallbackMethod = "findPasswordFallback")
+    @Retry(name = "userService")
     public AuthResponse findPassword(FindPasswordRequest request) {
         try {
             if (request == null || request.getUserid() == null || request.getEmail() == null) {
@@ -351,10 +358,7 @@ public class AuthService {
 
         } catch (Exception e) {
             log.error("비밀번호 찾기 실패: {}", e.getMessage());
-            return AuthResponse.builder()
-                    .success(false)
-                    .message("비밀번호 찾기 처리 중 오류가 발생했습니다.")
-                    .build();
+            throw new RuntimeException("비밀번호 찾기 처리 중 오류가 발생했습니다.");
         }
     }
 
@@ -396,6 +400,8 @@ public class AuthService {
         }
     }
 
+    @CircuitBreaker(name = "userService", fallbackMethod = "resetPasswordFallback")
+    @Retry(name = "userService")
     public AuthResponse resetPassword(ResetPasswordRequest request) {
         try {
             if (request == null || request.getUserid() == null ||
@@ -439,13 +445,12 @@ public class AuthService {
 
         } catch (Exception e) {
             log.error("비밀번호 재설정 실패: {}", e.getMessage());
-            return AuthResponse.builder()
-                    .success(false)
-                    .message("비밀번호 재설정 중 오류가 발생했습니다.")
-                    .build();
+            throw new RuntimeException("비밀번호 재설정 중 오류가 발생했습니다.");
         }
     }
 
+    @CircuitBreaker(name = "userService", fallbackMethod = "getUserFromUserServiceFallback")
+    @Retry(name = "userService")
     private UserDto getUserFromUserService(String userId) {
         try {
             String url = userServiceUrl + "/api/users/" + userId;
@@ -458,14 +463,16 @@ public class AuthService {
                 return response.getBody();
             } else {
                 log.warn("User Service 응답 실패: {}", response.getStatusCode());
-                return null;
+                throw new RuntimeException("사용자 정보 조회 실패");
             }
         } catch (Exception e) {
             log.error("User Service 호출 실패: {}", e.getMessage());
-            return null;
+            throw new RuntimeException("User Service 호출 실패: " + e.getMessage());
         }
     }
 
+    @CircuitBreaker(name = "userService", fallbackMethod = "updatePasswordInUserServiceFallback")
+    @Retry(name = "userService")
     private boolean updatePasswordInUserService(String userId, String newPassword) {
         try {
             String url = userServiceUrl + "/api/users/" + userId + "/password";
@@ -483,11 +490,94 @@ public class AuthService {
             return response.getStatusCode().is2xxSuccessful();
         } catch (Exception e) {
             log.error("비밀번호 업데이트 요청 실패: {}", e.getMessage());
-            return false;
+            throw new RuntimeException("비밀번호 업데이트 실패: " + e.getMessage());
         }
     }
 
     private String generateResetCode() {
         return String.format("%06d", (int) (Math.random() * 1000000));
+    }
+
+    // Fallback Methods
+    public CompletableFuture<AuthResponse> loginFallback(String userId, String password, Exception ex) {
+        log.error("로그인 서킷브레이커 동작 - userId: {}, error: {}", userId, ex.getMessage());
+
+        AuthResponse fallbackResponse = AuthResponse.builder()
+                .success(false)
+                .message("로그인 시스템에 일시적인 문제가 발생했습니다. 잠시 후 다시 시도해주세요.")
+                .build();
+
+        return CompletableFuture.completedFuture(fallbackResponse);
+    }
+
+    public void cacheUserSessionInUserServiceFallback(String userId, Exception ex) {
+        log.error("사용자 세션 캐시 서킷브레이커 동작 - userId: {}, error: {}", userId, ex.getMessage());
+        // 캐시 실패 시 무시하고 계속 진행
+    }
+
+    public AuthResponse validateTokenFallback(String token, Exception ex) {
+        log.error("토큰 검증 서킷브레이커 동작 - error: {}", ex.getMessage());
+
+        return AuthResponse.builder()
+                .success(false)
+                .message("인증 시스템에 일시적인 문제가 발생했습니다.")
+                .build();
+    }
+
+    public UserDto getUserFromUserServiceSessionFallback(String userId, Exception ex) {
+        log.error("세션 조회 서킷브레이커 동작 - userId: {}, error: {}", userId, ex.getMessage());
+        return null;
+    }
+
+    public AuthResponse refreshTokenFallback(String refreshToken, Exception ex) {
+        log.error("토큰 갱신 서킷브레이커 동작 - error: {}", ex.getMessage());
+
+        return AuthResponse.builder()
+                .success(false)
+                .message("토큰 갱신 시스템에 일시적인 문제가 발생했습니다.")
+                .build();
+    }
+
+    public AuthResponse getUserProfileFallback(String userId, Exception ex) {
+        log.error("사용자 프로필 조회 서킷브레이커 동작 - userId: {}, error: {}", userId, ex.getMessage());
+
+        return AuthResponse.builder()
+                .success(false)
+                .message("사용자 정보 조회 시스템에 일시적인 문제가 발생했습니다.")
+                .build();
+    }
+
+    public AuthResponse findPasswordFallback(FindPasswordRequest request, Exception ex) {
+        log.error("비밀번호 찾기 서킷브레이커 동작 - userId: {}, error: {}", request.getUserid(), ex.getMessage());
+
+        return AuthResponse.builder()
+                .success(false)
+                .message("비밀번호 찾기 시스템에 일시적인 문제가 발생했습니다.")
+                .build();
+    }
+
+    public AuthResponse resetPasswordFallback(ResetPasswordRequest request, Exception ex) {
+        log.error("비밀번호 재설정 서킷브레이커 동작 - userId: {}, error: {}", request.getUserid(), ex.getMessage());
+
+        return AuthResponse.builder()
+                .success(false)
+                .message("비밀번호 재설정 시스템에 일시적인 문제가 발생했습니다.")
+                .build();
+    }
+
+    public UserDto getUserFromUserServiceFallback(String userId, Exception ex) {
+        log.error("사용자 정보 조회 서킷브레이커 동작 - userId: {}, error: {}", userId, ex.getMessage());
+
+        return UserDto.builder()
+                .userId(userId)
+                .name("임시사용자")
+                .email("temp@example.com")
+                .status("TEMP")
+                .build();
+    }
+
+    public boolean updatePasswordInUserServiceFallback(String userId, String newPassword, Exception ex) {
+        log.error("비밀번호 업데이트 서킷브레이커 동작 - userId: {}, error: {}", userId, ex.getMessage());
+        return false;
     }
 }

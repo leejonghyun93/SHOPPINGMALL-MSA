@@ -1,5 +1,8 @@
 package org.kosa.commerceservice.service.payment;
 
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
+import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
 import com.siot.IamportRestClient.IamportClient;
 import com.siot.IamportRestClient.exception.IamportResponseException;
 import com.siot.IamportRestClient.request.CancelData;
@@ -22,6 +25,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 @Service
 @RequiredArgsConstructor
@@ -32,15 +36,14 @@ public class PaymentService {
     private final OrderRepository orderRepository;
     private final IamportClient iamportClient;
     private final ApplicationContext applicationContext;
-    /**
-     * impUid로 결제 취소 (프론트엔드 호환성)
-     */
+
+    @CircuitBreaker(name = "paymentService", fallbackMethod = "cancelPaymentByImpUidFallback")
+    @Retry(name = "paymentService")
     @Transactional
     public PaymentCancelResponseDTO cancelPaymentByImpUid(String impUid, String userId, String reason) {
         try {
             log.info("impUid로 결제 취소 - impUid: {}, userId: {}", impUid, userId);
 
-            // impUid로 Payment 조회
             Payment payment = paymentRepository.findByInvoicePoId(impUid)
                     .orElseThrow(() -> new RuntimeException("결제 정보를 찾을 수 없습니다."));
 
@@ -48,7 +51,6 @@ public class PaymentService {
                 throw new RuntimeException("완료된 결제만 취소할 수 있습니다.");
             }
 
-            // PaymentCancelRequestDTO 생성
             PaymentCancelRequestDTO cancelRequest = PaymentCancelRequestDTO.builder()
                     .paymentId(payment.getPaymentId())
                     .orderId(payment.getOrderId())
@@ -56,32 +58,34 @@ public class PaymentService {
                     .cancelReason(reason)
                     .build();
 
-            // 기존 취소 메서드 호출
             return cancelPayment(cancelRequest);
 
         } catch (Exception e) {
             log.error("impUid 결제 취소 실패", e);
-            return PaymentCancelResponseDTO.builder()
-                    .success(false)
-                    .message("결제 취소 중 오류가 발생했습니다: " + e.getMessage())
-                    .errorCode("CANCEL_ERROR")
-                    .build();
+            throw new RuntimeException("결제 취소 중 오류가 발생했습니다: " + e.getMessage());
         }
     }
+
+    @CircuitBreaker(name = "paymentService", fallbackMethod = "verifyPaymentFallback")
+    @Retry(name = "paymentService")
+    @TimeLimiter(name = "paymentService")
+    @Transactional
+    public CompletableFuture<PaymentVerifyResponse> verifyPaymentAsync(PaymentVerifyRequest request, String userId) {
+        return CompletableFuture.supplyAsync(() -> verifyPayment(request, userId));
+    }
+
     @Transactional
     public PaymentVerifyResponse verifyPayment(PaymentVerifyRequest request, String userId) {
         try {
             log.info("결제 검증 시작 - userId: {}, impUid: {}, merchantUid: {}",
                     userId, request.getImpUid(), request.getMerchantUid());
 
-            // 1. 중복 검증 체크 - 우리의 Payment 엔티티 사용
             Optional<Payment> existingPayment = paymentRepository.findByInvoicePoId(request.getImpUid());
             if (existingPayment.isPresent()) {
                 log.warn("이미 처리된 결제 - impUid: {}", request.getImpUid());
                 throw new RuntimeException("이미 처리된 결제입니다.");
             }
 
-            // 2. 아임포트에서 결제 정보 조회 - 아임포트의 Payment 클래스 사용
             IamportResponse<com.siot.IamportRestClient.response.Payment> iamportResponse =
                     iamportClient.paymentByImpUid(request.getImpUid());
 
@@ -91,7 +95,6 @@ public class PaymentService {
                 throw new RuntimeException("결제 정보 조회 실패: " + iamportResponse.getMessage());
             }
 
-            // 3. 아임포트 Payment 응답 처리
             com.siot.IamportRestClient.response.Payment iamportPayment = iamportResponse.getResponse();
 
             if (!"paid".equals(iamportPayment.getStatus())) {
@@ -99,13 +102,11 @@ public class PaymentService {
                 throw new RuntimeException("결제가 완료되지 않았습니다. 상태: " + iamportPayment.getStatus());
             }
 
-            // 4. 주문 정보 조회
             Order orderInfo = getOrderByMerchantUid(request.getMerchantUid());
             if (orderInfo == null) {
                 throw new RuntimeException("주문 정보를 찾을 수 없습니다.");
             }
 
-            // 5. 금액 검증
             BigDecimal orderAmount = new BigDecimal(orderInfo.getTotalPrice().toString());
             BigDecimal paidAmount = iamportPayment.getAmount();
 
@@ -117,11 +118,9 @@ public class PaymentService {
                 throw new RuntimeException("결제 금액이 주문 금액과 일치하지 않습니다.");
             }
 
-            // 6. 우리의 Payment 엔티티 생성 및 저장
             Payment payment = createPayment(orderInfo, iamportPayment, request.getImpUid());
             paymentRepository.save(payment);
 
-            // 7. 주문 상태 업데이트
             try {
                 OrderService orderService = applicationContext.getBean(OrderService.class);
                 orderService.updateOrderStatus(orderInfo.getOrderId(), "PAYMENT_COMPLETED");
@@ -150,12 +149,13 @@ public class PaymentService {
         }
     }
 
+    @CircuitBreaker(name = "paymentService", fallbackMethod = "preparePaymentFallback")
+    @Retry(name = "paymentService")
     @Transactional
     public PaymentPrepareResponse preparePayment(PaymentPrepareRequest request) {
         try {
             log.info("결제 준비 - orderId: {}, amount: {}", request.getOrderId(), request.getAmount());
 
-            // 우리의 Payment 엔티티 생성
             Payment payment = Payment.builder()
                     .paymentId(generatePaymentId())
                     .orderId(request.getOrderId())
@@ -166,7 +166,6 @@ public class PaymentService {
 
             paymentRepository.save(payment);
 
-            // 아임포트 사전 등록
             try {
                 PrepareData prepareData = new PrepareData(
                         payment.getPaymentId(),
@@ -199,12 +198,13 @@ public class PaymentService {
         }
     }
 
+    @CircuitBreaker(name = "paymentService", fallbackMethod = "cancelPaymentFallback")
+    @Retry(name = "paymentService")
     @Transactional
     public PaymentCancelResponseDTO cancelPayment(PaymentCancelRequestDTO request) {
         try {
             log.info("결제 취소 요청 - paymentId: {}", request.getPaymentId());
 
-            // 우리의 Payment 엔티티 조회
             Payment payment = paymentRepository.findByPaymentId(request.getPaymentId())
                     .orElseThrow(() -> new RuntimeException("결제 정보를 찾을 수 없습니다."));
 
@@ -225,7 +225,6 @@ public class PaymentService {
                 cancelData.setReason(request.getCancelReason());
             }
 
-            // 아임포트 결제 취소 실행
             IamportResponse<com.siot.IamportRestClient.response.Payment> cancelResponse =
                     iamportClient.cancelPaymentByImpUid(cancelData);
 
@@ -238,7 +237,6 @@ public class PaymentService {
                         .build();
             }
 
-            // 우리의 Payment 엔티티 상태 업데이트
             payment.updatePaymentCancelled();
             if (request.getRefundAmount() != null) {
                 payment.setPaymentSecondAmount(request.getRefundAmount());
@@ -255,11 +253,7 @@ public class PaymentService {
 
         } catch (Exception e) {
             log.error("결제 취소 중 오류 발생", e);
-            return PaymentCancelResponseDTO.builder()
-                    .success(false)
-                    .message("결제 취소 중 오류가 발생했습니다: " + e.getMessage())
-                    .errorCode("CANCEL_ERROR")
-                    .build();
+            throw new RuntimeException("결제 취소 중 오류가 발생했습니다: " + e.getMessage());
         }
     }
 
@@ -312,8 +306,53 @@ public class PaymentService {
         }
     }
 
-    // === 내부 메서드들 ===
+    // Fallback Methods
+    public PaymentCancelResponseDTO cancelPaymentByImpUidFallback(String impUid, String userId, String reason, Exception ex) {
+        log.error("impUid 결제 취소 서킷브레이커 동작 - impUid: {}, error: {}", impUid, ex.getMessage());
 
+        return PaymentCancelResponseDTO.builder()
+                .success(false)
+                .message("결제 취소 시스템에 일시적인 문제가 발생했습니다. 고객센터로 문의해주세요.")
+                .errorCode("PAYMENT_CANCEL_CIRCUIT_OPEN")
+                .build();
+    }
+
+    public CompletableFuture<PaymentVerifyResponse> verifyPaymentFallback(PaymentVerifyRequest request, String userId, Exception ex) {
+        log.error("결제 검증 서킷브레이커 동작 - impUid: {}, error: {}", request.getImpUid(), ex.getMessage());
+
+        PaymentVerifyResponse fallbackResponse = PaymentVerifyResponse.builder()
+                .success(false)
+                .message("결제 처리 시스템에 일시적인 문제가 발생했습니다. 고객센터로 문의해주세요.")
+                .build();
+
+        return CompletableFuture.completedFuture(fallbackResponse);
+    }
+
+    public PaymentPrepareResponse preparePaymentFallback(PaymentPrepareRequest request, Exception ex) {
+        log.error("결제 준비 서킷브레이커 동작 - orderId: {}, error: {}", request.getOrderId(), ex.getMessage());
+
+        return PaymentPrepareResponse.builder()
+                .paymentId("TEMP_" + System.currentTimeMillis())
+                .merchantUid("TEMP_" + System.currentTimeMillis())
+                .amount(request.getAmount())
+                .buyerName(request.getBuyerName())
+                .buyerEmail(request.getBuyerEmail())
+                .buyerTel(request.getBuyerTel())
+                .name("결제 준비 중 오류 발생")
+                .build();
+    }
+
+    public PaymentCancelResponseDTO cancelPaymentFallback(PaymentCancelRequestDTO request, Exception ex) {
+        log.error("결제 취소 서킷브레이커 동작 - paymentId: {}, error: {}", request.getPaymentId(), ex.getMessage());
+
+        return PaymentCancelResponseDTO.builder()
+                .success(false)
+                .message("결제 취소 요청이 접수되었습니다. 고객센터에서 처리해드리겠습니다.")
+                .errorCode("PAYMENT_CANCEL_DELAYED")
+                .build();
+    }
+
+    // Private Helper Methods
     private void cancelPaymentAuto(String impUid, String reason) {
         try {
             CancelData cancelData = new CancelData(impUid, true);

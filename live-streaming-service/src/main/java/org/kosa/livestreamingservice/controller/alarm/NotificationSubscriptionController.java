@@ -23,7 +23,7 @@ public class NotificationSubscriptionController {
     private final NotificationSubscriptionService subscriptionService;
 
     /**
-     * 🔔 방송 시작 알림 구독 신청 - 문자열/숫자 ID 모두 지원
+     *  방송 시작 알림 구독 신청 - 문자열/숫자 ID 모두 지원
      */
     @PostMapping("/broadcast-start")
     public ResponseEntity<?> subscribeBroadcastStart(
@@ -33,10 +33,10 @@ public class NotificationSubscriptionController {
         log.info("방송 시작 알림 구독 요청: userId={}, broadcastId={}", userId, broadcastId);
 
         try {
-            // ✅ broadcastId는 숫자여야 함
+            //  broadcastId는 숫자여야 함
             Long broadcastIdLong = parseToLong(broadcastId, "broadcastId");
 
-            // ✅ userId는 문자열/숫자 모두 지원
+            //  userId는 문자열/숫자 모두 지원
             NotificationResponseDto response = subscriptionService
                     .subscribeBroadcastStart(userId, broadcastIdLong);  // String userId 전달
 
@@ -54,7 +54,7 @@ public class NotificationSubscriptionController {
     }
 
     /**
-     * ❌ 방송 알림 구독 취소 - 문자열/숫자 ID 모두 지원
+     *  방송 알림 구독 취소 - 문자열/숫자 ID 모두 지원
      */
     @DeleteMapping
     public ResponseEntity<?> unsubscribeBroadcast(
@@ -67,7 +67,7 @@ public class NotificationSubscriptionController {
         try {
             Long broadcastIdLong = parseToLong(broadcastId, "broadcastId");
 
-            // ✅ userId는 문자열 그대로 전달
+            //  userId는 문자열 그대로 전달
             subscriptionService.unsubscribeBroadcast(userId, broadcastIdLong, type);
             return ResponseEntity.ok().build();
 
@@ -83,13 +83,13 @@ public class NotificationSubscriptionController {
     }
 
     /**
-     * 📋 사용자의 구독 중인 방송 목록 조회 - 문자열/숫자 ID 모두 지원
+     *  사용자의 구독 중인 방송 목록 조회 - 문자열/숫자 ID 모두 지원
      */
     @GetMapping("/users/{userId}")
     public ResponseEntity<?> getUserSubscriptions(@PathVariable String userId) {
 
         try {
-            // ✅ userId는 문자열 그대로 전달
+            //  userId는 문자열 그대로 전달
             List<NotificationResponseDto> subscriptions = subscriptionService.getUserSubscriptions(userId);
             return ResponseEntity.ok(subscriptions);
 
@@ -101,7 +101,7 @@ public class NotificationSubscriptionController {
     }
 
     /**
-     * 🎯 특정 방송의 구독자 수 조회
+     *  특정 방송의 구독자 수 조회
      */
     @GetMapping("/broadcasts/{broadcastId}/count")
     public ResponseEntity<?> getBroadcastSubscriberCount(@PathVariable String broadcastId) {
@@ -119,7 +119,7 @@ public class NotificationSubscriptionController {
     }
 
     /**
-     * 🔥 방송 시작시 구독자들에게 대량 알림 생성 (내부 API)
+     *  방송 시작시 구독자들에게 대량 알림 생성 (내부 API)
      */
     @PostMapping("/broadcasts/{broadcastId}/start-notifications")
     public ResponseEntity<?> createBroadcastStartNotifications(@PathVariable String broadcastId) {
@@ -141,7 +141,7 @@ public class NotificationSubscriptionController {
     }
 
     /**
-     * ✅ 안전한 Long 파싱 유틸리티 메서드 (broadcastId용)
+     *  안전한 Long 파싱 유틸리티 메서드 (broadcastId용)
      */
     private Long parseToLong(String value, String fieldName) {
         if (value == null || value.trim().isEmpty()) {
