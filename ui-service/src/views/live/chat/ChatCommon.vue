@@ -98,7 +98,7 @@ import { Client } from '@stomp/stompjs';
 import { stickerMap } from './EmojiMap';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
-import { userState } from '@/stores/userState';  // stores 폴더의 userState
+import { userState } from '@/stores/UserState';  // stores 폴더의 userState
 import userStateBridge from '@/stores/userStateBridge';  // 🌉 브리지 import (stores 폴더에 있음)
 
 const props = defineProps({
