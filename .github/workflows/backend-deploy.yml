@@ -9,8 +9,10 @@ on:
       - 'commerce-service/**'
       - 'config-service/**'
       - 'eureka-service/**'
+      - 'live-streaming-service/**'  # ← 이것 추가!
       - 'user-service/**'
       - 'docker-compose.yml'
+      - '.github/workflows/**'       # ← 워크플로우 변경시에도 실행
       - 'pom.xml'
   pull_request:
     branches: [ main, master ]
@@ -22,6 +24,7 @@ on:
       - 'eureka-service/**'
       - 'live-streaming-service/**'
       - 'user-service/**'
+  workflow_dispatch:  # ← 수동 실행 가능
 
 jobs:
   build:
