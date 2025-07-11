@@ -1,6 +1,6 @@
 // userStateBridge.js - 새로운 파일 생성 (기존 파일들 건드리지 않음)
 
-import { userState } from './userState.js';  // 채팅용 상태
+import { userState } from '@/stores/userState.js';  // 채팅용 상태
 import { user } from '@/stores/userStore.js';  // 헤더용 상태
 import { watch } from 'vue';
 
