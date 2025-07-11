@@ -9,7 +9,6 @@ on:
       - 'commerce-service/**'
       - 'config-service/**'
       - 'eureka-service/**'
-      - 'live-streaming-service/**'
       - 'user-service/**'
       - 'docker-compose.yml'
       - 'pom.xml'
@@ -21,7 +20,6 @@ on:
       - 'commerce-service/**'
       - 'config-service/**'
       - 'eureka-service/**'
-      - 'live-streaming-service/**'
       - 'user-service/**'
 
 jobs:
@@ -45,8 +43,8 @@ jobs:
 
       - name: Build all services (skip tests)
         run: |
-          # 각 서비스별로 컴파일만 확인 (테스트 완전 스킵)
-          for service in apigateway-service auth-service commerce-service config-service eureka-service live-streaming-service user-service; do
+          # live-streaming-service 제외하고 빌드
+          for service in apigateway-service auth-service commerce-service config-service eureka-service user-service; do
             echo "Building $service..."
             cd $service
             if [ -f "pom.xml" ]; then
@@ -79,8 +77,8 @@ jobs:
 
       - name: Build JAR files
         run: |
-          # 각 서비스별로 JAR 파일 빌드
-          for service in eureka-service config-service auth-service user-service commerce-service live-streaming-service apigateway-service; do
+          # live-streaming-service 제외하고 JAR 빌드
+          for service in eureka-service config-service auth-service user-service commerce-service apigateway-service; do
             echo "Building JAR for $service..."
             cd $service
             if [ -f "pom.xml" ]; then
@@ -90,44 +88,30 @@ jobs:
             cd ..
           done
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-2
 
-      - name: Build Docker images
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push Docker images to ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
-          for service in eureka-service config-service auth-service user-service commerce-service live-streaming-service apigateway-service; do
-            echo "Building Docker image for $service..."
+          services="eureka-service config-service auth-service user-service commerce-service apigateway-service"
+          
+          for service in $services; do
+            echo "Building and pushing $service..."
             if [ -f "$service/Dockerfile" ]; then
-              docker build -t $service:latest ./$service
+              docker build -t $ECR_REGISTRY/$service:latest ./$service
+              docker push $ECR_REGISTRY/$service:latest
             fi
           done
-
-      - name: Docker images built successfully
-        run: |
-          echo "✅ 모든 Docker 이미지 빌드 완료!"
-          echo "📦 빌드된 이미지들:"
-          docker images | grep -E "(eureka-service|config-service|auth-service|user-service|commerce-service|live-streaming-service|apigateway-service)"
-          echo ""
-          echo "🚀 배포 준비 완료!"
-
-      # ======================
-      # EC2 배포 부분 (활성화됨)
-      # ======================
-
-      - name: Save Docker images
-        run: |
-          docker save -o backend-images.tar \
-            eureka-service:latest \
-            config-service:latest \
-            auth-service:latest \
-            user-service:latest \
-            commerce-service:latest \
-            live-streaming-service:latest \
-            apigateway-service:latest
-          
-          # 파일 권한 수정
-          chmod 644 backend-images.tar
-          ls -la backend-images.tar
 
       - name: Copy files to EC2
         uses: appleboy/scp-action@v0.1.7
@@ -135,7 +119,7 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: "backend-images.tar,docker-compose.yml,init-db"
+          source: "docker-compose.yml,init-db"
           target: "/home/ec2-user/app/"
 
       - name: Deploy to EC2
@@ -154,27 +138,20 @@ jobs:
             export DB_PASSWORD="${{ secrets.DB_PASSWORD }}"
             export PROD_JWT_SECRET_KEY="${{ secrets.JWT_SECRET_KEY }}"
             export CONFIG_SERVER_PASSWORD="${{ secrets.CONFIG_SERVER_PASSWORD }}"
-            export CONFIG_REPO_GIT_URI="${{ secrets.CONFIG_REPO_GIT_URI }}"
-            export PROD_IAMPORT_API_KEY="${{ secrets.PROD_IAMPORT_API_KEY }}"
-            export PROD_IAMPORT_API_SECRET="${{ secrets.PROD_IAMPORT_API_SECRET }}"
-            export PROD_MAIL_USERNAME="${{ secrets.PROD_MAIL_USERNAME }}"
-            export PROD_MAIL_PASSWORD="${{ secrets.PROD_MAIL_PASSWORD }}"
-            export PROD_IMAGE_BASE_URL="${{ secrets.PROD_IMAGE_BASE_URL }}"
-            export FRONTEND_URL="${{ secrets.FRONTEND_URL }}"
-            export ADMIN_URL="${{ secrets.ADMIN_URL }}"
+            export ECR_REGISTRY="${{ steps.login-ecr.outputs.registry }}"
             export SPRING_PROFILES_ACTIVE="prod"
+
+            # AWS ECR 로그인
+            aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin $ECR_REGISTRY
 
             # 기존 컨테이너 정리
             docker-compose down || true
             docker system prune -f || true
 
-            # 새 이미지 로드
-            docker load -i backend-images.tar
-
             # 데이터베이스 먼저 시작
             echo "Starting MariaDB..."
             docker-compose up -d mariadb
-            sleep 60  # DB 초기화 대기
+            sleep 60
 
             # 인프라 서비스 시작
             echo "Starting Redis, Kafka..."
@@ -196,8 +173,8 @@ jobs:
             docker-compose up -d auth-service user-service
             sleep 20
 
-            echo "Starting Commerce and Live Streaming Services..."
-            docker-compose up -d commerce-service live-streaming-service
+            echo "Starting Commerce Service..."
+            docker-compose up -d commerce-service
             sleep 20
 
             echo "Starting API Gateway..."
@@ -217,17 +194,4 @@ jobs:
             done
 
             # 최종 상태 확인
-            echo "📊 Final status check:"
             docker-compose ps
-            
-            # 서비스별 상태 확인
-            echo "🔍 Individual service health check:"
-            services=("eureka-service:8761" "config-service:8888" "apigateway-service:8080")
-            for service_port in "${services[@]}"; do
-              service_name=$(echo $service_port | cut -d':' -f1)
-              port=$(echo $service_port | cut -d':' -f2)
-              echo "Checking $service_name on port $port..."
-              curl -s http://localhost:$port/actuator/health || echo "❌ $service_name is not responding"
-            done
-            
-            echo "🚀 Deployment completed!"
