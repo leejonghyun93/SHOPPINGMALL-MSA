@@ -124,6 +124,10 @@ jobs:
             commerce-service:latest \
             live-streaming-service:latest \
             apigateway-service:latest
+          
+          # 파일 권한 수정
+          chmod 644 backend-images.tar
+          ls -la backend-images.tar
 
       - name: Copy files to EC2
         uses: appleboy/scp-action@v0.1.7
