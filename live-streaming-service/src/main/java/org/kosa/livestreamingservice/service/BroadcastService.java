@@ -2,6 +2,7 @@ package org.kosa.livestreamingservice.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.kosa.livestreamingservice.dao.chat.ChatDAO;
 import org.kosa.livestreamingservice.dto.BroadcastDto;
 import org.kosa.livestreamingservice.dto.BroadcastScheduleDto;
 import org.kosa.livestreamingservice.entity.BroadcastEntity;
@@ -9,6 +10,7 @@ import org.kosa.livestreamingservice.repository.alarm.BroadcastRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,8 +29,8 @@ public class BroadcastService {
 
     private final BroadcastRepository broadcastRepository;
 
-    // ============ 알림 서비스용 메소드 ============
-
+    private final ChatDAO chatDAO;
+    private final SimpMessagingTemplate messagingTemplate;
     /**
      * 날짜별 방송 스케줄 조회
      */
@@ -109,6 +111,13 @@ public class BroadcastService {
         } else {
             throw new RuntimeException("방송 종료에 실패했습니다");
         }
+    }
+    public void updateStatus(BroadcastEntity broadCast) {
+
+        chatDAO.updateStatus(broadCast);
+
+        messagingTemplate.convertAndSend("/topic/broadcast/" + broadCast.getBroadcastId() + "/status",
+                Map.of("status", broadCast.getBroadcastStatus()));
     }
 
     /**

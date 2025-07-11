@@ -1,26 +1,26 @@
 <template>
   <div class="chat-container">
-    <!-- 공지 영역 -->
-    <div class="notice-banner" :class="{ expanded: isNoticeExpanded }">
-      <div class="notice-text" :class="{ expanded: isNoticeExpanded }">
-        📢 {{ displayNotice }}
-      </div>
-      <button
-          v-if="shouldShowMoreBtn"
-          class="notice-toggle-btn"
-          @click="toggleNotice"
-      >
-        {{ isNoticeExpanded ? '접기' : '더보기' }}
+    <!-- 상단 툴바 -->
+    <div class="chat-topbar">
+      <span class="chat-participant-count">참여중: {{ participantCount }}명</span>
+      <button class="notice-toggle-btn" @click="toggleNotice">
+        {{ isNoticeExpanded ? '공지 숨기기' : '라이브 공지사항 보기' }}
       </button>
     </div>
 
-    <!-- 메시지 + 입력창 묶음 -->
+    <!-- 공지사항 -->
+    <div v-if="isNoticeExpanded" class="notice-banner">
+      <div class="notice-text">{{ displayNotice }}</div>
+    </div>
+
+    <!-- 채팅 메인 영역 -->
     <div class="chat-main">
+      <!-- 메시지 리스트 -->
       <div class="chat-messages" ref="messagesContainer" @scroll="handleScroll">
         <div
             v-for="(msg, index) in messages"
             :key="index"
-            :class="['chat-message', msg.systemOnly ? 'system-message' : (isMyMessage(msg) ? 'my-message' : 'other-message')]"
+            :class="['chat-message', msg.systemOnly ? 'system-message' : isMyMessage(msg) ? 'my-message' : 'other-message']"
         >
           <template v-if="msg.systemOnly">
             <div class="system-box">{{ msg.text }}</div>
@@ -28,9 +28,16 @@
           <template v-else>
             <div class="chat-line">
               <template v-if="!isMyMessage(msg)">
-                <div class="nickname">{{ msg.from }}</div>
+                <div class="nickname">
+                  <template v-if="msg.from === '관리자'">
+                    <span class="admin-nickname">관리자 {{ msg.from }}</span>
+                  </template>
+                  <template v-else>
+                    {{ msg.from }}
+                  </template>
+                </div>
               </template>
-              <div class="bubble">
+              <div class="bubble" :class="{ 'admin-bubble': msg.from === '관리자' }">
                 <img v-if="msg.type === 'sticker'" :src="stickerMap[msg.text]" class="chat-sticker" />
                 <span v-else class="chat-content">{{ msg.text }}</span>
               </div>
@@ -51,20 +58,29 @@
             v-model="newMessage"
             @focus="handleInputFocus"
             @keyup.enter="sendMessage"
-            :placeholder="isLoggedIn.value ? '메시지를 입력하세요' : '로그인 후 사용가능'"
+            :disabled="!isChatEnabled || !isLoggedIn"
+            :placeholder="
+            !isChatEnabled
+              ? '채팅이 비활성화되었습니다.'
+              : isLoggedIn
+              ? '메시지를 입력하세요'
+              : '로그인 후 사용가능'
+          "
         />
-        <button @click="sendMessage" :disabled="!isLoggedIn || !newMessage.trim()">전송</button>
-        <button @click="toggleTools" class="tools-toggle">😎</button>
+        <button @click="sendMessage" :disabled="!isChatEnabled || !isLoggedIn" class="send-button">
+          전송
+        </button>
+        <button @click="toggleTools" class="tools-toggle">스티커</button>
       </div>
 
-      <!-- 도구창 -->
+      <!-- 스티커 도구창 -->
       <div v-if="showTools" class="chat-tools">
         <div class="tools-header">
           <div class="tab-buttons">
-            <button :class="{ active: activeTab === 'bear' }" @click="activeTab = 'bear'">🐻</button>
-            <button :class="{ active: activeTab === 'rabbit' }" @click="activeTab = 'rabbit'">🐰</button>
+            <button :class="{ active: activeTab === 'bear' }" @click="activeTab = 'bear'">곰</button>
+            <button :class="{ active: activeTab === 'rabbit' }" @click="activeTab = 'rabbit'">토끼</button>
           </div>
-          <button class="close-tools" @click="showTools = false">✖</button>
+          <button class="close-tools" @click="showTools = false">닫기</button>
         </div>
         <div class="sticker-list">
           <img
@@ -78,7 +94,7 @@
       </div>
     </div>
 
-    <!-- 로그인 안내 -->
+    <!-- 로그인 모달 -->
     <div v-if="showLoginModal" class="login-popup-overlay">
       <div class="login-popup">
         <p>로그인 후 채팅이 가능합니다.</p>
@@ -98,8 +114,9 @@ import { Client } from '@stomp/stompjs';
 import { stickerMap } from './EmojiMap';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
-import { userState } from '@/stores/userState.js';  // stores 폴더의 userState
-import userStateBridge from '@/stores/userStateBridge';  // 🌉 브리지 import (stores 폴더에 있음)
+import { userState } from '@/stores/userState.js';
+import userStateBridge from '@/stores/userStateBridge';
+import { getOrCreateUUID } from '@/stores/uuid.js';
 
 const props = defineProps({
   class: String,
@@ -114,9 +131,10 @@ const props = defineProps({
   }
 });
 
+const emit = defineEmits(['host-detected']);
+
 const broadcastIdNum = computed(() => {
   const id = typeof props.broadcastId === 'string' ? parseInt(props.broadcastId) : props.broadcastId;
-  console.log('📌 broadcastId 변환:', props.broadcastId, '->', id);
   return id;
 });
 
@@ -134,25 +152,31 @@ const activeTab = ref('bear');
 const noticeMessage = ref('');
 const isNoticeExpanded = ref(false);
 
-// WebSocket 연결 상태 관리
+const broadcastStatus = ref('');
+const isChatEnabled = ref(false);
+const isHost = ref(false);
+const participantCount = ref(0);
+const hasInitialParticipantSet = ref(false);
+
 const isConnecting = ref(false);
 const connectionRetries = ref(0);
 const maxRetries = 5;
 const connectionStatus = ref('disconnected');
+const uuid = getOrCreateUUID();
 
-// 🔄 브리지된 사용자 정보 사용
 const currentUser = computed(() => {
-  // 우선순위: currentUser > name
   return userState.currentUser || userState.name || null;
 });
 
 const currentUserId = computed(() => {
-  // 우선순위: userId > id
   return userState.userId || userState.id || null;
 });
 
 const normalize = str => String(str || '').trim();
-const isMyMessage = msg => normalize(msg.from) === normalize(currentUser.value);
+
+const isMyMessage = msg => {
+  return msg.userId && msg.userId === currentUserId.value;
+};
 
 const filteredStickers = computed(() => {
   return Object.fromEntries(
@@ -160,23 +184,16 @@ const filteredStickers = computed(() => {
   );
 });
 
-const shouldShowMoreBtn = computed(() => {
-  return noticeMessage.value.length > 10;
-});
-
 const displayNotice = computed(() => {
   return noticeMessage.value.trim() !== '' ? noticeMessage.value : '등록된 공지사항이 없습니다.';
 });
 
-// WebSocket 연결 설정
 let socket = null;
 let stompClient = null;
+let chatSubscription = null;
 
 const createWebSocketConnection = () => {
-  console.log('🔄 WebSocket 연결 시도 중... (시도 횟수:', connectionRetries.value + 1, ')');
-
   if (connectionStatus.value === 'connecting') {
-    console.log('⏳ 이미 연결 중입니다.');
     return;
   }
 
@@ -187,20 +204,25 @@ const createWebSocketConnection = () => {
     try {
       stompClient.deactivate();
     } catch (error) {
-      console.warn('⚠️ 기존 연결 정리 중 오류:', error);
+      // 무시
     }
   }
-  const wsUrl = 'http://***.***.*.***:****/ws-chat';
 
-  console.log('🌐 WebSocket URL:', wsUrl);
+  const wsUrl = 'http://192.168.4.132:8080/ws-chat';
 
   try {
     socket = new SockJS(wsUrl);
 
     stompClient = new Client({
       webSocketFactory: () => {
-        console.log("🛰️ [WebSocketFactory] SockJS 연결 생성");
         return socket;
+      },
+
+      connectHeaders: {
+        Authorization: (localStorage.getItem('jwt') || sessionStorage.getItem('jwt')) ?
+            `Bearer ${localStorage.getItem('jwt') || sessionStorage.getItem('jwt')}` : '',
+        uuid,
+        broadcastId: props.broadcastId
       },
 
       reconnectDelay: 5000,
@@ -208,24 +230,20 @@ const createWebSocketConnection = () => {
       heartbeatOutgoing: 4000,
 
       onConnect: (frame) => {
-        console.log("✅ [STOMP] 연결 성공!", frame);
         connectionStatus.value = 'connected';
         isConnecting.value = false;
         connectionRetries.value = 0;
 
         messages.value.push({
-          text: '✅ 채팅방에 연결되었습니다.',
+          text: '채팅방에 연결되었습니다.',
           systemOnly: true
         });
 
-        stompClient.subscribe('/topic/public', (msg) => {
-          console.log("📩 [STOMP] 수신 메시지:", msg.body);
-
+        chatSubscription = stompClient.subscribe('/topic/public', (msg) => {
           try {
             const received = JSON.parse(msg.body);
 
             if (received.type === 'notice') {
-              console.log("📢 [공지 메시지 수신]", received.text);
               noticeMessage.value = received.text.trim() || '';
               return;
             }
@@ -238,22 +256,36 @@ const createWebSocketConnection = () => {
                   : (showScrollToBottom.value = true);
             });
           } catch (error) {
-            console.error('❌ 메시지 파싱 오류:', error);
+            // 무시
           }
+        });
+
+        stompClient.subscribe(`/topic/broadcast/${props.broadcastId}/status`, msg => {
+          const payload = JSON.parse(msg.body);
+          broadcastStatus.value = payload.status;
+          isChatEnabled.value = ['live', 'start', 'stop'].includes(broadcastStatus.value.toLowerCase());
+        });
+
+        stompClient.subscribe(`/topic/participants/${props.broadcastId}`, msg => {
+          const count = parseInt(msg.body, 10);
+
+          if (!hasInitialParticipantSet.value) {
+            return;
+          }
+
+          participantCount.value = isNaN(count) ? 0 : count;
         });
       },
 
       onStompError: (frame) => {
-        console.error("❌ [STOMP ERROR]", frame);
         connectionStatus.value = 'failed';
         isConnecting.value = false;
 
         if (connectionRetries.value < maxRetries) {
           connectionRetries.value++;
-          console.log(`🔄 재연결 시도 ${connectionRetries.value}/${maxRetries} (5초 후)`);
 
           messages.value.push({
-            text: `🔄 채팅 서버 재연결 시도 중... (${connectionRetries.value}/${maxRetries})`,
+            text: `채팅 서버 재연결 시도 중... (${connectionRetries.value}/${maxRetries})`,
             systemOnly: true
           });
 
@@ -261,28 +293,25 @@ const createWebSocketConnection = () => {
             createWebSocketConnection();
           }, 5000);
         } else {
-          console.error('❌ 최대 재연결 시도 횟수 초과');
           connectionStatus.value = 'failed';
           messages.value.push({
-            text: '❌ 채팅 서버 연결에 실패했습니다. 페이지를 새로고침 해주세요.',
+            text: '채팅 서버 연결에 실패했습니다. 페이지를 새로고침 해주세요.',
             systemOnly: true
           });
         }
       },
 
       onWebSocketError: (error) => {
-        console.error("❌ [WebSocket ERROR]", error);
         connectionStatus.value = 'failed';
         isConnecting.value = false;
       },
 
       onDisconnect: (frame) => {
-        console.log("🔌 [STOMP] 연결 종료", frame);
         connectionStatus.value = 'disconnected';
         isConnecting.value = false;
 
         messages.value.push({
-          text: '🔌 채팅 서버 연결이 끊어졌습니다.',
+          text: '채팅 서버 연결이 끊어졌습니다.',
           systemOnly: true
         });
       }
@@ -291,56 +320,38 @@ const createWebSocketConnection = () => {
     stompClient.activate();
 
   } catch (error) {
-    console.error('❌ WebSocket 연결 생성 실패:', error);
     connectionStatus.value = 'failed';
     isConnecting.value = false;
   }
 };
 
-// 🔄 브리지 기반 사용자 정보 로드
 const loadUserInfo = async () => {
-  console.log('🔍 사용자 정보 로드 시작');
-
-  // 1. 브리지 상태 확인
   userStateBridge.checkSync();
 
-  // 2. 이미 동기화된 상태에서 사용자 정보가 있다면 바로 사용
   if (currentUser.value && currentUserId.value) {
-    console.log('✅ 브리지에서 사용자 정보 확인됨:', currentUser.value);
     isLoggedIn.value = true;
     return;
   }
 
   const token = localStorage.getItem('jwt') || sessionStorage.getItem('jwt');
-  console.log('🔍 토큰 존재:', !!token);
 
   if (token) {
     try {
-      console.log('📡 사용자 프로필 API 호출');
       const res = await axios.get('/api/users/profile', {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      console.log('📡 API 응답:', res.data);
-
       if (res.data) {
         let userData = res.data;
 
-        // 중첩된 data 구조 처리
         if (res.data.success && res.data.data) {
           userData = res.data.data;
         }
 
-        // 사용자 정보 추출
         const nickname = userData.nickname || userData.name || userData.username || userData.userName;
         const userId = userData.userId || userData.id || userData.user_id;
 
-        console.log('🔍 추출된 정보:');
-        console.log('- nickname:', nickname);
-        console.log('- userId:', userId);
-
         if (nickname) {
-          // 🌉 브리지를 통해 양쪽 상태 모두 업데이트
           userState.currentUser = nickname;
           userState.userId = userId;
           userState.name = nickname;
@@ -350,39 +361,60 @@ const loadUserInfo = async () => {
           userState.phone = userData.phone;
 
           isLoggedIn.value = true;
-          console.log('✅ 사용자 정보 설정 성공 (브리지 통해):', nickname);
-
-          // 브리지 강제 동기화
           userStateBridge.forceSync();
-        } else {
-          console.error('❌ 사용자 닉네임을 찾을 수 없음');
-          console.log('📋 사용 가능한 필드:', Object.keys(userData));
         }
-      } else {
-        console.error('❌ 빈 응답 데이터');
       }
-    } catch (err) {
-      console.error('❌ 사용자 정보 조회 실패:', err);
 
+      try {
+        const hostRes = await axios.get(`/api/members/me/${props.broadcastId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        isHost.value = hostRes.data.host === true;
+
+        if (isHost.value) {
+          userState.currentUser = '관리자';
+        }
+
+        emit('host-detected', isHost.value);
+
+      } catch (hostErr) {
+        // 무시
+      }
+
+    } catch (err) {
       if (err.response?.status === 401) {
-        console.log('🗑️ 만료된 토큰 제거');
         localStorage.removeItem('jwt');
         sessionStorage.removeItem('jwt');
         isLoggedIn.value = false;
       }
     }
   } else {
-    console.log('⚠️ 토큰 없음 - 로그인 필요');
     isLoggedIn.value = false;
   }
-
-  console.log('✅ 사용자 정보 로드 완료:');
-  console.log('- currentUser:', currentUser.value);
-  console.log('- currentUserId:', currentUserId.value);
-  console.log('- isLoggedIn:', isLoggedIn.value);
 };
 
-// 채팅 히스토리 로드
+const loadBroadcastStatus = async () => {
+  try {
+    const res = await axios.get(`/api/broadcasts/${props.broadcastId}/status`);
+    broadcastStatus.value = res.data.status;
+    isChatEnabled.value = ['live', 'start', 'stop'].includes(broadcastStatus.value.toLowerCase());
+  } catch (err) {
+    isChatEnabled.value = true;
+  }
+};
+
+const loadInitialParticipantCount = async () => {
+  try {
+    const res = await axios.get(`/api/chat/participants/${props.broadcastId}`);
+    participantCount.value = res.data.count;
+    hasInitialParticipantSet.value = true;
+  } catch (e) {
+    participantCount.value = 0;
+    hasInitialParticipantSet.value = true;
+  }
+};
+
 const loadChatHistory = async () => {
   try {
     const res = await axios.get(`/api/chat/history/${broadcastIdNum.value}`);
@@ -395,47 +427,37 @@ const loadChatHistory = async () => {
       noticeMessage.value = lastNotice.text.trim();
     }
 
-    console.log('✅ 채팅 히스토리 로드 성공:', history.length, '개 메시지');
   } catch (err) {
-    console.error('❌ 채팅 기록 조회 실패:', err);
+    // 무시
   }
 };
 
-// 메시지 전송 함수
 const sendMessage = () => {
-  console.log('🔍 sendMessage 호출');
-  console.log('- 연결 상태:', connectionStatus.value);
-  console.log('- STOMP 연결:', stompClient?.connected);
-  console.log('- 사용자 정보:', currentUser.value);
-  console.log('- 로그인 상태:', isLoggedIn.value);
-
   if (!newMessage.value.trim()) {
-    console.log('❌ 빈 메시지');
     return;
   }
 
   if (!isLoggedIn.value) {
-    console.log('❌ 로그인 안됨 - 로그인 모달 표시');
     showLoginModal.value = true;
     return;
   }
 
-  // 🌉 브리지 상태 확인 후 사용자 정보 재확인
+  if (!isChatEnabled.value) {
+    messages.value.push({
+      text: '현재 채팅이 비활성화되어 있습니다.',
+      systemOnly: true
+    });
+    return;
+  }
+
   if (!currentUser.value) {
-    console.log('❌ 사용자 정보 없음 - 브리지 상태 확인');
     userStateBridge.checkSync();
 
     if (!currentUser.value) {
-      console.log('❌ 브리지 후에도 사용자 정보 없음 - 재로드 시도');
-
       loadUserInfo().then(() => {
-        console.log('🔄 사용자 정보 재로드 완료:', currentUser.value);
-
         if (currentUser.value) {
-          console.log('✅ 재로드 성공 - 메시지 전송 재시도');
           sendMessage();
         } else {
-          console.log('❌ 재로드 실패 - 로그인 필요');
           showLoginModal.value = true;
         }
       });
@@ -444,15 +466,12 @@ const sendMessage = () => {
   }
 
   if (connectionStatus.value !== 'connected' || !stompClient || !stompClient.connected) {
-    console.error('❌ WebSocket 연결 안됨 - 상태:', connectionStatus.value);
-
     if (connectionStatus.value !== 'connecting') {
-      console.log('🔄 재연결 시도');
       createWebSocketConnection();
     }
 
     messages.value.push({
-      text: '🔄 채팅 서버에 연결 중입니다. 잠시 후 다시 시도해주세요.',
+      text: '채팅 서버에 연결 중입니다. 잠시 후 다시 시도해주세요.',
       systemOnly: true
     });
     return;
@@ -466,8 +485,6 @@ const sendMessage = () => {
     userId: currentUserId.value
   };
 
-  console.log('📤 메시지 전송:', payload);
-
   try {
     stompClient.publish({
       destination: '/app/sendMessage',
@@ -477,21 +494,16 @@ const sendMessage = () => {
     newMessage.value = '';
     focusInput();
 
-    console.log('✅ 메시지 전송 성공');
   } catch (error) {
-    console.error('❌ 메시지 전송 실패:', error);
-
     messages.value.push({
-      text: '❌ 메시지 전송에 실패했습니다. 다시 시도해주세요.',
+      text: '메시지 전송에 실패했습니다. 다시 시도해주세요.',
       systemOnly: true
     });
   }
 };
 
-// 공지사항 전송
 const sendNotice = (text) => {
   if (connectionStatus.value !== 'connected' || !stompClient || !stompClient.connected) {
-    console.error('❌ WebSocket 연결 안됨 - 공지사항 전송 불가');
     return;
   }
 
@@ -503,23 +515,27 @@ const sendNotice = (text) => {
     userId: currentUserId.value,
   };
 
-  console.log('📢 공지사항 전송:', payload);
-
   stompClient.publish({
     destination: '/app/sendMessage',
     body: JSON.stringify(payload),
   });
 };
 
-// 스티커 전송
 const sendSticker = (stickerKey) => {
   if (!isLoggedIn.value) {
     showLoginModal.value = true;
     return;
   }
 
+  if (!isChatEnabled.value) {
+    messages.value.push({
+      text: '현재 채팅이 비활성화되어 있습니다.',
+      systemOnly: true
+    });
+    return;
+  }
+
   if (connectionStatus.value !== 'connected' || !stompClient || !stompClient.connected) {
-    console.error('❌ WebSocket 연결 안됨 - 스티커 전송 불가');
     return;
   }
 
@@ -531,8 +547,6 @@ const sendSticker = (stickerKey) => {
     userId: currentUserId.value,
   };
 
-  console.log('📤 스티커 전송:', payload);
-
   stompClient.publish({
     destination: '/app/sendMessage',
     body: JSON.stringify(payload),
@@ -542,7 +556,6 @@ const sendSticker = (stickerKey) => {
   focusInput();
 };
 
-// 나머지 함수들 (기존과 동일)
 const focusInput = () => nextTick(() => inputRef.value?.focus());
 const scrollToBottom = () => {
   nextTick(() => {
@@ -578,60 +591,46 @@ const toggleNotice = () => {
   isNoticeExpanded.value = !isNoticeExpanded.value;
 };
 
-// 디버깅 함수
 const checkWebSocketConnection = () => {
-  console.log('🔍 WebSocket 연결 상태:');
-  console.log('- connectionStatus:', connectionStatus.value);
-  console.log('- stompClient exists:', !!stompClient);
-  console.log('- stompClient.connected:', stompClient?.connected);
-  console.log('- isConnecting:', isConnecting.value);
-  console.log('- connectionRetries:', connectionRetries.value);
-  console.log('- currentUser:', currentUser.value);
-  console.log('- currentUserId:', currentUserId.value);
-  console.log('- isLoggedIn:', isLoggedIn.value);
-  console.log('- broadcastId:', broadcastIdNum.value);
-
-  // 🌉 브리지 상태도 확인
   userStateBridge.checkSync();
 };
 
 const reconnect = () => {
-  console.log('🔄 수동 재연결 시도');
   connectionRetries.value = 0;
   connectionStatus.value = 'disconnected';
   createWebSocketConnection();
 };
 
-// 컴포넌트 마운트
 onMounted(async () => {
-  console.log('🚀 ChatCommon 마운트 시작 - broadcastId:', broadcastIdNum.value);
-
-  // 🌉 브리지 초기화 확인
   userStateBridge.forceSync();
 
-  // 사용자 정보 로드
   await loadUserInfo();
-
-  // 채팅 히스토리 로드
+  await loadBroadcastStatus();
   await loadChatHistory();
+  await loadInitialParticipantCount();
 
-  // WebSocket 연결 (약간 지연)
   setTimeout(() => {
     createWebSocketConnection();
   }, 1000);
 
   loading.value = false;
   scrollToBottom();
-
-  console.log('✅ 마운트 완료 - 사용자 정보:', currentUser.value);
 });
 
-// 컴포넌트 언마운트
 onUnmounted(() => {
-  console.log('🧹 ChatCommon 언마운트 - 연결 정리');
   connectionStatus.value = 'disconnected';
+
+  if (chatSubscription) {
+    chatSubscription.unsubscribe();
+  }
+
   if (stompClient) {
     stompClient.deactivate();
+  }
+
+  const disconnectId = isLoggedIn.value ? currentUserId.value : uuid;
+  if (disconnectId) {
+    navigator.sendBeacon(`/api/chat/disconnect/${props.broadcastId}?id=${disconnectId}`);
   }
 });
 
@@ -640,30 +639,7 @@ defineExpose({
   checkWebSocketConnection,
   reconnect
 });
-
-// 개발자 도구 디버깅
-if (typeof window !== 'undefined') {
-  window.chatDebug = {
-    checkWebSocketConnection,
-    reconnect,
-    sendMessage,
-    stompClient: () => stompClient,
-    userState,
-    currentUser,
-    currentUserId,
-    isLoggedIn,
-    newMessage,
-    connectionStatus,
-    isConnecting,
-    connectionRetries,
-    // 🌉 브리지 디버깅
-    bridge: userStateBridge,
-    forceSync: () => userStateBridge.forceSync(),
-    checkSync: () => userStateBridge.checkSync()
-  };
-}
 </script>
-
 
 <style scoped>
 .chat-container {
@@ -684,17 +660,11 @@ if (typeof window !== 'undefined') {
 .notice-text {
   font-size: 12px;
   line-height: 1.4;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  line-clamp: 1;               /* (표준 속성, 의미 없음) */
-  -webkit-line-clamp: 1;
-  white-space: normal; /* 줄바꿈 가능하도록 */
+  white-space: pre-wrap;
+  overflow: auto;
 }
 .notice-text.expanded {
-  line-clamp: 1;               /* (표준 속성, 의미 없음) */
-  -webkit-line-clamp: unset; /* 줄 수 제한 해제 */
+  -webkit-line-clamp: unset;
 }
 .notice-toggle-btn {
   align-self: flex-end;
@@ -712,7 +682,6 @@ if (typeof window !== 'undefined') {
   flex-direction: column;
   overflow: hidden;
 }
-
 .chat-messages {
   flex: 1;
   overflow-y: auto;
@@ -723,9 +692,9 @@ if (typeof window !== 'undefined') {
 }
 
 .chat-message {
-  margin-bottom: 6px;
   display: flex;
   flex-direction: column;
+  margin-bottom: 6px;
 }
 .my-message {
   align-items: flex-end;
@@ -750,17 +719,34 @@ if (typeof window !== 'undefined') {
   color: #888;
   margin-bottom: 2px;
 }
+.chat-line {
+  display: inline-block;
+  max-width: 60%;
+}
 .bubble {
   background-color: #eeeeee;
   border-radius: 12px;
   padding: 6px 10px;
-  max-width: 80%;
+  max-width: 100%;
   word-break: break-word;
   line-height: 1.4;
 }
 .my-message .bubble {
   background-color: #d8ecff;
 }
+.admin-bubble {
+  background-color: #fde68a;
+  border: 1px solid #f59e0b;
+}
+.admin-nickname {
+  color: #d97706;
+  font-weight: bold;
+  background-color: #fff7ed;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
 .chat-sticker {
   width: 42px;
   height: 42px;
@@ -804,9 +790,14 @@ if (typeof window !== 'undefined') {
   border: none;
   border-radius: 4px;
 }
-.chat-input button:first-of-type {
+.send-button {
   background-color: #3b82f6;
   color: white;
+}
+.send-button:disabled {
+  background-color: #ccc;
+  color: #888;
+  cursor: not-allowed;
 }
 .tools-toggle {
   background: #f3f4f6;
@@ -842,7 +833,6 @@ if (typeof window !== 'undefined') {
   font-size: 14px;
   cursor: pointer;
 }
-
 .sticker-list {
   display: flex;
   flex-wrap: wrap;
@@ -861,7 +851,7 @@ if (typeof window !== 'undefined') {
 .login-popup-overlay {
   position: fixed;
   inset: 0;
-  background-color: rgba(0,0,0,0.4);
+  background-color: rgba(0, 0, 0, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -871,7 +861,7 @@ if (typeof window !== 'undefined') {
   background: white;
   padding: 20px;
   border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   text-align: center;
 }
 .popup-buttons {
@@ -887,5 +877,27 @@ if (typeof window !== 'undefined') {
 .popup-buttons button:last-child {
   background-color: #eee;
   color: #333;
+}
+.chat-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #fef9c3;
+  border-bottom: 1px solid #facc15;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.notice-toggle-btn {
+  font-size: 13px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #d97706;
+}
+
+.chat-participant-count {
+  font-size: 12px;
+  color: #666;
 }
 </style>

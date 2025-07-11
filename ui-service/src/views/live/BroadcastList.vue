@@ -276,10 +276,23 @@ const fetchLiveBroadcastsByCategory = async (categoryId) => {
       params.category_id = selectedSubCategory.value || categoryId
     }
 
+    // 🔍 디버깅 로그 추가
+    console.log('=== 방송 조회 디버깅 ===')
+    console.log('선택된 카테고리:', categoryId)
+    console.log('선택된 서브카테고리:', selectedSubCategory.value)
+    console.log('최종 전송 파라미터:', params)
+    console.log('API 엔드포인트:', '/api/broadcasts/live')
+
     const response = await apiClient.get('/api/broadcasts/live', {
       params,
       withAuth: false
     })
+
+    // 🔍 응답 디버깅 로그 추가
+    console.log('=== API 응답 디버깅 ===')
+    console.log('응답 상태:', response.status)
+    console.log('응답 데이터:', response.data)
+    console.log('방송 개수:', response.data?.length || 0)
 
     if (response.data && Array.isArray(response.data)) {
       allBroadcasts.value = response.data.map(broadcast => ({
@@ -302,11 +315,20 @@ const fetchLiveBroadcastsByCategory = async (categoryId) => {
         total_viewers: broadcast.totalViewers || 0,
         peak_viewers: broadcast.peakViewers || 0
       }))
+
+      console.log('=== 변환된 방송 데이터 ===')
+      console.log('변환된 방송 목록:', allBroadcasts.value)
     } else {
       allBroadcasts.value = []
+      console.log('❌ 응답 데이터가 배열이 아니거나 없음')
     }
 
   } catch (err) {
+    console.log('=== API 에러 디버깅 ===')
+    console.error('에러 상세:', err)
+    console.error('에러 응답:', err.response?.data)
+    console.error('에러 상태:', err.response?.status)
+
     error.value = err.response?.data?.message || '방송 목록을 불러오는데 실패했습니다'
     allBroadcasts.value = []
   } finally {

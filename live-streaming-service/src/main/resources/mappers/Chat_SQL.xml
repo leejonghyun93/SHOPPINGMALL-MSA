@@ -26,7 +26,22 @@
                      #{productId}
                  )
     </insert>
-
+    <select id="getBroadcastStatusById" parameterType="long" resultType="org.kosa.livestreamingservice.dto.chat.BroadcastStatusDTO">
+        SELECT
+            broadcast_id as broadcastId,
+            broadcast_status as status,
+            title,
+            broadcaster_id as broadcasterId,
+            current_viewers as currentViewers,
+            is_public as isPublic
+        FROM tb_live_broadcasts
+        WHERE broadcast_id = #{broadcastId}
+    </select>
+    <select id="getBroadcasterIdByBroadcastId" parameterType="long" resultType="string">
+        SELECT broadcaster_id
+        FROM tb_live_broadcasts
+        WHERE broadcast_id = #{broadcastId}
+    </select>
     <select id="getChatMessagesByBroadcastId" resultType="org.kosa.livestreamingservice.dto.chat.ChatMessageDTO">
         SELECT
             c.user_id AS userId,
@@ -44,4 +59,15 @@
         ORDER BY c.created_at ASC
     </select>
 
+    <update id="updateStatus">
+        UPDATE tb_live_broadcasts
+        SET broadcast_status = #{broadcast_status}
+        <if test="actual_start_time != null">
+            , actual_start_time = #{actual_start_time}
+        </if>
+        <if test="actual_end_time != null">
+            , actual_end_time = #{actual_end_time}
+        </if>
+        WHERE broadcast_id = #{broadcast_id}
+    </update>
 </mapper>

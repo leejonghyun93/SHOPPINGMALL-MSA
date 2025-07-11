@@ -16,6 +16,7 @@ import java.util.Optional;
 
 @Repository
 public interface BroadcastRepository extends JpaRepository<BroadcastEntity, Long> {
+    boolean existsByBroadcastIdAndBroadcasterId(Long broadcastId, String broadcasterId);
 
     // ============ 핵심 알림 서비스용 메서드들 ============
 
@@ -80,60 +81,6 @@ public interface BroadcastRepository extends JpaRepository<BroadcastEntity, Long
             "b.scheduledEndTime < CURRENT_TIMESTAMP")
     int updateOverdueLiveToEnded();
 
-    /**
-     * 관리자용: 특정 방송을 직접 시작으로 변경
-     */
-    @Modifying
-    @Query("UPDATE BroadcastEntity b SET b.broadcastStatus = 'live', b.actualStartTime = CURRENT_TIMESTAMP, " +
-            "b.updatedAt = CURRENT_TIMESTAMP " +
-            "WHERE b.broadcastId = :broadcastId")
-    int updateBroadcastToLive(@Param("broadcastId") Long broadcastId);
-
-    /**
-     * 관리자용: 특정 방송을 직접 종료로 변경
-     */
-    @Modifying
-    @Query("UPDATE BroadcastEntity b SET b.broadcastStatus = 'ended', b.actualEndTime = CURRENT_TIMESTAMP, " +
-            "b.updatedAt = CURRENT_TIMESTAMP " +
-            "WHERE b.broadcastId = :broadcastId")
-    int updateBroadcastToEnded(@Param("broadcastId") Long broadcastId);
-
-    /**
-     * 관리자용: 특정 방송을 일시정지로 변경
-     */
-    @Modifying
-    @Query("UPDATE BroadcastEntity b SET b.broadcastStatus = 'paused', b.updatedAt = CURRENT_TIMESTAMP " +
-            "WHERE b.broadcastId = :broadcastId AND b.broadcastStatus = 'live'")
-    int updateBroadcastToPaused(@Param("broadcastId") Long broadcastId);
-
-    /**
-     * 관리자용: 일시정지된 방송을 다시 live로 변경
-     */
-    @Modifying
-    @Query("UPDATE BroadcastEntity b SET b.broadcastStatus = 'live', b.updatedAt = CURRENT_TIMESTAMP " +
-            "WHERE b.broadcastId = :broadcastId AND b.broadcastStatus = 'paused'")
-    int updateBroadcastToResume(@Param("broadcastId") Long broadcastId);
-
-    /**
-     * 관리자용: 방송 상태를 직접 변경 (범용)
-     */
-    @Modifying
-    @Query("UPDATE BroadcastEntity b SET b.broadcastStatus = :newStatus, b.updatedAt = CURRENT_TIMESTAMP " +
-            "WHERE b.broadcastId = :broadcastId")
-    int updateBroadcastStatus(@Param("broadcastId") Long broadcastId, @Param("newStatus") String newStatus);
-
-    /**
-     * 관리자용: 여러 방송을 한번에 종료
-     */
-    @Modifying
-    @Query("UPDATE BroadcastEntity b SET b.broadcastStatus = 'ended', b.actualEndTime = CURRENT_TIMESTAMP, " +
-            "b.updatedAt = CURRENT_TIMESTAMP " +
-            "WHERE b.broadcastId IN :broadcastIds")
-    int updateMultipleBroadcastsToEnded(@Param("broadcastIds") List<Long> broadcastIds);
-
-    /**
-     * 현재 시간 기준으로 시작해야 할 방송들 조회
-     */
     @Query("SELECT b FROM BroadcastEntity b WHERE " +
             "b.scheduledStartTime BETWEEN :startTime AND :endTime " +
             "AND b.broadcastStatus = 'scheduled' " +

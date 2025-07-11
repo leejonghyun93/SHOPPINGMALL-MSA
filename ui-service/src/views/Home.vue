@@ -121,16 +121,16 @@
             {{ getBroadcastStatusText(broadcast.broadcastStatus) }}
           </div>
 
-          <div class="viewer-count">
-            <i class="fas fa-users viewer-icon"></i>
-            {{ formatViewerCount(broadcast.currentViewers) }}
-          </div>
+<!--          <div class="viewer-count">-->
+<!--            <i class="fas fa-users viewer-icon"></i>-->
+<!--            {{ formatViewerCount(broadcast.currentViewers) }}-->
+<!--          </div>-->
 
         </div>
 
         <div class="broadcast-info">
           <h3 class="broadcast-title">{{ broadcast.title }}</h3>
-          <p class="broadcast-description">{{ broadcast.description || '방송 설명이 없습니다.' }}</p>
+<!--          <p class="broadcast-description">{{ broadcast.description || '방송 설명이 없습니다.' }}</p>-->
 
           <div class="broadcaster-info">
             <div class="broadcaster-avatar">
@@ -189,7 +189,7 @@
           class="product-card"
           @click="goToProduct(product)"
       >
-        <div class="rank-badge">{{ index + 1 }}</div>
+<!--        <div class="rank-badge">{{ index + 1 }}</div>-->
 
         <div class="product-image">
           <img

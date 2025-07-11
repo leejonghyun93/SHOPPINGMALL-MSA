@@ -1,4 +1,5 @@
 package org.kosa.apigatewayservice.config;
+
 import org.kosa.apigatewayservice.filter.SimpleJwtFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -123,7 +124,7 @@ public class GatewaySecurityConfig {
                                         .pathMatchers(HttpMethod.POST, "/api/users/verify-password").permitAll()
                                         .pathMatchers(HttpMethod.GET, "/api/users/checkUserId/**").permitAll()
                                         .pathMatchers(HttpMethod.GET, "/api/users/health").permitAll()
-                                        .pathMatchers(HttpMethod.GET,"/api/users/findId").permitAll()
+                                        .pathMatchers(HttpMethod.GET, "/api/users/findId").permitAll()
                                         .pathMatchers(HttpMethod.POST, "/auth/findPassword").permitAll()
                                         .pathMatchers(HttpMethod.POST, "/auth/verifyResetCode").permitAll()
                                         .pathMatchers(HttpMethod.POST, "/auth/resetPassword").permitAll()
@@ -206,7 +207,30 @@ public class GatewaySecurityConfig {
                                         // GatewaySecurityConfig.java의 authorizeExchange에 추가
                                         .pathMatchers(HttpMethod.GET, "/hls/**").permitAll()
                                         .pathMatchers(HttpMethod.OPTIONS, "/hls/**").permitAll()
+// 🚨 게이트웨이 설정에 추가해야 할 라우팅들
 
+// ChatController의 엔드포인트들 중 게이트웨이에 없는 것들:
+
+// 1. ❌ 없음: 참여자 수 조회 API
+                                        .pathMatchers(HttpMethod.GET, "/api/chat/participants/**").permitAll()
+
+// 2. ❌ 없음: 수동 연결 해제 API
+                                        .pathMatchers(HttpMethod.POST, "/api/chat/disconnect/**").permitAll()
+
+// 3. ❌ 잘못된 경로: 방송 상태 조회 API
+// 현재: .pathMatchers(HttpMethod.GET, "/api/broadcast/*/status").permitAll()
+// 실제 ChatController: /broadcasts/{broadcastId}/status
+                                        .pathMatchers(HttpMethod.GET, "/api/broadcasts/*/status").permitAll()  // 이미 있음 (올바름)
+
+// 🔧 수정된 게이트웨이 설정에 추가할 부분:
+
+// 채팅 관련 API 섹션에 추가:
+                                        .pathMatchers(HttpMethod.GET, "/api/chat/participants/**").permitAll()
+                                        .pathMatchers(HttpMethod.POST, "/api/chat/disconnect/**").permitAll()
+
+// 또는 더 구체적으로:
+                                        .pathMatchers(HttpMethod.GET, "/api/chat/participants/{broadcastId}").permitAll()
+                                        .pathMatchers(HttpMethod.POST, "/api/chat/disconnect/{broadcastId}").permitAll()
 
                                         // ===========================================
                                         // USER PROFILE (인증 필요)

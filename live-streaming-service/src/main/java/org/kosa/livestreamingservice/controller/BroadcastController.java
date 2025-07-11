@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.kosa.livestreamingservice.dto.BroadcastDto;
 import org.kosa.livestreamingservice.dto.BroadcastScheduleDto;
+import org.kosa.livestreamingservice.entity.BroadcastEntity;
 import org.kosa.livestreamingservice.service.BroadcastService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -44,6 +45,11 @@ public class BroadcastController {
             log.error("방송 스케줄 조회 실패 - date: {}", date, e);
             return ResponseEntity.internalServerError().build();
         }
+    }
+    @PutMapping("/status")
+    public ResponseEntity<?> updateStatus(@RequestBody BroadcastEntity broadCast) {
+        broadcastService.updateStatus(broadCast);
+        return ResponseEntity.ok().body(Map.of("result", "success"));
     }
 
     // ============ 프론트엔드용 API ============
