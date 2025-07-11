@@ -1,14 +1,16 @@
-name: Frontend CI/CD
+name: Frontend CI/CD (Nginx Docker)
 
 on:
   push:
     branches: [ main, master ]
     paths:
       - 'ui-service/**'
+      - 'nginx-docker/**'
   pull_request:
     branches: [ main, master ]
     paths:
       - 'ui-service/**'
+      - 'nginx-docker/**'
 
 jobs:
   test:
@@ -31,28 +33,33 @@ jobs:
       - name: Run linting
         run: |
           cd ui-service
-          npm run lint || true  # 린팅 실패해도 계속 진행
+          npm run lint || true
 
       - name: Run tests
         run: |
           cd ui-service
-          # 테스트가 있다면 실행, 없으면 스킵
           if [ -f "package.json" ] && grep -q "test" package.json; then
             npm run test:unit || true
           else
             echo "No tests found, skipping..."
           fi
 
-      - name: Build application
+      - name: Build Vue application
         run: |
           cd ui-service
           npm run build
 
+      - name: Prepare nginx-docker
+        run: |
+          mkdir -p nginx-docker/vue-dist
+          rm -rf nginx-docker/vue-dist/*
+          cp -r ui-service/dist/* nginx-docker/vue-dist/
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: dist-files
-          path: ui-service/dist/
+          name: nginx-docker-files
+          path: nginx-docker/
 
   deploy:
     needs: test
@@ -65,8 +72,8 @@ jobs:
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
-          name: dist-files
-          path: dist/
+          name: nginx-docker-files
+          path: nginx-docker/
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -75,19 +82,50 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-northeast-2
 
-      - name: Sync to S3
-        run: |
-          aws s3 sync dist/ s3://${{ secrets.S3_BUCKET_NAME }} --delete
-          aws s3 cp dist/index.html s3://${{ secrets.S3_BUCKET_NAME }}/index.html \
-            --metadata-directive REPLACE \
-            --cache-control "no-cache, no-store, must-revalidate"
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Invalidate CloudFront (if exists)
+      - name: Build and push Nginx Docker image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: user-nginx
+          IMAGE_TAG: ${{ github.sha }}
         run: |
-          if [ -n "${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}" ]; then
-            aws cloudfront create-invalidation \
-              --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
-              --paths "/*"
-          else
-            echo "CloudFront distribution ID not found, skipping invalidation"
-          fi
+          cd nginx-docker
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin ${{ steps.login-ecr.outputs.registry }}
+            docker stop user-nginx || true
+            docker rm user-nginx || true
+            docker pull ${{ steps.login-ecr.outputs.registry }}/user-nginx:latest
+            docker run -d \
+              --name user-nginx \
+              --network shoppingmall-msa_default \
+              -p 80:80 \
+              -p 443:443 \
+              --restart unless-stopped \
+              ${{ steps.login-ecr.outputs.registry }}/user-nginx:latest
+            sleep 5
+            docker ps | grep user-nginx
+            echo "Checking Nginx health..."
+            for i in {1..5}; do
+              if curl -f http://localhost/; then
+                echo "✅ Nginx is healthy!"
+                break
+              else
+                echo "⏳ Waiting for Nginx to be ready... ($i/5)"
+                sleep 5
+              fi
+            done
+            docker image prune -f
