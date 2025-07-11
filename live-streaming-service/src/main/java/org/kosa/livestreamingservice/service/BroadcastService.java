@@ -70,127 +70,127 @@ public class BroadcastService {
     /**
      * 관리자용: 방송 시작 (scheduled/starting → live)
      */
-    @Transactional
-    public void adminStartBroadcast(Long broadcastId, String adminId) {
-        log.info("관리자 방송 시작 요청: broadcastId={}, adminId={}", broadcastId, adminId);
-
-        BroadcastEntity broadcast = broadcastRepository.findById(broadcastId)
-                .orElseThrow(() -> new IllegalArgumentException("방송을 찾을 수 없습니다: " + broadcastId));
-
-        if (!Arrays.asList("schedule", "starting").contains(broadcast.getBroadcastStatus())) {
-            throw new IllegalStateException("시작할 수 없는 방송 상태입니다: " + broadcast.getBroadcastStatus());
-        }
-
-        int updated = broadcastRepository.updateBroadcastToLive(broadcastId);
-
-        if (updated > 0) {
-            log.info("관리자 방송 시작 완료: broadcastId={}, adminId={}", broadcastId, adminId);
-        } else {
-            throw new RuntimeException("방송 시작에 실패했습니다");
-        }
-    }
-
-    /**
-     * 관리자용: 방송 종료 (live/paused/starting → ended)
-     */
-    @Transactional
-    public void adminEndBroadcast(Long broadcastId, String adminId) {
-        log.info("관리자 방송 종료 요청: broadcastId={}, adminId={}", broadcastId, adminId);
-
-        BroadcastEntity broadcast = broadcastRepository.findById(broadcastId)
-                .orElseThrow(() -> new IllegalArgumentException("방송을 찾을 수 없습니다: " + broadcastId));
-
-        if ("ended".equals(broadcast.getBroadcastStatus())) {
-            throw new IllegalStateException("이미 종료된 방송입니다");
-        }
-
-        int updated = broadcastRepository.updateBroadcastToEnded(broadcastId);
-
-        if (updated > 0) {
-            log.info("관리자 방송 종료 완료: broadcastId={}, adminId={}", broadcastId, adminId);
-        } else {
-            throw new RuntimeException("방송 종료에 실패했습니다");
-        }
-    }
-    public void updateStatus(BroadcastEntity broadCast) {
-
-        chatDAO.updateStatus(broadCast);
-
-        messagingTemplate.convertAndSend("/topic/broadcast/" + broadCast.getBroadcastId() + "/status",
-                Map.of("status", broadCast.getBroadcastStatus()));
-    }
-
-    /**
-     * 관리자용: 방송 일시정지 (live → paused)
-     */
-    @Transactional
-    public void adminPauseBroadcast(Long broadcastId, String adminId) {
-        log.info("관리자 방송 일시정지 요청: broadcastId={}, adminId={}", broadcastId, adminId);
-
-        int updated = broadcastRepository.updateBroadcastToPaused(broadcastId);
-
-        if (updated > 0) {
-            log.info("관리자 방송 일시정지 완료: broadcastId={}, adminId={}", broadcastId, adminId);
-        } else {
-            throw new RuntimeException("방송 일시정지에 실패했습니다. 현재 LIVE 상태인지 확인하세요.");
-        }
-    }
-
-    /**
-     * 관리자용: 방송 재개 (paused → live)
-     */
-    @Transactional
-    public void adminResumeBroadcast(Long broadcastId, String adminId) {
-        log.info("관리자 방송 재개 요청: broadcastId={}, adminId={}", broadcastId, adminId);
-
-        int updated = broadcastRepository.updateBroadcastToResume(broadcastId);
-
-        if (updated > 0) {
-            log.info("관리자 방송 재개 완료: broadcastId={}, adminId={}", broadcastId, adminId);
-        } else {
-            throw new RuntimeException("방송 재개에 실패했습니다. 현재 PAUSED 상태인지 확인하세요.");
-        }
-    }
-
-    /**
-     * 관리자용: 방송 상태 직접 변경 (범용)
-     */
-    @Transactional
-    public void adminChangeBroadcastStatus(Long broadcastId, String newStatus, String adminId) {
-        log.info("관리자 방송 상태 변경 요청: broadcastId={}, newStatus={}, adminId={}",
-                broadcastId, newStatus, adminId);
-
-        List<String> validStatuses = Arrays.asList("schedule", "starting", "live", "paused", "ended");
-        if (!validStatuses.contains(newStatus)) {
-            throw new IllegalArgumentException("유효하지 않은 방송 상태입니다: " + newStatus);
-        }
-
-        int updated = broadcastRepository.updateBroadcastStatus(broadcastId, newStatus);
-
-        if (updated > 0) {
-            log.info("관리자 방송 상태 변경 완료: broadcastId={}, newStatus={}, adminId={}",
-                    broadcastId, newStatus, adminId);
-        } else {
-            throw new RuntimeException("방송 상태 변경에 실패했습니다");
-        }
-    }
+//    @Transactional
+//    public void adminStartBroadcast(Long broadcastId, String adminId) {
+//        log.info("관리자 방송 시작 요청: broadcastId={}, adminId={}", broadcastId, adminId);
+//
+//        BroadcastEntity broadcast = broadcastRepository.findById(broadcastId)
+//                .orElseThrow(() -> new IllegalArgumentException("방송을 찾을 수 없습니다: " + broadcastId));
+//
+//        if (!Arrays.asList("schedule", "starting").contains(broadcast.getBroadcastStatus())) {
+//            throw new IllegalStateException("시작할 수 없는 방송 상태입니다: " + broadcast.getBroadcastStatus());
+//        }
+//
+//        int updated = broadcastRepository.updateBroadcastToLive(broadcastId);
+//
+//        if (updated > 0) {
+//            log.info("관리자 방송 시작 완료: broadcastId={}, adminId={}", broadcastId, adminId);
+//        } else {
+//            throw new RuntimeException("방송 시작에 실패했습니다");
+//        }
+//    }
+//
+//    /**
+//     * 관리자용: 방송 종료 (live/paused/starting → ended)
+//     */
+//    @Transactional
+//    public void adminEndBroadcast(Long broadcastId, String adminId) {
+//        log.info("관리자 방송 종료 요청: broadcastId={}, adminId={}", broadcastId, adminId);
+//
+//        BroadcastEntity broadcast = broadcastRepository.findById(broadcastId)
+//                .orElseThrow(() -> new IllegalArgumentException("방송을 찾을 수 없습니다: " + broadcastId));
+//
+//        if ("ended".equals(broadcast.getBroadcastStatus())) {
+//            throw new IllegalStateException("이미 종료된 방송입니다");
+//        }
+//
+//        int updated = broadcastRepository.updateBroadcastToEnded(broadcastId);
+//
+//        if (updated > 0) {
+//            log.info("관리자 방송 종료 완료: broadcastId={}, adminId={}", broadcastId, adminId);
+//        } else {
+//            throw new RuntimeException("방송 종료에 실패했습니다");
+//        }
+//    }
+//    public void updateStatus(BroadcastEntity broadCast) {
+//
+//        chatDAO.updateStatus(broadCast);
+//
+//        messagingTemplate.convertAndSend("/topic/broadcast/" + broadCast.getBroadcastId() + "/status",
+//                Map.of("status", broadCast.getBroadcastStatus()));
+//    }
+//
+//    /**
+//     * 관리자용: 방송 일시정지 (live → paused)
+//     */
+//    @Transactional
+//    public void adminPauseBroadcast(Long broadcastId, String adminId) {
+//        log.info("관리자 방송 일시정지 요청: broadcastId={}, adminId={}", broadcastId, adminId);
+//
+//        int updated = broadcastRepository.updateBroadcastToPaused(broadcastId);
+//
+//        if (updated > 0) {
+//            log.info("관리자 방송 일시정지 완료: broadcastId={}, adminId={}", broadcastId, adminId);
+//        } else {
+//            throw new RuntimeException("방송 일시정지에 실패했습니다. 현재 LIVE 상태인지 확인하세요.");
+//        }
+//    }
+//
+//    /**
+//     * 관리자용: 방송 재개 (paused → live)
+//     */
+//    @Transactional
+//    public void adminResumeBroadcast(Long broadcastId, String adminId) {
+//        log.info("관리자 방송 재개 요청: broadcastId={}, adminId={}", broadcastId, adminId);
+//
+//        int updated = broadcastRepository.updateBroadcastToResume(broadcastId);
+//
+//        if (updated > 0) {
+//            log.info("관리자 방송 재개 완료: broadcastId={}, adminId={}", broadcastId, adminId);
+//        } else {
+//            throw new RuntimeException("방송 재개에 실패했습니다. 현재 PAUSED 상태인지 확인하세요.");
+//        }
+//    }
+//
+//    /**
+//     * 관리자용: 방송 상태 직접 변경 (범용)
+//     */
+//    @Transactional
+//    public void adminChangeBroadcastStatus(Long broadcastId, String newStatus, String adminId) {
+//        log.info("관리자 방송 상태 변경 요청: broadcastId={}, newStatus={}, adminId={}",
+//                broadcastId, newStatus, adminId);
+//
+//        List<String> validStatuses = Arrays.asList("schedule", "starting", "live", "paused", "ended");
+//        if (!validStatuses.contains(newStatus)) {
+//            throw new IllegalArgumentException("유효하지 않은 방송 상태입니다: " + newStatus);
+//        }
+//
+//        int updated = broadcastRepository.updateBroadcastStatus(broadcastId, newStatus);
+//
+//        if (updated > 0) {
+//            log.info("관리자 방송 상태 변경 완료: broadcastId={}, newStatus={}, adminId={}",
+//                    broadcastId, newStatus, adminId);
+//        } else {
+//            throw new RuntimeException("방송 상태 변경에 실패했습니다");
+//        }
+//    }
 
     /**
      * 관리자용: 여러 방송 일괄 종료
      */
-    @Transactional
-    public void adminEndMultipleBroadcasts(List<Long> broadcastIds, String adminId) {
-        log.info("관리자 여러 방송 일괄 종료 요청: count={}, adminId={}", broadcastIds.size(), adminId);
-
-        if (broadcastIds.isEmpty()) {
-            throw new IllegalArgumentException("종료할 방송이 선택되지 않았습니다");
-        }
-
-        int updated = broadcastRepository.updateMultipleBroadcastsToEnded(broadcastIds);
-
-        log.info("관리자 여러 방송 일괄 종료 완료: 요청={}, 처리={}, adminId={}",
-                broadcastIds.size(), updated, adminId);
-    }
+//    @Transactional
+//    public void adminEndMultipleBroadcasts(List<Long> broadcastIds, String adminId) {
+//        log.info("관리자 여러 방송 일괄 종료 요청: count={}, adminId={}", broadcastIds.size(), adminId);
+//
+//        if (broadcastIds.isEmpty()) {
+//            throw new IllegalArgumentException("종료할 방송이 선택되지 않았습니다");
+//        }
+//
+//        int updated = broadcastRepository.updateMultipleBroadcastsToEnded(broadcastIds);
+//
+//        log.info("관리자 여러 방송 일괄 종료 완료: 요청={}, 처리={}, adminId={}",
+//                broadcastIds.size(), updated, adminId);
+//    }
 
     /**
      * 관리자용: 방송 상태별 통계 조회
