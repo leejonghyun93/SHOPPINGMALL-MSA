@@ -112,13 +112,13 @@ public class BroadcastService {
 //            throw new RuntimeException("방송 종료에 실패했습니다");
 //        }
 //    }
-//    public void updateStatus(BroadcastEntity broadCast) {
-//
-//        chatDAO.updateStatus(broadCast);
-//
-//        messagingTemplate.convertAndSend("/topic/broadcast/" + broadCast.getBroadcastId() + "/status",
-//                Map.of("status", broadCast.getBroadcastStatus()));
-//    }
+    public void updateStatus(BroadcastEntity broadCast) {
+
+        chatDAO.updateStatus(broadCast);
+
+        messagingTemplate.convertAndSend("/topic/broadcast/" + broadCast.getBroadcastId() + "/status",
+                Map.of("status", broadCast.getBroadcastStatus()));
+    }
 //
 //    /**
 //     * 관리자용: 방송 일시정지 (live → paused)
