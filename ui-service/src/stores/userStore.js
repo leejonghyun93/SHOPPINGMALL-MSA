@@ -1,4 +1,4 @@
-// UserState.js - 통합된 사용자 상태 관리 (기존 userStore.js 기능 포함)
+// userState.js - 통합된 사용자 상태 관리 (기존 userStore.js 기능 포함)
 
 import { reactive } from 'vue';
 import { jwtDecode } from "jwt-decode";
