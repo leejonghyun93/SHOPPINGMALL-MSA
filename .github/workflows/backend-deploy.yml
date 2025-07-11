@@ -20,6 +20,7 @@ on:
       - 'commerce-service/**'
       - 'config-service/**'
       - 'eureka-service/**'
+      - 'live-streaming-service/**'
       - 'user-service/**'
 
 jobs:
@@ -43,8 +44,8 @@ jobs:
 
       - name: Build all services (skip tests)
         run: |
-          # live-streaming-service 제외하고 빌드
-          for service in apigateway-service auth-service commerce-service config-service eureka-service user-service; do
+          # 모든 서비스 빌드 (live-streaming-service 포함)
+          for service in apigateway-service auth-service commerce-service config-service eureka-service live-streaming-service user-service; do
             echo "Building $service..."
             cd $service
             if [ -f "pom.xml" ]; then
@@ -77,8 +78,8 @@ jobs:
 
       - name: Build JAR files
         run: |
-          # live-streaming-service 제외하고 JAR 빌드
-          for service in eureka-service config-service auth-service user-service commerce-service apigateway-service; do
+          # 모든 서비스 JAR 빌드 (live-streaming-service 포함)
+          for service in eureka-service config-service auth-service user-service commerce-service live-streaming-service apigateway-service; do
             echo "Building JAR for $service..."
             cd $service
             if [ -f "pom.xml" ]; then
@@ -103,7 +104,7 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
-          services="eureka-service config-service auth-service user-service commerce-service apigateway-service"
+          services="eureka-service config-service auth-service user-service commerce-service live-streaming-service apigateway-service"
           
           for service in $services; do
             echo "Building and pushing $service..."
@@ -138,6 +139,14 @@ jobs:
             export DB_PASSWORD="${{ secrets.DB_PASSWORD }}"
             export PROD_JWT_SECRET_KEY="${{ secrets.JWT_SECRET_KEY }}"
             export CONFIG_SERVER_PASSWORD="${{ secrets.CONFIG_SERVER_PASSWORD }}"
+            export CONFIG_REPO_GIT_URI="${{ secrets.CONFIG_REPO_GIT_URI }}"
+            export PROD_IAMPORT_API_KEY="${{ secrets.PROD_IAMPORT_API_KEY }}"
+            export PROD_IAMPORT_API_SECRET="${{ secrets.PROD_IAMPORT_API_SECRET }}"
+            export PROD_MAIL_USERNAME="${{ secrets.PROD_MAIL_USERNAME }}"
+            export PROD_MAIL_PASSWORD="${{ secrets.PROD_MAIL_PASSWORD }}"
+            export PROD_IMAGE_BASE_URL="${{ secrets.PROD_IMAGE_BASE_URL }}"
+            export FRONTEND_URL="${{ secrets.FRONTEND_URL }}"
+            export ADMIN_URL="${{ secrets.ADMIN_URL }}"
             export ECR_REGISTRY="${{ steps.login-ecr.outputs.registry }}"
             export SPRING_PROFILES_ACTIVE="prod"
 
@@ -173,8 +182,8 @@ jobs:
             docker-compose up -d auth-service user-service
             sleep 20
 
-            echo "Starting Commerce Service..."
-            docker-compose up -d commerce-service
+            echo "Starting Commerce and Live Streaming Services..."
+            docker-compose up -d commerce-service live-streaming-service
             sleep 20
 
             echo "Starting API Gateway..."
@@ -194,4 +203,17 @@ jobs:
             done
 
             # 최종 상태 확인
+            echo "📊 Final status check:"
             docker-compose ps
+            
+            # 서비스별 상태 확인
+            echo "🔍 Individual service health check:"
+            services=("eureka-service:8761" "config-service:8888" "apigateway-service:8080")
+            for service_port in "${services[@]}"; do
+              service_name=$(echo $service_port | cut -d':' -f1)
+              port=$(echo $service_port | cut -d':' -f2)
+              echo "Checking $service_name on port $port..."
+              curl -s http://localhost:$port/actuator/health || echo "❌ $service_name is not responding"
+            done
+            
+            echo "🚀 Deployment completed!"
