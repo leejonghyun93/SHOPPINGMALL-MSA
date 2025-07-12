@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # ======================
   # 데이터베이스
@@ -67,6 +65,35 @@ services:
       timeout: 3s
       retries: 3
 
+  # RabbitMQ - 메시지 브로커
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: shopmall-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin123
+    deploy:
+      resources:
+        limits:
+          memory: 512M  # 메모리 제한 증가
+          cpus: '0.25'
+        reservations:
+          memory: 128M
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - msa-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 60s  # 헬스체크 간격 늘림
+      timeout: 20s   # 타임아웃 증가
+      retries: 10    # 재시도 증가
+      start_period: 120s  # 시작 대기시간 추가
+
   # Zookeeper - Kafka용
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.0
@@ -127,32 +154,6 @@ services:
   # MSA 핵심 서비스들 (ECR 이미지 사용)
   # ======================
 
-  # Eureka 서비스 디스커버리
-  eureka-service:
-    image: ${ECR_REGISTRY}/eureka-service:latest
-    container_name: shopmall-eureka
-    ports:
-      - "8761:8761"
-    environment:
-      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
-      - JAVA_OPTS=-Xmx128m -Xms64m -XX:+UseG1GC
-    deploy:
-      resources:
-        limits:
-          memory: 160M
-          cpus: '0.2'
-        reservations:
-          memory: 80M
-    networks:
-      - msa-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 60s
-
   # Config 서버
   config-service:
     image: ${ECR_REGISTRY}/config-service:latest
@@ -166,23 +167,53 @@ services:
       - CONFIG_GIT_PASSWORD=${CONFIG_GIT_PASSWORD:-}
       - CONFIG_SERVER_USERNAME=${CONFIG_SERVER_USERNAME:-config}
       - CONFIG_SERVER_PASSWORD=${CONFIG_SERVER_PASSWORD}
-      - EUREKA_CLIENT_SERVICE_URL=http://eureka-service:8761/eureka
+      - EUREKA_CLIENT_ENABLED=false
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - SPRING_RABBITMQ_PORT=5672
+      - SPRING_RABBITMQ_USERNAME=admin
+      - SPRING_RABBITMQ_PASSWORD=admin123
       - JAVA_OPTS=-Xmx96m -Xms48m -XX:+UseG1GC
     deploy:
       resources:
         limits:
-          memory: 128M
+          memory: 256M
           cpus: '0.15'
         reservations:
           memory: 64M
     depends_on:
-      eureka-service:
+      rabbitmq:
         condition: service_healthy
     networks:
       - msa-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8888/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 8
+      start_period: 120s
+
+  # Eureka 서비스 디스커버리
+  eureka-service:
+    image: ${ECR_REGISTRY}/eureka-service:latest
+    container_name: shopmall-eureka
+    ports:
+      - "8761:8761"
+    environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
+      - CONFIG_SERVER_URL=http://config-service:8888   # 여기 추가
+      - SPRING_CONFIG_IMPORT=optional:configserver:${CONFIG_SERVER_URL}
+      - EUREKA_CLIENT_REGISTER_WITH_EUREKA=false
+      - EUREKA_CLIENT_FETCH_REGISTRY=false
+      - JAVA_OPTS=-Xmx128m -Xms64m -XX:+UseG1GC
+    depends_on:
+      config-service:
+        condition: service_healthy
+    networks:
+      - msa-network
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8761/actuator/health" ]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -191,7 +222,6 @@ services:
   # 인증 서비스 (3개 인스턴스)
   auth-service:
     image: ${ECR_REGISTRY}/auth-service:latest
-    # container_name 제거됨 - 다중 인스턴스용
     ports:
       - "8082-8084:8082"  # 3개 인스턴스용 포트 범위
     environment:
@@ -200,11 +230,9 @@ services:
       - SPRING_CONFIG_IMPORT=optional:configserver:http://config-service:8888
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
-      # DB 연결 정보 (내부 MariaDB 사용)
       - SPRING_DATASOURCE_URL=jdbc:mariadb://mariadb:3306/${DB_NAME:-shoppingmall_db}
       - SPRING_DATASOURCE_USERNAME=${DB_USERNAME:-shopmall_user}
       - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:-shopmall_pass123}
-      # 환경별 환경변수 주입
       - PROD_REDIS_HOST=${PROD_REDIS_HOST:-redis}
       - PROD_REDIS_PASSWORD=${PROD_REDIS_PASSWORD:-}
       - PROD_MAIL_USERNAME=${PROD_MAIL_USERNAME}
@@ -241,7 +269,6 @@ services:
   # 사용자 서비스 (3개 인스턴스)
   user-service:
     image: ${ECR_REGISTRY}/user-service:latest
-    # container_name 제거됨 - 다중 인스턴스용
     ports:
       - "8103-8105:8103"  # 3개 인스턴스용 포트 범위
     environment:
@@ -251,11 +278,9 @@ services:
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-      # DB 연결 정보 (내부 MariaDB 사용)
       - SPRING_DATASOURCE_URL=jdbc:mariadb://mariadb:3306/${DB_NAME:-shoppingmall_db}
       - SPRING_DATASOURCE_USERNAME=${DB_USERNAME:-shopmall_user}
       - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:-shopmall_pass123}
-      # 환경별 환경변수 주입
       - PROD_REDIS_HOST=${PROD_REDIS_HOST:-redis}
       - PROD_REDIS_PASSWORD=${PROD_REDIS_PASSWORD:-}
       - PROD_KAFKA_SERVERS=${PROD_KAFKA_SERVERS:-kafka:9092}
@@ -293,7 +318,6 @@ services:
   # 커머스 서비스 (3개 인스턴스)
   commerce-service:
     image: ${ECR_REGISTRY}/commerce-service:latest
-    # container_name 제거됨 - 다중 인스턴스용
     ports:
       - "8090-8092:8090"  # 3개 인스턴스용 포트 범위
     environment:
@@ -303,11 +327,9 @@ services:
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-      # DB 연결 정보 (내부 MariaDB 사용)
       - SPRING_DATASOURCE_URL=jdbc:mariadb://mariadb:3306/${DB_NAME:-shoppingmall_db}
       - SPRING_DATASOURCE_USERNAME=${DB_USERNAME:-shopmall_user}
       - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:-shopmall_pass123}
-      # 환경별 환경변수 주입
       - PROD_REDIS_HOST=${PROD_REDIS_HOST:-redis}
       - PROD_REDIS_PASSWORD=${PROD_REDIS_PASSWORD:-}
       - PROD_KAFKA_SERVERS=${PROD_KAFKA_SERVERS:-kafka:9092}
@@ -348,7 +370,6 @@ services:
   # 라이브 스트리밍 서비스 (2개 인스턴스)
   live-streaming-service:
     image: ${ECR_REGISTRY}/live-streaming-service:latest
-    # container_name 제거됨 - 다중 인스턴스용
     ports:
       - "8096-8097:8096"  # 2개 인스턴스용 포트 범위
     environment:
@@ -358,11 +379,9 @@ services:
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-      # DB 연결 정보 (내부 MariaDB 사용) - 라이브 서비스도 DB 필요하다면
       - SPRING_DATASOURCE_URL=jdbc:mariadb://mariadb:3306/${DB_NAME:-shoppingmall_db}
       - SPRING_DATASOURCE_USERNAME=${DB_USERNAME:-shopmall_user}
       - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:-shopmall_pass123}
-      # 환경별 환경변수 주입 (기본 공통 설정 사용)
       - PROD_REDIS_HOST=${PROD_REDIS_HOST:-redis}
       - PROD_REDIS_PASSWORD=${PROD_REDIS_PASSWORD:-}
       - PROD_KAFKA_SERVERS=${PROD_KAFKA_SERVERS:-kafka:9092}
@@ -408,7 +427,6 @@ services:
       - SPRING_CONFIG_IMPORT=optional:configserver:http://config-service:8888
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
-      # 환경별 환경변수 주입
       - FRONTEND_URL=${FRONTEND_URL:-https://shopmall.com}
       - ADMIN_URL=${ADMIN_URL:-https://admin.shopmall.com}
       - JWT_SECRET=${PROD_JWT_SECRET_KEY}
@@ -527,6 +545,8 @@ volumes:
   mariadb_data:
     driver: local
   redis_data:
+    driver: local
+  rabbitmq_data:
     driver: local
   kafka_data:
     driver: local
