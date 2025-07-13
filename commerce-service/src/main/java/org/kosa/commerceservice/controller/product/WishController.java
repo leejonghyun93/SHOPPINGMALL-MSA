@@ -105,7 +105,22 @@ public class WishController {
                         .body(ApiResponse.error("상품 ID가 필요합니다."));
             }
 
-            String productId = productIdObj.toString();
+            // String → Integer로 변경
+            Integer productId;
+            try {
+                if (productIdObj instanceof Integer) {
+                    productId = (Integer) productIdObj;
+                } else if (productIdObj instanceof String) {
+                    productId = Integer.parseInt((String) productIdObj);
+                } else {
+                    productId = Integer.parseInt(productIdObj.toString());
+                }
+            } catch (NumberFormatException e) {
+                log.error("잘못된 상품 ID 형식: {}", productIdObj);
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("올바른 상품 ID를 입력해주세요."));
+            }
+
             log.info("찜하기 추가 처리 - userId: {}, productId: {}", userId, productId);
 
             boolean success = wishService.addToWishlist(userId, productId);
@@ -130,7 +145,7 @@ public class WishController {
     @DeleteMapping("/{productId}")
     public ResponseEntity<ApiResponse<String>> removeFromWishlist(
             @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @PathVariable String productId) {
+            @PathVariable Integer productId) {
         try {
             log.info("찜하기 해제 요청 - productId: {}, AuthHeader 존재: {}", productId, authHeader != null);
 
@@ -162,7 +177,7 @@ public class WishController {
     @GetMapping("/check/{productId}")
     public ResponseEntity<ApiResponse<Boolean>> checkWishlistStatus(
             @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @PathVariable String productId) {
+            @PathVariable Integer productId) {
         try {
             log.info("찜하기 상태 확인 요청 - productId: {}, AuthHeader 존재: {}", productId, authHeader != null);
 

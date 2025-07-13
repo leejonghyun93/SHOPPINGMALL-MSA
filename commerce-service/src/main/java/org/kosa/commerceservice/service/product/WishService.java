@@ -25,7 +25,7 @@ public class WishService {
      * 찜하기 추가
      */
     @Transactional
-    public boolean addToWishlist(String userId, String productId) {
+    public boolean addToWishlist(String userId, Integer productId) {
         try {
             // 이미 찜한 상품인지 확인
             Optional<Wish> existingWish = wishRepository.findByUserIdAndProductId(userId, productId);
@@ -52,7 +52,7 @@ public class WishService {
      * 찜하기 해제
      */
     @Transactional
-    public boolean removeFromWishlist(String userId, String productId) {
+    public boolean removeFromWishlist(String userId, Integer productId) {
         try {
             Optional<Wish> wish = wishRepository.findByUserIdAndProductId(userId, productId);
             if (wish.isPresent()) {
@@ -69,7 +69,7 @@ public class WishService {
     /**
      * 찜하기 상태 확인
      */
-    public boolean isWishlisted(String userId, String productId) {
+    public boolean isWishlisted(String userId, Integer productId) {
         try {
             return wishRepository.findByUserIdAndProductId(userId, productId).isPresent();
         } catch (Exception e) {
@@ -90,7 +90,7 @@ public class WishService {
                 WishDTO wishDTO = WishDTO.builder()
                         .wishId((String) result[0])
                         .userId((String) result[1])
-                        .productId((String) result[2])
+                        .productId((Integer) result[2])
                         .createdDate(result[3] != null ? (LocalDateTime) result[3] : null)
                         .productName((String) result[4])
                         .productPrice(result[5] != null ? ((Number) result[5]).intValue() : null)
@@ -123,7 +123,7 @@ public class WishService {
     /**
      * 특정 상품의 찜 개수
      */
-    public Long getProductWishCount(String productId) {
+    public Long getProductWishCount(Integer productId) {
         try {
             return wishRepository.countByProductId(productId);
         } catch (Exception e) {

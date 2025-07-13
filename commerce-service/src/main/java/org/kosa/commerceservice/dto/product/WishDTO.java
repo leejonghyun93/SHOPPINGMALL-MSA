@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 public class WishDTO {
     private String wishId;
     private String userId;
-    private String productId;
+    private Integer productId;
     private LocalDateTime createdDate;
 
     // 상품 정보 추가 (조인용)

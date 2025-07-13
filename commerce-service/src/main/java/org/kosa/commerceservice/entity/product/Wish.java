@@ -16,7 +16,7 @@ public class Wish {
     private String userId;
 
     @Column(name = "PRODUCT_ID", nullable = false, length = 50)
-    private String productId;
+    private Integer productId;
 
     @Column(name = "CREATED_DATE")
     @Builder.Default

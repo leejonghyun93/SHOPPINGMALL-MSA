@@ -13,7 +13,7 @@ import java.util.Optional;
 public interface WishRepository extends JpaRepository<Wish, String> {
 
     // 특정 사용자의 특정 상품 찜하기 확인
-    Optional<Wish> findByUserIdAndProductId(String userId, String productId);
+    Optional<Wish> findByUserIdAndProductId(String userId, Integer productId);
 
     // 사용자의 모든 찜한 상품 조회
     List<Wish> findByUserIdOrderByCreatedDateDesc(String userId);
@@ -22,7 +22,7 @@ public interface WishRepository extends JpaRepository<Wish, String> {
     Long countByUserId(String userId);
 
     // 특정 상품의 찜 개수
-    Long countByProductId(String productId);
+    Long countByProductId(Integer productId);
 
     // 사용자의 찜한 상품을 상품 정보와 함께 조회
     @Query(value = """
@@ -38,7 +38,7 @@ public interface WishRepository extends JpaRepository<Wish, String> {
     List<Object[]> findWishListWithProductInfo(@Param("userId") String userId);
 
     // 사용자와 상품 ID로 찜하기 삭제
-    void deleteByUserIdAndProductId(String userId, String productId);
+    void deleteByUserIdAndProductId(String userId, Integer productId);
 
     // 사용자 ID로 모든 찜하기 삭제
     void deleteByUserId(String userId);
