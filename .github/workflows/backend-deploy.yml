@@ -142,13 +142,18 @@ jobs:
           CONFIG_SERVER_PASSWORD=${{ secrets.CONFIG_SERVER_PASSWORD }}
           
           # Production secrets
-          PROD_REDIS_HOST=redis
-          PROD_REDIS_PASSWORD=
+          PROD_REDIS_HOST=${{ secrets.PROD_REDIS_HOST }}
+          PROD_REDIS_PASSWORD=${{ secrets.PROD_REDIS_PASSWORD }}
           PROD_MAIL_USERNAME=${{ secrets.PROD_MAIL_USERNAME }}
           PROD_MAIL_PASSWORD=${{ secrets.PROD_MAIL_PASSWORD }}
           PROD_JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
-          PROD_KAFKA_SERVERS=kafka:9092
-          PROD_AUTH_SERVICE_URL=http://shopmall-auth:8082
+          PROD_KAFKA_SERVERS=${{ secrets.PROD_KAFKA_SERVERS }}
+          PROD_AUTH_SERVICE_URL=${{ secrets.PROD_AUTH_SERVICE_URL }}
+          PROD_USER_SERVICE_URL=${{ secrets.PROD_USER_SERVICE_URL }}
+          PROD_RABBITMQ_HOST=${{ secrets.PROD_RABBITMQ_HOST }}
+          PROD_RABBITMQ_USERNAME=${{ secrets.PROD_RABBITMQ_USERNAME }}
+          PROD_RABBITMQ_PASSWORD=${{ secrets.PROD_RABBITMQ_PASSWORD }}
+          PROD_EUREKA_SERVER_URL=${{ secrets.PROD_EUREKA_SERVER_URL }}
           PROD_IAMPORT_API_KEY=${{ secrets.PROD_IAMPORT_API_KEY }}
           PROD_IAMPORT_API_SECRET=${{ secrets.PROD_IAMPORT_API_SECRET }}
           PROD_IMAGE_UPLOAD_PATH=/app/uploads/products/

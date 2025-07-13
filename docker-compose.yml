@@ -434,7 +434,7 @@ services:
   # API Gateway (단일 인스턴스)
   apigateway-service:
     image: ${ECR_REGISTRY}/apigateway-service:latest
-    container_name: shopmall-gateway
+    container_name: apigateway-service
     ports:
       - "8080:8080"  # 올바른 포트
     environment:

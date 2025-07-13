@@ -112,7 +112,7 @@ jobs:
             docker pull ${{ steps.login-ecr.outputs.registry }}/user-nginx:latest
             docker run -d \
               --name user-nginx \
-              --network app_msa-network
+              --network app_msa-network \
               -p 80:80 \
               -p 443:443 \
               --restart unless-stopped \
