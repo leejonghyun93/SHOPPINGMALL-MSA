@@ -170,6 +170,7 @@ services:
     ports:
       - "8888:8888"
     environment:
+      - SPRING_APPLICATION_NAME=config-service
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
       - CONFIG_REPO_GIT_URI=${CONFIG_REPO_GIT_URI}
       - CONFIG_GIT_USERNAME=${CONFIG_GIT_USERNAME:-}
@@ -291,6 +292,7 @@ services:
     ports:
       - "8103:8103"  # 올바른 포트
     environment:
+      - SPRING_APPLICATION_NAME=user-service
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
       - EUREKA_CLIENT_SERVICE_URL=http://eureka-service:8761/eureka
       - SPRING_CONFIG_IMPORT=optional:configserver:http://config-service:8888
@@ -340,6 +342,7 @@ services:
     ports:
       - "8090:8090"  # 올바른 포트
     environment:
+      - SPRING_APPLICATION_NAME=commerce-service
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
       - EUREKA_CLIENT_SERVICE_URL=http://eureka-service:8761/eureka
       - SPRING_CONFIG_IMPORT=optional:configserver:http://config-service:8888
@@ -392,6 +395,7 @@ services:
     ports:
       - "8096:8096"  # 올바른 포트
     environment:
+      - SPRING_APPLICATION_NAME=live-streaming-service
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
       - EUREKA_CLIENT_SERVICE_URL=http://eureka-service:8761/eureka
       - SPRING_CONFIG_IMPORT=optional:configserver:http://config-service:8888
@@ -440,6 +444,7 @@ services:
     ports:
       - "8080:8080"  # 올바른 포트
     environment:
+      - SPRING_APPLICATION_NAME=apigateway-service
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
       - EUREKA_CLIENT_SERVICE_URL=http://eureka-service:8761/eureka
       - SPRING_CONFIG_IMPORT=optional:configserver:http://config-service:8888
