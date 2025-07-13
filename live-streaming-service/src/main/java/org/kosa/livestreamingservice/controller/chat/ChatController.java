@@ -70,6 +70,24 @@ public class ChatController {
         chatSessionManager.removeSessionManually(broadcastId, id);
         return ResponseEntity.ok().build();
     }
+
+    @PostMapping("/api/chat/ban")
+    public ResponseEntity<Void> banUserFromChat(
+            @RequestParam Long broadcastId,
+            @RequestParam String userId,
+            @RequestParam(defaultValue = "300") long durationSeconds) {
+        chatService.banUser(broadcastId, userId, durationSeconds);
+        return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/api/chat/ban-status/{broadcastId}/{userId}")
+    public ResponseEntity<Map<String, Boolean>> checkUserBanStatus(
+            @PathVariable Long broadcastId,
+            @PathVariable String userId) {
+
+        boolean banned = chatService.isUserBanned(broadcastId, userId);
+        return ResponseEntity.ok(Map.of("banned", banned));
+    }
 }
 
 

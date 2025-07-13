@@ -15,12 +15,24 @@
 
     <!-- 채팅 메인 영역 -->
     <div class="chat-main">
+      <!-- 우클릭 메뉴 -->
+      <div
+          v-if="showContextMenu"
+          class="context-menu"
+          :style="{ top: contextMenuPos.y + 'px', left: contextMenuPos.x + 'px' }"
+      >
+        <div class="menu-item" @click="handleBanClick">🚫 5분간 채팅금지</div>
+      </div>
       <!-- 메시지 리스트 -->
       <div class="chat-messages" ref="messagesContainer" @scroll="handleScroll">
         <div
             v-for="(msg, index) in messages"
             :key="index"
-            :class="['chat-message', msg.systemOnly ? 'system-message' : isMyMessage(msg) ? 'my-message' : 'other-message']"
+            :class="[
+            'chat-message',
+            msg.systemOnly ? 'system-message' : isMyMessage(msg) ? 'my-message' : 'other-message'
+          ]"
+            @contextmenu.prevent="onRightClick($event, msg)"
         >
           <template v-if="msg.systemOnly">
             <div class="system-box">{{ msg.text }}</div>
@@ -38,7 +50,11 @@
                 </div>
               </template>
               <div class="bubble" :class="{ 'admin-bubble': msg.from === '관리자' }">
-                <img v-if="msg.type === 'sticker'" :src="stickerMap[msg.text]" class="chat-sticker" />
+                <img
+                    v-if="msg.type === 'sticker'"
+                    :src="stickerMap[msg.text]"
+                    class="chat-sticker"
+                />
                 <span v-else class="chat-content">{{ msg.text }}</span>
               </div>
             </div>
@@ -58,16 +74,18 @@
             v-model="newMessage"
             @focus="handleInputFocus"
             @keyup.enter="sendMessage"
-            :disabled="!isChatEnabled || !isLoggedIn"
+            :disabled="!isChatEnabled || !isLoggedIn || isBanned"
             :placeholder="
             !isChatEnabled
               ? '채팅이 비활성화되었습니다.'
+              : isBanned
+              ? '⛔ 채팅이 일시적으로 제한되었습니다.'
               : isLoggedIn
               ? '메시지를 입력하세요'
               : '로그인 후 사용가능'
           "
         />
-        <button @click="sendMessage" :disabled="!isChatEnabled || !isLoggedIn" class="send-button">
+        <button @click="sendMessage" :disabled="!isChatEnabled || !isLoggedIn || isBanned" class="send-button">
           전송
         </button>
         <button @click="toggleTools" class="tools-toggle">스티커</button>
@@ -105,6 +123,7 @@
       </div>
     </div>
   </div>
+  <CustomAlert ref="alertRef" />
 </template>
 
 <script setup>
@@ -117,6 +136,7 @@ import axios from 'axios';
 import { userState } from '@/stores/userState.js';
 import userStateBridge from '@/stores/userStateBridge';
 import { getOrCreateUUID } from '@/stores/uuid.js';
+import CustomAlert from '@/components/common/CustomAlert.vue';
 
 const props = defineProps({
   class: String,
@@ -149,6 +169,8 @@ const showTools = ref(false);
 const showScrollToBottom = ref(false);
 const loading = ref(true);
 const activeTab = ref('bear');
+const isBanned = ref(false);
+const alertRef = ref(null);
 const noticeMessage = ref('');
 const isNoticeExpanded = ref(false);
 
@@ -157,6 +179,9 @@ const isChatEnabled = ref(false);
 const isHost = ref(false);
 const participantCount = ref(0);
 const hasInitialParticipantSet = ref(false);
+const showContextMenu = ref(false);
+const contextMenuPos = ref({ x: 0, y: 0 });
+const selectedMsg = ref(null);
 
 const isConnecting = ref(false);
 const connectionRetries = ref(0);
@@ -177,12 +202,6 @@ const normalize = str => String(str || '').trim();
 const isMyMessage = msg => {
   return msg.userId && msg.userId === currentUserId.value;
 };
-
-const filteredStickers = computed(() => {
-  return Object.fromEntries(
-      Object.entries(stickerMap).filter(([key]) => key.startsWith(activeTab.value))
-  );
-});
 
 const displayNotice = computed(() => {
   return noticeMessage.value.trim() !== '' ? noticeMessage.value : '등록된 공지사항이 없습니다.';
@@ -275,6 +294,24 @@ const createWebSocketConnection = () => {
 
           participantCount.value = isNaN(count) ? 0 : count;
         });
+        // 📌 채팅 금지 STOMP 채널 구독
+        if (userState.userId) {
+          stompClient.subscribe(`/topic/ban/${userState.userId}`, msg => {
+            const data = JSON.parse(msg.body);
+            isBanned.value = data.banned;
+
+            if (data.banned) {
+              alertRef.value?.open('⚠️ 부적절한 채팅창사용으로 5분간 채팅이 금지되었습니다.');
+              setTimeout(() => {
+                isBanned.value = false;
+              }, data.duration * 1000);
+            } else {
+              alertRef.value?.open('✅ 채팅 금지가 해제되었습니다.');
+            }
+          });
+        }
+
+
       },
 
       onStompError: (frame) => {
@@ -449,7 +486,12 @@ const sendMessage = () => {
     });
     return;
   }
-
+  if (!isLoggedIn.value || isBanned.value || newMessage.value.trim() === '' || !stompClient.connected) {
+    if (isBanned.value) {
+      alertRef.value?.open('⚠️ 채팅이 금지된 상태입니다. 잠시 후 다시 시도해주세요.');
+    }
+    return;
+  }
   if (!currentUser.value) {
     userStateBridge.checkSync();
 
@@ -590,7 +632,46 @@ const handleInputFocus = e => {
 const toggleNotice = () => {
   isNoticeExpanded.value = !isNoticeExpanded.value;
 };
+const onRightClick = (event, msg) => {
+  if (!isHost.value || isMyMessage(msg)) return;
 
+  selectedMsg.value = msg;
+  contextMenuPos.value = {
+    x: event.pageX,
+    y: event.pageY
+  };
+  showContextMenu.value = true;
+}
+
+// 채팅 금지 api호출
+const handleBanClick = async () => {
+  if (!selectedMsg.value || !selectedMsg.value.userId) return;
+
+  const confirmed = window.confirm(
+      `${selectedMsg.value.from} 유저를 5분간 채팅금지하시겠습니까?`
+  );
+
+  if (!confirmed) return;
+
+  try {
+    await axios.post('/api/chat/ban', null, {
+      params: {
+        broadcastId: props.broadcastId,
+        userId: selectedMsg.value.userId,
+        durationSeconds: 300,
+      },
+    });
+    alertRef.value?.open(`${selectedMsg.value.from}님이 5분간 채팅금지되었습니다.`);
+  } catch (err) {
+    if (err.response?.status === 409) {
+      alertRef.value?.open('⚠️ 이미 채팅금지된 사용자입니다.');
+    } else {
+      alertRef.value?.open('금지 처리 중 오류가 발생했습니다.');
+    }
+  }
+
+  showContextMenu.value = false;
+};
 const checkWebSocketConnection = () => {
   userStateBridge.checkSync();
 };
@@ -612,7 +693,19 @@ onMounted(async () => {
   setTimeout(() => {
     createWebSocketConnection();
   }, 1000);
+  if (userState.userId) {
+    try {
+      const res = await axios.get(`/api/chat/ban-status/${props.broadcastId}/${userState.userId}`);
+      if (res.data.banned) {
+        isBanned.value = true;
+        console.warn('⚠️ 서버에 의해 금지된 사용자입니다.');
+      }
+    } catch (err) {
+      console.error('❌ 금지 상태 확인 실패:', err);
+    }
+  }
 
+  document.addEventListener('click', () => showContextMenu.value = false);
   loading.value = false;
   scrollToBottom();
 });
@@ -631,6 +724,7 @@ onUnmounted(() => {
   const disconnectId = isLoggedIn.value ? currentUserId.value : uuid;
   if (disconnectId) {
     navigator.sendBeacon(`/api/chat/disconnect/${props.broadcastId}?id=${disconnectId}`);
+    document.removeEventListener('click', () => showContextMenu.value = false);
   }
 });
 
@@ -899,5 +993,30 @@ defineExpose({
 .chat-participant-count {
   font-size: 12px;
   color: #666;
+}
+.context-menu {
+  position: absolute;
+  background-color: white;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 9999;
+  min-width: 160px;
+}
+
+.menu-item {
+  padding: 10px 14px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.menu-item:hover {
+  background-color: #f3f4f6;
+}
+
+.ban-message {
+  color: #ef4444;
+  font-size: 14px;
+  margin: 6px 0 0 10px;
 }
 </style>
