@@ -128,11 +128,16 @@ jobs:
           # Config Server URL (중요!)
           CONFIG_SERVER_URL=http://config-service:8888
           
-          # Database
+          # Database - 기본 변수들
           DB_ROOT_PASSWORD=${{ secrets.DB_ROOT_PASSWORD }}
           DB_NAME=${{ secrets.DB_NAME }}
           DB_USERNAME=${{ secrets.DB_USERNAME }}
           DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+          
+          # Database - PROD 변수들 (핵심!)
+          PROD_DB_URL=${{ secrets.PROD_DB_URL }}
+          PROD_DB_USERNAME=${{ secrets.PROD_DB_USERNAME }}
+          PROD_DB_PASSWORD=${{ secrets.PROD_DB_PASSWORD }}
           
           # Config Server Git 설정
           CONFIG_REPO_GIT_URI=${{ secrets.CONFIG_REPO_GIT_URI }}
@@ -146,7 +151,7 @@ jobs:
           PROD_REDIS_PASSWORD=${{ secrets.PROD_REDIS_PASSWORD }}
           PROD_MAIL_USERNAME=${{ secrets.PROD_MAIL_USERNAME }}
           PROD_MAIL_PASSWORD=${{ secrets.PROD_MAIL_PASSWORD }}
-          PROD_JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
+          PROD_JWT_SECRET_KEY=${{ secrets.PROD_JWT_SECRET_KEY }}
           PROD_KAFKA_SERVERS=${{ secrets.PROD_KAFKA_SERVERS }}
           PROD_AUTH_SERVICE_URL=${{ secrets.PROD_AUTH_SERVICE_URL }}
           PROD_USER_SERVICE_URL=${{ secrets.PROD_USER_SERVICE_URL }}
