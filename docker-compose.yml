@@ -30,7 +30,7 @@ services:
       - msa-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD:-rootpassword123}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD}"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -247,22 +247,22 @@ services:
       - SPRING_CONFIG_IMPORT=optional:configserver:http://config-service:8888
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
-      - SPRING_DATASOURCE_URL=jdbc:mariadb://mariadb:3306/${DB_NAME:-shoppingmall_db}
-      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME:-shopmall_user}
-      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:-shopmall_pass123}
+      - SPRING_DATASOURCE_URL=jdbc:mariadb://mariadb:3306/${DB_NAME:-live_commerce_db}
+      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME:-kosa}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
       - PROD_REDIS_HOST=${PROD_REDIS_HOST:-redis}
       - PROD_REDIS_PASSWORD=${PROD_REDIS_PASSWORD:-}
       - PROD_MAIL_USERNAME=${PROD_MAIL_USERNAME}
       - PROD_MAIL_PASSWORD=${PROD_MAIL_PASSWORD}
       - PROD_JWT_SECRET_KEY=${PROD_JWT_SECRET_KEY}
-      - JAVA_OPTS=-Xmx96m -Xms48m -XX:+UseG1GC
+      - JAVA_OPTS=-Xmx128m -Xms64m -XX:+UseG1GC
     deploy:
       resources:
         limits:
-          memory: 192M  # 늘림
+          memory: 256M  # 늘림
           cpus: '0.15'
         reservations:
-          memory: 96M
+          memory: 128M
     depends_on:
       mariadb:
         condition: service_healthy
@@ -277,10 +277,10 @@ services:
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 60s
+      interval: 60s
+      timeout: 30s
+      retries: 10
+      start_period: 180s
 
   # 사용자 서비스 (1개 인스턴스)
   user-service:
@@ -295,21 +295,21 @@ services:
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-      - SPRING_DATASOURCE_URL=jdbc:mariadb://mariadb:3306/${DB_NAME:-shoppingmall_db}
-      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME:-shopmall_user}
-      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:-shopmall_pass123}
+      - SPRING_DATASOURCE_URL=jdbc:mariadb://mariadb:3306/${DB_NAME:-live_commerce_db}
+      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME:-kosa}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
       - PROD_REDIS_HOST=${PROD_REDIS_HOST:-redis}
       - PROD_REDIS_PASSWORD=${PROD_REDIS_PASSWORD:-}
       - PROD_KAFKA_SERVERS=${PROD_KAFKA_SERVERS:-kafka:9092}
       - PROD_AUTH_SERVICE_URL=${PROD_AUTH_SERVICE_URL:-http://shopmall-auth:8082}
-      - JAVA_OPTS=-Xmx96m -Xms48m -XX:+UseG1GC
+      - JAVA_OPTS=-Xmx128m -Xms64m -XX:+UseG1GC
     deploy:
       resources:
         limits:
-          memory: 192M
+          memory: 256M
           cpus: '0.15'
         reservations:
-          memory: 96M
+          memory: 128M
     depends_on:
       mariadb:
         condition: service_healthy
@@ -326,12 +326,12 @@ services:
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8103/actuator/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 60s
+      interval: 60s
+      timeout: 30s
+      retries: 10
+      start_period: 180s
 
-  # 커머스 서비스 (1개 인스턴스)
+  # 커머스 서비스 (1개 인스턴스) - 수정됨
   commerce-service:
     image: ${ECR_REGISTRY}/commerce-service:latest
     container_name: shopmall-commerce
@@ -344,9 +344,9 @@ services:
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-      - SPRING_DATASOURCE_URL=jdbc:mariadb://mariadb:3306/${DB_NAME:-shoppingmall_db}
-      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME:-shopmall_user}
-      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:-shopmall_pass123}
+      - SPRING_DATASOURCE_URL=jdbc:mariadb://mariadb:3306/${DB_NAME:-live_commerce_db}
+      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME:-kosa}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
       - PROD_REDIS_HOST=${PROD_REDIS_HOST:-redis}
       - PROD_REDIS_PASSWORD=${PROD_REDIS_PASSWORD:-}
       - PROD_KAFKA_SERVERS=${PROD_KAFKA_SERVERS:-kafka:9092}
@@ -354,14 +354,14 @@ services:
       - PROD_IAMPORT_API_SECRET=${PROD_IAMPORT_API_SECRET}
       - PROD_IMAGE_UPLOAD_PATH=${PROD_IMAGE_UPLOAD_PATH:-/app/uploads/products/}
       - PROD_IMAGE_BASE_URL=${PROD_IMAGE_BASE_URL}
-      - JAVA_OPTS=-Xmx96m -Xms48m -XX:+UseG1GC
+      - JAVA_OPTS=-Xmx128m -Xms64m -XX:+UseG1GC
     deploy:
       resources:
         limits:
-          memory: 192M
+          memory: 256M  # 늘림
           cpus: '0.15'
         reservations:
-          memory: 96M
+          memory: 128M
     depends_on:
       mariadb:
         condition: service_healthy
@@ -378,12 +378,12 @@ services:
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8090/actuator/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 60s
+      interval: 60s      # 30s → 60s
+      timeout: 30s       # 5s → 30s
+      retries: 10        # 3 → 10
+      start_period: 240s # 60s → 240s (4분)
 
-  # 라이브 스트리밍 서비스 (1개 인스턴스)
+  # 라이브 스트리밍 서비스 (1개 인스턴스) - 수정됨
   live-streaming-service:
     image: ${ECR_REGISTRY}/live-streaming-service:latest
     container_name: shopmall-streaming
@@ -396,20 +396,20 @@ services:
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-      - SPRING_DATASOURCE_URL=jdbc:mariadb://mariadb:3306/${DB_NAME:-shoppingmall_db}
-      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME:-shopmall_user}
-      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:-shopmall_pass123}
+      - SPRING_DATASOURCE_URL=jdbc:mariadb://mariadb:3306/${DB_NAME:-live_commerce_db}
+      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME:-kosa}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
       - PROD_REDIS_HOST=${PROD_REDIS_HOST:-redis}
       - PROD_REDIS_PASSWORD=${PROD_REDIS_PASSWORD:-}
       - PROD_KAFKA_SERVERS=${PROD_KAFKA_SERVERS:-kafka:9092}
-      - JAVA_OPTS=-Xmx96m -Xms48m -XX:+UseG1GC
+      - JAVA_OPTS=-Xmx128m -Xms64m -XX:+UseG1GC
     deploy:
       resources:
         limits:
-          memory: 192M
+          memory: 256M  # 늘림
           cpus: '0.15'
         reservations:
-          memory: 96M
+          memory: 128M
     depends_on:
       mariadb:
         condition: service_healthy
@@ -426,10 +426,10 @@ services:
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8096/actuator/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 60s
+      interval: 60s      # 30s → 60s
+      timeout: 30s       # 5s → 30s
+      retries: 10        # 3 → 10
+      start_period: 240s # 60s → 240s (4분)
 
   # API Gateway (단일 인스턴스)
   apigateway-service:
