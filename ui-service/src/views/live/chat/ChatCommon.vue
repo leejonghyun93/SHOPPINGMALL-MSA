@@ -136,7 +136,7 @@ import axios from 'axios';
 import { userState } from '@/stores/userState.js';
 import userStateBridge from '@/stores/userStateBridge';
 import { getOrCreateUUID } from '@/stores/uuid.js';
-import CustomAlert from '@/components/common/CustomAlert.vue';
+import CustomAlert from '@/views/live/chat/CustomAlert.vue';
 
 const props = defineProps({
   class: String,
