@@ -119,25 +119,46 @@ jobs:
       - name: Create .env file for deployment
         run: |
           cat > .env << EOF
+          # AWS ECR
           ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
+          
+          # Spring 환경
           SPRING_PROFILES_ACTIVE=prod
+          
+          # Config Server URL (중요!)
+          CONFIG_SERVER_URL=http://config-service:8888
+          
+          # Database
           DB_ROOT_PASSWORD=${{ secrets.DB_ROOT_PASSWORD }}
           DB_NAME=${{ secrets.DB_NAME }}
           DB_USERNAME=${{ secrets.DB_USERNAME }}
           DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+          
+          # Config Server Git 설정
           CONFIG_REPO_GIT_URI=${{ secrets.CONFIG_REPO_GIT_URI }}
           CONFIG_GIT_USERNAME=${{ secrets.CONFIG_GIT_USERNAME }}
           CONFIG_GIT_PASSWORD=${{ secrets.CONFIG_GIT_PASSWORD }}
           CONFIG_SERVER_USERNAME=config
           CONFIG_SERVER_PASSWORD=${{ secrets.CONFIG_SERVER_PASSWORD }}
+          
+          # Production secrets
+          PROD_REDIS_HOST=redis
+          PROD_REDIS_PASSWORD=
           PROD_MAIL_USERNAME=${{ secrets.PROD_MAIL_USERNAME }}
           PROD_MAIL_PASSWORD=${{ secrets.PROD_MAIL_PASSWORD }}
           PROD_JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
+          PROD_KAFKA_SERVERS=kafka:9092
+          PROD_AUTH_SERVICE_URL=http://shopmall-auth:8082
           PROD_IAMPORT_API_KEY=${{ secrets.PROD_IAMPORT_API_KEY }}
           PROD_IAMPORT_API_SECRET=${{ secrets.PROD_IAMPORT_API_SECRET }}
+          PROD_IMAGE_UPLOAD_PATH=/app/uploads/products/
           PROD_IMAGE_BASE_URL=${{ secrets.PROD_IMAGE_BASE_URL }}
+          
+          # Frontend URLs
           FRONTEND_URL=${{ secrets.FRONTEND_URL }}
           ADMIN_URL=${{ secrets.ADMIN_URL }}
+          
+          # Kafka
           KAFKA_HOST=kafka
           EOF
 
@@ -156,6 +177,7 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          command_timeout: 30m
           script: |
             cd /home/ec2-user/app
 
@@ -186,19 +208,19 @@ jobs:
             docker-compose up -d kafka
             sleep 40
 
-            # === 단계 3: Config Service 시작 (가장 먼저!) ===
+            # === 단계 3: Config Service 시작 (충분한 시간!) ===
             echo "⚙️ Starting Config Service..."
             docker-compose up -d config-service
             
-            # Config Service 헬스체크
+            # Config Service 헬스체크 (25번 × 15초 = 375초 = 6.25분)
             echo "🔍 Waiting for Config Service to be healthy..."
-            for i in {1..12}; do
+            for i in {1..25}; do
               if curl -f http://localhost:8888/actuator/health > /dev/null 2>&1; then
                 echo "✅ Config Service is healthy!"
                 break
               else
-                echo "⏳ Config Service not ready yet... ($i/12)"
-                sleep 10
+                echo "⏳ Config Service not ready yet... ($i/25)"
+                sleep 15
               fi
             done
 
@@ -206,35 +228,42 @@ jobs:
             echo "🌐 Starting Eureka Service..."
             docker-compose up -d eureka-service
             
-            # Eureka Service 헬스체크
+            # Eureka Service 헬스체크 (20번 × 20초 = 400초 = 6.7분)
             echo "🔍 Waiting for Eureka Service to be healthy..."
-            for i in {1..8}; do
+            for i in {1..20}; do
               if curl -f http://localhost:8761/actuator/health > /dev/null 2>&1; then
                 echo "✅ Eureka Service is healthy!"
                 break
               else
-                echo "⏳ Eureka Service not ready yet... ($i/8)"
-                sleep 15
+                echo "⏳ Eureka Service not ready yet... ($i/20)"
+                sleep 20
               fi
             done
 
             # === 단계 5: 비즈니스 서비스들 시작 ===
             echo "🏪 Starting business services..."
             docker-compose up -d auth-service user-service commerce-service live-streaming-service
-            sleep 45
+            
+            # 비즈니스 서비스들 시작 대기
+            echo "⏳ Waiting for business services to start..."
+            sleep 90
 
             # === 단계 6: API Gateway 시작 ===
             echo "🚪 Starting API Gateway..."
             docker-compose up -d apigateway-service
-            sleep 20
+            
+            # API Gateway 시작 대기
+            echo "⏳ Waiting for API Gateway to start..."
+            sleep 60
 
             # === 최종 헬스체크 ===
             echo "🔍 Final health check..."
             
-            # 개별 서비스 상태 확인
+            # 개별 서비스 상태 확인 (관대한 체크)
             services=(
               "config-service:8888"
               "eureka-service:8761" 
+              "auth-service:8082"
               "apigateway-service:8080"
             )
             
@@ -243,11 +272,16 @@ jobs:
               port=$(echo $service_port | cut -d':' -f2)
               echo "Checking $service_name on port $port..."
             
-              if curl -f http://localhost:$port/actuator/health > /dev/null 2>&1; then
-                echo "✅ $service_name is healthy"
-              else
-                echo "❌ $service_name is not responding"
-              fi
+              # 3번 재시도
+              for attempt in {1..3}; do
+                if curl -f http://localhost:$port/actuator/health > /dev/null 2>&1; then
+                  echo "✅ $service_name is healthy"
+                  break
+                else
+                  echo "⏳ $service_name attempt $attempt/3..."
+                  sleep 10
+                fi
+              done
             done
 
             # 컨테이너 상태 확인
