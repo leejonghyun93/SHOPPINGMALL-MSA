@@ -230,11 +230,11 @@ services:
       - msa-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8761/actuator/health" ]
       interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 60s
+      timeout: 10s
+      retries: 5
+      start_period: 150s
 
   # 인증 서비스 (메모리 증가)
   auth-service:
@@ -454,11 +454,13 @@ services:
       - SPRING_CONFIG_IMPORT=optional:configserver:http://config-service:8888
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - SPRING_RABBITMQ_PORT=5672
       - FRONTEND_URL=${FRONTEND_URL:-https://shopmall.com}
       - ADMIN_URL=${ADMIN_URL:-https://admin.shopmall.com}
       - JWT_SECRET=${PROD_JWT_SECRET_KEY}
-      - PROD_EUREKA_SERVER_URL=${PROD_EUREKA_SERVER_URL}
-      - JAVA_OPTS=-Xmx128m -Xms64m -XX:+UseG1GC  # 약간 증가
+      - PROD_EUREKA_SERVER_URL=http://shopmall-eureka:8761/eureka
+      - JAVA_OPTS=-Xmx128m -Xms64m -XX:+UseG1GC
     deploy:
       resources:
         limits:
