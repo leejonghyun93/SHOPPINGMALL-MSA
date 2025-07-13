@@ -10,10 +10,10 @@ services:
     ports:
       - "3307:3306"
     environment:
-      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD:-rootpassword123}
-      - MYSQL_DATABASE=${DB_NAME:-shoppingmall_db}
-      - MYSQL_USER=${DB_USERNAME:-shopmall_user}
-      - MYSQL_PASSWORD=${DB_PASSWORD:-shopmall_pass123}
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD}  # 기본값 제거
+      - MYSQL_DATABASE=${DB_NAME:-live_commerce_db}     # :- 로 수정
+      - MYSQL_USER=${DB_USERNAME:-kosa}
+      - MYSQL_PASSWORD=${DB_PASSWORD}  # 기본값 제거
       - MYSQL_CHARACTER_SET_SERVER=utf8mb4
       - MYSQL_COLLATION_SERVER=utf8mb4_unicode_ci
     volumes:
