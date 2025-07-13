@@ -1,0 +1,55 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+# - "first_rules.yml"
+# - "second_rules.yml"
+
+scrape_configs:
+  # Prometheus 자체 모니터링
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Config Service
+  - job_name: 'config-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['config-service:8888']
+
+  # Eureka Service
+  - job_name: 'eureka-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['eureka-service:8761']
+
+  # Auth Service
+  - job_name: 'auth-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['auth-service:8082']
+
+  # User Service
+  - job_name: 'user-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['user-service:8103']
+
+  # Commerce Service
+  - job_name: 'commerce-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['commerce-service:8090']
+
+  # Live Streaming Service
+  - job_name: 'live-streaming-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['live-streaming-service:8096']
+
+  # API Gateway
+  - job_name: 'apigateway-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['apigateway-service:8080']

@@ -477,6 +477,67 @@ services:
       retries: 3
       start_period: 60s
 
+  # ======================
+  # 모니터링 서비스들
+  # ======================
+
+  # Prometheus - 메트릭 수집
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    container_name: shopmall-prometheus
+    ports:
+      - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.2'
+        reservations:
+          memory: 128M
+    depends_on:
+      - config-service
+      - eureka-service
+      - auth-service
+    networks:
+      - msa-network
+    restart: unless-stopped
+
+  # Grafana - 시각화 대시보드
+  grafana:
+    image: grafana/grafana:10.0.0
+    container_name: shopmall-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.2'
+        reservations:
+          memory: 128M
+    depends_on:
+      - prometheus
+    networks:
+      - msa-network
+    restart: unless-stopped
+
 networks:
   msa-network:
     driver: bridge
@@ -496,4 +557,8 @@ volumes:
   zk_data:
     driver: local
   zk_logs:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
     driver: local
