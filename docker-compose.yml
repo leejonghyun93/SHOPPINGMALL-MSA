@@ -22,10 +22,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 384M  # 256M → 384M 증가
           cpus: '0.3'
         reservations:
-          memory: 128M
+          memory: 192M  # 128M → 192M 증가
     networks:
       - msa-network
     restart: unless-stopped
@@ -50,10 +50,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 80M
+          memory: 128M  # 80M → 128M 증가
           cpus: '0.1'
         reservations:
-          memory: 40M
+          memory: 64M   # 40M → 64M 증가
     volumes:
       - redis_data:/data
     networks:
@@ -78,10 +78,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 384M
+          memory: 512M  # 384M → 512M 증가
           cpus: '0.2'
         reservations:
-          memory: 128M
+          memory: 256M  # 128M → 256M 증가
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     networks:
@@ -101,14 +101,14 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
-      KAFKA_HEAP_OPTS: "-Xms32m -Xmx128m"
+      KAFKA_HEAP_OPTS: "-Xms64m -Xmx256m"  # 증가
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 384M  # 256M → 384M 증가
           cpus: '0.1'
         reservations:
-          memory: 128M
+          memory: 192M  # 128M → 192M 증가
     volumes:
       - zk_data:/var/lib/zookeeper/data
       - zk_logs:/var/lib/zookeeper/log
@@ -122,7 +122,7 @@ services:
       retries: 3
       start_period: 40s
 
-  # Kafka - 메시지 큐
+  # Kafka - 메시지 큐 (메모리 대폭 증가)
   kafka:
     image: confluentinc/cp-kafka:7.4.0
     container_name: shopmall-kafka
@@ -139,14 +139,15 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_HEAP_OPTS: "-Xmx128m -Xms64m"
+      KAFKA_HEAP_OPTS: "-Xmx256m -Xms128m"  # 대폭 증가
+      KAFKA_LOG_CLEANER_ENABLE: "false"     # 메모리 절약
     deploy:
       resources:
         limits:
-          memory: 256M
-          cpus: '0.15'
+          memory: 512M  # 256M → 512M 증가
+          cpus: '0.2'
         reservations:
-          memory: 128M
+          memory: 256M  # 128M → 256M 증가
     volumes:
       - kafka_data:/var/lib/kafka/data
     networks:
@@ -157,13 +158,13 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 60s
+      start_period: 120s  # 시작 시간 증가
 
   # ======================
   # MSA 핵심 서비스들 (ECR 이미지 사용)
   # ======================
 
-  # Config 서버
+  # Config 서버 (메모리 증가)
   config-service:
     image: ${ECR_REGISTRY}/config-service:latest
     container_name: shopmall-config
@@ -181,14 +182,14 @@ services:
       - SPRING_RABBITMQ_PORT=5672
       - SPRING_RABBITMQ_USERNAME=admin
       - SPRING_RABBITMQ_PASSWORD=admin123
-      - JAVA_OPTS=-Xmx128m -Xms64m -XX:+UseG1GC
+      - JAVA_OPTS=-Xmx192m -Xms96m -XX:+UseG1GC  # 증가
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 384M  # 256M → 384M 증가
           cpus: '0.15'
         reservations:
-          memory: 128M
+          memory: 192M  # 128M → 192M 증가
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -202,7 +203,7 @@ services:
       retries: 8
       start_period: 120s
 
-  # Eureka 서비스 디스커버리
+  # Eureka 서비스 디스커버리 (메모리 증가)
   eureka-service:
     image: ${ECR_REGISTRY}/eureka-service:latest
     container_name: shopmall-eureka
@@ -214,14 +215,14 @@ services:
       - SPRING_CONFIG_IMPORT=optional:configserver:http://config-service:8888
       - EUREKA_CLIENT_REGISTER_WITH_EUREKA=false
       - EUREKA_CLIENT_FETCH_REGISTRY=false
-      - JAVA_OPTS=-Xmx128m -Xms64m -XX:+UseG1GC
+      - JAVA_OPTS=-Xmx192m -Xms96m -XX:+UseG1GC  # 증가
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 384M  # 256M → 384M 증가
           cpus: '0.15'
         reservations:
-          memory: 128M
+          memory: 192M  # 128M → 192M 증가
     depends_on:
       config-service:
         condition: service_healthy
@@ -235,7 +236,7 @@ services:
       retries: 3
       start_period: 60s
 
-  # 인증 서비스 (1개 인스턴스)
+  # 인증 서비스 (메모리 증가)
   auth-service:
     image: ${ECR_REGISTRY}/auth-service:latest
     container_name: shopmall-auth
@@ -257,14 +258,14 @@ services:
       - PROD_MAIL_PASSWORD=${PROD_MAIL_PASSWORD}
       - PROD_JWT_SECRET_KEY=${PROD_JWT_SECRET_KEY}
       - PROD_EUREKA_SERVER_URL=${PROD_EUREKA_SERVER_URL}
-      - JAVA_OPTS=-Xmx128m -Xms64m -XX:+UseG1GC
+      - JAVA_OPTS=-Xmx192m -Xms96m -XX:+UseG1GC  # 증가
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 384M  # 256M → 384M 증가
           cpus: '0.15'
         reservations:
-          memory: 128M
+          memory: 192M  # 128M → 192M 증가
     depends_on:
       mariadb:
         condition: service_healthy
@@ -284,7 +285,7 @@ services:
       retries: 10
       start_period: 180s
 
-  # 사용자 서비스 (1개 인스턴스)
+  # 사용자 서비스 (메모리 증가)
   user-service:
     image: ${ECR_REGISTRY}/user-service:latest
     container_name: shopmall-user
@@ -306,14 +307,14 @@ services:
       - PROD_KAFKA_SERVERS=${PROD_KAFKA_SERVERS}
       - PROD_AUTH_SERVICE_URL=${PROD_AUTH_SERVICE_URL}
       - PROD_EUREKA_SERVER_URL=${PROD_EUREKA_SERVER_URL}
-      - JAVA_OPTS=-Xmx128m -Xms64m -XX:+UseG1GC
+      - JAVA_OPTS=-Xmx192m -Xms96m -XX:+UseG1GC  # 증가
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 384M  # 256M → 384M 증가
           cpus: '0.15'
         reservations:
-          memory: 128M
+          memory: 192M  # 128M → 192M 증가
     depends_on:
       mariadb:
         condition: service_healthy
@@ -335,7 +336,7 @@ services:
       retries: 10
       start_period: 180s
 
-  # 커머스 서비스 (1개 인스턴스)
+  # 커머스 서비스 (메모리 증가)
   commerce-service:
     image: ${ECR_REGISTRY}/commerce-service:latest
     container_name: shopmall-commerce
@@ -361,14 +362,14 @@ services:
       - PROD_IMAGE_UPLOAD_PATH=${PROD_IMAGE_UPLOAD_PATH:-/app/uploads/products/}
       - PROD_IMAGE_BASE_URL=${PROD_IMAGE_BASE_URL}
       - PROD_EUREKA_SERVER_URL=${PROD_EUREKA_SERVER_URL}
-      - JAVA_OPTS=-Xmx128m -Xms64m -XX:+UseG1GC
+      - JAVA_OPTS=-Xmx192m -Xms96m -XX:+UseG1GC  # 증가
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 384M  # 256M → 384M 증가
           cpus: '0.15'
         reservations:
-          memory: 128M
+          memory: 192M  # 128M → 192M 증가
     depends_on:
       mariadb:
         condition: service_healthy
@@ -390,7 +391,7 @@ services:
       retries: 10
       start_period: 240s
 
-  # 라이브 스트리밍 서비스 (1개 인스턴스)
+  # 라이브 스트리밍 서비스 (메모리 증가)
   live-streaming-service:
     image: ${ECR_REGISTRY}/live-streaming-service:latest
     container_name: shopmall-streaming
@@ -411,14 +412,14 @@ services:
       - PROD_REDIS_PASSWORD=${PROD_REDIS_PASSWORD:-}
       - PROD_KAFKA_SERVERS=${PROD_KAFKA_SERVERS}
       - PROD_EUREKA_SERVER_URL=${PROD_EUREKA_SERVER_URL}
-      - JAVA_OPTS=-Xmx128m -Xms64m -XX:+UseG1GC
+      - JAVA_OPTS=-Xmx192m -Xms96m -XX:+UseG1GC  # 증가
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 384M  # 256M → 384M 증가
           cpus: '0.15'
         reservations:
-          memory: 128M
+          memory: 192M  # 128M → 192M 증가
     depends_on:
       mariadb:
         condition: service_healthy
@@ -440,7 +441,7 @@ services:
       retries: 10
       start_period: 240s
 
-  # API Gateway (단일 인스턴스)
+  # API Gateway (메모리 약간 증가)
   apigateway-service:
     image: ${ECR_REGISTRY}/apigateway-service:latest
     container_name: apigateway-service
@@ -457,14 +458,14 @@ services:
       - ADMIN_URL=${ADMIN_URL:-https://admin.shopmall.com}
       - JWT_SECRET=${PROD_JWT_SECRET_KEY}
       - PROD_EUREKA_SERVER_URL=${PROD_EUREKA_SERVER_URL}
-      - JAVA_OPTS=-Xmx96m -Xms48m -XX:+UseG1GC
+      - JAVA_OPTS=-Xmx128m -Xms64m -XX:+UseG1GC  # 약간 증가
     deploy:
       resources:
         limits:
-          memory: 192M
+          memory: 256M  # 192M → 256M 증가
           cpus: '0.15'
         reservations:
-          memory: 96M
+          memory: 128M  # 96M → 128M 증가
     depends_on:
       eureka-service:
         condition: service_healthy
@@ -492,7 +493,7 @@ services:
   # 모니터링 서비스들
   # ======================
 
-  # Prometheus - 메트릭 수집
+  # Prometheus - 메트릭 수집 (메모리 증가)
   prometheus:
     image: prom/prometheus:v2.45.0
     container_name: shopmall-prometheus
@@ -511,10 +512,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 384M  # 256M → 384M 증가
           cpus: '0.2'
         reservations:
-          memory: 128M
+          memory: 192M  # 128M → 192M 증가
     depends_on:
       - config-service
       - eureka-service
@@ -523,7 +524,7 @@ services:
       - msa-network
     restart: unless-stopped
 
-  # Grafana - 시각화 대시보드
+  # Grafana - 시각화 대시보드 (메모리 증가)
   grafana:
     image: grafana/grafana:10.0.0
     container_name: shopmall-grafana
@@ -539,10 +540,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 384M  # 256M → 384M 증가
           cpus: '0.2'
         reservations:
-          memory: 128M
+          memory: 192M  # 128M → 192M 증가
     depends_on:
       - prometheus
     networks:
