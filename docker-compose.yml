@@ -170,7 +170,6 @@ services:
     ports:
       - "8888:8888"
     environment:
-      - SPRING_APPLICATION_NAME=config-service
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
       - CONFIG_REPO_GIT_URI=${CONFIG_REPO_GIT_URI}
       - CONFIG_GIT_USERNAME=${CONFIG_GIT_USERNAME:-}
@@ -243,7 +242,6 @@ services:
     ports:
       - "8082:8082"  # 올바른 포트
     environment:
-      - SPRING_APPLICATION_NAME=auth-service
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
       - EUREKA_CLIENT_SERVICE_URL=http://eureka-service:8761/eureka
       - SPRING_CONFIG_IMPORT=optional:configserver:http://config-service:8888
@@ -257,7 +255,6 @@ services:
       - PROD_MAIL_USERNAME=${PROD_MAIL_USERNAME}
       - PROD_MAIL_PASSWORD=${PROD_MAIL_PASSWORD}
       - PROD_JWT_SECRET_KEY=${PROD_JWT_SECRET_KEY}
-      - PROD_EUREKA_SERVER_URL=http://eureka-service:8761/eureka
       - JAVA_OPTS=-Xmx128m -Xms64m -XX:+UseG1GC
     deploy:
       resources:
@@ -302,10 +299,15 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:mariadb://mariadb:3306/${DB_NAME:-live_commerce_db}
       - SPRING_DATASOURCE_USERNAME=${DB_USERNAME:-kosa}
       - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+      - PROD_DB_URL=jdbc:mariadb://mariadb:3306/${DB_NAME:-live_commerce_db}
+      - PROD_DB_USERNAME=${DB_USERNAME:-kosa}
+      - PROD_DB_PASSWORD=${DB_PASSWORD}
+      - PROD_EUREKA_SERVER_URL=http://eureka-service:8761/eureka
       - PROD_REDIS_HOST=${PROD_REDIS_HOST:-redis}
       - PROD_REDIS_PASSWORD=${PROD_REDIS_PASSWORD:-}
       - PROD_KAFKA_SERVERS=${PROD_KAFKA_SERVERS:-kafka:9092}
       - PROD_AUTH_SERVICE_URL=${PROD_AUTH_SERVICE_URL:-http://shopmall-auth:8082}
+      - SERVER_PORT=8103
       - JAVA_OPTS=-Xmx128m -Xms64m -XX:+UseG1GC
     deploy:
       resources:
@@ -352,6 +354,10 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:mariadb://mariadb:3306/${DB_NAME:-live_commerce_db}
       - SPRING_DATASOURCE_USERNAME=${DB_USERNAME:-kosa}
       - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+      - PROD_DB_URL=jdbc:mariadb://mariadb:3306/${DB_NAME:-live_commerce_db}
+      - PROD_DB_USERNAME=${DB_USERNAME:-kosa}
+      - PROD_DB_PASSWORD=${DB_PASSWORD}
+      - PROD_EUREKA_SERVER_URL=http://eureka-service:8761/eureka
       - PROD_REDIS_HOST=${PROD_REDIS_HOST:-redis}
       - PROD_REDIS_PASSWORD=${PROD_REDIS_PASSWORD:-}
       - PROD_KAFKA_SERVERS=${PROD_KAFKA_SERVERS:-kafka:9092}
@@ -359,6 +365,7 @@ services:
       - PROD_IAMPORT_API_SECRET=${PROD_IAMPORT_API_SECRET}
       - PROD_IMAGE_UPLOAD_PATH=${PROD_IMAGE_UPLOAD_PATH:-/app/uploads/products/}
       - PROD_IMAGE_BASE_URL=${PROD_IMAGE_BASE_URL}
+      - SERVER_PORT=8090
       - JAVA_OPTS=-Xmx128m -Xms64m -XX:+UseG1GC
     deploy:
       resources:
@@ -405,9 +412,14 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:mariadb://mariadb:3306/${DB_NAME:-live_commerce_db}
       - SPRING_DATASOURCE_USERNAME=${DB_USERNAME:-kosa}
       - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+      - PROD_DB_URL=jdbc:mariadb://mariadb:3306/${DB_NAME:-live_commerce_db}
+      - PROD_DB_USERNAME=${DB_USERNAME:-kosa}
+      - PROD_DB_PASSWORD=${DB_PASSWORD}
+      - PROD_EUREKA_SERVER_URL=http://eureka-service:8761/eureka
       - PROD_REDIS_HOST=${PROD_REDIS_HOST:-redis}
       - PROD_REDIS_PASSWORD=${PROD_REDIS_PASSWORD:-}
       - PROD_KAFKA_SERVERS=${PROD_KAFKA_SERVERS:-kafka:9092}
+      - SERVER_PORT=8096
       - JAVA_OPTS=-Xmx128m -Xms64m -XX:+UseG1GC
     deploy:
       resources:
@@ -444,7 +456,6 @@ services:
     ports:
       - "8080:8080"  # 올바른 포트
     environment:
-      - SPRING_APPLICATION_NAME=apigateway-service
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
       - EUREKA_CLIENT_SERVICE_URL=http://eureka-service:8761/eureka
       - SPRING_CONFIG_IMPORT=optional:configserver:http://config-service:8888
