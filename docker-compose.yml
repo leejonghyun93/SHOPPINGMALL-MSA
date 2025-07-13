@@ -8,7 +8,7 @@ services:
     image: mariadb:10.11
     container_name: shopmall-mariadb
     ports:
-      - "3307:3306"  # 외부 3307 포트 사용 (WSL과 동일)
+      - "3307:3306"
     environment:
       - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD:-rootpassword123}
       - MYSQL_DATABASE=${DB_NAME:-shoppingmall_db}
@@ -18,7 +18,7 @@ services:
       - MYSQL_COLLATION_SERVER=utf8mb4_unicode_ci
     volumes:
       - mariadb_data:/var/lib/mysql
-      - ./init-db:/docker-entrypoint-initdb.d:ro  # 초기 SQL 스크립트
+      - ./init-db:/docker-entrypoint-initdb.d:ro
     deploy:
       resources:
         limits:
@@ -78,8 +78,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M  # 메모리 제한 증가
-          cpus: '0.25'
+          memory: 384M  # 줄임
+          cpus: '0.2'
         reservations:
           memory: 128M
     volumes:
@@ -89,10 +89,10 @@ services:
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "ping"]
-      interval: 60s  # 헬스체크 간격 늘림
-      timeout: 20s   # 타임아웃 증가
-      retries: 10    # 재시도 증가
-      start_period: 120s  # 시작 대기시간 추가
+      interval: 60s
+      timeout: 20s
+      retries: 10
+      start_period: 120s
 
   # Zookeeper - Kafka용
   zookeeper:
@@ -101,15 +101,14 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
-      # JVM 힙 메모리 설정 추가
       KAFKA_HEAP_OPTS: "-Xms32m -Xmx128m"
     deploy:
       resources:
         limits:
-          memory: 256M  # 96M → 256M 증가
+          memory: 256M
           cpus: '0.1'
         reservations:
-          memory: 128M  # 48M → 128M 증가
+          memory: 128M
     volumes:
       - zk_data:/var/lib/zookeeper/data
       - zk_logs:/var/lib/zookeeper/log
@@ -117,7 +116,7 @@ services:
       - msa-network
     restart: unless-stopped
     healthcheck:
-      test: [ "CMD", "nc", "-vz", "localhost", "2181" ]
+      test: ["CMD", "nc", "-vz", "localhost", "2181"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -140,21 +139,21 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_HEAP_OPTS: "-Xmx192m -Xms96m"  # 96m → 192m 증가
+      KAFKA_HEAP_OPTS: "-Xmx128m -Xms64m"  # 줄임
     deploy:
       resources:
         limits:
-          memory: 384M  # 128M → 384M 증가
+          memory: 256M  # 줄임
           cpus: '0.15'
         reservations:
-          memory: 192M  # 64M → 192M 증가
+          memory: 128M
     volumes:
       - kafka_data:/var/lib/kafka/data
     networks:
       - msa-network
     restart: unless-stopped
     healthcheck:
-      test: [ "CMD", "kafka-broker-api-versions", "--bootstrap-server=localhost:9092" ]
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server=localhost:9092"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -182,14 +181,14 @@ services:
       - SPRING_RABBITMQ_PORT=5672
       - SPRING_RABBITMQ_USERNAME=admin
       - SPRING_RABBITMQ_PASSWORD=admin123
-      - JAVA_OPTS=-Xmx192m -Xms96m -XX:+UseG1GC  # 96m → 192m 증가
+      - JAVA_OPTS=-Xmx128m -Xms64m -XX:+UseG1GC  # 줄임
     deploy:
       resources:
         limits:
-          memory: 384M  # 256M → 384M 증가
+          memory: 256M  # 줄임
           cpus: '0.15'
         reservations:
-          memory: 192M  # 64M → 192M 증가
+          memory: 128M
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -197,7 +196,7 @@ services:
       - msa-network
     restart: unless-stopped
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8888/actuator/health" ]
+      test: ["CMD", "curl", "-f", "http://localhost:8888/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 8
@@ -211,11 +210,18 @@ services:
       - "8761:8761"
     environment:
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
-      - CONFIG_SERVER_URL=http://config-service:8888   # 여기 추가
+      - CONFIG_SERVER_URL=http://config-service:8888
       - SPRING_CONFIG_IMPORT=optional:configserver:${CONFIG_SERVER_URL}
       - EUREKA_CLIENT_REGISTER_WITH_EUREKA=false
       - EUREKA_CLIENT_FETCH_REGISTRY=false
       - JAVA_OPTS=-Xmx128m -Xms64m -XX:+UseG1GC
+    deploy:
+      resources:
+        limits:
+          memory: 256M  # 줄임
+          cpus: '0.15'
+        reservations:
+          memory: 128M
     depends_on:
       config-service:
         condition: service_healthy
@@ -223,17 +229,18 @@ services:
       - msa-network
     restart: unless-stopped
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8761/actuator/health" ]
+      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 60s
 
-  # 인증 서비스 (3개 인스턴스)
+  # 인증 서비스 (1개 인스턴스)
   auth-service:
     image: ${ECR_REGISTRY}/auth-service:latest
+    container_name: shopmall-auth
     ports:
-      - "8082-8084:8082"  # 3개 인스턴스용 포트 범위
+      - "8082:8082"  # 올바른 포트
     environment:
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
       - EUREKA_CLIENT_SERVICE_URL=http://eureka-service:8761/eureka
@@ -248,15 +255,14 @@ services:
       - PROD_MAIL_USERNAME=${PROD_MAIL_USERNAME}
       - PROD_MAIL_PASSWORD=${PROD_MAIL_PASSWORD}
       - PROD_JWT_SECRET_KEY=${PROD_JWT_SECRET_KEY}
-      - JAVA_OPTS=-Xmx80m -Xms40m -XX:+UseG1GC
+      - JAVA_OPTS=-Xmx96m -Xms48m -XX:+UseG1GC
     deploy:
-      replicas: 3  # 3개 인스턴스
       resources:
         limits:
-          memory: 112M
+          memory: 192M  # 늘림
           cpus: '0.15'
         reservations:
-          memory: 56M
+          memory: 96M
     depends_on:
       mariadb:
         condition: service_healthy
@@ -276,11 +282,12 @@ services:
       retries: 3
       start_period: 60s
 
-  # 사용자 서비스 (3개 인스턴스)
+  # 사용자 서비스 (1개 인스턴스)
   user-service:
     image: ${ECR_REGISTRY}/user-service:latest
+    container_name: shopmall-user
     ports:
-      - "8103-8105:8103"  # 3개 인스턴스용 포트 범위
+      - "8103:8103"  # 올바른 포트
     environment:
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
       - EUREKA_CLIENT_SERVICE_URL=http://eureka-service:8761/eureka
@@ -294,16 +301,15 @@ services:
       - PROD_REDIS_HOST=${PROD_REDIS_HOST:-redis}
       - PROD_REDIS_PASSWORD=${PROD_REDIS_PASSWORD:-}
       - PROD_KAFKA_SERVERS=${PROD_KAFKA_SERVERS:-kafka:9092}
-      - PROD_AUTH_SERVICE_URL=${PROD_AUTH_SERVICE_URL:-http://auth-service}
-      - JAVA_OPTS=-Xmx80m -Xms40m -XX:+UseG1GC
+      - PROD_AUTH_SERVICE_URL=${PROD_AUTH_SERVICE_URL:-http://auth-service:8082}
+      - JAVA_OPTS=-Xmx96m -Xms48m -XX:+UseG1GC
     deploy:
-      replicas: 3  # 3개 인스턴스
       resources:
         limits:
-          memory: 112M
+          memory: 192M
           cpus: '0.15'
         reservations:
-          memory: 56M
+          memory: 96M
     depends_on:
       mariadb:
         condition: service_healthy
@@ -325,11 +331,12 @@ services:
       retries: 3
       start_period: 60s
 
-  # 커머스 서비스 (3개 인스턴스)
+  # 커머스 서비스 (1개 인스턴스)
   commerce-service:
     image: ${ECR_REGISTRY}/commerce-service:latest
+    container_name: shopmall-commerce
     ports:
-      - "8090-8092:8090"  # 3개 인스턴스용 포트 범위
+      - "8090:8090"  # 올바른 포트
     environment:
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
       - EUREKA_CLIENT_SERVICE_URL=http://eureka-service:8761/eureka
@@ -349,13 +356,12 @@ services:
       - PROD_IMAGE_BASE_URL=${PROD_IMAGE_BASE_URL}
       - JAVA_OPTS=-Xmx96m -Xms48m -XX:+UseG1GC
     deploy:
-      replicas: 3  # 3개 인스턴스
       resources:
         limits:
-          memory: 128M
+          memory: 192M
           cpus: '0.15'
         reservations:
-          memory: 64M
+          memory: 96M
     depends_on:
       mariadb:
         condition: service_healthy
@@ -377,11 +383,12 @@ services:
       retries: 3
       start_period: 60s
 
-  # 라이브 스트리밍 서비스 (2개 인스턴스)
+  # 라이브 스트리밍 서비스 (1개 인스턴스)
   live-streaming-service:
     image: ${ECR_REGISTRY}/live-streaming-service:latest
+    container_name: shopmall-streaming
     ports:
-      - "8096-8097:8096"  # 2개 인스턴스용 포트 범위
+      - "8096:8096"  # 올바른 포트
     environment:
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
       - EUREKA_CLIENT_SERVICE_URL=http://eureka-service:8761/eureka
@@ -395,15 +402,14 @@ services:
       - PROD_REDIS_HOST=${PROD_REDIS_HOST:-redis}
       - PROD_REDIS_PASSWORD=${PROD_REDIS_PASSWORD:-}
       - PROD_KAFKA_SERVERS=${PROD_KAFKA_SERVERS:-kafka:9092}
-      - JAVA_OPTS=-Xmx128m -Xms64m -XX:+UseG1GC
+      - JAVA_OPTS=-Xmx96m -Xms48m -XX:+UseG1GC
     deploy:
-      replicas: 2  # 2개 인스턴스 (WebSocket 특성상 적게 설정)
       resources:
         limits:
-          memory: 160M
-          cpus: '0.2'
+          memory: 192M
+          cpus: '0.15'
         reservations:
-          memory: 80M
+          memory: 96M
     depends_on:
       mariadb:
         condition: service_healthy
@@ -425,12 +431,12 @@ services:
       retries: 3
       start_period: 60s
 
-  # API Gateway (단일 인스턴스 유지)
+  # API Gateway (단일 인스턴스)
   apigateway-service:
     image: ${ECR_REGISTRY}/apigateway-service:latest
     container_name: shopmall-gateway
     ports:
-      - "8080:8080"
+      - "8080:8080"  # 올바른 포트
     environment:
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
       - EUREKA_CLIENT_SERVICE_URL=http://eureka-service:8761/eureka
@@ -440,14 +446,14 @@ services:
       - FRONTEND_URL=${FRONTEND_URL:-https://shopmall.com}
       - ADMIN_URL=${ADMIN_URL:-https://admin.shopmall.com}
       - JWT_SECRET=${PROD_JWT_SECRET_KEY}
-      - JAVA_OPTS=-Xmx112m -Xms56m -XX:+UseG1GC
+      - JAVA_OPTS=-Xmx96m -Xms48m -XX:+UseG1GC
     deploy:
       resources:
         limits:
-          memory: 144M
-          cpus: '0.2'
+          memory: 192M
+          cpus: '0.15'
         reservations:
-          memory: 72M
+          memory: 96M
     depends_on:
       eureka-service:
         condition: service_healthy
@@ -471,79 +477,6 @@ services:
       retries: 3
       start_period: 60s
 
-  # ======================
-  # 모니터링 서비스들 (선택적)
-  # ======================
-
-  # Prometheus - 메트릭 수집
-  prometheus:
-    image: prom/prometheus:v2.45.0
-    container_name: shopmall-prometheus
-    ports:
-      - "9090:9090"
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
-      - '--web.console.templates=/usr/share/prometheus/consoles'
-      - '--storage.tsdb.retention.time=7d'
-      - '--storage.tsdb.retention.size=512MB'
-      - '--web.enable-lifecycle'
-    volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus_data:/prometheus
-    deploy:
-      resources:
-        limits:
-          memory: 128M
-          cpus: '0.15'
-        reservations:
-          memory: 64M
-    networks:
-      - msa-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-    profiles:
-      - monitoring
-
-  # Grafana - 메트릭 시각화
-  grafana:
-    image: grafana/grafana:10.0.0
-    container_name: shopmall-grafana
-    ports:
-      - "3000:3000"
-    environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin123}
-      - GF_USERS_ALLOW_SIGN_UP=false
-      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
-    volumes:
-      - grafana_data:/var/lib/grafana
-      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
-    deploy:
-      resources:
-        limits:
-          memory: 96M
-          cpus: '0.1'
-        reservations:
-          memory: 48M
-    depends_on:
-      - prometheus
-    networks:
-      - msa-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-    profiles:
-      - monitoring
-
 networks:
   msa-network:
     driver: bridge
@@ -563,8 +496,4 @@ volumes:
   zk_data:
     driver: local
   zk_logs:
-    driver: local
-  prometheus_data:
-    driver: local
-  grafana_data:
     driver: local
