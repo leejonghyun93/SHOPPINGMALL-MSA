@@ -10,10 +10,10 @@ services:
     ports:
       - "3307:3306"
     environment:
-      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD}  # 기본값 제거
-      - MYSQL_DATABASE=${DB_NAME:-live_commerce_db}     # :- 로 수정
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${DB_NAME:-live_commerce_db}
       - MYSQL_USER=${DB_USERNAME:-kosa}
-      - MYSQL_PASSWORD=${DB_PASSWORD}  # 기본값 제거
+      - MYSQL_PASSWORD=${DB_PASSWORD}
       - MYSQL_CHARACTER_SET_SERVER=utf8mb4
       - MYSQL_COLLATION_SERVER=utf8mb4_unicode_ci
     volumes:
@@ -78,7 +78,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 384M  # 줄임
+          memory: 384M
           cpus: '0.2'
         reservations:
           memory: 128M
@@ -139,11 +139,11 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_HEAP_OPTS: "-Xmx128m -Xms64m"  # 줄임
+      KAFKA_HEAP_OPTS: "-Xmx128m -Xms64m"
     deploy:
       resources:
         limits:
-          memory: 256M  # 줄임
+          memory: 256M
           cpus: '0.15'
         reservations:
           memory: 128M
@@ -176,17 +176,16 @@ services:
       - CONFIG_GIT_PASSWORD=${CONFIG_GIT_PASSWORD:-}
       - CONFIG_SERVER_USERNAME=${CONFIG_SERVER_USERNAME:-config}
       - CONFIG_SERVER_PASSWORD=${CONFIG_SERVER_PASSWORD}
-      - PROD_EUREKA_SERVER_URL=http://eureka-service:8761/eureka
       - EUREKA_CLIENT_ENABLED=false
       - SPRING_RABBITMQ_HOST=rabbitmq
       - SPRING_RABBITMQ_PORT=5672
       - SPRING_RABBITMQ_USERNAME=admin
       - SPRING_RABBITMQ_PASSWORD=admin123
-      - JAVA_OPTS=-Xmx128m -Xms64m -XX:+UseG1GC  # 줄임
+      - JAVA_OPTS=-Xmx128m -Xms64m -XX:+UseG1GC
     deploy:
       resources:
         limits:
-          memory: 256M  # 줄임
+          memory: 256M
           cpus: '0.15'
         reservations:
           memory: 128M
@@ -219,7 +218,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M  # 줄임
+          memory: 256M
           cpus: '0.15'
         reservations:
           memory: 128M
@@ -241,26 +240,28 @@ services:
     image: ${ECR_REGISTRY}/auth-service:latest
     container_name: shopmall-auth
     ports:
-      - "8082:8082"  # 올바른 포트
+      - "8082:8082"
     environment:
+      - SPRING_APPLICATION_NAME=auth-service
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
       - EUREKA_CLIENT_SERVICE_URL=http://eureka-service:8761/eureka
       - SPRING_CONFIG_IMPORT=optional:configserver:http://config-service:8888
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
-      - SPRING_DATASOURCE_URL=jdbc:mariadb://mariadb:3306/${DB_NAME:-live_commerce_db}
-      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME:-kosa}
-      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+      - SPRING_DATASOURCE_URL=${PROD_DB_URL}
+      - SPRING_DATASOURCE_USERNAME=${PROD_DB_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${PROD_DB_PASSWORD}
       - PROD_REDIS_HOST=${PROD_REDIS_HOST:-redis}
       - PROD_REDIS_PASSWORD=${PROD_REDIS_PASSWORD:-}
       - PROD_MAIL_USERNAME=${PROD_MAIL_USERNAME}
       - PROD_MAIL_PASSWORD=${PROD_MAIL_PASSWORD}
       - PROD_JWT_SECRET_KEY=${PROD_JWT_SECRET_KEY}
+      - PROD_EUREKA_SERVER_URL=${PROD_EUREKA_SERVER_URL}
       - JAVA_OPTS=-Xmx128m -Xms64m -XX:+UseG1GC
     deploy:
       resources:
         limits:
-          memory: 256M  # 늘림
+          memory: 256M
           cpus: '0.15'
         reservations:
           memory: 128M
@@ -288,7 +289,7 @@ services:
     image: ${ECR_REGISTRY}/user-service:latest
     container_name: shopmall-user
     ports:
-      - "8103:8103"  # 올바른 포트
+      - "8103:8103"
     environment:
       - SPRING_APPLICATION_NAME=user-service
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
@@ -297,18 +298,14 @@ services:
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-      - SPRING_DATASOURCE_URL=jdbc:mariadb://mariadb:3306/${DB_NAME:-live_commerce_db}
-      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME:-kosa}
-      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
-      - PROD_DB_URL=jdbc:mariadb://mariadb:3306/${DB_NAME:-live_commerce_db}
-      - PROD_DB_USERNAME=${DB_USERNAME:-kosa}
-      - PROD_DB_PASSWORD=${DB_PASSWORD}
-      - PROD_EUREKA_SERVER_URL=http://eureka-service:8761/eureka
+      - SPRING_DATASOURCE_URL=${PROD_DB_URL}
+      - SPRING_DATASOURCE_USERNAME=${PROD_DB_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${PROD_DB_PASSWORD}
       - PROD_REDIS_HOST=${PROD_REDIS_HOST:-redis}
       - PROD_REDIS_PASSWORD=${PROD_REDIS_PASSWORD:-}
-      - PROD_KAFKA_SERVERS=${PROD_KAFKA_SERVERS:-kafka:9092}
-      - PROD_AUTH_SERVICE_URL=${PROD_AUTH_SERVICE_URL:-http://shopmall-auth:8082}
-      - SERVER_PORT=8103
+      - PROD_KAFKA_SERVERS=${PROD_KAFKA_SERVERS}
+      - PROD_AUTH_SERVICE_URL=${PROD_AUTH_SERVICE_URL}
+      - PROD_EUREKA_SERVER_URL=${PROD_EUREKA_SERVER_URL}
       - JAVA_OPTS=-Xmx128m -Xms64m -XX:+UseG1GC
     deploy:
       resources:
@@ -338,12 +335,12 @@ services:
       retries: 10
       start_period: 180s
 
-  # 커머스 서비스 (1개 인스턴스) - 수정됨
+  # 커머스 서비스 (1개 인스턴스)
   commerce-service:
     image: ${ECR_REGISTRY}/commerce-service:latest
     container_name: shopmall-commerce
     ports:
-      - "8090:8090"  # 올바른 포트
+      - "8090:8090"
     environment:
       - SPRING_APPLICATION_NAME=commerce-service
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
@@ -352,26 +349,23 @@ services:
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-      - SPRING_DATASOURCE_URL=jdbc:mariadb://mariadb:3306/${DB_NAME:-live_commerce_db}
-      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME:-kosa}
-      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
-      - PROD_DB_URL=jdbc:mariadb://mariadb:3306/${DB_NAME:-live_commerce_db}
-      - PROD_DB_USERNAME=${DB_USERNAME:-kosa}
-      - PROD_DB_PASSWORD=${DB_PASSWORD}
-      - PROD_EUREKA_SERVER_URL=http://eureka-service:8761/eureka
+      - SPRING_DATASOURCE_URL=${PROD_DB_URL}
+      - SPRING_DATASOURCE_USERNAME=${PROD_DB_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${PROD_DB_PASSWORD}
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=none
       - PROD_REDIS_HOST=${PROD_REDIS_HOST:-redis}
       - PROD_REDIS_PASSWORD=${PROD_REDIS_PASSWORD:-}
-      - PROD_KAFKA_SERVERS=${PROD_KAFKA_SERVERS:-kafka:9092}
+      - PROD_KAFKA_SERVERS=${PROD_KAFKA_SERVERS}
       - PROD_IAMPORT_API_KEY=${PROD_IAMPORT_API_KEY}
       - PROD_IAMPORT_API_SECRET=${PROD_IAMPORT_API_SECRET}
       - PROD_IMAGE_UPLOAD_PATH=${PROD_IMAGE_UPLOAD_PATH:-/app/uploads/products/}
       - PROD_IMAGE_BASE_URL=${PROD_IMAGE_BASE_URL}
-      - SERVER_PORT=8090
+      - PROD_EUREKA_SERVER_URL=${PROD_EUREKA_SERVER_URL}
       - JAVA_OPTS=-Xmx128m -Xms64m -XX:+UseG1GC
     deploy:
       resources:
         limits:
-          memory: 256M  # 늘림
+          memory: 256M
           cpus: '0.15'
         reservations:
           memory: 128M
@@ -391,17 +385,17 @@ services:
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8090/actuator/health"]
-      interval: 60s      # 30s → 60s
-      timeout: 30s       # 5s → 30s
-      retries: 10        # 3 → 10
-      start_period: 240s # 60s → 240s (4분)
+      interval: 60s
+      timeout: 30s
+      retries: 10
+      start_period: 240s
 
-  # 라이브 스트리밍 서비스 (1개 인스턴스) - 수정됨
+  # 라이브 스트리밍 서비스 (1개 인스턴스)
   live-streaming-service:
     image: ${ECR_REGISTRY}/live-streaming-service:latest
     container_name: shopmall-streaming
     ports:
-      - "8096:8096"  # 올바른 포트
+      - "8096:8096"
     environment:
       - SPRING_APPLICATION_NAME=live-streaming-service
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
@@ -410,22 +404,18 @@ services:
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-      - SPRING_DATASOURCE_URL=jdbc:mariadb://mariadb:3306/${DB_NAME:-live_commerce_db}
-      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME:-kosa}
-      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
-      - PROD_DB_URL=jdbc:mariadb://mariadb:3306/${DB_NAME:-live_commerce_db}
-      - PROD_DB_USERNAME=${DB_USERNAME:-kosa}
-      - PROD_DB_PASSWORD=${DB_PASSWORD}
-      - PROD_EUREKA_SERVER_URL=http://eureka-service:8761/eureka
+      - SPRING_DATASOURCE_URL=${PROD_DB_URL}
+      - SPRING_DATASOURCE_USERNAME=${PROD_DB_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${PROD_DB_PASSWORD}
       - PROD_REDIS_HOST=${PROD_REDIS_HOST:-redis}
       - PROD_REDIS_PASSWORD=${PROD_REDIS_PASSWORD:-}
-      - PROD_KAFKA_SERVERS=${PROD_KAFKA_SERVERS:-kafka:9092}
-      - SERVER_PORT=8096
+      - PROD_KAFKA_SERVERS=${PROD_KAFKA_SERVERS}
+      - PROD_EUREKA_SERVER_URL=${PROD_EUREKA_SERVER_URL}
       - JAVA_OPTS=-Xmx128m -Xms64m -XX:+UseG1GC
     deploy:
       resources:
         limits:
-          memory: 256M  # 늘림
+          memory: 256M
           cpus: '0.15'
         reservations:
           memory: 128M
@@ -445,27 +435,28 @@ services:
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8096/actuator/health"]
-      interval: 60s      # 30s → 60s
-      timeout: 30s       # 5s → 30s
-      retries: 10        # 3 → 10
-      start_period: 240s # 60s → 240s (4분)
+      interval: 60s
+      timeout: 30s
+      retries: 10
+      start_period: 240s
 
   # API Gateway (단일 인스턴스)
   apigateway-service:
     image: ${ECR_REGISTRY}/apigateway-service:latest
     container_name: apigateway-service
     ports:
-      - "8080:8080"  # 올바른 포트
+      - "8080:8080"
     environment:
+      - SPRING_APPLICATION_NAME=apigateway-service
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
       - EUREKA_CLIENT_SERVICE_URL=http://eureka-service:8761/eureka
       - SPRING_CONFIG_IMPORT=optional:configserver:http://config-service:8888
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
       - FRONTEND_URL=${FRONTEND_URL:-https://shopmall.com}
-      - PROD_EUREKA_SERVER_URL=http://eureka-service:8761/eureka
       - ADMIN_URL=${ADMIN_URL:-https://admin.shopmall.com}
       - JWT_SECRET=${PROD_JWT_SECRET_KEY}
+      - PROD_EUREKA_SERVER_URL=${PROD_EUREKA_SERVER_URL}
       - JAVA_OPTS=-Xmx96m -Xms48m -XX:+UseG1GC
     deploy:
       resources:
