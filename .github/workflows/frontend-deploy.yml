@@ -3,6 +3,7 @@ name: Frontend CI/CD (Nginx Docker)
 on:
   push:
     branches: [ main, master ]
+    # paths 조건 제거해서 모든 push에서 실행되도록
     paths:
       - 'ui-service/**'
       - 'nginx-docker/**'
@@ -111,7 +112,7 @@ jobs:
             docker pull ${{ steps.login-ecr.outputs.registry }}/user-nginx:latest
             docker run -d \
               --name user-nginx \
-              --network shoppingmall-msa_default \
+              --network app_msa-network
               -p 80:80 \
               -p 443:443 \
               --restart unless-stopped \
