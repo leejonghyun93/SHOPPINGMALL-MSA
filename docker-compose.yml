@@ -176,6 +176,7 @@ services:
       - CONFIG_GIT_PASSWORD=${CONFIG_GIT_PASSWORD:-}
       - CONFIG_SERVER_USERNAME=${CONFIG_SERVER_USERNAME:-config}
       - CONFIG_SERVER_PASSWORD=${CONFIG_SERVER_PASSWORD}
+      - PROD_EUREKA_SERVER_URL=http://eureka-service:8761/eureka
       - EUREKA_CLIENT_ENABLED=false
       - SPRING_RABBITMQ_HOST=rabbitmq
       - SPRING_RABBITMQ_PORT=5672
@@ -462,6 +463,7 @@ services:
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
       - FRONTEND_URL=${FRONTEND_URL:-https://shopmall.com}
+      - PROD_EUREKA_SERVER_URL=http://eureka-service:8761/eureka
       - ADMIN_URL=${ADMIN_URL:-https://admin.shopmall.com}
       - JWT_SECRET=${PROD_JWT_SECRET_KEY}
       - JAVA_OPTS=-Xmx96m -Xms48m -XX:+UseG1GC
