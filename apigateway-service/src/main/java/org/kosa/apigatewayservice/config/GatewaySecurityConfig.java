@@ -1,6 +1,7 @@
 package org.kosa.apigatewayservice.config;
 
 import org.kosa.apigatewayservice.filter.SimpleJwtFilter;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -21,6 +22,15 @@ public class GatewaySecurityConfig {
 
     private final SimpleJwtFilter simpleJwtFilter;
 
+    @Value("${FRONTEND_URL:http://localhost:5173}")
+    private String frontendUrl;
+
+    @Value("${ADMIN_URL:http://localhost:3000}")
+    private String adminUrl;
+
+    @Value("${HOST_IP_ADDRESS:13.209.253.241}")
+    private String hostIpAddress;
+
     public GatewaySecurityConfig(SimpleJwtFilter simpleJwtFilter) {
         this.simpleJwtFilter = simpleJwtFilter;
     }
@@ -37,7 +47,7 @@ public class GatewaySecurityConfig {
                 .authorizeExchange(exchanges ->
                         exchanges
                                 // ===========================================
-                                // 🔥 SWAGGER UI 관련 (인증 무시) - 새로 추가!
+                                // 🔥 SWAGGER UI 관련 (인증 무시)
                                 // ===========================================
                                 .pathMatchers("/swagger-ui/**").permitAll()
                                 .pathMatchers("/swagger-ui.html").permitAll()
@@ -54,88 +64,61 @@ public class GatewaySecurityConfig {
                                 .pathMatchers("/auth/v3/api-docs/**").permitAll()
 
                                 // ===========================================
-                                // BROADCAST VIEWER 관련 URL (인증 무시)
+                                // WEBSOCKET 관련 URL (인증 무시)
                                 // ===========================================
                                 .pathMatchers("/ws/**").permitAll()
                                 .pathMatchers("/ws-chat/**").permitAll()
                                 .pathMatchers("/websocket/**").permitAll()
 
-                                // 방송 시청자 페이지 - 방송 상세 정보 조회
+                                // ===========================================
+                                // BROADCAST VIEWER 관련 URL (인증 무시)
+                                // ===========================================
                                 .pathMatchers(HttpMethod.GET, "/api/broadcast/*").permitAll()
                                 .pathMatchers(HttpMethod.GET, "/api/broadcast/*/").permitAll()
-
-                                // 방송 시청자 페이지 - 상품 목록 조회
                                 .pathMatchers(HttpMethod.GET, "/api/broadcast/*/products").permitAll()
-
-                                // 방송 시청자 페이지 - 시청자 수 증가 (공개)
                                 .pathMatchers(HttpMethod.POST, "/api/broadcast/*/view").permitAll()
-
-                                // 방송 시청자 페이지 - 좋아요 (공개)
                                 .pathMatchers(HttpMethod.POST, "/api/broadcast/*/like").permitAll()
-
-                                // 방송 시청자 페이지 - 상태 확인
                                 .pathMatchers(HttpMethod.GET, "/api/broadcast/*/status").permitAll()
-
-                                // 방송 시청자 페이지 - 채팅 메시지 조회/전송 (공개)
                                 .pathMatchers(HttpMethod.GET, "/api/broadcast/*/chat").permitAll()
                                 .pathMatchers(HttpMethod.POST, "/api/broadcast/*/chat").permitAll()
 
                                 // ===========================================
-                                // BROADCASTS 관련 URL (인증 무시) - 기존
+                                // BROADCASTS 관련 URL (인증 무시)
                                 // ===========================================
-
-                                // 방송 조회 관련 (모든 GET 요청 허용)
                                 .pathMatchers(HttpMethod.GET, "/api/broadcasts/**").permitAll()
-
-                                // 방송 검색 및 추천
                                 .pathMatchers(HttpMethod.GET, "/api/broadcasts/search").permitAll()
                                 .pathMatchers(HttpMethod.GET, "/api/broadcasts/recommended").permitAll()
-
-                                // 방송 통계 및 헬스체크
                                 .pathMatchers(HttpMethod.GET, "/api/broadcasts/stats").permitAll()
                                 .pathMatchers(HttpMethod.GET, "/api/broadcasts/health").permitAll()
-
-                                // 방송 일정 조회
                                 .pathMatchers(HttpMethod.GET, "/api/broadcasts/schedule/**").permitAll()
-
-                                // 라이브 방송 목록
                                 .pathMatchers(HttpMethod.GET, "/api/broadcasts/live").permitAll()
-
-                                // 카테고리별, 방송자별 방송 목록
                                 .pathMatchers(HttpMethod.GET, "/api/broadcasts/category/**").permitAll()
                                 .pathMatchers(HttpMethod.GET, "/api/broadcasts/broadcaster/**").permitAll()
-
-                                // 방송 상세 조회
-                                .pathMatchers(HttpMethod.GET, "/api/broadcasts/*/").permitAll()
-
-                                // 디버그 API
                                 .pathMatchers(HttpMethod.GET, "/api/broadcasts/debug/**").permitAll()
 
                                 // ===========================================
-                                // 기존 NOTIFICATIONS 관련
+                                // CHAT 관련 URL (인증 무시)
                                 // ===========================================
-                                .pathMatchers(HttpMethod.GET, "/api/notifications/health").permitAll()
-                                .pathMatchers(HttpMethod.GET, "/api/notifications/broadcasts/**").permitAll()
-                                .pathMatchers(HttpMethod.POST, "/api/notifications/broadcasts/*/start-notifications").permitAll()
+                                .pathMatchers(HttpMethod.GET, "/api/chat/**").permitAll()
+                                .pathMatchers(HttpMethod.POST, "/api/chat/**").permitAll()
+                                .pathMatchers(HttpMethod.GET, "/api/chat/history/**").permitAll()
+                                .pathMatchers(HttpMethod.GET, "/api/chat/participants/**").permitAll()
+                                .pathMatchers(HttpMethod.POST, "/api/chat/disconnect/**").permitAll()
 
                                 // ===========================================
                                 // 기본 시스템 관련
                                 // ===========================================
                                 .pathMatchers("/actuator/health/**").permitAll()
                                 .pathMatchers("/actuator/prometheus").permitAll()
-                                .pathMatchers(HttpMethod.GET, "/ws/**").permitAll()
-                                .pathMatchers(HttpMethod.GET, "/ws-chat/**").permitAll()
-                                .pathMatchers(HttpMethod.GET, "/api/chat/history/**").permitAll()
-                                .pathMatchers(HttpMethod.GET, "/api/chat/**").permitAll()
+                                .pathMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
                                 // ===========================================
                                 // AUTH 관련
                                 // ===========================================
                                 .pathMatchers("/auth/**").permitAll()
-                                .pathMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
                                 // ===========================================
-                                // USER 관련 (기존 + 🔥 Swagger 관련 추가)
+                                // USER 관련
                                 // ===========================================
                                 .pathMatchers(HttpMethod.POST, "/api/users/register").permitAll()
                                 .pathMatchers(HttpMethod.POST, "/api/users/login").permitAll()
@@ -148,26 +131,12 @@ public class GatewaySecurityConfig {
                                 .pathMatchers(HttpMethod.POST, "/auth/resetPassword").permitAll()
                                 .pathMatchers(HttpMethod.POST, "/auth/resetPasswordImmediate").permitAll()
 
-                                // 🔥 User Service API 문서 관련 허용 (추가)
-                                .pathMatchers(HttpMethod.GET, "/api/users/*/email").permitAll()
-                                .pathMatchers(HttpMethod.POST, "/api/users/social").permitAll()
-                                .pathMatchers(HttpMethod.POST, "/api/users/*/password").permitAll()
-                                .pathMatchers(HttpMethod.GET, "/api/users/redis/health").permitAll()
-
                                 // ===========================================
                                 // PRODUCT & CATEGORY 관련
                                 // ===========================================
                                 .pathMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
                                 .pathMatchers(HttpMethod.GET, "/api/products/**").permitAll()
                                 .pathMatchers(HttpMethod.POST, "/api/products/guest-cart-details").permitAll()
-
-                                // 찜하기 API - 인증 필요
-                                .pathMatchers(HttpMethod.POST, "/api/wishlist").hasAnyRole("USER", "ADMIN")
-                                .pathMatchers(HttpMethod.DELETE, "/api/wishlist/**").hasAnyRole("USER", "ADMIN")
-                                .pathMatchers(HttpMethod.GET, "/api/wishlist/check/**").hasAnyRole("USER", "ADMIN")
-                                .pathMatchers(HttpMethod.GET, "/api/wishlist").hasAnyRole("USER", "ADMIN")
-                                .pathMatchers(HttpMethod.GET, "/api/wishlist/count").hasAnyRole("USER", "ADMIN")
-                                .pathMatchers(HttpMethod.DELETE, "/api/wishlist/clear").hasAnyRole("USER", "ADMIN")
 
                                 // ===========================================
                                 // IMAGES & STATIC 관련
@@ -203,36 +172,14 @@ public class GatewaySecurityConfig {
                                 .pathMatchers(HttpMethod.PATCH, "/api/qna/**").hasAnyRole("USER", "ADMIN")
 
                                 // ===========================================
-                                // NOTIFICATIONS (인증 필요)
+                                // 찜하기 API - 인증 필요
                                 // ===========================================
-                                .pathMatchers(HttpMethod.POST, "/api/notifications/subscriptions/**").hasAnyRole("USER", "ADMIN")
-                                .pathMatchers(HttpMethod.DELETE, "/api/notifications/subscriptions/**").hasAnyRole("USER", "ADMIN")
-                                .pathMatchers(HttpMethod.PUT, "/api/notifications/subscriptions/**").hasAnyRole("USER", "ADMIN")
-                                .pathMatchers(HttpMethod.GET, "/api/notifications/users/**").hasAnyRole("USER", "ADMIN")
-                                .pathMatchers(HttpMethod.PATCH, "/api/notifications/**").hasAnyRole("USER", "ADMIN")
-                                .pathMatchers("/ws-notifications/**").hasAnyRole("USER", "ADMIN")
-
-                                // ===========================================
-                                // BROADCASTS 관리 API (인증 필요)
-                                // ===========================================
-
-                                // 방송 시청자 수, 좋아요 수 업데이트 (인증 필요)
-                                .pathMatchers(HttpMethod.PATCH, "/api/broadcasts/*/viewers").hasAnyRole("USER", "ADMIN")
-                                .pathMatchers(HttpMethod.PATCH, "/api/broadcasts/*/likes").hasAnyRole("USER", "ADMIN")
-
-                                // 방송 상세보기 채팅방
-                                .pathMatchers(HttpMethod.GET, "/ws/**").permitAll()
-                                .pathMatchers(HttpMethod.GET, "/api/chat/history/**").permitAll()
-                                .pathMatchers(HttpMethod.GET, "api/chat/**").permitAll()
-
-                                .pathMatchers(HttpMethod.GET, "/api/stream/**").permitAll()
-                                .pathMatchers(HttpMethod.GET, "/hls/**").permitAll()
-                                .pathMatchers(HttpMethod.OPTIONS, "/hls/**").permitAll()
-
-                                // 채팅 관련 API 추가
-                                .pathMatchers(HttpMethod.GET, "/api/chat/participants/**").permitAll()
-                                .pathMatchers(HttpMethod.POST, "/api/chat/disconnect/**").permitAll()
-                                .pathMatchers(HttpMethod.GET, "/api/broadcasts/*/status").permitAll()
+                                .pathMatchers(HttpMethod.POST, "/api/wishlist").hasAnyRole("USER", "ADMIN")
+                                .pathMatchers(HttpMethod.DELETE, "/api/wishlist/**").hasAnyRole("USER", "ADMIN")
+                                .pathMatchers(HttpMethod.GET, "/api/wishlist/check/**").hasAnyRole("USER", "ADMIN")
+                                .pathMatchers(HttpMethod.GET, "/api/wishlist").hasAnyRole("USER", "ADMIN")
+                                .pathMatchers(HttpMethod.GET, "/api/wishlist/count").hasAnyRole("USER", "ADMIN")
+                                .pathMatchers(HttpMethod.DELETE, "/api/wishlist/clear").hasAnyRole("USER", "ADMIN")
 
                                 // ===========================================
                                 // USER PROFILE (인증 필요)
@@ -240,12 +187,7 @@ public class GatewaySecurityConfig {
                                 .pathMatchers(HttpMethod.GET, "/api/users/profile").hasAnyRole("USER", "ADMIN")
                                 .pathMatchers(HttpMethod.PUT, "/api/users/profile").hasAnyRole("USER", "ADMIN")
                                 .pathMatchers(HttpMethod.POST, "/api/users/withdraw").hasAnyRole("USER", "ADMIN")
-                                .pathMatchers(HttpMethod.GET, "/api/users/points").hasAnyRole("USER", "ADMIN")
-                                .pathMatchers(HttpMethod.GET, "/api/users/coupons").hasAnyRole("USER", "ADMIN")
-                                .pathMatchers(HttpMethod.GET, "/api/users/addresses").hasAnyRole("USER", "ADMIN")
-                                .pathMatchers(HttpMethod.POST, "/api/users/addresses").hasAnyRole("USER", "ADMIN")
-                                .pathMatchers(HttpMethod.PUT, "/api/users/addresses/**").hasAnyRole("USER", "ADMIN")
-                                .pathMatchers(HttpMethod.DELETE, "/api/users/addresses/**").hasAnyRole("USER", "ADMIN")
+                                .pathMatchers(HttpMethod.GET, "/api/users/**").hasAnyRole("USER", "ADMIN")
 
                                 // ===========================================
                                 // CART (인증 필요)
@@ -263,6 +205,28 @@ public class GatewaySecurityConfig {
                                 .pathMatchers("/api/payments/**").hasAnyRole("USER", "ADMIN")
 
                                 // ===========================================
+                                // BROADCASTS 관리 API (인증 필요)
+                                // ===========================================
+                                .pathMatchers(HttpMethod.PATCH, "/api/broadcasts/*/viewers").hasAnyRole("USER", "ADMIN")
+                                .pathMatchers(HttpMethod.PATCH, "/api/broadcasts/*/likes").hasAnyRole("USER", "ADMIN")
+                                .pathMatchers(HttpMethod.POST, "/api/broadcasts/**").hasAnyRole("USER", "ADMIN")
+                                .pathMatchers(HttpMethod.PUT, "/api/broadcasts/**").hasAnyRole("USER", "ADMIN")
+                                .pathMatchers(HttpMethod.DELETE, "/api/broadcasts/**").hasAnyRole("USER", "ADMIN")
+
+                                // ===========================================
+                                // NOTIFICATIONS (인증 필요)
+                                // ===========================================
+                                .pathMatchers(HttpMethod.GET, "/api/notifications/health").permitAll()
+                                .pathMatchers(HttpMethod.GET, "/api/notifications/broadcasts/**").permitAll()
+                                .pathMatchers(HttpMethod.POST, "/api/notifications/broadcasts/*/start-notifications").permitAll()
+                                .pathMatchers(HttpMethod.POST, "/api/notifications/subscriptions/**").hasAnyRole("USER", "ADMIN")
+                                .pathMatchers(HttpMethod.DELETE, "/api/notifications/subscriptions/**").hasAnyRole("USER", "ADMIN")
+                                .pathMatchers(HttpMethod.PUT, "/api/notifications/subscriptions/**").hasAnyRole("USER", "ADMIN")
+                                .pathMatchers(HttpMethod.GET, "/api/notifications/users/**").hasAnyRole("USER", "ADMIN")
+                                .pathMatchers(HttpMethod.PATCH, "/api/notifications/**").hasAnyRole("USER", "ADMIN")
+                                .pathMatchers("/ws-notifications/**").hasAnyRole("USER", "ADMIN")
+
+                                // ===========================================
                                 // 기타 모든 요청 (인증 필요)
                                 // ===========================================
                                 .anyExchange().authenticated()
@@ -274,11 +238,20 @@ public class GatewaySecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
+        // 환경에 따른 동적 Origin 설정
         configuration.setAllowedOriginPatterns(List.of(
                 "http://localhost:5173",
                 "http://localhost:3000",
                 "http://127.0.0.1:5173",
-                "http://127.0.0.1:3000"
+                "http://127.0.0.1:3000",
+                "http://192.168.*.*:*",        // 로컬 네트워크
+                "http://10.*.*.*:*",           // 내부 네트워크
+                "http://" + hostIpAddress,     // EC2 IP
+                "http://" + hostIpAddress + ":*",  // EC2 IP의 모든 포트
+                frontendUrl,                   // 환경변수 프론트엔드 URL
+                adminUrl,                      // 환경변수 어드민 URL
+                "https://*.shopmall.com",      // 운영 도메인
+                "https://shopmall.com"
         ));
 
         configuration.setAllowedMethods(Arrays.asList(
@@ -291,7 +264,8 @@ public class GatewaySecurityConfig {
 
         configuration.setExposedHeaders(List.of(
                 "Authorization",
-                "Content-Type"
+                "Content-Type",
+                "X-Total-Count"
         ));
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

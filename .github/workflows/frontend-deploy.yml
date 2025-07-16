@@ -45,6 +45,17 @@ jobs:
             echo "No tests found, skipping..."
           fi
 
+      # 🔥 환경변수 주입 단계 추가
+      - name: Create .env.production
+        run: |
+          cd ui-service
+          echo "VITE_API_URL=${{ secrets.PROD_API_BASE_URL }}" > .env.production
+          echo "VITE_KAKAO_CLIENT_ID=${{ secrets.PROD_KAKAO_CLIENT_ID }}" >> .env.production
+          echo "VITE_NAVER_CLIENT_ID=${{ secrets.PROD_NAVER_CLIENT_ID }}" >> .env.production
+          echo "VITE_REDIRECT_URI=${{ secrets.PROD_SOCIAL_REDIRECT_URI }}" >> .env.production
+          echo "Created .env.production with production environment variables"
+          cat .env.production
+
       - name: Build Vue application
         run: |
           cd ui-service

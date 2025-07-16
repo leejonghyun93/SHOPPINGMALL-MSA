@@ -10,6 +10,9 @@ COPY nginx.conf /etc/nginx/nginx.conf
 # 사용자 Vue 빌드 파일만 복사
 COPY vue-dist/ /var/www/html/vue-app/
 
+# 디렉토리 권한 설정
+RUN chmod -R 755 /var/www/html/vue-app/
+
 # 포트 노출
 EXPOSE 80
 

@@ -3,6 +3,7 @@ package org.kosa.apigatewayservice.filter;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -22,6 +23,7 @@ import java.util.Collections;
 import java.util.List;
 
 @Component
+@Slf4j
 public class SimpleJwtFilter implements WebFilter {
 
     @Value("${jwt.secret:rrYd2zPDUkx7BUhgDsOTxHCbsBkeTgE/uoARWYSqBjU=}")
@@ -29,7 +31,7 @@ public class SimpleJwtFilter implements WebFilter {
 
     private SecretKey getSigningKey() {
         if (jwtSecret.length() < 32) {
-            System.err.println("⚠️ JWT secret key가 너무 짧습니다. 최소 32바이트 필요");
+            log.warn("⚠️ JWT secret key가 너무 짧습니다. 최소 32바이트 필요");
             jwtSecret = "rrYd2zPDUkx7BUhgDsOTxHCbsBkeTgE/uoARWYSqBjU=";
         }
         return Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
@@ -40,17 +42,17 @@ public class SimpleJwtFilter implements WebFilter {
         String path = exchange.getRequest().getPath().value();
         String method = exchange.getRequest().getMethod().name();
 
-        System.out.println("🔍 JWT Filter - Path: " + path + ", Method: " + method);
+        log.debug("🔍 JWT Filter - Path: {}, Method: {}", path, method);
 
         // CORS OPTIONS 요청은 무조건 통과
         if (HttpMethod.OPTIONS.equals(exchange.getRequest().getMethod())) {
-            System.out.println("✅ CORS OPTIONS 요청 - 무조건 통과: " + path);
+            log.debug("✅ CORS OPTIONS 요청 - 무조건 통과: {}", path);
             return chain.filter(exchange);
         }
 
         // 완전 공개 경로는 JWT 검증 스킵
         if (isPublicPath(path, method)) {
-            System.out.println("✅ 공개 경로로 인식, JWT 검증 스킵: " + path + " (" + method + ")");
+            log.debug("✅ 공개 경로로 인식, JWT 검증 스킵: {} ({})", path, method);
             return chain.filter(exchange);
         }
 
@@ -59,15 +61,15 @@ public class SimpleJwtFilter implements WebFilter {
         // Authorization 헤더가 없는 경우
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             if (isAuthRequiredPath(path, method)) {
-                System.err.println("❌ 인증 필요 경로인데 토큰 없음: " + path + " (" + method + ")");
+                log.warn("❌ 인증 필요 경로인데 토큰 없음: {} ({})", path, method);
                 return handleUnauthorized(exchange, "Authorization header missing");
             }
-            System.out.println("⚠️ 토큰 없지만 선택적 인증 경로로 통과: " + path);
+            log.debug("⚠️ 토큰 없지만 선택적 인증 경로로 통과: {}", path);
             return chain.filter(exchange);
         }
 
         String token = authHeader.substring(7);
-        System.out.println("🔍 토큰 추출 완료. 길이: " + token.length());
+        log.debug("🔍 토큰 추출 완료. 길이: {}", token.length());
 
         try {
             // JWT 토큰 파싱 및 검증
@@ -77,23 +79,20 @@ public class SimpleJwtFilter implements WebFilter {
                     .parseClaimsJws(token)
                     .getBody();
 
-            System.out.println("✅ JWT 토큰 파싱 성공");
+            log.debug("✅ JWT 토큰 파싱 성공");
 
             String userId = extractUserId(claims);
             String role = claims.get("role", String.class);
 
             if (userId == null || userId.trim().isEmpty()) {
-                System.err.println("❌ 사용자 식별자를 찾을 수 없음 - 토큰 거부");
+                log.error("❌ 사용자 식별자를 찾을 수 없음 - 토큰 거부");
                 if (isAuthRequiredPath(path, method)) {
                     return handleUnauthorized(exchange, "사용자 식별자를 찾을 수 없습니다");
                 }
                 return chain.filter(exchange);
             }
 
-            System.out.println("✅ JWT 토큰 검증 성공 - UserId: '" + userId + "', Role: '" + role + "'");
-
-            // 🔥 토큰을 그대로 백엔드로 전달 (원본 요청 유지)
-            // 백엔드 서비스들이 각자 토큰을 파싱하여 사용자 정보 추출
+            log.info("✅ JWT 토큰 검증 성공 - UserId: '{}', Role: '{}'", userId, role);
 
             // Spring Security Context에 인증 정보 설정
             List<SimpleGrantedAuthority> authorities = Collections.singletonList(
@@ -103,21 +102,21 @@ public class SimpleJwtFilter implements WebFilter {
             UsernamePasswordAuthenticationToken authToken =
                     new UsernamePasswordAuthenticationToken(userId, null, authorities);
 
-            System.out.println("✅ JWT 인증 성공 - 요청 전달 (토큰 그대로 전달): " + path);
+            log.debug("✅ JWT 인증 성공 - 요청 전달 (토큰 그대로 전달): {}", path);
 
-            // 🔥 원본 요청 그대로 전달 (Authorization 헤더 유지)
+            // 원본 요청 그대로 전달 (Authorization 헤더 유지)
             return chain.filter(exchange)
                     .contextWrite(ReactiveSecurityContextHolder.withAuthentication(authToken));
 
         } catch (Exception e) {
-            System.err.println("❌ JWT 파싱 실패: " + e.getMessage());
+            log.error("❌ JWT 파싱 실패: {}", e.getMessage());
 
             if (isAuthRequiredPath(path, method)) {
-                System.err.println("❌ 인증 필요 경로인데 토큰 유효하지 않음: " + path + " (" + method + ")");
+                log.error("❌ 인증 필요 경로인데 토큰 유효하지 않음: {} ({})", path, method);
                 return handleUnauthorized(exchange, "Invalid JWT token: " + e.getMessage());
             }
 
-            System.out.println("⚠️ 토큰 무효하지만 선택적 인증 경로로 통과: " + path);
+            log.debug("⚠️ 토큰 무효하지만 선택적 인증 경로로 통과: {}", path);
             return chain.filter(exchange);
         }
     }
@@ -148,87 +147,112 @@ public class SimpleJwtFilter implements WebFilter {
                 !"undefined".equals(userId);
     }
 
-    // 공개 경로 확인 로직은 기존과 동일
     private boolean isPublicPath(String path, String method) {
-        // 🔥 소셜 로그인 콜백 경로 명시적 추가
-        if (path.equals("/auth/callback") ||
-                path.startsWith("/auth/callback?") ||
-                path.startsWith("/auth/social/") ||
-                path.startsWith("/auth/")) {
-            System.out.println("소셜 로그인 콜백 경로로 인식: " + path);
+        // 🔥 개발/운영 환경 공통 공개 경로
+
+        // 인증 관련
+        if (path.startsWith("/auth/") || path.equals("/auth")) {
+            log.debug("인증 관련 경로로 인식: {}", path);
             return true;
         }
 
-        // 🔥 방송 시청자 페이지 경로 추가 (단수형 broadcast)
+        // 방송 시청자 페이지 (단수형 broadcast)
         if (path.startsWith("/api/broadcast/")) {
-            System.out.println("방송 시청자 페이지 경로로 인식: " + path);
+            log.debug("방송 시청자 페이지 경로로 인식: {}", path);
             return true;
         }
 
-        // 기존 공개 경로들
+        // 방송 목록 페이지 (복수형 broadcasts)
+        if (path.startsWith("/api/broadcasts/") && "GET".equals(method)) {
+            log.debug("방송 목록 페이지 경로로 인식: {}", path);
+            return true;
+        }
+
+        // 사용자 관련 공개 API
         if (path.startsWith("/api/users/register") ||
                 path.startsWith("/api/users/login") ||
                 path.startsWith("/api/users/findId") ||
                 path.startsWith("/api/users/verify-password") ||
                 path.startsWith("/api/users/checkUserId/") ||
-                path.startsWith("/api/users/health") ||
-                path.startsWith("/api/broadcasts/") ||  // 복수형 broadcasts는 기존 그대로
-                path.startsWith("/api/cart/guest/") ||
-                path.startsWith("/api/payments/guest/") ||
-                path.startsWith("/api/payments/webhook") ||
-                path.startsWith("/api/images/") ||
-                path.startsWith("/images/") ||
-                path.startsWith("/upload/") ||
-                path.startsWith("/uploads/") ||
-                path.startsWith("/static/") ||
-
-                path.startsWith("/resources/") ||
-                path.startsWith("/icons/") ||
-                path.equals("/auth/findPassword") ||
-                path.equals("/auth/verifyResetCode") ||
-                path.equals("/auth/resetPassword") ||
-                path.equals("/ws/**") ||
-                path.equals("/api/chat/history/**") ||
-                path.equals("/api/chat/**") ||
-                path.startsWith("/actuator/health/")) {
+                path.startsWith("/api/users/health")) {
             return true;
         }
 
+        // 상품, 카테고리 조회
         if ((path.startsWith("/api/categories/") || path.startsWith("/api/products/")) && "GET".equals(method)) {
             return true;
         }
 
+        // 게스트 장바구니
         if (path.equals("/api/products/guest-cart-details") && "POST".equals(method)) {
             return true;
         }
 
-        if (path.startsWith("/api/board/") && "GET".equals(method)) {
+        // 이미지 및 정적 파일
+        if (path.startsWith("/api/images/") ||
+                path.startsWith("/images/") ||
+                path.startsWith("/upload/") ||
+                path.startsWith("/uploads/") ||
+                path.startsWith("/static/") ||
+                path.startsWith("/resources/") ||
+                path.startsWith("/icons/")) {
             return true;
         }
 
-        if (path.startsWith("/api/qna/") && "GET".equals(method)) {
+        // 게스트 장바구니 및 결제
+        if (path.startsWith("/api/cart/guest/") ||
+                path.startsWith("/api/payments/guest/") ||
+                path.startsWith("/api/payments/webhook")) {
             return true;
         }
 
+        // 게시판, Q&A 조회
+        if ((path.startsWith("/api/board/") || path.startsWith("/api/qna/")) && "GET".equals(method)) {
+            return true;
+        }
+
+        // 알림 관련 공개 API
         if (path.startsWith("/api/notifications/health") ||
                 path.startsWith("/api/notifications/broadcasts/")) {
             return true;
         }
 
-        // 🔥 찜하기 API를 공개 경로에서 제거 (인증 필요로 변경)
-        // if (path.startsWith("/api/wishlist")) {
-        //     return true;
-        // }
+        // 채팅 관련 공개 API
+        if (path.startsWith("/api/chat/") && "GET".equals(method)) {
+            return true;
+        }
+
+        // WebSocket 관련
+        if (path.startsWith("/ws/") ||
+                path.startsWith("/ws-chat/") ||
+                path.startsWith("/websocket/")) {
+            return true;
+        }
+
+        // 헬스체크 및 모니터링
+        if (path.startsWith("/actuator/health/") ||
+                path.startsWith("/actuator/prometheus")) {
+            return true;
+        }
+
+        // Swagger UI 관련
+        if (path.startsWith("/swagger-ui/") ||
+                path.startsWith("/v3/api-docs/") ||
+                path.startsWith("/swagger-resources/") ||
+                path.startsWith("/webjars/")) {
+            return true;
+        }
 
         return false;
     }
 
     private boolean isAuthRequiredPath(String path, String method) {
-        // 🔥 찜하기 API는 인증 필요로 추가
+        // 찜하기 API는 인증 필요
         if (path.startsWith("/api/wishlist")) {
             return true;
         }
 
+        // 사용자 프로필 관련
         if (path.startsWith("/api/users/profile") ||
                 path.startsWith("/api/users/points") ||
                 path.startsWith("/api/users/coupons") ||
@@ -237,35 +261,42 @@ public class SimpleJwtFilter implements WebFilter {
             return true;
         }
 
+        // 장바구니 (게스트 제외)
         if (path.startsWith("/api/cart") && !path.startsWith("/api/cart/guest/")) {
             return true;
         }
 
+        // 주문 관련
         if (path.startsWith("/api/orders/")) {
             return true;
         }
 
+        // 결제 (게스트 및 웹훅 제외)
         if (path.startsWith("/api/payments/") &&
                 !path.startsWith("/api/payments/guest/") &&
                 !path.startsWith("/api/payments/webhook")) {
             return true;
         }
 
+        // 상품, 카테고리 관리 (수정 작업)
         if (path.startsWith("/api/products/") || path.startsWith("/api/categories/")) {
             return "POST".equals(method) || "PUT".equals(method) ||
                     "DELETE".equals(method) || "PATCH".equals(method);
         }
 
-        if (path.startsWith("/api/board/")) {
+        // 게시판, Q&A 관리 (수정 작업)
+        if (path.startsWith("/api/board/") || path.startsWith("/api/qna/")) {
             return "POST".equals(method) || "PUT".equals(method) ||
                     "DELETE".equals(method) || "PATCH".equals(method);
         }
 
-        if (path.startsWith("/api/qna/")) {
+        // 방송 관리 (수정 작업)
+        if (path.startsWith("/api/broadcasts/")) {
             return "POST".equals(method) || "PUT".equals(method) ||
                     "DELETE".equals(method) || "PATCH".equals(method);
         }
 
+        // 알림 구독 관리
         if (path.startsWith("/api/notifications/subscriptions/") ||
                 path.startsWith("/api/notifications/users/") ||
                 path.startsWith("/ws-notifications/")) {
@@ -276,14 +307,14 @@ public class SimpleJwtFilter implements WebFilter {
     }
 
     private Mono<Void> handleUnauthorized(ServerWebExchange exchange, String message) {
-        System.err.println("🚫 401 응답 반환: " + message);
+        log.warn("🚫 401 응답 반환: {}", message);
 
         exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
         exchange.getResponse().getHeaders().add("Content-Type", "application/json");
 
         String responseBody = String.format(
-                "{\"success\": false, \"message\": \"%s\", \"errorCode\": \"UNAUTHORIZED\"}",
-                message
+                "{\"success\": false, \"message\": \"%s\", \"errorCode\": \"UNAUTHORIZED\", \"timestamp\": \"%s\"}",
+                message, java.time.LocalDateTime.now()
         );
 
         return exchange.getResponse().writeWith(

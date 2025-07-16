@@ -7,8 +7,124 @@ spring:
   config:
     import: optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}
 
-# Config Server 연결 실패시 사용할 최소 설정
+  # CORS 설정을 여기서 미리 정의 (Config Server 연결 전에도 작동하도록)
+  cloud:
+    gateway:
+      globalcors:
+        cors-configurations:
+          "[/**]":
+            allowedOriginPatterns:
+              - "http://localhost:5173"      # 개발환경 프론트엔드
+              - "http://localhost:3000"      # React 개발서버
+              - "http://127.0.0.1:5173"
+              - "http://127.0.0.1:3000"
+              - "http://13.209.253.241"      # 운영환경 EC2 IP
+              - "http://13.209.253.241:*"    # EC2의 모든 포트
+              - "https://*.shopmall.com"     # 운영환경 도메인
+              - "https://shopmall.com"
+              - "${FRONTEND_URL:http://localhost:5173}"  # 환경변수로 설정 가능
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+              - HEAD
+              - PATCH
+            allowedHeaders: "*"
+            allowCredentials: true
+            maxAge: 3600
+
+# Config Server 연결 실패시 사용할 기본 설정들
 server:
   port: 8080
+
+# JWT 기본 설정
 jwt:
-  secret-key: "rrYd2zPDUkx7BUhgDsOTxHCbsBkeTgE/uoARWYSqBjU="
+  secret: ${JWT_SECRET:${PROD_JWT_SECRET_KEY:rrYd2zPDUkx7BUhgDsOTxHCbsBkeTgE/uoARWYSqBjU=}}
+
+# Eureka 기본 설정 (Config Server 실패시 백업)
+eureka:
+  client:
+    service-url:
+      defaultZone: ${PROD_EUREKA_SERVER_URL:${EUREKA_CLIENT_SERVICE_URL:http://localhost:8761/eureka}}
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+    hostname: ${HOST_IP_ADDRESS:localhost}
+
+# 로깅 설정
+logging:
+  level:
+    org.kosa.apigatewayservice: ${GATEWAY_LOG_LEVEL:INFO}
+    org.springframework.cloud.gateway: ${GATEWAY_SPRING_LOG_LEVEL:INFO}
+    org.springframework.security: ${SECURITY_LOG_LEVEL:WARN}
+
+# 관리 엔드포인트
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway,circuitbreakers
+  endpoint:
+    health:
+      show-details: ${MANAGEMENT_HEALTH_SHOW_DETAILS:when_authorized}
+
+---
+# 개발환경 전용 설정
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+  cloud:
+    gateway:
+      globalcors:
+        cors-configurations:
+          "[/**]":
+            allowedOriginPatterns:
+              - "http://localhost:*"
+              - "http://127.0.0.1:*"
+              - "http://192.168.*.*:*"
+
+logging:
+  level:
+    org.kosa.apigatewayservice: DEBUG
+    org.springframework.cloud.gateway: DEBUG
+
+management:
+  endpoint:
+    health:
+      show-details: always
+
+---
+# 운영환경 전용 설정
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  cloud:
+    gateway:
+      globalcors:
+        cors-configurations:
+          "[/**]":
+            allowedOriginPatterns:
+              - "http://13.209.253.241"
+              - "http://13.209.253.241:*"
+              - "https://*.shopmall.com"
+              - "https://shopmall.com"
+              - "${FRONTEND_URL}"
+              - "${ADMIN_URL}"
+
+logging:
+  level:
+    org.kosa.apigatewayservice: INFO
+    org.springframework.cloud.gateway: WARN
+    org.springframework.security: WARN
+
+management:
+  endpoint:
+    health:
+      show-details: when_authorized
