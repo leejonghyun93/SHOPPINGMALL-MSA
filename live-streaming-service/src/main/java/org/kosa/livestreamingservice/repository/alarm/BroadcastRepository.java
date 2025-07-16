@@ -16,6 +16,7 @@ import java.util.Optional;
 
 @Repository
 public interface BroadcastRepository extends JpaRepository<BroadcastEntity, Long> {
+
     boolean existsByBroadcastIdAndBroadcasterId(Long broadcastId, String broadcasterId);
 
     // ============ 핵심 알림 서비스용 메서드들 ============
@@ -185,6 +186,81 @@ public interface BroadcastRepository extends JpaRepository<BroadcastEntity, Long
             @Param("limit") int limit,
             @Param("offset") int offset);
 
+    // ============ 🔥 새로 추가된 개선된 카테고리 쿼리들 ============
+
+    /**
+     * 대분류 카테고리 선택 시: 해당 대분류와 모든 하위 카테고리 상품이 포함된 방송 조회
+     */
+    @Query(value = "SELECT DISTINCT b.* FROM tb_live_broadcasts b " +
+            "INNER JOIN tb_broadcast_products bp ON b.broadcast_id = bp.broadcast_id " +
+            "INNER JOIN tb_product p ON bp.product_id = p.product_id " +
+            "INNER JOIN tb_category c ON p.category_id = c.category_id " +
+            "WHERE b.broadcast_status = :status " +
+            "AND b.is_public = :isPublic " +
+            "AND (c.category_id = :categoryId OR c.parent_category_id = :categoryId) " +
+            "ORDER BY b.current_viewers DESC, b.actual_start_time DESC " +
+            "LIMIT :limit OFFSET :offset",
+            nativeQuery = true)
+    List<BroadcastEntity> findLiveBroadcastsByMainCategoryNative(
+            @Param("status") String broadcastStatus,
+            @Param("isPublic") Boolean isPublic,
+            @Param("categoryId") Integer categoryId,
+            @Param("limit") int limit,
+            @Param("offset") int offset);
+
+    /**
+     * 소분류 카테고리 선택 시: 정확히 해당 카테고리 상품만 포함된 방송 조회
+     */
+    @Query(value = "SELECT DISTINCT b.* FROM tb_live_broadcasts b " +
+            "INNER JOIN tb_broadcast_products bp ON b.broadcast_id = bp.broadcast_id " +
+            "INNER JOIN tb_product p ON bp.product_id = p.product_id " +
+            "WHERE b.broadcast_status = :status " +
+            "AND b.is_public = :isPublic " +
+            "AND p.category_id = :categoryId " +
+            "ORDER BY b.current_viewers DESC, b.actual_start_time DESC " +
+            "LIMIT :limit OFFSET :offset",
+            nativeQuery = true)
+    List<BroadcastEntity> findLiveBroadcastsBySubCategoryNative(
+            @Param("status") String broadcastStatus,
+            @Param("isPublic") Boolean isPublic,
+            @Param("categoryId") Integer categoryId,
+            @Param("limit") int limit,
+            @Param("offset") int offset);
+
+    /**
+     * 카테고리가 대분류인지 소분류인지 판단
+     */
+    @Query(value = "SELECT category_level FROM tb_category WHERE category_id = :categoryId",
+            nativeQuery = true)
+    Optional<Integer> findCategoryLevel(@Param("categoryId") Integer categoryId);
+
+    /**
+     * 특정 대분류의 모든 하위 카테고리 ID 조회
+     */
+    @Query(value = "SELECT category_id FROM tb_category WHERE parent_category_id = :parentCategoryId",
+            nativeQuery = true)
+    List<Integer> findSubCategoryIds(@Param("parentCategoryId") Integer parentCategoryId);
+
+    /**
+     * 카테고리별 방송 개수 조회 (디버깅용)
+     */
+    @Query(value = "SELECT " +
+            "c.category_id, " +
+            "c.name, " +
+            "c.category_level, " +
+            "COUNT(DISTINCT b.broadcast_id) as broadcast_count " +
+            "FROM tb_category c " +
+            "LEFT JOIN tb_product p ON (c.category_id = p.category_id OR c.category_id = (SELECT parent_category_id FROM tb_category WHERE category_id = p.category_id)) " +
+            "LEFT JOIN tb_broadcast_products bp ON p.product_id = bp.product_id " +
+            "LEFT JOIN tb_live_broadcasts b ON bp.broadcast_id = b.broadcast_id AND b.broadcast_status = 'live' " +
+            "WHERE c.category_use_yn = 'Y' " +
+            "GROUP BY c.category_id, c.name, c.category_level " +
+            "ORDER BY c.category_level, c.category_display_order",
+            nativeQuery = true)
+    List<Object[]> findBroadcastCountByAllCategories();
+
+    // ============ 기존 메서드들 계속 ============
+
     /**
      * 방송자별 방송 목록 조회 (페이징)
      */
@@ -223,11 +299,6 @@ public interface BroadcastRepository extends JpaRepository<BroadcastEntity, Long
     List<BroadcastEntity> findByTitleOrDescriptionContaining(@Param("keyword") String keyword, Pageable pageable);
 
     // ============ 기본 조회 메서드들 (Spring Data JPA 자동 생성) ============
-
-    /**
-     * 방송 상태별 개수 조회
-     */
-    long countByBroadcastStatus(String broadcastStatus);
 
     /**
      * 방송 상태별 조회
@@ -349,4 +420,24 @@ public interface BroadcastRepository extends JpaRepository<BroadcastEntity, Long
             "GROUP BY p.categoryId, c.name " +
             "ORDER BY COUNT(DISTINCT b.broadcastId) DESC")
     List<Object[]> findBroadcastCountByProductCategory();
+
+    // ============ 🔥 알림 서비스용 추가 메서드들 ============
+
+    /**
+     * 🔥 실제 시작 시간 기준으로 최근 라이브 방송 조회
+     */
+    @Query("SELECT b FROM BroadcastEntity b WHERE " +
+            "b.broadcastStatus = :status " +
+            "AND b.actualStartTime > :startTime " +
+            "ORDER BY b.actualStartTime DESC")
+    List<BroadcastEntity> findByBroadcastStatusAndActualStartTimeAfter(
+            @Param("status") String broadcastStatus,
+            @Param("startTime") LocalDateTime startTime
+    );
+
+    /**
+     * 🔥 방송 상태별 개수 조회 (개선된 버전)
+     */
+    @Query("SELECT COUNT(b) FROM BroadcastEntity b WHERE b.broadcastStatus = :status")
+    Long countByBroadcastStatus(@Param("status") String broadcastStatus);
 }

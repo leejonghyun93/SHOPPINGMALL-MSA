@@ -36,17 +36,6 @@
         <input type="text" v-model="form.userPhone" placeholder="010-1234-5678" />
       </div>
 
-      <!-- 인증 -->
-      <div class="form-row">
-        <label>인증</label>
-        <div class="input-inline">
-          <button @click="sendAuthCode" :disabled="!form.userPhone">인증번호 발송</button>
-          <input type="text" v-model="authCodeInput" placeholder="인증번호 입력" :disabled="!authCodeSent" />
-          <button @click="verifyAuthCode" :disabled="!authCodeInput">인증 확인</button>
-        </div>
-        <div v-if="authMessage" :class="authMessageType" class="auth-message">{{ authMessage }}</div>
-      </div>
-
       <!-- 이름 -->
       <div class="form-row">
         <label>이름 <span class="required">*</span></label>
@@ -157,17 +146,11 @@ const userIdMessage = ref('');
 const userIdMessageType = ref('');
 const userIdChecked = ref(false);
 
-const authCodeInput = ref('');
-const authCodeSent = ref(false);
-const authMessage = ref('');
-const authMessageType = ref('');
-const isPhoneVerified = ref(false);
-
 const passwordMismatch = computed(() => {
   return form.confirmPwd && form.userPwd !== form.confirmPwd;
 });
 
-// 🔥 이용약관 관련 조건 제거된 폼 유효성 검사
+// 인증번호 관련 조건 제거된 폼 유효성 검사
 const isFormValid = computed(() => {
   return form.userid &&
       form.userPwd &&
@@ -177,8 +160,7 @@ const isFormValid = computed(() => {
       form.userName &&
       form.emailId &&
       form.emailDomain &&
-      userIdChecked.value &&
-      isPhoneVerified.value;
+      userIdChecked.value;
 });
 
 onMounted(() => {
@@ -195,7 +177,7 @@ function loadDaumPostcodeScript() {
   document.head.appendChild(script);
 }
 
-const API_BASE_URL = 'http://13.209.253.241:8080';
+const API_BASE_URL = 'http://localhost:8080';
 
 async function checkUserIdAvailability() {
   if (!form.userid) {
@@ -236,43 +218,6 @@ async function checkUserIdAvailability() {
   }
 }
 
-function sendAuthCode() {
-  if (!form.userPhone) {
-    authMessage.value = '전화번호를 입력해주세요.';
-    authMessageType.value = 'error';
-    return;
-  }
-
-  authCodeSent.value = true;
-  authMessage.value = '인증번호가 발송되었습니다.';
-  authMessageType.value = 'success';
-
-  setTimeout(() => {
-    if (!isPhoneVerified.value) {
-      authCodeSent.value = false;
-      authMessage.value = '인증번호가 만료되었습니다. 다시 발송해주세요.';
-      authMessageType.value = 'error';
-    }
-  }, 300000);
-}
-
-function verifyAuthCode() {
-  if (!authCodeInput.value) {
-    authMessage.value = '인증번호를 입력해주세요.';
-    authMessageType.value = 'error';
-    return;
-  }
-
-  if (authCodeInput.value === '123456') {
-    isPhoneVerified.value = true;
-    authMessage.value = '인증이 완료되었습니다.';
-    authMessageType.value = 'success';
-  } else {
-    authMessage.value = '인증번호가 일치하지 않습니다.';
-    authMessageType.value = 'error';
-  }
-}
-
 function execDaumPostcode() {
   if (!window.daum || !window.daum.Postcode) {
     alert('주소 검색 서비스를 로딩 중입니다. 잠시 후 다시 시도해주세요.');
@@ -297,9 +242,8 @@ function execDaumPostcode() {
   }).open();
 }
 
-// 🔥 생년월일 자동 포맷팅 함수 추가
 function formatBirthDate(event) {
-  let value = event.target.value.replace(/\D/g, ''); // 숫자만 남기기
+  let value = event.target.value.replace(/\D/g, '');
 
   if (value.length >= 4) {
     value = value.substring(0, 4) + '-' + value.substring(4);
@@ -333,7 +277,7 @@ async function submitForm() {
       myAddress: form.detailAddress || null,
       birthDate: form.birthDate,
       gender: form.gender,
-      marketingAgree: 'N' // 🔥 기본값으로 설정
+      marketingAgree: 'N'
     };
 
     const response = await fetch(`${API_BASE_URL}/api/users/register`, {

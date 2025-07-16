@@ -13,30 +13,11 @@
               반가워요! <span class="username">{{ userName }}</span>
               <!-- 로그인 타입 표시 (디버깅용) -->
               <div v-if="isDevelopment" class="login-type-debug">
-                <small class="text-muted">
-                  [{{ currentLoginType }}{{ isSocialUser ? ` - ${socialProviderName}` : '' }}]
-                </small>
+<!--                <small class="text-muted">-->
+<!--                  [{{ currentLoginType }}{{ isSocialUser ? ` - ${socialProviderName}` : '' }}]-->
+<!--                </small>-->
               </div>
             </div>
-
-            <div class="benefit-cards">
-              <div class="benefit-card">
-                <div class="benefit-label">적립금</div>
-                <div class="benefit-value">{{ (availablePoints || 0).toLocaleString() }}<span class="unit">원</span></div>
-              </div>
-              <div class="benefit-card">
-                <div class="benefit-label">할인쿠폰</div>
-                <div class="benefit-value">{{ availableCoupons || 0 }}<span class="unit">개</span></div>
-              </div>
-              <div class="benefit-card">
-                <div class="benefit-label">상품권</div>
-                <div class="benefit-value">{{ giftCards || 0 }}<span class="unit">원</span></div>
-              </div>
-            </div>
-
-            <button class="benefit-button">
-              쇼핑할 때 쓸 수 있는 혜택이 많이
-            </button>
           </div>
 
           <!-- 메뉴 섹션 -->
@@ -78,17 +59,17 @@
             <!-- 하단 링크 섹션 -->
             <div class="bottom-links">
               <div class="link-section">
-                <div class="section-title">쇼핑</div>
-                <div class="link-item" @click="navigateToTab('returns')" :class="{ active: activeTab === 'returns' }">
-                  취소 · 반품 내역
-                </div>
-                <div class="link-item" @click="navigateToTab('reviews')" :class="{ active: activeTab === 'reviews' }">
-                  상품 후기
-                </div>
-                <div class="link-item" @click="navigateToTab('inquiries')"
-                     :class="{ active: activeTab === 'inquiries' }">
-                  상품 문의
-                </div>
+<!--                <div class="section-title">쇼핑</div>-->
+<!--                <div class="link-item" @click="navigateToTab('returns')" :class="{ active: activeTab === 'returns' }">-->
+<!--                  취소 · 반품 내역-->
+<!--                </div>-->
+<!--                <div class="link-item" @click="navigateToTab('reviews')" :class="{ active: activeTab === 'reviews' }">-->
+<!--                  상품 후기-->
+<!--                </div>-->
+<!--                <div class="link-item" @click="navigateToTab('inquiries')"-->
+<!--                     :class="{ active: activeTab === 'inquiries' }">-->
+<!--                  상품 문의-->
+<!--                </div>-->
               </div>
 
               <div class="link-section">

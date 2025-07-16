@@ -24,6 +24,10 @@ public class ImageFileController {
     @Value("${image.upload.path:/uploads/images/}")
     private String uploadPath;
 
+    /**
+     * 🔥 상품 이미지 서빙
+     * 요청 예시: GET /api/images/products/레몬.jpg
+     */
     @GetMapping("/products/{fileName}")
     public ResponseEntity<Resource> serveProductImage(
             @PathVariable String fileName,
@@ -42,8 +46,6 @@ public class ImageFileController {
             if (resource.exists() && resource.isReadable()) {
                 String contentType = determineContentType(fileName);
 
-                log.info("이미지 서빙 성공: {} (타입: {})", fileName, contentType);
-
                 return ResponseEntity.ok()
                         .contentType(MediaType.parseMediaType(contentType))
                         .header(HttpHeaders.CACHE_CONTROL, "public, max-age=31536000")
@@ -59,15 +61,9 @@ public class ImageFileController {
         }
     }
 
-    @GetMapping("/../../images/{fileName}")
-    public ResponseEntity<Resource> serveLegacyImage(
-            @PathVariable String fileName,
-            HttpServletRequest request) {
-
-        log.info("레거시 이미지 경로 사용: {}", fileName);
-        return serveProductImage(fileName, request);
-    }
-
+    /**
+     * ✅ 썸네일 이미지 요청 시 thumb_ 접두어 붙여서 반환, 없으면 원본 대체
+     */
     @GetMapping("/products/{fileName}/thumb")
     public ResponseEntity<Resource> serveThumbnail(
             @PathVariable String fileName,
@@ -97,18 +93,12 @@ public class ImageFileController {
 
     private String determineContentType(String fileName) {
         String extension = fileName.substring(fileName.lastIndexOf(".") + 1).toLowerCase();
-        switch (extension) {
-            case "jpg":
-            case "jpeg":
-                return "image/jpeg";
-            case "png":
-                return "image/png";
-            case "gif":
-                return "image/gif";
-            case "webp":
-                return "image/webp";
-            default:
-                return "image/jpeg";
-        }
+        return switch (extension) {
+            case "jpg", "jpeg" -> "image/jpeg";
+            case "png" -> "image/png";
+            case "gif" -> "image/gif";
+            case "webp" -> "image/webp";
+            default -> "application/octet-stream";
+        };
     }
 }

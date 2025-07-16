@@ -22,13 +22,6 @@ const syncUserStates = () => {
     // userStore -> userState 동기화
     userState.userId = userState.id;
     userState.currentUser = userState.name;
-
-    console.log('🔄 사용자 상태 동기화:', {
-        id: userState.id,
-        name: userState.name,
-        userId: userState.userId,
-        currentUser: userState.currentUser
-    });
 };
 
 // 로그인 성공 처리 (일반 + 소셜 통합)

@@ -11,7 +11,7 @@
             @click="selectCategory(category.categoryId)"
         >
           <div class="category-icon">
-            <!-- 🔥 아이콘 표시 로직 수정 - 카테고리 페이지와 동일하게 -->
+            <!--  아이콘 표시 로직 수정 - 카테고리 페이지와 동일하게 -->
             <img v-if="category.icon" :src="category.icon" :alt="category.name" class="icon-image" />
             <svg v-else width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M9 11H15M9 15H15M17 21H7C5.89543 21 5 20.1046 5 19V5C5 3.89543 5.89543 3 7 3H12.5858C12.851 3 13.1054 3.10536 13.2929 3.29289L19.7071 9.70711C19.8946 9.89464 20 10.149 20 10.4142V19C20 20.1046 19.1046 21 18 21H17Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -84,7 +84,7 @@
             <!-- 방송 썸네일 -->
             <div class="broadcast-thumbnail">
               <img
-                  :src="broadcast.thumbnail_url || getDefaultThumbnail(broadcast.broadcast_id || broadcast.broadcastId)"
+                  :src="getBroadcastThumbnail(broadcast)"
                   :alt="broadcast.title"
                   class="thumbnail-image"
                   @error="handleImageError"
@@ -103,9 +103,9 @@
               </div>
 
               <!-- 방송 시간 -->
-              <div class="broadcast-time">
-                {{ getBroadcastDuration(broadcast.actual_start_time) }}
-              </div>
+<!--              <div class="broadcast-time">-->
+<!--                {{ getBroadcastDuration(broadcast.actual_start_time) }}-->
+<!--              </div>-->
             </div>
 
             <!-- 방송 정보 -->
@@ -115,23 +115,15 @@
 
               <!-- 방송자 정보 -->
               <div class="broadcaster-info">
-                <div class="broadcaster-avatar">
-                  <img
-                      :src="getBroadcasterAvatar(broadcast.broadcaster_id)"
-                      :alt="broadcast.broadcaster_name"
-                      class="avatar-image"
-                      @error="handleAvatarError"
-                  />
-                </div>
                 <span class="broadcaster-name">{{ broadcast.broadcaster_name || '방송자' }}</span>
               </div>
 
               <!-- 카테고리 태그 -->
               <div class="broadcast-tags">
-                <span class="category-tag">{{ broadcast.category_name || '일반' }}</span>
-                <span v-if="broadcast.tags" class="tags">
-            {{ formatTags(broadcast.tags) }}
-          </span>
+<!--                <span class="category-tag">{{ broadcast.category_name || '일반' }}</span>-->
+<!--                <span v-if="broadcast.tags" class="tags">-->
+<!--            {{ formatTags(broadcast.tags) }}-->
+<!--          </span>-->
               </div>
 
               <!-- 좋아요 수 -->
@@ -160,9 +152,11 @@
 import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import apiClient from '@/api/axiosInstance.js'
+import { useSmartImages } from '@/composables/useSmartImages'
 
 const router = useRouter()
 const route = useRoute()
+const { getProductImage, handleImageError, handleImageLoad } = useSmartImages()
 
 // 상태 관리
 const selectedCategory = ref('ALL')
@@ -189,7 +183,7 @@ const selectedCategoryName = computed(() => {
   return category ? category.name : '전체'
 })
 
-// 🔥 아이콘 처리 함수 추가 (카테고리 페이지와 동일)
+//  아이콘 처리 함수 추가 (카테고리 페이지와 동일)
 const getIconForCategory = (category) => {
   if (category.iconUrl && category.iconUrl.trim() !== '') {
     return category.iconUrl.trim();
@@ -230,7 +224,7 @@ const fetchMainCategories = async () => {
       const allCategory = {
         categoryId: 'ALL',
         name: '전체',
-        icon: null, // 🔥 아이콘 필드 추가
+        icon: null, //  아이콘 필드 추가
         categoryDisplayOrder: 0
       }
 
@@ -240,7 +234,7 @@ const fetchMainCategories = async () => {
           .map(cat => ({
             categoryId: String(cat.categoryId),
             name: cat.name,
-            icon: getIconForCategory(cat), // 🔥 아이콘 처리 함수 사용
+            icon: getIconForCategory(cat), //  아이콘 처리 함수 사용
             categoryDisplayOrder: cat.categoryDisplayOrder,
             categoryIcon: cat.categoryIcon,
             iconUrl: cat.iconUrl
@@ -259,12 +253,19 @@ const fetchMainCategories = async () => {
 }
 
 /**
- * 상품 카테고리 기준으로 라이브 방송 조회
+ * 방송-상품 카테고리 연동으로 라이브 방송 조회
  */
 const fetchLiveBroadcastsByCategory = async (categoryId) => {
   try {
     loading.value = true
     error.value = null
+
+    console.log(`방송 조회 시작 - categoryId: ${categoryId}, selectedSubCategory: ${selectedSubCategory.value}`)
+
+    // 실제 요청할 카테고리 ID 결정
+    const targetCategoryId = selectedSubCategory.value && selectedSubCategory.value !== ''
+        ? selectedSubCategory.value
+        : categoryId
 
     const params = {
       broadcast_status: 'live',
@@ -272,63 +273,56 @@ const fetchLiveBroadcastsByCategory = async (categoryId) => {
       limit: 100
     }
 
-    if (categoryId !== 'ALL') {
-      params.category_id = selectedSubCategory.value || categoryId
+    // 전체가 아닌 경우에만 category_id 파라미터 추가
+    if (targetCategoryId !== 'ALL') {
+      params.category_id = targetCategoryId
     }
 
-    // 🔍 디버깅 로그 추가
-    console.log('=== 방송 조회 디버깅 ===')
-    console.log('선택된 카테고리:', categoryId)
-    console.log('선택된 서브카테고리:', selectedSubCategory.value)
-    console.log('최종 전송 파라미터:', params)
-    console.log('API 엔드포인트:', '/api/broadcasts/live')
+    console.log('API 요청 파라미터:', params)
 
     const response = await apiClient.get('/api/broadcasts/live', {
       params,
       withAuth: false
     })
 
-    // 🔍 응답 디버깅 로그 추가
-    console.log('=== API 응답 디버깅 ===')
-    console.log('응답 상태:', response.status)
-    console.log('응답 데이터:', response.data)
-    console.log('방송 개수:', response.data?.length || 0)
-
     if (response.data && Array.isArray(response.data)) {
+      // 백엔드에서 이미 정확한 필터링이 된 데이터를 받으므로
+      // 클라이언트에서 추가 필터링 불필요
       allBroadcasts.value = response.data.map(broadcast => ({
-        broadcast_id: broadcast.broadcastId,
-        broadcaster_id: broadcast.broadcasterId,
-        broadcaster_name: broadcast.broadcasterName || '방송자',
+        broadcast_id: broadcast.broadcast_id || broadcast.broadcastId,
+        broadcaster_id: broadcast.broadcaster_id || broadcast.broadcasterId,
+        broadcaster_name: broadcast.broadcaster_name || broadcast.broadcasterName || '방송자',
         title: broadcast.title || '제목 없음',
         description: broadcast.description,
-        broadcast_status: broadcast.broadcastStatus,
-        actual_start_time: broadcast.actualStartTime,
-        current_viewers: broadcast.currentViewers || 0,
-        like_count: broadcast.likeCount || 0,
-        category_id: broadcast.categoryId,
-        category_name: broadcast.categoryName,
+        broadcast_status: broadcast.broadcast_status || broadcast.broadcastStatus,
+        actual_start_time: broadcast.actual_start_time || broadcast.actualStartTime,
+        current_viewers: broadcast.current_viewers || broadcast.currentViewers || 0,
+        like_count: broadcast.like_count || broadcast.likeCount || 0,
+        category_id: broadcast.category_id || broadcast.categoryId,
+        category_name: broadcast.category_name || broadcast.categoryName,
         tags: broadcast.tags,
-        thumbnail_url: broadcast.thumbnailUrl,
-        stream_url: broadcast.streamUrl,
-        scheduled_start_time: broadcast.scheduledStartTime,
-        scheduled_end_time: broadcast.scheduledEndTime,
-        total_viewers: broadcast.totalViewers || 0,
-        peak_viewers: broadcast.peakViewers || 0
+        thumbnail_url: broadcast.thumbnail_url || broadcast.thumbnailUrl,
+        stream_url: broadcast.stream_url || broadcast.streamUrl,
+        scheduled_start_time: broadcast.scheduled_start_time || broadcast.scheduledStartTime,
+        scheduled_end_time: broadcast.scheduled_end_time || broadcast.scheduledEndTime,
+        total_viewers: broadcast.total_viewers || broadcast.totalViewers || 0,
+        peak_viewers: broadcast.peak_viewers || broadcast.peakViewers || 0,
+        products: broadcast.products || broadcast.broadcast_products || []
       }))
 
-      console.log('=== 변환된 방송 데이터 ===')
-      console.log('변환된 방송 목록:', allBroadcasts.value)
+      console.log(`방송 조회 완료 - categoryId: ${targetCategoryId}, 결과 수: ${allBroadcasts.value.length}`)
+
+      // 디버깅을 위한 로그
+      allBroadcasts.value.forEach(broadcast => {
+        console.log(`방송: ${broadcast.title}, 카테고리: ${broadcast.category_name}, 상품 수: ${broadcast.products.length}`)
+      })
+
     } else {
       allBroadcasts.value = []
-      console.log('❌ 응답 데이터가 배열이 아니거나 없음')
     }
 
   } catch (err) {
-    console.log('=== API 에러 디버깅 ===')
-    console.error('에러 상세:', err)
-    console.error('에러 응답:', err.response?.data)
-    console.error('에러 상태:', err.response?.status)
-
+    console.error('방송 목록 조회 실패:', err)
     error.value = err.response?.data?.message || '방송 목록을 불러오는데 실패했습니다'
     allBroadcasts.value = []
   } finally {
@@ -371,8 +365,10 @@ const selectCategory = async (categoryId) => {
 
   if (String(selectedCategory.value) === normalizedCategoryId) return
 
+  console.log(`카테고리 선택: ${normalizedCategoryId}`)
+
   selectedCategory.value = normalizedCategoryId
-  selectedSubCategory.value = ''
+  selectedSubCategory.value = '' // 서브카테고리 초기화
 
   // 하위 카테고리 조회
   await fetchSubCategories(normalizedCategoryId)
@@ -396,13 +392,15 @@ const selectSubCategory = async (subCategoryId) => {
     return
   }
 
+  console.log(`서브카테고리 선택: ${subCategoryId}`)
+
   selectedSubCategory.value = subCategoryId
 
   // 선택된 서브 카테고리로 방송 목록 다시 조회
+  // subCategoryId가 ''(전체)이면 메인 카테고리로, 아니면 서브 카테고리로 조회
   const targetCategoryId = subCategoryId || selectedCategory.value
   await fetchLiveBroadcastsByCategory(targetCategoryId)
 }
-
 // 유틸리티 함수들
 
 /**
@@ -420,34 +418,87 @@ const getBroadcastStatusText = (status) => {
   return statusMap[status] || 'LIVE'
 }
 
-/**
- * 기본 썸네일 생성
- */
-const getDefaultThumbnail = (broadcastId) => {
-  return `https://picsum.photos/seed/${broadcastId}/300/200`
+//  방송 썸네일 이미지 처리 (useSmartImages 사용)
+//  방송 썸네일 이미지 처리 (useSmartImages 활용 + Home.vue 로직 결합)
+const getBroadcastThumbnail = (broadcast) => {
+  console.log('방송 썸네일 요청:', broadcast.title, broadcast.thumbnail_url || broadcast.thumbnailUrl)
+
+  // 1. 방송에 썸네일 URL이 있는 경우
+  const thumbnailUrl = broadcast.thumbnail_url || broadcast.thumbnailUrl
+
+  if (thumbnailUrl && thumbnailUrl.trim() !== '') {
+    console.log('썸네일 URL 발견:', thumbnailUrl)
+
+    // HTTP/HTTPS로 시작하는 절대 경로인 경우 그대로 사용
+    if (thumbnailUrl.startsWith('http://') || thumbnailUrl.startsWith('https://')) {
+      console.log('절대 경로 썸네일 사용:', thumbnailUrl)
+      return thumbnailUrl
+    }
+
+    // 상대 경로인 경우 useSmartImages의 BASE_IMAGE_PATH 활용
+    if (!thumbnailUrl.startsWith('http')) {
+      const relativePath = `/images/banners/products/${encodeURIComponent(thumbnailUrl)}`
+      console.log('상대 경로 썸네일 변환:', relativePath)
+      return relativePath
+    }
+
+    return thumbnailUrl
+  }
+
+  // 2. 썸네일이 없는 경우 - useSmartImages의 getProductImage 활용
+  console.log('썸네일 없음, useSmartImages로 대체 이미지 생성')
+
+  const broadcastForImage = {
+    id: broadcast.broadcast_id || broadcast.broadcastId,
+    name: broadcast.title || '라이브 방송',
+    categoryId: broadcast.category_id || broadcast.categoryId || 1,
+    // getProductImage가 인식할 수 있는 형태로 변환
+    mainImage: null, // 방송에는 mainImage가 없으므로 null
+    image: null      // 기본 이미지로 fallback되도록
+  }
+
+  const smartImage = getProductImage(broadcastForImage)
+  console.log('useSmartImages 결과:', smartImage)
+
+  // getProductImage가 기본 이미지를 반환하는 경우, 방송 ID 기반 picsum으로 대체
+  if (smartImage === '/images/banners/products/default-product.jpg') {
+    const broadcastId = broadcast.broadcast_id || broadcast.broadcastId || 'default'
+    const fallbackImage = `https://picsum.photos/seed/broadcast-${broadcastId}/300/200`
+    console.log('기본 이미지 대신 picsum 사용:', fallbackImage)
+    return fallbackImage
+  }
+
+  return smartImage
 }
 
 /**
- * 방송자 아바타 생성
+ * 방송자 아바타 생성 (useSmartImages 활용)
  */
 const getBroadcasterAvatar = (broadcasterId) => {
-  return `https://picsum.photos/seed/user${broadcasterId}/40/40`
-}
+  console.log('방송자 아바타 요청:', broadcasterId)
 
-/**
- * 이미지 에러 처리
- */
-const handleImageError = (event) => {
-  // event.target.src = '/default-thumbnail.jpg'
-}
+  // useSmartImages를 활용하되, 아바타용으로 수정
+  const avatarForImage = {
+    id: broadcasterId || 'default',
+    name: `방송자${broadcasterId || 'Unknown'}`,
+    categoryId: 1, // 기본 카테고리
+    mainImage: null,
+    image: null
+  }
 
-/**
- * 아바타 이미지 에러 처리
- */
-const handleAvatarError = (event) => {
-  event.target.src = '/default-avatar.jpg'
-}
+  const smartAvatar = getProductImage(avatarForImage)
 
+  // 기본 이미지인 경우 방송자 전용 picsum 이미지로 대체
+  if (smartAvatar === '/images/banners/products/default-product.jpg') {
+    const avatarId = broadcasterId || 'default'
+    const avatarImage = `https://picsum.photos/seed/avatar-${avatarId}/64/64`
+    console.log('방송자 아바타 picsum 생성:', avatarImage)
+    return avatarImage
+  }
+
+  console.log('방송자 아바타 useSmartImages 결과:', smartAvatar)
+  return smartAvatar
+}
 /**
  * 태그 포맷팅
  */

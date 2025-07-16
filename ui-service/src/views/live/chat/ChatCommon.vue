@@ -227,7 +227,7 @@ const createWebSocketConnection = () => {
     }
   }
 
-  const wsUrl = 'http://192.168.4.132:8080/ws-chat';
+  const wsUrl = 'http://192.168.4.134:8080/ws-chat';
 
   try {
     socket = new SockJS(wsUrl);

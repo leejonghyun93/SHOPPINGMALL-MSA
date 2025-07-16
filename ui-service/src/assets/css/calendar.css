@@ -1,5 +1,66 @@
 /* ===== 기존 스타일 유지 및 개선 ===== */
+@keyframes blink {
+    0%, 50% {
+        opacity: 1;
+    }
+    51%, 100% {
+        opacity: 0.3;
+    }
+}
 
+.live-broadcast {
+    border-left: 4px solid #dc3545 !important;
+}
+
+.live-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    /*background: linear-gradient(135deg, rgba(220, 53, 69, 0.9) 0%, rgba(255, 107, 107, 0.9) 100%);*/
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: live-pulse 2s infinite;
+}
+
+/*@keyframes live-pulse {*/
+/*    0% {*/
+/*        background: rgba(220, 53, 69, 0.9);*/
+/*    }*/
+/*    50% {*/
+/*        background: rgba(255, 107, 107, 0.9);*/
+/*    }*/
+/*    100% {*/
+/*        background: rgba(220, 53, 69, 0.9);*/
+/*    }*/
+/*}*/
+
+.past-indicator {
+    position: absolute;
+    bottom: 5px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.btn-sm {
+    font-size: 0.875rem;
+    padding: 0.25rem 0.5rem;
+}
+
+.past-scheduled-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.past-indicator {
+    position: absolute;
+    bottom: 5px;
+    left: 50%;
+    transform: translateX(-50%);
+}
 .calendar-container {
     background-color: #f8f9fa;
     border-bottom: 1px solid #dee2e6;
@@ -166,7 +227,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(135deg, rgba(220, 53, 69, 0.9) 0%, rgba(255, 107, 107, 0.9) 100%);
+    /*background: linear-gradient(135deg, rgba(220, 53, 69, 0.9) 0%, rgba(255, 107, 107, 0.9) 100%);*/
     display: flex;
     align-items: center;
     justify-content: center;
@@ -176,11 +237,11 @@
     animation: live-pulse 2s infinite;
 }
 
-@keyframes live-pulse {
-    0% { background: rgba(220, 53, 69, 0.9); }
-    50% { background: rgba(255, 107, 107, 0.9); }
-    100% { background: rgba(220, 53, 69, 0.9); }
-}
+/*@keyframes live-pulse {*/
+/*    0% { background: rgba(220, 53, 69, 0.9); }*/
+/*    50% { background: rgba(255, 107, 107, 0.9); }*/
+/*    100% { background: rgba(220, 53, 69, 0.9); }*/
+/*}*/
 
 .paused-overlay {
     position: absolute;
@@ -297,7 +358,7 @@
 }
 
 .btn-danger:hover {
-    background: linear-gradient(135deg, #c82333 0%, #a71e2a 100%);
+    /*background: linear-gradient(135deg, #c82333 0%, #a71e2a 100%);*/
     transform: translateY(-1px);
     box-shadow: 0 2px 4px rgba(220,53,69,0.3);
 }
@@ -330,10 +391,10 @@
     border-radius: 12px;
 }
 
-.badge.bg-danger {
-    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%) !important;
-    animation: live-badge-pulse 2s infinite;
-}
+/*.badge.bg-danger {*/
+/*    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%) !important;*/
+/*    animation: live-badge-pulse 2s infinite;*/
+/*}*/
 
 @keyframes live-badge-pulse {
     0% { transform: scale(1); }

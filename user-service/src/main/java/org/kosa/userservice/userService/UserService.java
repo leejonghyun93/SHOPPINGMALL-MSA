@@ -539,7 +539,37 @@ public class UserService {
 
         return false;
     }
+    public boolean updatePassword(String userId, String encodedPassword) {
+        try {
+            log.info("비밀번호 업데이트 요청: userId={}", userId);
 
+            // 활성 회원만 조회 (탈퇴하지 않은 회원)
+            Optional<Member> memberOpt = userRepository.findActiveByUserId(userId);
+
+            if (memberOpt.isPresent()) {
+                Member member = memberOpt.get();
+
+                log.info("비밀번호 업데이트 실행: userId={}", userId);
+
+                // 이미 암호화된 비밀번호를 직접 설정
+                member.setPassword(encodedPassword);
+
+                // DB에 저장
+                userRepository.save(member);
+
+                log.info("비밀번호 업데이트 완료: userId={}", userId);
+                return true;
+
+            } else {
+                log.warn("사용자를 찾을 수 없음: userId={}", userId);
+                return false;
+            }
+
+        } catch (Exception e) {
+            log.error("비밀번호 업데이트 실패: userId={}, error={}", userId, e.getMessage(), e);
+            throw new RuntimeException("비밀번호 업데이트 실패: " + e.getMessage());
+        }
+    }
     /**
      * 소셜 로그인용 userId 생성
      */

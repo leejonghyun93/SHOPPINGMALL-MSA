@@ -114,19 +114,6 @@
           </svg>
         </div>
         <h3>{{ searchKeyword ? '검색 결과가 없습니다' : '선택한 카테고리에 상품이 없습니다' }}</h3>
-        <p class="no-products-details">
-          {{ searchKeyword ?
-            `"${searchKeyword}"에 대한 검색 결과를 찾을 수 없습니다.` :
-            `현재 선택된 카테고리: ${selectedCategory}${selectedSubCategory ? ` > ${selectedSubCategory}` : ''}`
-          }}
-        </p>
-        <div class="no-products-actions">
-          <button @click="searchKeyword ? clearSearch() : fetchProducts()" class="action-btn primary">
-            {{ searchKeyword ? '검색 해제' : '다시 시도' }}
-          </button>
-          <button v-if="!searchKeyword" @click="selectCategory('ALL')" class="action-btn secondary">전체 카테고리 보기</button>
-          <button @click="debugProductData" class="action-btn debug">디버깅 실행</button>
-        </div>
       </div>
 
       <!-- 상품이 있을 때 -->
@@ -180,7 +167,7 @@
               <!-- 상품 이미지 -->
               <div class="product-image">
                 <img
-                    :src="product.image || defaultImage"
+                    :src="getProductImage(product)"
                     :alt="product.name || '상품명 없음'"
                     @error="handleImageError"
                     @load="handleImageLoad"
@@ -255,7 +242,7 @@
           <!-- 상품 이미지 -->
           <div class="product-image">
             <img
-                :src="product.image || defaultImage"
+                :src="getProductImage(product)"
                 :alt="product.name || '상품명 없음'"
                 @error="handleImageError"
                 @load="handleImageLoad"
@@ -303,6 +290,11 @@
 import {ref, watch, onMounted, computed} from 'vue'
 import {useRouter, useRoute} from 'vue-router'
 import apiClient from '@/api/axiosInstance.js'
+import { useSmartImages } from '@/composables/useSmartImages'
+
+const router = useRouter()
+const route = useRoute()
+const { getProductImage, handleImageError, handleImageLoad } = useSmartImages()
 
 // 반응형 상태 변수들
 const selectedCategory = ref('ALL')
@@ -315,8 +307,6 @@ const slider = ref(null)
 const isDragging = ref(false)
 const startX = ref(0)
 const scrollLeft = ref(0)
-const router = useRouter()
-const route = useRoute()
 const subCategories = ref([])
 const loading = ref(false)
 
@@ -334,9 +324,6 @@ const filterTabs = ref([
 ])
 
 const products = ref([])
-
-// 상수 및 유틸리티
-const defaultImage = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg=='
 
 // 아이콘 처리 로직
 const getIconForCategory = (category) => {
@@ -368,7 +355,7 @@ const getIconForCategory = (category) => {
   return null;
 };
 
-// 검색 관련 계산된 속성들 - name 필드 사용
+// 검색 관련 계산된 속성들
 const filteredProducts = computed(() => {
   if (!searchKeyword.value) {
     return products.value
@@ -385,7 +372,7 @@ const displayProducts = computed(() => {
   return searchKeyword.value ? filteredProducts.value : products.value
 })
 
-// 검색어 하이라이트 함수 - name 필드 사용
+// 검색어 하이라이트 함수
 const highlightSearchKeyword = (text) => {
   if (!searchKeyword.value || !text) {
     return text
@@ -408,7 +395,7 @@ const currentCategoryName = computed(() => {
   return category ? category.name : selectedCategory.value
 })
 
-// 정렬된 상품 목록 - name 필드 사용
+// 정렬된 상품 목록
 const sortedProducts = computed(() => {
   if (!displayProducts.value || displayProducts.value.length === 0) return []
 
@@ -451,9 +438,7 @@ const paginatedProducts = computed(() => {
   return sortedProducts.value.slice(startIndex, endIndex)
 })
 
-/**
- * fetchProducts 함수 - 정리된 버전
- */
+// 🔥 useSmartImages를 사용한 간단한 fetchProducts 함수
 const fetchProducts = async () => {
   try {
     loading.value = true
@@ -476,19 +461,13 @@ const fetchProducts = async () => {
 
     const productData = response.data
 
-    if (!Array.isArray(productData)) {
+    if (!Array.isArray(productData) || productData.length === 0) {
       products.value = []
       allProducts.value = []
       return
     }
 
-    if (productData.length === 0) {
-      products.value = []
-      allProducts.value = []
-      return
-    }
-
-    // 상품 데이터 변환 - name 필드 사용
+    // 🔥 useSmartImages를 사용한 간단한 이미지 처리
     const convertedProducts = productData.map((product, index) => {
       return {
         id: product.productId || `product_${index}`,
@@ -496,17 +475,11 @@ const fetchProducts = async () => {
         price: product.price || product.salePrice || 0,
         originalPrice: product.originalPrice || product.price || 0,
         discount: product.discount || product.discountRate || null,
-        image: getImageUrl(product),
+        mainImage: product.mainImage, // 원본 mainImage 유지
         isLive: product.isLive || false,
         viewers: product.viewers || null,
         categoryId: product.categoryId || 'unknown',
-        imageError: false,
-        _originalImageData: {
-          mainImage: product.mainImage,
-          image: product.image,
-          images: product.images,
-          mainImageUrl: product.mainImageUrl
-        }
+        imageError: false
       }
     })
 
@@ -521,44 +494,7 @@ const fetchProducts = async () => {
   }
 }
 
-/**
- * 이미지 URL 생성 함수
- */
-const getImageUrl = (product) => {
-  let selectedImagePath = null;
-
-  if (product.mainImageUrl && product.mainImageUrl.trim() !== '') {
-    selectedImagePath = product.mainImageUrl.trim();
-  } else if (product.mainImage && product.mainImage.trim() !== '') {
-    selectedImagePath = product.mainImage.trim();
-  } else if (product.image && product.image.trim() !== '') {
-    selectedImagePath = product.image.trim();
-  } else if (product.images && Array.isArray(product.images) && product.images.length > 0) {
-    selectedImagePath = product.images[0].trim();
-  }
-
-  if (selectedImagePath) {
-    let finalUrl;
-
-    if (selectedImagePath.startsWith('http://') || selectedImagePath.startsWith('https://')) {
-      finalUrl = selectedImagePath;
-    } else if (selectedImagePath.startsWith('/api/')) {
-      finalUrl = `http://localhost:8080${selectedImagePath}`;
-    } else if (selectedImagePath.startsWith('/')) {
-      finalUrl = `http://localhost:8080${selectedImagePath}`;
-    } else {
-      finalUrl = `http://localhost:8080/api/images/products/${selectedImagePath}`;
-    }
-
-    return finalUrl;
-  }
-
-  return defaultImage;
-}
-
-/**
- * 메인 카테고리 조회
- */
+// 메인 카테고리 조회
 const fetchMainCategories = async () => {
   try {
     const res = await apiClient.get('/api/categories/main', {withAuth: false})
@@ -590,9 +526,7 @@ const fetchMainCategories = async () => {
   }
 }
 
-/**
- * 하위 카테고리 조회
- */
+// 하위 카테고리 조회
 const fetchSubCategories = async (parentCategoryId) => {
   try {
     if (parentCategoryId === 'ALL') {
@@ -617,28 +551,21 @@ const fetchSubCategories = async (parentCategoryId) => {
   }
 }
 
-/**
- * 정렬 변경 처리
- */
+// 정렬 변경 처리
 const handleSortChange = () => {
   currentPage.value = 1
 }
 
-/**
- * 더보기 버튼 처리
- */
+// 더보기 버튼 처리
 const loadMore = () => {
   currentPage.value += 1
 }
 
-/**
- * 메인 카테고리 선택
- */
+// 메인 카테고리 선택
 const selectCategory = async (categoryId) => {
   const normalizedCategoryId = String(categoryId);
 
   searchKeyword.value = ''
-
   selectedCategory.value = normalizedCategoryId
   selectedSubCategory.value = ''
   currentPage.value = 1
@@ -648,7 +575,7 @@ const selectCategory = async (categoryId) => {
     await fetchSubCategories(normalizedCategoryId)
     await fetchProducts()
   } catch (error) {
-    // 에러 처리
+    console.error('카테고리 선택 실패:', error)
   }
 
   if (normalizedCategoryId === 'ALL') {
@@ -658,9 +585,7 @@ const selectCategory = async (categoryId) => {
   }
 }
 
-/**
- * 서브 카테고리 선택
- */
+// 서브 카테고리 선택
 const selectSubCategory = async (subCategoryId) => {
   if (selectedSubCategory.value === subCategoryId) {
     return
@@ -672,52 +597,21 @@ const selectSubCategory = async (subCategoryId) => {
   await fetchProducts()
 }
 
-/**
- * 필터 선택
- */
+// 필터 선택
 const selectFilter = async (filterId) => {
   selectedFilter.value = filterId
   currentPage.value = 1
   await fetchProducts()
 }
 
-/**
- * 상품 상세 페이지로 이동
- */
+// 상품 상세 페이지로 이동
 const goToProductDetail = (product) => {
   router.push(`/product/${product.id}`)
 }
 
-// 유틸리티 함수들
-
-/**
- * 가격 포맷팅
- */
+// 가격 포맷팅
 const formatPrice = (price) => {
   return price?.toLocaleString() || '0'
-}
-
-/**
- * 이미지 에러 처리
- */
-const handleImageError = (event) => {
-  const img = event.target;
-
-  if (img.dataset.errorHandled === 'true' || img.src === defaultImage) {
-    return;
-  }
-
-  img.dataset.errorHandled = 'true';
-  img.onerror = null;
-  img.src = defaultImage;
-}
-
-/**
- * 이미지 로드 성공 처리
- */
-const handleImageLoad = (event) => {
-  const img = event.target;
-  img.removeAttribute('data-error-handled');
 }
 
 // 드래그 스크롤 기능
@@ -768,28 +662,9 @@ const endTouch = () => {
   isDragging.value = false
 }
 
-/**
- * 상품 데이터 디버깅
- */
-const debugProductData = async () => {
-  try {
-    const testResponse = await apiClient.get('/api/products/filter', {
-      params: {categoryId: 'ALL', limit: 5},
-      withAuth: false
-    })
-
-    alert('디버깅 정보가 콘솔에 출력되었습니다.')
-
-  } catch (error) {
-    alert('디버깅 실행 중 오류가 발생했습니다: ' + error.message)
-  }
-}
-
 // 라이프사이클 훅
 
-/**
- * URL 쿼리 파라미터 변화 감지 (검색어 처리)
- */
+// URL 쿼리 파라미터 변화 감지 (검색어 처리)
 watch(() => route.query.search, (newSearch) => {
   if (newSearch && newSearch !== searchKeyword.value) {
     searchKeyword.value = newSearch
@@ -800,9 +675,7 @@ watch(() => route.query.search, (newSearch) => {
   }
 }, { immediate: true })
 
-/**
- * URL 파라미터 변화 감지 (카테고리)
- */
+// URL 파라미터 변화 감지 (카테고리)
 watch(() => route.params, async (newParams, oldParams) => {
   let needsProductRefresh = false
   let needsSubCategoryRefresh = false
@@ -825,9 +698,7 @@ watch(() => route.params, async (newParams, oldParams) => {
   }
 }, {immediate: false})
 
-/**
- * 컴포넌트 마운트 시 초기화
- */
+// 컴포넌트 마운트 시 초기화
 onMounted(async () => {
   try {
     await fetchMainCategories()
@@ -848,7 +719,7 @@ onMounted(async () => {
     await fetchProducts()
 
   } catch (error) {
-    // 에러 처리
+    console.error('컴포넌트 초기화 실패:', error)
   }
 })
 </script>

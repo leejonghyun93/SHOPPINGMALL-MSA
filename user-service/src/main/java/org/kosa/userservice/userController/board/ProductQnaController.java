@@ -1,5 +1,11 @@
 package org.kosa.userservice.userController.board;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +25,7 @@ import java.util.HashMap;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 
+@Tag(name = "상품 Q&A", description = "상품 문의 관리 API")
 @Slf4j
 @RestController
 @RequestMapping("/api/qna")
@@ -51,17 +58,19 @@ public class ProductQnaController {
         }
     }
 
+    @Operation(summary = "서비스 상태 확인", description = "QnA Service 상태를 확인합니다")
     @GetMapping("/health")
     public ResponseEntity<String> health() {
         return ResponseEntity.ok("QnA Service is running");
     }
 
+    @Operation(summary = "Q&A 목록 조회", description = "페이징과 검색 조건으로 Q&A 목록을 조회합니다")
     @GetMapping("/list")
     public ResponseEntity<List<ProductQnaDto>> list(
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) String searchValue,
-            @RequestParam(required = false) String sortBy
+            @Parameter(description = "페이지 번호", example = "1") @RequestParam(defaultValue = "1") int page,
+            @Parameter(description = "페이지 크기", example = "10") @RequestParam(defaultValue = "10") int size,
+            @Parameter(description = "검색어") @RequestParam(required = false) String searchValue,
+            @Parameter(description = "정렬 기준") @RequestParam(required = false) String sortBy
     ) {
         try {
             List<ProductQnaDto> qnas = productQnaService.getPagedQnas(page, size, searchValue, sortBy);
@@ -71,12 +80,13 @@ public class ProductQnaController {
         }
     }
 
+    @Operation(summary = "상품별 Q&A 조회", description = "특정 상품의 Q&A 목록을 조회합니다")
     @GetMapping("/product/{productId}")
     public ResponseEntity<List<ProductQnaDto>> getProductQnas(
-            @PathVariable Integer productId,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "createdAt") String sortBy
+            @Parameter(description = "상품 ID", required = true) @PathVariable Integer productId,
+            @Parameter(description = "페이지 번호", example = "1") @RequestParam(defaultValue = "1") int page,
+            @Parameter(description = "페이지 크기", example = "10") @RequestParam(defaultValue = "10") int size,
+            @Parameter(description = "정렬 기준", example = "createdAt") @RequestParam(defaultValue = "createdAt") String sortBy
     ) {
         try {
             List<ProductQnaDto> qnas = productQnaService.getProductQnas(productId, page, size, sortBy);
@@ -86,8 +96,10 @@ public class ProductQnaController {
         }
     }
 
+    @Operation(summary = "Q&A 상세 조회", description = "Q&A ID로 상세 정보를 조회합니다")
     @GetMapping("/{qnaId}")
-    public ResponseEntity<ProductQnaDto> getQna(@PathVariable String qnaId) {
+    public ResponseEntity<ProductQnaDto> getQna(
+            @Parameter(description = "Q&A ID", required = true) @PathVariable String qnaId) {
         try {
             ProductQnaDto qna = productQnaService.getQnaById(qnaId, true);
 
@@ -101,6 +113,14 @@ public class ProductQnaController {
         }
     }
 
+    @Operation(summary = "Q&A 작성", description = "새로운 상품 문의를 작성합니다")
+    @SecurityRequirement(name = "JWT")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "문의 등록 성공"),
+            @ApiResponse(responseCode = "401", description = "인증 필요"),
+            @ApiResponse(responseCode = "403", description = "구매 인증 실패"),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청")
+    })
     @PostMapping("")
     public ResponseEntity<Map<String, Object>> createQna(
             @RequestBody ProductQnaDto qnaDto,
@@ -167,9 +187,11 @@ public class ProductQnaController {
         }
     }
 
+    @Operation(summary = "Q&A 수정", description = "기존 문의를 수정합니다")
+    @SecurityRequirement(name = "JWT")
     @PutMapping("/{qnaId}")
     public ResponseEntity<Map<String, Object>> updateQna(
-            @PathVariable String qnaId,
+            @Parameter(description = "Q&A ID", required = true) @PathVariable String qnaId,
             @RequestBody ProductQnaDto qnaDto,
             HttpServletRequest request) {
 
@@ -237,9 +259,11 @@ public class ProductQnaController {
         }
     }
 
+    @Operation(summary = "Q&A 삭제", description = "문의를 삭제합니다")
+    @SecurityRequirement(name = "JWT")
     @DeleteMapping("/{qnaId}")
     public ResponseEntity<Map<String, Object>> deleteQna(
-            @PathVariable String qnaId,
+            @Parameter(description = "Q&A ID", required = true) @PathVariable String qnaId,
             HttpServletRequest request) {
 
         String userId = extractUserIdFromJWT(request);
@@ -292,10 +316,12 @@ public class ProductQnaController {
         }
     }
 
+    @Operation(summary = "내 Q&A 조회", description = "로그인한 사용자의 Q&A 목록을 조회합니다")
+    @SecurityRequirement(name = "JWT")
     @GetMapping("/my")
     public ResponseEntity<List<ProductQnaDto>> getMyQnas(
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size,
+            @Parameter(description = "페이지 번호", example = "1") @RequestParam(defaultValue = "1") int page,
+            @Parameter(description = "페이지 크기", example = "10") @RequestParam(defaultValue = "10") int size,
             HttpServletRequest request) {
 
         String userId = extractUserIdFromJWT(request);
@@ -313,6 +339,7 @@ public class ProductQnaController {
         }
     }
 
+    @Operation(summary = "전체 Q&A 조회 (디버그용)", description = "디버그용 전체 Q&A 목록 조회")
     @GetMapping("/debug/all")
     public ResponseEntity<List<ProductQnaDto>> getAllQnasDebug() {
         try {
@@ -323,6 +350,7 @@ public class ProductQnaController {
         }
     }
 
+    @Operation(summary = "테스트 엔드포인트", description = "서비스 테스트용 엔드포인트")
     @GetMapping("/test")
     public ResponseEntity<String> test() {
         return ResponseEntity.ok("QnA Service Test OK - " + System.currentTimeMillis());

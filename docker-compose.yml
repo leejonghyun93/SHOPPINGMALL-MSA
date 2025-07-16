@@ -22,10 +22,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 384M  # 256M → 384M 증가
+          memory: 384M
           cpus: '0.3'
         reservations:
-          memory: 192M  # 128M → 192M 증가
+          memory: 192M
     networks:
       - msa-network
     restart: unless-stopped
@@ -50,10 +50,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 128M  # 80M → 128M 증가
+          memory: 128M
           cpus: '0.1'
         reservations:
-          memory: 64M   # 40M → 64M 증가
+          memory: 64M
     volumes:
       - redis_data:/data
     networks:
@@ -78,10 +78,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M  # 384M → 512M 증가
+          memory: 512M
           cpus: '0.2'
         reservations:
-          memory: 256M  # 128M → 256M 증가
+          memory: 256M
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     networks:
@@ -101,14 +101,14 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
-      KAFKA_HEAP_OPTS: "-Xms64m -Xmx256m"  # 증가
+      KAFKA_HEAP_OPTS: "-Xms64m -Xmx256m"
     deploy:
       resources:
         limits:
-          memory: 384M  # 256M → 384M 증가
+          memory: 384M
           cpus: '0.1'
         reservations:
-          memory: 192M  # 128M → 192M 증가
+          memory: 192M
     volumes:
       - zk_data:/var/lib/zookeeper/data
       - zk_logs:/var/lib/zookeeper/log
@@ -122,7 +122,7 @@ services:
       retries: 3
       start_period: 40s
 
-  # Kafka - 메시지 큐 (메모리 대폭 증가)
+  # Kafka - 메시지 큐
   kafka:
     image: confluentinc/cp-kafka:7.4.0
     container_name: shopmall-kafka
@@ -139,15 +139,15 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_HEAP_OPTS: "-Xmx256m -Xms128m"  # 대폭 증가
-      KAFKA_LOG_CLEANER_ENABLE: "false"     # 메모리 절약
+      KAFKA_HEAP_OPTS: "-Xmx256m -Xms128m"
+      KAFKA_LOG_CLEANER_ENABLE: "false"
     deploy:
       resources:
         limits:
-          memory: 512M  # 256M → 512M 증가
+          memory: 512M
           cpus: '0.2'
         reservations:
-          memory: 256M  # 128M → 256M 증가
+          memory: 256M
     volumes:
       - kafka_data:/var/lib/kafka/data
     networks:
@@ -158,13 +158,13 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 120s  # 시작 시간 증가
+      start_period: 120s
 
   # ======================
   # MSA 핵심 서비스들 (ECR 이미지 사용)
   # ======================
 
-  # Config 서버 (메모리 증가)
+  # Config 서버
   config-service:
     image: ${ECR_REGISTRY}/config-service:latest
     container_name: shopmall-config
@@ -182,14 +182,14 @@ services:
       - SPRING_RABBITMQ_PORT=5672
       - SPRING_RABBITMQ_USERNAME=admin
       - SPRING_RABBITMQ_PASSWORD=admin123
-      - JAVA_OPTS=-Xmx192m -Xms96m -XX:+UseG1GC  # 증가
+      - JAVA_OPTS=-Xmx192m -Xms96m -XX:+UseG1GC
     deploy:
       resources:
         limits:
-          memory: 384M  # 256M → 384M 증가
+          memory: 384M
           cpus: '0.15'
         reservations:
-          memory: 192M  # 128M → 192M 증가
+          memory: 192M
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -203,7 +203,7 @@ services:
       retries: 8
       start_period: 120s
 
-  # Eureka 서비스 디스커버리 (메모리 증가)
+  # Eureka 서비스 디스커버리
   eureka-service:
     image: ${ECR_REGISTRY}/eureka-service:latest
     container_name: shopmall-eureka
@@ -211,18 +211,18 @@ services:
       - "8761:8761"
     environment:
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
-      - CONFIG_SERVER_URL=http://config-service:8888
-      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-service:8888
+      - CONFIG_SERVER_URL=${CONFIG_SERVER_URL:-http://config-service:8888}
+      - SPRING_CONFIG_IMPORT=optional:configserver:${CONFIG_SERVER_URL:-http://config-service:8888}
       - EUREKA_CLIENT_REGISTER_WITH_EUREKA=false
       - EUREKA_CLIENT_FETCH_REGISTRY=false
-      - JAVA_OPTS=-Xmx192m -Xms96m -XX:+UseG1GC  # 증가
+      - JAVA_OPTS=-Xmx192m -Xms96m -XX:+UseG1GC
     deploy:
       resources:
         limits:
-          memory: 384M  # 256M → 384M 증가
+          memory: 384M
           cpus: '0.15'
         reservations:
-          memory: 192M  # 128M → 192M 증가
+          memory: 192M
     depends_on:
       config-service:
         condition: service_healthy
@@ -236,7 +236,7 @@ services:
       retries: 5
       start_period: 150s
 
-  # 인증 서비스 (메모리 증가)
+  # 인증 서비스
   auth-service:
     image: ${ECR_REGISTRY}/auth-service:latest
     container_name: shopmall-auth
@@ -245,27 +245,31 @@ services:
     environment:
       - SPRING_APPLICATION_NAME=auth-service
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
+      - CONFIG_SERVER_URL=${CONFIG_SERVER_URL:-http://config-service:8888}
       - EUREKA_CLIENT_SERVICE_URL=http://eureka-service:8761/eureka
-      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-service:8888
+      - SPRING_CONFIG_IMPORT=optional:configserver:${CONFIG_SERVER_URL:-http://config-service:8888}
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
       - SPRING_DATASOURCE_URL=${PROD_DB_URL}
       - SPRING_DATASOURCE_USERNAME=${PROD_DB_USERNAME}
       - SPRING_DATASOURCE_PASSWORD=${PROD_DB_PASSWORD}
       - PROD_REDIS_HOST=${PROD_REDIS_HOST:-redis}
+      - PROD_REDIS_PORT=${PROD_REDIS_PORT:-6379}
       - PROD_REDIS_PASSWORD=${PROD_REDIS_PASSWORD:-}
       - PROD_MAIL_USERNAME=${PROD_MAIL_USERNAME}
       - PROD_MAIL_PASSWORD=${PROD_MAIL_PASSWORD}
       - PROD_JWT_SECRET_KEY=${PROD_JWT_SECRET_KEY}
       - PROD_EUREKA_SERVER_URL=${PROD_EUREKA_SERVER_URL}
-      - JAVA_OPTS=-Xmx192m -Xms96m -XX:+UseG1GC  # 증가
+      - PROD_USER_SERVICE_URL=${PROD_USER_SERVICE_URL}
+      - HOST_IP_ADDRESS=${HOST_IP_ADDRESS}
+      - JAVA_OPTS=-Xmx192m -Xms96m -XX:+UseG1GC
     deploy:
       resources:
         limits:
-          memory: 384M  # 256M → 384M 증가
+          memory: 384M
           cpus: '0.15'
         reservations:
-          memory: 192M  # 128M → 192M 증가
+          memory: 192M
     depends_on:
       mariadb:
         condition: service_healthy
@@ -285,7 +289,7 @@ services:
       retries: 10
       start_period: 180s
 
-  # 사용자 서비스 (메모리 증가)
+  # 사용자 서비스
   user-service:
     image: ${ECR_REGISTRY}/user-service:latest
     container_name: shopmall-user
@@ -294,8 +298,9 @@ services:
     environment:
       - SPRING_APPLICATION_NAME=user-service
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
+      - CONFIG_SERVER_URL=${CONFIG_SERVER_URL:-http://config-service:8888}
       - EUREKA_CLIENT_SERVICE_URL=http://eureka-service:8761/eureka
-      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-service:8888
+      - SPRING_CONFIG_IMPORT=optional:configserver:${CONFIG_SERVER_URL:-http://config-service:8888}
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
@@ -303,18 +308,21 @@ services:
       - SPRING_DATASOURCE_USERNAME=${PROD_DB_USERNAME}
       - SPRING_DATASOURCE_PASSWORD=${PROD_DB_PASSWORD}
       - PROD_REDIS_HOST=${PROD_REDIS_HOST:-redis}
+      - PROD_REDIS_PORT=${PROD_REDIS_PORT:-6379}
       - PROD_REDIS_PASSWORD=${PROD_REDIS_PASSWORD:-}
       - PROD_KAFKA_SERVERS=${PROD_KAFKA_SERVERS}
+      - PROD_KAFKA_TOPIC_USER_WITHDRAWAL=${PROD_KAFKA_TOPIC_USER_WITHDRAWAL}
       - PROD_AUTH_SERVICE_URL=${PROD_AUTH_SERVICE_URL}
       - PROD_EUREKA_SERVER_URL=${PROD_EUREKA_SERVER_URL}
-      - JAVA_OPTS=-Xmx192m -Xms96m -XX:+UseG1GC  # 증가
+      - HOST_IP_ADDRESS=${HOST_IP_ADDRESS}
+      - JAVA_OPTS=-Xmx192m -Xms96m -XX:+UseG1GC
     deploy:
       resources:
         limits:
-          memory: 384M  # 256M → 384M 증가
+          memory: 384M
           cpus: '0.15'
         reservations:
-          memory: 192M  # 128M → 192M 증가
+          memory: 192M
     depends_on:
       mariadb:
         condition: service_healthy
@@ -336,7 +344,7 @@ services:
       retries: 10
       start_period: 180s
 
-  # 커머스 서비스 (메모리 증가)
+  # 커머스 서비스
   commerce-service:
     image: ${ECR_REGISTRY}/commerce-service:latest
     container_name: shopmall-commerce
@@ -345,8 +353,9 @@ services:
     environment:
       - SPRING_APPLICATION_NAME=commerce-service
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
+      - CONFIG_SERVER_URL=${CONFIG_SERVER_URL:-http://config-service:8888}
       - EUREKA_CLIENT_SERVICE_URL=http://eureka-service:8761/eureka
-      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-service:8888
+      - SPRING_CONFIG_IMPORT=optional:configserver:${CONFIG_SERVER_URL:-http://config-service:8888}
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
@@ -355,6 +364,7 @@ services:
       - SPRING_DATASOURCE_PASSWORD=${PROD_DB_PASSWORD}
       - SPRING_JPA_HIBERNATE_DDL_AUTO=none
       - PROD_REDIS_HOST=${PROD_REDIS_HOST:-redis}
+      - PROD_REDIS_PORT=${PROD_REDIS_PORT:-6379}
       - PROD_REDIS_PASSWORD=${PROD_REDIS_PASSWORD:-}
       - PROD_KAFKA_SERVERS=${PROD_KAFKA_SERVERS}
       - PROD_IAMPORT_API_KEY=${PROD_IAMPORT_API_KEY}
@@ -362,14 +372,16 @@ services:
       - PROD_IMAGE_UPLOAD_PATH=${PROD_IMAGE_UPLOAD_PATH:-/app/uploads/products/}
       - PROD_IMAGE_BASE_URL=${PROD_IMAGE_BASE_URL}
       - PROD_EUREKA_SERVER_URL=${PROD_EUREKA_SERVER_URL}
-      - JAVA_OPTS=-Xmx192m -Xms96m -XX:+UseG1GC  # 증가
+      - PROD_USER_SERVICE_URL=${PROD_USER_SERVICE_URL}
+      - HOST_IP_ADDRESS=${HOST_IP_ADDRESS}
+      - JAVA_OPTS=-Xmx192m -Xms96m -XX:+UseG1GC
     deploy:
       resources:
         limits:
-          memory: 384M  # 256M → 384M 증가
+          memory: 384M
           cpus: '0.15'
         reservations:
-          memory: 192M  # 128M → 192M 증가
+          memory: 192M
     depends_on:
       mariadb:
         condition: service_healthy
@@ -391,7 +403,7 @@ services:
       retries: 10
       start_period: 240s
 
-  # 라이브 스트리밍 서비스 (메모리 증가)
+  # 라이브 스트리밍 서비스
   live-streaming-service:
     image: ${ECR_REGISTRY}/live-streaming-service:latest
     container_name: shopmall-streaming
@@ -400,8 +412,9 @@ services:
     environment:
       - SPRING_APPLICATION_NAME=live-streaming-service
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
+      - CONFIG_SERVER_URL=${CONFIG_SERVER_URL:-http://config-service:8888}
       - EUREKA_CLIENT_SERVICE_URL=http://eureka-service:8761/eureka
-      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-service:8888
+      - SPRING_CONFIG_IMPORT=optional:configserver:${CONFIG_SERVER_URL:-http://config-service:8888}
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
@@ -409,17 +422,22 @@ services:
       - SPRING_DATASOURCE_USERNAME=${PROD_DB_USERNAME}
       - SPRING_DATASOURCE_PASSWORD=${PROD_DB_PASSWORD}
       - PROD_REDIS_HOST=${PROD_REDIS_HOST:-redis}
+      - PROD_REDIS_PORT=${PROD_REDIS_PORT:-6379}
       - PROD_REDIS_PASSWORD=${PROD_REDIS_PASSWORD:-}
       - PROD_KAFKA_SERVERS=${PROD_KAFKA_SERVERS}
       - PROD_EUREKA_SERVER_URL=${PROD_EUREKA_SERVER_URL}
-      - JAVA_OPTS=-Xmx192m -Xms96m -XX:+UseG1GC  # 증가
+      - PROD_MAIL_USERNAME=${PROD_MAIL_USERNAME}
+      - PROD_MAIL_PASSWORD=${PROD_MAIL_PASSWORD}
+      - PROD_USER_SERVICE_DETAIL_URL=${PROD_USER_SERVICE_DETAIL_URL}
+      - HOST_IP_ADDRESS=${HOST_IP_ADDRESS}
+      - JAVA_OPTS=-Xmx192m -Xms96m -XX:+UseG1GC
     deploy:
       resources:
         limits:
-          memory: 384M  # 256M → 384M 증가
+          memory: 384M
           cpus: '0.15'
         reservations:
-          memory: 192M  # 128M → 192M 증가
+          memory: 192M
     depends_on:
       mariadb:
         condition: service_healthy
@@ -441,7 +459,7 @@ services:
       retries: 10
       start_period: 240s
 
-  # API Gateway (메모리 약간 증가)
+  # API Gateway
   apigateway-service:
     image: ${ECR_REGISTRY}/apigateway-service:latest
     container_name: apigateway-service
@@ -450,8 +468,9 @@ services:
     environment:
       - SPRING_APPLICATION_NAME=apigateway-service
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
+      - CONFIG_SERVER_URL=${CONFIG_SERVER_URL:-http://config-service:8888}
       - EUREKA_CLIENT_SERVICE_URL=http://eureka-service:8761/eureka
-      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-service:8888
+      - SPRING_CONFIG_IMPORT=optional:configserver:${CONFIG_SERVER_URL:-http://config-service:8888}
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
       - SPRING_RABBITMQ_HOST=rabbitmq
@@ -459,15 +478,16 @@ services:
       - FRONTEND_URL=${FRONTEND_URL:-https://shopmall.com}
       - ADMIN_URL=${ADMIN_URL:-https://admin.shopmall.com}
       - JWT_SECRET=${PROD_JWT_SECRET_KEY}
-      - PROD_EUREKA_SERVER_URL=http://shopmall-eureka:8761/eureka
+      - PROD_EUREKA_SERVER_URL=http://eureka-service:8761/eureka
+      - HOST_IP_ADDRESS=${HOST_IP_ADDRESS}
       - JAVA_OPTS=-Xmx128m -Xms64m -XX:+UseG1GC
     deploy:
       resources:
         limits:
-          memory: 256M  # 192M → 256M 증가
+          memory: 256M
           cpus: '0.15'
         reservations:
-          memory: 128M  # 96M → 128M 증가
+          memory: 128M
     depends_on:
       eureka-service:
         condition: service_healthy
@@ -495,7 +515,7 @@ services:
   # 모니터링 서비스들
   # ======================
 
-  # Prometheus - 메트릭 수집 (메모리 증가)
+  # Prometheus - 메트릭 수집
   prometheus:
     image: prom/prometheus:v2.45.0
     container_name: shopmall-prometheus
@@ -514,10 +534,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 384M  # 256M → 384M 증가
+          memory: 384M
           cpus: '0.2'
         reservations:
-          memory: 192M  # 128M → 192M 증가
+          memory: 192M
     depends_on:
       - config-service
       - eureka-service
@@ -526,7 +546,7 @@ services:
       - msa-network
     restart: unless-stopped
 
-  # Grafana - 시각화 대시보드 (메모리 증가)
+  # Grafana - 시각화 대시보드
   grafana:
     image: grafana/grafana:10.0.0
     container_name: shopmall-grafana
@@ -542,10 +562,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 384M  # 256M → 384M 증가
+          memory: 384M
           cpus: '0.2'
         reservations:
-          memory: 192M  # 128M → 192M 증가
+          memory: 192M
     depends_on:
       - prometheus
     networks:

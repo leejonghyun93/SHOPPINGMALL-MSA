@@ -113,7 +113,7 @@ public class BroadcastServiceClient {
         }
 
         try {
-            // 🔥 실제 운영: broadcaster_id를 그대로 USER_ID로 사용 (둘 다 String)
+            //  실제 운영: broadcaster_id를 그대로 USER_ID로 사용 (둘 다 String)
             String userIdCandidate = broadcasterId;
 
             // UserService에서 해당 USER_ID가 존재하는지 확인

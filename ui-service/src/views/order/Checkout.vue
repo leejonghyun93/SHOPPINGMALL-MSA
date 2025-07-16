@@ -18,7 +18,12 @@
           <div class="order-items">
             <div v-for="item in orderItems" :key="item.id" class="order-item">
               <div class="item-image">
-                <img :src="item.image" :alt="item.name"/>
+                <img
+                    :src="getProductImage(item)"
+                    :alt="item.name"
+                    @error="handleImageError"
+                    @load="handleImageLoad"
+                />
               </div>
               <div class="item-details">
                 <h3 class="item-name">{{ item.name }}</h3>
@@ -283,6 +288,7 @@ import {ref, computed, onMounted} from 'vue'
 import {ChevronLeft} from 'lucide-vue-next'
 import apiClient from '@/api/axiosInstance'
 import { user, setUserFromToken, backupNameForPayment, restoreNameAfterPayment } from "@/stores/userStore"
+import { useSmartImages } from '@/composables/useSmartImages'
 
 import {
   getFailureReason,
@@ -290,6 +296,8 @@ import {
   getPgDisplayName,
   getMessageType
 } from '@/utils/paymentMessages.js'
+
+const { getProductImage, handleImageError, handleImageLoad } = useSmartImages()
 
 const cardPaymentType = ref('card')
 const selectedPayment = ref('general')

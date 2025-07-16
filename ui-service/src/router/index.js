@@ -1,7 +1,7 @@
 // router/index.js
 
 import { createRouter, createWebHistory } from 'vue-router'
-
+import ResetPassword from '../views/user/FindPassword.vue'
 // 컴포넌트 imports
 import Home from '../views/Home.vue'
 import Login from '../views/user/Login.vue'
@@ -103,6 +103,14 @@ const routes = [
         component: FindPassword,
         meta: {
             title: '비밀번호 찾기'
+        }
+    },
+    {
+        path: '/resetPassword',
+        name: 'ResetPassword',
+        component: ResetPassword,
+        meta: {
+            title: '비밀번호 재설정'
         }
     },
     {

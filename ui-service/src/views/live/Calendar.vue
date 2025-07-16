@@ -45,13 +45,6 @@
         >
           ›
         </button>
-
-        <!-- 서버 상태 표시 (알림 서버만) -->
-        <div class="ms-auto">
-          <span :class="['badge', serverStatus === 'connected' ? 'bg-success' : 'bg-danger']">
-            {{ serverStatus === 'connected' ? '알림 서버 연결됨' : '알림 서버 연결 안됨' }}
-          </span>
-        </div>
       </div>
     </div>
   </div>
@@ -86,18 +79,20 @@
               <!-- 시간 표시 -->
               <div class="time-display d-flex align-items-center justify-content-center">
                 <span class="time-text">{{ timeSlot.time }}</span>
-                <!-- 🔥 시간 지남 표시 추가 -->
+                <!-- 시간 지남 표시 추가 -->
                 <div v-if="shouldShowAsPast(broadcast)" class="past-indicator">
-                  <i class="fas fa-clock text-muted" style="font-size: 10px;"></i>
+                  🕐
                 </div>
               </div>
 
               <!-- 방송 썸네일 -->
               <div class="broadcast-thumbnail">
                 <img
-                    :src="broadcast.thumbnailUrl || '/default-thumbnail.jpg'"
+                    :src="getBroadcastThumbnail(broadcast)"
                     :alt="broadcast.title"
                     @error="handleImageError"
+                    @load="handleImageLoad"
+                    loading="lazy"
                 >
                 <!-- 방송 상태 오버레이 -->
                 <div v-if="broadcast.status && broadcast.status.trim() === 'live'" class="live-overlay">
@@ -117,7 +112,8 @@
                 }">
                   {{ broadcast.title }}
                   <!-- 라이브 뱃지 -->
-                  <span v-if="broadcast.status && broadcast.status.trim() === 'live'" class="badge bg-danger ms-2">LIVE</span>
+                  <span v-if="broadcast.status && broadcast.status.trim() === 'live'"
+                        class="badge bg-danger ms-2">LIVE</span>
                 </h6>
 
                 <!-- 상품 정보 -->
@@ -137,7 +133,7 @@
 
                 <!-- 방송 상태별 버튼/상태 표시 -->
                 <div class="broadcast-action">
-                  <!-- 🔥 예정된 방송이고 시작시간이 안 지난 경우만 알림 받기 버튼 표시 -->
+                  <!-- 예정된 방송이고 시작시간이 안 지난 경우만 알림 받기 버튼 표시 -->
                   <button
                       v-if="shouldShowNotificationButton(broadcast)"
                       :class="[
@@ -155,8 +151,7 @@
                   <!-- 라이브 중인 방송 (live) - 방송중 상태 표시 -->
                   <div v-else-if="broadcast.status && broadcast.status.trim() === 'live'" class="live-status">
                     <span class="badge bg-danger">
-                      <i class="fas fa-circle me-1" style="font-size: 8px; animation: blink 1s infinite;"></i>
-                      방송중
+                      🔴 방송중
                     </span>
                     <button
                         class="btn btn-danger btn-sm ms-2"
@@ -189,7 +184,7 @@
                     <span class="badge bg-info">시작 준비중</span>
                   </div>
 
-                  <!-- 🔥 시간이 지났지만 아직 상태가 scheduled인 경우 -->
+                  <!-- 시간이 지났지만 아직 상태가 scheduled인 경우 -->
                   <div v-else-if="isScheduledButPast(broadcast)" class="past-scheduled-status">
                     <span class="badge bg-warning text-dark">시간 경과</span>
                     <small class="text-muted ms-2">방송이 예정 시간을 지났습니다</small>
@@ -213,6 +208,8 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import { useSmartImages } from '@/composables/useSmartImages'
 import {
   NOTIFICATION_CONFIG,
   notificationApiCall,
@@ -220,6 +217,30 @@ import {
   subscribeBroadcastStart,
   unsubscribeBroadcast
 } from '@/config/notificationConfig'
+
+const { getProductImage, handleImageError, handleImageLoad } = useSmartImages()
+const router = useRouter()
+
+// 방송 썸네일 이미지 처리 함수 (useSmartImages 활용)
+const getBroadcastThumbnail = (broadcast) => {
+  // useSmartImages의 getProductImage 함수를 활용하도록 객체 재구성
+  const imageObject = {
+    image: broadcast.thumbnailUrl || broadcast.thumbnail_url,
+    mainImage: broadcast.thumbnailUrl || broadcast.thumbnail_url,
+    title: broadcast.title,
+    name: broadcast.title
+  }
+
+  // useSmartImages의 getProductImage 함수 사용
+  const imageUrl = getProductImage(imageObject)
+
+  // 기본 이미지가 없으면 Picsum 사용
+  if (imageUrl === '/images/banners/products/default-product.jpg') {
+    return `https://picsum.photos/seed/${broadcast.id}/300/200`
+  }
+
+  return imageUrl
+}
 
 // 상태 관리
 const isNotificationLoading = ref(false)
@@ -234,12 +255,8 @@ const days = ['일', '월', '화', '수', '목', '금', '토']
 // 방송 스케줄 데이터
 const broadcastSchedule = ref([])
 
-// 🔥 새로 추가된 유틸리티 함수들
-
-// 🔥 scheduledStartTime 파싱을 위한 함수 개선
+// scheduledStartTime 파싱을 위한 함수 개선
 const parseScheduledStartTime = (broadcast) => {
-  console.log('방송 데이터 전체:', broadcast) // 디버깅용
-
   // 여러 가능한 시간 필드를 확인
   const timeFields = [
     'scheduledStartTime',
@@ -252,37 +269,28 @@ const parseScheduledStartTime = (broadcast) => {
 
   for (const field of timeFields) {
     if (broadcast[field]) {
-      console.log(`시간 필드 발견: ${field} = ${broadcast[field]}`) // 디버깅용
       return new Date(broadcast[field])
     }
   }
 
-  console.log('시간 필드를 찾을 수 없음') // 디버깅용
   return null
 }
 
-/**
- * 🔥 통합된 시작 시간 체크 함수
- */
+// 통합된 시작 시간 체크 함수
 const isStartTimePassed = (broadcast) => {
   const startTime = parseScheduledStartTime(broadcast)
 
   if (!startTime || isNaN(startTime.getTime())) {
-    console.log('유효하지 않은 시작 시간:', startTime) // 디버깅용
     return false
   }
 
   const now = new Date()
   const isPast = startTime < now
 
-  console.log(`시간 체크: ${startTime.toLocaleString()} < ${now.toLocaleString()} = ${isPast}`) // 디버깅용
-
   return isPast
 }
 
-/**
- * 방송이 과거 방송으로 표시되어야 하는지 확인
- */
+// 방송이 과거 방송으로 표시되어야 하는지 확인
 const shouldShowAsPast = (broadcast) => {
   // 상태가 ended면 무조건 과거 방송
   if (broadcast.status && broadcast.status.trim() === 'ended') {
@@ -293,9 +301,7 @@ const shouldShowAsPast = (broadcast) => {
   return isScheduledButPast(broadcast)
 }
 
-/**
- * scheduled 상태이지만 시작 시간이 지났는지 확인
- */
+// scheduled 상태이지만 시작 시간이 지났는지 확인
 const isScheduledButPast = (broadcast) => {
   if (broadcast.status && broadcast.status.trim() !== 'scheduled') {
     return false
@@ -304,22 +310,16 @@ const isScheduledButPast = (broadcast) => {
   return isStartTimePassed(broadcast)
 }
 
-/**
- * 알림 받기 버튼을 표시해야 하는지 확인
- */
+// 알림 받기 버튼을 표시해야 하는지 확인
 const shouldShowNotificationButton = (broadcast) => {
   // scheduled 상태이고 시작 시간이 아직 안 지난 경우만 표시
   const isScheduled = broadcast.status && broadcast.status.trim() === 'scheduled'
   const isNotPast = !isStartTimePassed(broadcast)
 
-  console.log(`알림 버튼 표시 체크: 방송 "${broadcast.title}" - scheduled: ${isScheduled}, notPast: ${isNotPast}`) // 디버깅용
-
   return isScheduled && isNotPast
 }
 
-/**
- * 방송 상태 텍스트 반환
- */
+// 방송 상태 텍스트 반환
 const getBroadcastStatusText = (broadcast) => {
   if (broadcast.status && broadcast.status.trim() === 'ended') {
     return '종료'
@@ -367,14 +367,14 @@ const checkNotificationServer = async () => {
       return true
     }
   } catch (error) {
-    console.error('알림 서버 연결 확인 실패:', error)
+    // 에러는 조용히 처리
   }
 
   serverStatus.value = 'disconnected'
   return false
 }
 
-// 🔥 DB에서 방송 스케줄 조회 시 더 정확한 파싱
+// DB에서 방송 스케줄 조회 시 더 정확한 파싱
 const fetchBroadcastsFromDB = async (date) => {
   try {
     const year = date.getFullYear()
@@ -387,19 +387,16 @@ const fetchBroadcastsFromDB = async (date) => {
     if (response.ok) {
       const data = await response.json()
 
-      console.log('서버에서 받은 원본 데이터:', data) // 디버깅용
-
-      // 🔥 방송 데이터 파싱 및 필터링 개선
+      // 방송 데이터 파싱 및 필터링 개선
       if (data && Array.isArray(data)) {
         data.forEach(timeSlot => {
           if (timeSlot.broadcasts && Array.isArray(timeSlot.broadcasts)) {
-            // 🔥 ended 상태 방송 필터링 (필요에 따라 주석 해제)
+            // ended 상태 방송 필터링 (필요에 따라 주석 해제)
             timeSlot.broadcasts = timeSlot.broadcasts.filter(broadcast => {
               const status = broadcast.status && broadcast.status.trim()
 
               // 시간이 지난 scheduled 방송도 필터링
               if (status === 'ended') {
-                console.log(`종료된 방송 필터링: ${broadcast.title}`)
                 return false
               }
 
@@ -407,7 +404,6 @@ const fetchBroadcastsFromDB = async (date) => {
               if (status === 'scheduled') {
                 const startTime = parseScheduledStartTime(broadcast)
                 if (startTime && startTime < new Date()) {
-                  console.log(`시간 지난 예정 방송 필터링: ${broadcast.title}`)
                   return false
                 }
               }
@@ -416,9 +412,7 @@ const fetchBroadcastsFromDB = async (date) => {
             })
 
             timeSlot.broadcasts.forEach(broadcast => {
-              console.log('방송 데이터 처리 전:', broadcast) // 디버깅용
-
-              // 🔥 시간 필드가 이미 있는지 확인하고 없으면 timeSlot.time을 이용
+              // 시간 필드가 이미 있는지 확인하고 없으면 timeSlot.time을 이용
               if (!parseScheduledStartTime(broadcast)) {
                 // timeSlot.time (예: "14:30")과 선택된 날짜를 조합해서 완전한 시간 생성
                 if (timeSlot.time) {
@@ -427,14 +421,13 @@ const fetchBroadcastsFromDB = async (date) => {
                   scheduledDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0)
 
                   broadcast.scheduledStartTime = scheduledDateTime.toISOString()
-                  console.log(`방송 "${broadcast.title}"의 시작 시간 설정: ${broadcast.scheduledStartTime}`)
                 }
               }
             })
           }
         })
 
-        // 🔥 빈 timeSlot 제거
+        // 빈 timeSlot 제거
         return data.filter(timeSlot =>
             timeSlot.broadcasts && timeSlot.broadcasts.length > 0
         )
@@ -442,114 +435,170 @@ const fetchBroadcastsFromDB = async (date) => {
 
       return data || []
     } else {
-      console.error('방송 스케줄 조회 실패:', response.status)
       return []
     }
   } catch (error) {
-    console.error('방송 스케줄 조회 중 오류:', error)
     return []
   }
 }
 
 // 사용자 알림 구독 상태 조회
 const loadUserNotificationSettings = async (scheduleData) => {
-  if (scheduleData.length === 0) return scheduleData
+  console.log('🔥 알림 설정 로드 시작')
+
+  if (scheduleData.length === 0) {
+    console.log('스케줄 데이터가 비어있음')
+    return scheduleData
+  }
 
   try {
     const user = getCurrentUser()
     if (!user.identifier) {
-      console.log('사용자 정보 없음 - 로그인 필요')
+      console.log('사용자 정보 없음')
+      // 🔥 사용자 정보 없으면 모든 알림을 false로 설정
+      scheduleData.forEach(timeSlot => {
+        timeSlot.broadcasts.forEach(broadcast => {
+          broadcast.isNotificationSet = false
+        })
+      })
       return scheduleData
     }
 
     const userParam = user.identifier
+    console.log('사용자 ID:', userParam)
 
-    // 🔥 서버 API 먼저 시도 (실제 DB 상태 반영)
+    // 🔥 3. 현재 스케줄의 모든 방송 ID 수집
+    const allBroadcastIds = []
+    scheduleData.forEach(timeSlot => {
+      timeSlot.broadcasts.forEach(broadcast => {
+        const broadcastId = broadcast.id || broadcast.broadcastId || broadcast.broadcast_id
+        if (broadcastId) {
+          allBroadcastIds.push(String(broadcastId))
+        }
+      })
+    })
+
+    console.log('현재 스케줄의 방송 ID들:', allBroadcastIds)
+
+    // 🔥 4. 서버에서 사용자 구독 정보 가져오기
     const endpoint = `/subscriptions/users/${userParam}`
-    console.log('사용자 구독 상태 조회 시도:', userParam)
 
     try {
       const response = await notificationApiCall(endpoint)
+
       if (response.ok) {
         const userSubscriptions = await response.json()
-        console.log('서버 구독 목록:', userSubscriptions)
+        console.log('서버에서 가져온 전체 구독 목록:', userSubscriptions)
 
+        // 🔥 5. 서버 데이터를 Set으로 변환 (빠른 검색을 위해)
         const subscribedBroadcastIds = new Set(
-            userSubscriptions.map(sub => sub.broadcastId)
+            userSubscriptions.map(sub => String(sub.broadcastId))
         )
 
-        console.log('서버에서 가져온 구독 방송 ID들:', Array.from(subscribedBroadcastIds))
+        console.log('구독 중인 방송 ID Set:', Array.from(subscribedBroadcastIds))
 
-        // 🔥 서버 데이터를 로컬에 동기화
-        syncLocalNotifications(userParam, Array.from(subscribedBroadcastIds))
-
+        // 🔥 6. 현재 스케줄의 각 방송에 대해 구독 상태 설정
+        let matchedCount = 0
         scheduleData.forEach(timeSlot => {
           timeSlot.broadcasts.forEach(broadcast => {
-            const isSubscribed = subscribedBroadcastIds.has(broadcast.id)
-            broadcast.isNotificationSet = isSubscribed
+            const broadcastId = String(broadcast.id || broadcast.broadcastId || broadcast.broadcast_id || '')
+            const isSubscribed = subscribedBroadcastIds.has(broadcastId)
+
+            // 🔥 반드시 boolean으로 설정
+            broadcast.isNotificationSet = Boolean(isSubscribed)
 
             if (isSubscribed) {
-              console.log(`방송 "${broadcast.title}" (ID: ${broadcast.id}) - 알림 설정됨 (서버 확인)`)
+              matchedCount++
+              console.log(`✅ 구독 중인 방송 발견: "${broadcast.title}" (ID: ${broadcastId})`)
+            } else {
+              console.log(`❌ 구독 안함: "${broadcast.title}" (ID: ${broadcastId})`)
             }
           })
         })
 
-        return scheduleData
-      } else {
-        console.warn('서버 구독 상태 조회 실패:', response.status)
-        throw new Error('서버 API 실패')
-      }
-    } catch (serverError) {
-      console.warn('서버 연결 실패, 로컬 데이터 사용:', serverError.message)
+        console.log(`총 ${matchedCount}개 방송이 구독 상태로 설정됨`)
 
-      // 🔥 서버 실패시에만 로컬 데이터 사용 (경고 표시)
+        // 🔥 7. 로컬 스토리지에 백업 (서버와 동기화)
+        syncLocalNotifications(userParam, Array.from(subscribedBroadcastIds))
+
+        return scheduleData
+
+      } else {
+        console.error('서버 API 호출 실패:', response.status)
+        throw new Error(`서버 API 실패: ${response.status}`)
+      }
+
+    } catch (serverError) {
+      console.error('서버 조회 실패, 로컬 데이터 사용:', serverError)
+
+      // 🔥 8. 서버 실패 시 로컬 스토리지에서 복원
       const localNotifications = getLocalNotifications(userParam)
-      console.log('⚠️ 오프라인 모드: 로컬 저장소 알림 설정 사용:', localNotifications)
+      console.log('로컬 스토리지에서 가져온 알림 목록:', localNotifications)
 
       scheduleData.forEach(timeSlot => {
         timeSlot.broadcasts.forEach(broadcast => {
-          const isSubscribed = localNotifications.includes(broadcast.id)
-          broadcast.isNotificationSet = isSubscribed
+          const broadcastId = String(broadcast.id || broadcast.broadcastId || broadcast.broadcast_id || '')
+          const isSubscribed = localNotifications.includes(broadcastId)
+          broadcast.isNotificationSet = Boolean(isSubscribed)
 
           if (isSubscribed) {
-            console.log(`방송 "${broadcast.title}" (ID: ${broadcast.id}) - 알림 설정됨 (로컬 캐시)`)
+            console.log(`📱 로컬에서 복원: "${broadcast.title}" (ID: ${broadcastId})`)
           }
         })
       })
+
+      return scheduleData
     }
+
   } catch (error) {
-    console.error('사용자 알림 설정 로드 실패:', error)
+    console.error('알림 설정 로드 완전 실패:', error)
+
+    // 🔥 9. 모든 실패 시 false로 초기화
     scheduleData.forEach(timeSlot => {
       timeSlot.broadcasts.forEach(broadcast => {
         broadcast.isNotificationSet = false
       })
     })
+
+    return scheduleData
   }
-
-  return scheduleData
 }
-
-// 🔥 서버 데이터를 로컬에 동기화
+// 서버 데이터를 로컬에 동기화
 const syncLocalNotifications = (userId, serverBroadcastIds) => {
   const key = `notifications_${userId}`
-  localStorage.setItem(key, JSON.stringify(serverBroadcastIds))
-  console.log('로컬 저장소 동기화 완료:', serverBroadcastIds)
+  const stringIds = serverBroadcastIds.map(id => String(id))
+  localStorage.setItem(key, JSON.stringify(stringIds))
+  console.log('로컬 스토리지 동기화 완료:', stringIds)
 }
 
 // 로컬 저장소에서 알림 설정 가져오기
 const getLocalNotifications = (userId) => {
   const key = `notifications_${userId}`
-  return JSON.parse(localStorage.getItem(key) || '[]')
+  const stored = localStorage.getItem(key)
+  const notifications = stored ? JSON.parse(stored) : []
+  console.log('로컬 스토리지에서 읽은 알림 목록:', notifications)
+  return notifications
 }
 
 // 방송 스케줄 로드 함수
 const loadBroadcastSchedule = async (date = selectedDate.value) => {
+  console.log('🔥 방송 스케줄 로드 시작')
+
   isLoadingSchedule.value = true
 
   try {
+    // 1. 먼저 방송 데이터 가져오기
     let scheduleData = await fetchBroadcastsFromDB(date)
+    console.log('DB에서 가져온 스케줄 데이터:', scheduleData)
+
+    // 2. 알림 설정 로드 (가장 중요!)
     scheduleData = await loadUserNotificationSettings(scheduleData)
+
+    // 3. 최종 데이터 설정
     broadcastSchedule.value = scheduleData
+
+    console.log('🔥 최종 설정된 스케줄 데이터:', broadcastSchedule.value)
+
   } catch (error) {
     console.error('방송 스케줄 로드 실패:', error)
     broadcastSchedule.value = []
@@ -611,31 +660,54 @@ const formatPrice = (price) => {
   return price ? price.toLocaleString('ko-KR') : '0'
 }
 
+// 수정된 방송 클릭 핸들러
 const handleBroadcastClick = (broadcast) => {
+  // 라이브 방송인 경우 바로 방송 페이지로 이동
   if (broadcast.status && broadcast.status.trim() === 'live') {
-    watchLiveBroadcast(broadcast)
-  } else if (broadcast.status && broadcast.status.trim() === 'ended' && broadcast.videoUrl) {
+    goToBroadcast(broadcast)
+  }
+  // 종료된 방송이고 다시보기가 있는 경우
+  else if (broadcast.status && broadcast.status.trim() === 'ended' && broadcast.videoUrl) {
     watchReplay(broadcast)
+  }
+  // 그 외의 경우 (scheduled, starting 등) - 상세 페이지로 이동
+  else {
+    goToBroadcast(broadcast)
   }
 }
 
-// 라이브 방송 시청
+// BroadcastList.vue와 동일한 방송 페이지 이동 함수
+const goToBroadcast = (broadcast) => {
+  // 백엔드에서 camelCase로 오는 경우와 snake_case 모두 지원
+  const broadcastId = broadcast.broadcastId || broadcast.broadcast_id || broadcast.id
+
+  if (broadcastId) {
+    router.push({
+      name: 'LiveBroadcastViewer',
+      params: { broadcastId: String(broadcastId) }
+    })
+  } else {
+    alert('방송 정보를 찾을 수 없습니다.')
+  }
+}
+
+// 수정된 라이브 방송 시청 함수
 const watchLiveBroadcast = (broadcast) => {
-  alert(`${broadcast.title} 라이브 방송을 시청합니다.`)
-  // router.push(`/live/${broadcast.id}`)
+  // 기존 alert 대신 실제 라우터 이동
+  goToBroadcast(broadcast)
 }
 
-// 다시보기 시청
+// 수정된 다시보기 시청 함수
 const watchReplay = (broadcast) => {
-  alert(`${broadcast.title} 다시보기를 시청합니다.`)
-  // router.push(`/replay/${broadcast.id}`)
+  // 다시보기 URL이 있으면 새 창에서 열기, 없으면 방송 상세 페이지로 이동
+  if (broadcast.videoUrl) {
+    window.open(broadcast.videoUrl, '_blank')
+  } else {
+    goToBroadcast(broadcast)
+  }
 }
 
-const handleImageError = (event) => {
-  event.target.src = '/default-thumbnail.jpg'
-}
-
-// 🔥 toggleNotification에서도 같은 함수 사용
+// toggleNotification에서도 같은 함수 사용
 const toggleNotification = async (broadcast) => {
   if (isNotificationLoading.value || serverStatus.value !== 'connected') return
 
@@ -645,7 +717,6 @@ const toggleNotification = async (broadcast) => {
     return
   }
 
-  // 🔥 같은 함수 사용으로 통일
   if (isStartTimePassed(broadcast)) {
     alert('이미 시작 시간이 지난 방송입니다.')
     return
@@ -654,103 +725,73 @@ const toggleNotification = async (broadcast) => {
   try {
     isNotificationLoading.value = true
     const userParam = user.identifier
+    const broadcastId = String(broadcast.id || broadcast.broadcastId || broadcast.broadcast_id || '')
 
-    console.log('=== 알림 토글 시작 ===')
-    console.log('사용자 ID:', userParam)
-    console.log('방송 ID:', broadcast.id)
-    console.log('현재 알림 상태:', broadcast.isNotificationSet)
+    console.log(`🔔 알림 토글 시작 - 방송: "${broadcast.title}", ID: ${broadcastId}, 현재 상태: ${broadcast.isNotificationSet}`)
 
     if (broadcast.isNotificationSet) {
-      console.log('알림 구독 취소 요청...')
-      const result = await unsubscribeBroadcast(userParam, broadcast.id)
-      console.log('구독 취소 결과:', result)
+      // 🔥 구독 취소
+      await unsubscribeBroadcast(userParam, broadcastId)
 
+      // UI 즉시 업데이트
       broadcast.isNotificationSet = false
-      removeLocalNotification(userParam, broadcast.id)
-      alert('알림 구독이 취소되었습니다')
-    } else {
-      console.log('알림 구독 설정 요청...')
-      const result = await subscribeBroadcastStart(userParam, broadcast.id)
-      console.log('구독 설정 결과:', result)
 
+      // 로컬 스토리지에서 제거
+      removeLocalNotification(userParam, broadcastId)
+
+      console.log('✅ 구독 취소 완료')
+      alert('알림 구독이 취소되었습니다')
+
+    } else {
+      // 🔥 구독 설정
+      await subscribeBroadcastStart(userParam, broadcastId)
+
+      // UI 즉시 업데이트
       broadcast.isNotificationSet = true
-      saveLocalNotification(userParam, broadcast.id)
+
+      // 로컬 스토리지에 저장
+      saveLocalNotification(userParam, broadcastId)
+
+      console.log('✅ 구독 설정 완료')
       alert('방송 시작 알림을 설정했습니다!')
     }
 
   } catch (error) {
-    console.error('알림 설정 오류:', error)
+    console.error('알림 설정 에러:', error)
+
+    // 🔥 에러 발생 시 원래 상태로 복원
     broadcast.isNotificationSet = !broadcast.isNotificationSet
 
-    let errorMessage = '알림 설정 중 오류가 발생했습니다.'
+    // 에러 처리 로직...
+    alert('알림 설정 중 오류가 발생했습니다.')
 
-    if (error.response) {
-      const errorData = error.response.data
-
-      if (errorData && errorData.error) {
-        switch (errorData.error) {
-          case 'INVALID_PARAMETER':
-            if (errorData.message && errorData.message.includes('이미 구독')) {
-              broadcast.isNotificationSet = true
-              saveLocalNotification(userParam, broadcast.id)
-              alert('이미 알림이 설정되어 있습니다!')
-              return
-            } else {
-              errorMessage = '잘못된 요청입니다. 페이지를 새로고침해주세요.'
-            }
-            break
-          case 'INVALID_USER_ID':
-            errorMessage = '사용자 정보가 올바르지 않습니다. 다시 로그인해주세요.'
-            localStorage.removeItem('jwt')
-            break
-          case 'INTERNAL_ERROR':
-            errorMessage = '서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
-            break
-          default:
-            errorMessage = errorData.message || errorMessage
-        }
-      }
-      else if (error.response.status === 401) {
-        errorMessage = '인증이 필요합니다. 다시 로그인해주세요.'
-        localStorage.removeItem('jwt')
-      } else if (error.response.status === 403) {
-        errorMessage = '권한이 없습니다.'
-      } else if (error.response.status === 409) {
-        broadcast.isNotificationSet = true
-        saveLocalNotification(userParam, broadcast.id)
-        alert('이미 알림이 설정되어 있습니다!')
-        return
-      } else if (error.response.status >= 500) {
-        errorMessage = '서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
-      }
-    }
-    else if (!error.response) {
-      errorMessage = '네트워크 연결을 확인해주세요.'
-    }
-
-    alert(errorMessage)
   } finally {
     isNotificationLoading.value = false
   }
 }
-
 // 로컬 저장소에 알림 설정 저장
 const saveLocalNotification = (userId, broadcastId) => {
   const key = `notifications_${userId}`
   const existing = JSON.parse(localStorage.getItem(key) || '[]')
-  if (!existing.includes(broadcastId)) {
-    existing.push(broadcastId)
+  const stringId = String(broadcastId)  // 문자열로 변환
+
+  if (!existing.includes(stringId)) {
+    existing.push(stringId)
     localStorage.setItem(key, JSON.stringify(existing))
+    console.log('로컬 알림 저장:', stringId)
   }
 }
 
-// 로컬 저장소에서 알림 설정 제거
 const removeLocalNotification = (userId, broadcastId) => {
   const key = `notifications_${userId}`
   const existing = JSON.parse(localStorage.getItem(key) || '[]')
-  const filtered = existing.filter(id => id !== broadcastId)
+  const stringId = String(broadcastId)  // 문자열로 변환
+
+  const filtered = existing.filter(id => id !== stringId)
   localStorage.setItem(key, JSON.stringify(filtered))
+  console.log('로컬 알림 제거:', stringId)
 }
+
 
 // 날짜 변경시 자동 스케줄 로드
 watch(selectedDate, async (newDate) => {
@@ -759,80 +800,13 @@ watch(selectedDate, async (newDate) => {
 
 // 컴포넌트 초기화
 onMounted(async () => {
+  console.log('🔥 Calendar 컴포넌트 마운트 시작')
+
   await checkNotificationServer()
   await loadBroadcastSchedule()
+
+  console.log('🔥 Calendar 컴포넌트 마운트 완료')
 })
 </script>
 
 <style scoped src="@/assets/css/calendar.css"></style>
-<style scoped>
-/* 라이브 방송 깜빡임 효과 */
-@keyframes blink {
-  0%, 50% { opacity: 1; }
-  51%, 100% { opacity: 0.3; }
-}
-
-.live-broadcast {
-  border-left: 4px solid #dc3545 !important;
-}
-
-.live-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, rgba(220, 53, 69, 0.9) 0%, rgba(255, 107, 107, 0.9) 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: live-pulse 2s infinite;
-}
-
-@keyframes live-pulse {
-  0% { background: rgba(220, 53, 69, 0.9); }
-  50% { background: rgba(255, 107, 107, 0.9); }
-  100% { background: rgba(220, 53, 69, 0.9); }
-}
-
-.past-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.broadcast-action {
-  margin-top: 8px;
-}
-
-.live-status, .ended-status, .paused-status, .starting-status {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.btn-sm {
-  font-size: 0.875rem;
-  padding: 0.25rem 0.5rem;
-}
-
-/* 🔥 새로 추가된 스타일 */
-.past-scheduled-status {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.past-indicator {
-  position: absolute;
-  bottom: 5px;
-  left: 50%;
-  transform: translateX(-50%);
-}
-</style>

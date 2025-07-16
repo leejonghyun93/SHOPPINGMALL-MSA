@@ -63,20 +63,6 @@ public class CategoryService {
         return allChildrenIds;
     }
 
-    private void collectAllChildrenIds(Integer parentCategoryId, List<Integer> result) {
-        List<Category> directChildren = categoryRepository
-                .findByParentCategory_CategoryIdAndCategoryUseYnOrderByCategoryDisplayOrder(parentCategoryId, "Y");
-
-        for (Category child : directChildren) {
-            result.add(child.getCategoryId());
-            collectAllChildrenIds(child.getCategoryId(), result);
-        }
-    }
-
-    public boolean existsCategory(Integer categoryId) {
-        return categoryRepository.existsById(categoryId);
-    }
-
     @Cacheable(value = "categories", key = "'hierarchy'")
     public List<CategoryDto> getCategoriesWithHierarchy() {
         List<Category> mainCategories = categoryRepository
@@ -108,6 +94,20 @@ public class CategoryService {
     @Transactional
     public void evictCategoryCache(Integer categoryId) {
         log.info("카테고리 {} 캐시 무효화", categoryId);
+    }
+
+    private void collectAllChildrenIds(Integer parentCategoryId, List<Integer> result) {
+        List<Category> directChildren = categoryRepository
+                .findByParentCategory_CategoryIdAndCategoryUseYnOrderByCategoryDisplayOrder(parentCategoryId, "Y");
+
+        for (Category child : directChildren) {
+            result.add(child.getCategoryId());
+            collectAllChildrenIds(child.getCategoryId(), result);
+        }
+    }
+
+    public boolean existsCategory(Integer categoryId) {
+        return categoryRepository.existsById(categoryId);
     }
 
     private CategoryDto convertToDto(Category category) {

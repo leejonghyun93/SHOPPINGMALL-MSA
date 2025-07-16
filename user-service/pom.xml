@@ -135,7 +135,11 @@
             <groupId>org.springframework.kafka</groupId>
             <artifactId>spring-kafka</artifactId>
         </dependency>
-
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>2.7.0</version>  <!-- Spring Boot 3.4.x 호환 -->
+        </dependency>
         <!-- 🔥 Circuit Breaker - Spring Boot 3 호환 버전만 -->
         <dependency>
             <groupId>org.springframework.cloud</groupId>

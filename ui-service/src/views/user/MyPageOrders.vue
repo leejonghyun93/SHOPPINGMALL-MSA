@@ -115,9 +115,15 @@
                     @click="viewOrderDetail(order.orderId)"
                 >
                   <img
-                      :src="getProductImage(item)"
+                      :src="getProductImage({
+                        image: item.imageUrl,
+                        mainImage: item.imageUrl,
+                        productName: getProductName(item)
+                      })"
                       :alt="getProductName(item)"
                       class="product-image"
+                      @error="handleImageError"
+                      @load="handleImageLoad"
                   />
                   <div class="product-details">
                     <div class="product-name">{{ getProductName(item) }}</div>
@@ -168,13 +174,13 @@
                     <X class="btn-icon" />
                     주문취소
                   </button>
-                  <button
-                      @click="writeReview(order)"
-                      class="action-button review-btn"
-                  >
-                    <Star class="btn-icon" />
-                    후기작성
-                  </button>
+                  <!--                  <button-->
+                  <!--                      @click="writeReview(order)"-->
+                  <!--                      class="action-button review-btn"-->
+                  <!--                  >-->
+                  <!--                    <Star class="btn-icon" />-->
+                  <!--                    후기작성-->
+                  <!--                  </button>-->
                 </div>
               </div>
             </div>
@@ -242,6 +248,7 @@ import {
   X,
   Star
 } from 'lucide-vue-next'
+import { useSmartImages } from '@/composables/useSmartImages'
 
 // 상태 유틸리티 import
 import {
@@ -252,6 +259,7 @@ import {
 } from '@/utils/orderStatusUtils'
 
 const router = useRouter()
+const { getProductImage, handleImageError, handleImageLoad } = useSmartImages()
 
 // 상태 관리
 const orders = ref([])
@@ -401,10 +409,6 @@ const getProductPrice = (item) => {
 
 const getProductQuantity = (item) => {
   return item.quantity || 1
-}
-
-const getProductImage = (item) => {
-  return item.imageUrl || item.image || '/api/placeholder/60/60'
 }
 
 // 페이지 이동 - 스크롤을 주문 목록 컨테이너 맨 위로

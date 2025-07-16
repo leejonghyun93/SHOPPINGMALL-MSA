@@ -1,10 +1,14 @@
 package org.kosa.userservice.userController;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.kosa.userservice.dto.ApiResponse;
-import org.kosa.userservice.dto.AuthResponse;
 import org.kosa.userservice.dto.UserDto;
 import org.kosa.userservice.dto.UserSessionDto;
 import org.kosa.userservice.entity.Member;
@@ -24,6 +28,7 @@ import java.util.*;
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
 @Slf4j
+@Tag(name = "User API", description = "사용자 관리 API")
 public class UserApiController {
 
     private final UserService userService;
@@ -31,10 +36,17 @@ public class UserApiController {
     private final UserCacheService userCacheService;
     private final RedisTemplate<String, Object> redisTemplate;
 
+    @Operation(summary = "아이디 찾기", description = "이름과 이메일을 통해 사용자 아이디를 찾습니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "아이디 찾기 성공"),
+            @ApiResponse(responseCode = "404", description = "일치하는 계정을 찾을 수 없음"),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청 (필수 파라미터 누락)"),
+            @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
     @GetMapping("/findId")
     public ResponseEntity<?> findId(
-            @RequestParam("name") String name,
-            @RequestParam("email") String email) {
+            @Parameter(description = "사용자 이름", required = true) @RequestParam("name") String name,
+            @Parameter(description = "이메일 주소", required = true) @RequestParam("email") String email) {
 
         log.info("아이디 찾기 요청 - name: {}, email: {}***", name,
                 email.length() > 3 ? email.substring(0, 3) : email);
@@ -83,18 +95,24 @@ public class UserApiController {
             ));
         }
     }
-    @GetMapping("/profile/{userId}")
-    public ResponseEntity<?> getUserFromCache(@PathVariable String userId) {
-        try {
-            log.debug("🔍 캐시에서 사용자 정보 조회: userId={}", userId);
 
-            // 캐시에서 조회 (없으면 DB에서 조회 후 캐시 저장)
+    @Operation(summary = "사용자 프로필 조회 (캐시)", description = "캐시에서 사용자 프로필 정보를 조회합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "조회 성공"),
+            @ApiResponse(responseCode = "404", description = "사용자를 찾을 수 없음"),
+            @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
+    @GetMapping("/profile/{userId}")
+    public ResponseEntity<?> getUserFromCache(
+            @Parameter(description = "사용자 ID", required = true) @PathVariable String userId) {
+        try {
+            log.debug("캐시에서 사용자 정보 조회: userId={}", userId);
+
             Optional<UserSessionDto> sessionOpt = userCacheService.getUserSessionWithFallback(userId);
 
             if (sessionOpt.isPresent()) {
                 UserSessionDto session = sessionOpt.get();
 
-                // UserDto로 변환
                 UserDto userDto = UserDto.builder()
                         .userId(session.getUserId())
                         .name(session.getName())
@@ -105,59 +123,67 @@ public class UserApiController {
                         .birthDate(session.getBirthDate())
                         .build();
 
-                return ResponseEntity.ok(ApiResponse.builder()
-                        .success(true)
-                        .message("사용자 정보 조회 성공")
-                        .data(userDto)
-                        .build());
+                return ResponseEntity.ok(Map.of(
+                        "success", true,
+                        "message", "사용자 정보 조회 성공",
+                        "data", userDto
+                ));
             } else {
-                log.warn("⚠️ 사용자 정보를 찾을 수 없음: userId={}", userId);
+                log.warn("사용자 정보를 찾을 수 없음: userId={}", userId);
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(ApiResponse.builder()
-                                .success(false)
-                                .message("사용자 정보를 찾을 수 없습니다")
-                                .build());
+                        .body(Map.of(
+                                "success", false,
+                                "message", "사용자 정보를 찾을 수 없습니다"
+                        ));
             }
 
         } catch (Exception e) {
-            log.error("❌ 사용자 정보 조회 실패: userId={}, error={}", userId, e.getMessage());
+            log.error("사용자 정보 조회 실패: userId={}, error={}", userId, e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.builder()
-                            .success(false)
-                            .message("사용자 정보 조회 실패")
-                            .build());
+                    .body(Map.of(
+                            "success", false,
+                            "message", "사용자 정보 조회 실패"
+                    ));
         }
     }
 
-    /**
-     * 사용자 세션 캐시 저장 (Auth-Service에서 호출)
-     */
+    @Operation(summary = "사용자 세션 캐시 저장", description = "Auth-Service에서 호출되어 사용자 세션을 캐시에 저장합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "캐시 저장 성공"),
+            @ApiResponse(responseCode = "500", description = "캐시 저장 실패")
+    })
     @PostMapping("/cache/{userId}")
-    public ResponseEntity<?> cacheUserSession(@PathVariable String userId) {
+    public ResponseEntity<?> cacheUserSession(
+            @Parameter(description = "사용자 ID", required = true) @PathVariable String userId) {
         try {
-            log.info("🔍 사용자 세션 캐시 저장 요청: userId={}", userId);
+            log.info("사용자 세션 캐시 저장 요청: userId={}", userId);
 
             userCacheService.cacheUserSession(userId);
 
-            return ResponseEntity.ok(ApiResponse.builder()
-                    .success(true)
-                    .message("사용자 세션 캐시 저장 완료")
-                    .build());
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "사용자 세션 캐시 저장 완료"
+            ));
 
         } catch (Exception e) {
-            log.error("❌ 사용자 세션 캐시 저장 실패: userId={}, error={}", userId, e.getMessage());
+            log.error("사용자 세션 캐시 저장 실패: userId={}, error={}", userId, e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.builder()
-                            .success(false)
-                            .message("캐시 저장 실패")
-                            .build());
+                    .body(Map.of(
+                            "success", false,
+                            "message", "캐시 저장 실패"
+                    ));
         }
     }
-    /**
-     * 사용자 세션 정보 조회 (Redis 우선, DB fallback)
-     */
+
+    @Operation(summary = "사용자 세션 정보 조회", description = "Redis 우선, DB fallback으로 사용자 세션 정보를 조회합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "조회 성공"),
+            @ApiResponse(responseCode = "404", description = "세션 정보를 찾을 수 없음"),
+            @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
     @GetMapping("/session/{userId}")
-    public ResponseEntity<?> getUserSession(@PathVariable String userId) {
+    public ResponseEntity<?> getUserSession(
+            @Parameter(description = "사용자 ID", required = true) @PathVariable String userId) {
         try {
             log.info("📋 사용자 세션 정보 조회 요청: userId={}", userId);
 
@@ -186,24 +212,45 @@ public class UserApiController {
         }
     }
 
+    @Operation(summary = "사용자 등록", description = "새로운 사용자를 등록합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "등록 성공"),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+            @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
     @PostMapping("/register")
-    public ResponseEntity<Member> registerUser(@RequestBody Member member) {
+    public ResponseEntity<Member> registerUser(
+            @Parameter(description = "사용자 정보", required = true) @RequestBody Member member) {
         Member savedMember = userService.saveMember(member);
         return ResponseEntity.ok(savedMember);
     }
 
+    @Operation(summary = "사용자 상세 정보 조회", description = "사용자 ID로 상세 정보를 조회합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "조회 성공"),
+            @ApiResponse(responseCode = "404", description = "사용자를 찾을 수 없음")
+    })
     @GetMapping("/{userId}")
-    public ResponseEntity<?> getUserDetail(@PathVariable String userId) {
+    public ResponseEntity<?> getUserDetail(
+            @Parameter(description = "사용자 ID", required = true) @PathVariable String userId) {
         return userService.getMemberDetail(userId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @Operation(summary = "사용자 삭제", description = "사용자 계정을 삭제합니다. 토큰 인증이 필요합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "삭제 성공"),
+            @ApiResponse(responseCode = "401", description = "인증 실패"),
+            @ApiResponse(responseCode = "403", description = "권한 없음"),
+            @ApiResponse(responseCode = "404", description = "사용자를 찾을 수 없음")
+    })
     @DeleteMapping("/delete/{userId}")
-    public ResponseEntity<Void> deleteUser(@PathVariable String userId, HttpServletRequest request) {
+    public ResponseEntity<Void> deleteUser(
+            @Parameter(description = "사용자 ID", required = true) @PathVariable String userId,
+            HttpServletRequest request) {
         log.info("Delete request for userId: {}", userId);
 
-        // 토큰 검증
         String authenticatedUserId = tokenValidationService.validateAndExtractUserId(
                 request.getHeader("Authorization")
         );
@@ -228,8 +275,13 @@ public class UserApiController {
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "사용자 ID 중복 확인", description = "사용자 ID가 이미 존재하는지 확인합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "확인 완료")
+    })
     @GetMapping("/checkUserId")
-    public ResponseEntity<Map<String, Boolean>> checkUserId(@RequestParam String userId) {
+    public ResponseEntity<Map<String, Boolean>> checkUserId(
+            @Parameter(description = "확인할 사용자 ID", required = true) @RequestParam String userId) {
         log.info("아이디 중복 확인 요청: {}", userId);
 
         boolean exists = userService.isMemberExists(userId);
@@ -240,24 +292,40 @@ public class UserApiController {
         return ResponseEntity.ok(response);
     }
 
+    @Operation(summary = "닉네임 목록 조회", description = "사용자 ID 목록으로 닉네임 맵을 조회합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "조회 성공")
+    })
     @PostMapping("/nicknames")
-    public Map<String, String> getNicknames(@RequestBody List<String> userIds) {
+    public Map<String, String> getNicknames(
+            @Parameter(description = "사용자 ID 목록", required = true) @RequestBody List<String> userIds) {
         return userService.getNicknameMapByUserIds(userIds);
     }
 
+    @Operation(summary = "헬스 체크", description = "User Service의 상태를 확인합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "서비스 정상")
+    })
     @GetMapping("/health")
     public ResponseEntity<String> health() {
         log.info("헬스체크 요청");
         return ResponseEntity.ok("User Service is running");
     }
 
+    @Operation(summary = "사용자 정보 수정", description = "사용자 정보를 수정합니다. 토큰 인증이 필요합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "수정 성공"),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+            @ApiResponse(responseCode = "401", description = "인증 실패"),
+            @ApiResponse(responseCode = "403", description = "권한 없음"),
+            @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
     @PutMapping("/edit/{userId}")
     public ResponseEntity<?> updateUser(
-            @PathVariable String userId,
-            @RequestBody UserDto userDto,
+            @Parameter(description = "사용자 ID", required = true) @PathVariable String userId,
+            @Parameter(description = "수정할 사용자 정보", required = true) @RequestBody UserDto userDto,
             HttpServletRequest request) {
 
-        // 토큰 검증
         String authenticatedUserId = tokenValidationService.validateAndExtractUserId(
                 request.getHeader("Authorization")
         );
@@ -285,9 +353,17 @@ public class UserApiController {
         }
     }
 
+    @Operation(summary = "비밀번호 검증", description = "사용자의 현재 비밀번호를 검증합니다. 토큰 인증이 필요합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "비밀번호 검증 성공"),
+            @ApiResponse(responseCode = "400", description = "비밀번호 불일치 또는 잘못된 요청"),
+            @ApiResponse(responseCode = "401", description = "인증 실패"),
+            @ApiResponse(responseCode = "404", description = "사용자를 찾을 수 없음"),
+            @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
     @PostMapping("/verify-password")
     public ResponseEntity<?> verifyPassword(
-            @RequestBody Map<String, String> request,
+            @Parameter(description = "비밀번호 검증 요청", required = true) @RequestBody Map<String, String> request,
             HttpServletRequest httpRequest) {
 
         try {
@@ -297,7 +373,6 @@ public class UserApiController {
                         .body(Map.of("message", "비밀번호를 입력해주세요."));
             }
 
-            // 토큰 검증
             String userId = tokenValidationService.validateAndExtractUserId(
                     httpRequest.getHeader("Authorization")
             );
@@ -334,10 +409,16 @@ public class UserApiController {
         }
     }
 
+    @Operation(summary = "사용자 프로필 조회", description = "토큰으로 인증된 사용자의 프로필을 조회합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "조회 성공"),
+            @ApiResponse(responseCode = "401", description = "인증 실패"),
+            @ApiResponse(responseCode = "404", description = "사용자를 찾을 수 없음"),
+            @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
     @GetMapping("/profile")
     public ResponseEntity<?> getUserProfile(HttpServletRequest httpRequest) {
         try {
-            // 토큰 검증
             String userId = tokenValidationService.validateAndExtractUserId(
                     httpRequest.getHeader("Authorization")
             );
@@ -357,7 +438,6 @@ public class UserApiController {
 
             UserDto user = userOpt.get();
 
-            // ✅ success, data 구조로 통일
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("message", "프로필 조회 성공");
@@ -387,13 +467,19 @@ public class UserApiController {
         }
     }
 
+    @Operation(summary = "사용자 프로필 수정", description = "토큰으로 인증된 사용자의 프로필을 수정합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "수정 성공"),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+            @ApiResponse(responseCode = "401", description = "인증 실패"),
+            @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
     @PutMapping("/profile")
     public ResponseEntity<?> updateUserProfile(
-            @RequestBody UserDto userDto,
+            @Parameter(description = "수정할 사용자 정보", required = true) @RequestBody UserDto userDto,
             HttpServletRequest httpRequest) {
 
         try {
-            // 토큰 검증
             String userId = tokenValidationService.validateAndExtractUserId(
                     httpRequest.getHeader("Authorization")
             );
@@ -418,7 +504,6 @@ public class UserApiController {
             userDto.setUserId(userId);
             userService.updateMember(userDto);
 
-            // 🔥 사용자 정보 변경 시 캐시 갱신
             userCacheService.refreshUserSession(userId);
 
             log.info("프로필 수정 및 캐시 갱신 완료 - userId: {}", userId);
@@ -431,8 +516,15 @@ public class UserApiController {
         }
     }
 
+    @Operation(summary = "사용자 이메일 조회", description = "사용자 ID로 이메일 주소를 조회합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "조회 성공"),
+            @ApiResponse(responseCode = "404", description = "사용자를 찾을 수 없음"),
+            @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
     @GetMapping("/{userId}/email")
-    public ResponseEntity<?> getUserEmail(@PathVariable String userId) {
+    public ResponseEntity<?> getUserEmail(
+            @Parameter(description = "사용자 ID", required = true) @PathVariable String userId) {
         try {
             log.info("사용자 이메일 조회 요청: userId={}", userId);
 
@@ -467,11 +559,15 @@ public class UserApiController {
             ));
         }
     }
-    // UserApiController.java에 추가
+
+    @Operation(summary = "Redis 연결 상태 확인", description = "Redis 연결 상태를 확인합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Redis 연결 정상"),
+            @ApiResponse(responseCode = "500", description = "Redis 연결 오류")
+    })
     @GetMapping("/redis/health")
     public ResponseEntity<?> checkRedisHealth() {
         try {
-            // Redis 연결 테스트
             redisTemplate.opsForValue().set("health:check", "OK", Duration.ofSeconds(10));
             String result = (String) redisTemplate.opsForValue().get("health:check");
 
@@ -496,13 +592,19 @@ public class UserApiController {
         }
     }
 
+    @Operation(summary = "소셜 로그인 사용자 생성/업데이트", description = "소셜 로그인 사용자를 생성하거나 업데이트합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "처리 성공"),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+            @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
     @PostMapping("/social")
-    public ResponseEntity<?> createOrUpdateSocialUser(@RequestBody Map<String, Object> socialUserData) {
+    public ResponseEntity<?> createOrUpdateSocialUser(
+            @Parameter(description = "소셜 로그인 사용자 정보", required = true) @RequestBody Map<String, Object> socialUserData) {
         try {
             log.info("🔍 소셜 사용자 생성/업데이트 요청: provider={}, socialId={}",
                     socialUserData.get("provider"), socialUserData.get("socialId"));
 
-            // 요청 데이터 검증
             String socialId = (String) socialUserData.get("socialId");
             String provider = (String) socialUserData.get("provider");
             String email = (String) socialUserData.get("email");
@@ -516,7 +618,6 @@ public class UserApiController {
                 ));
             }
 
-            // 소셜 로그인 사용자 처리
             UserDto userDto = userService.createOrUpdateSocialUser(socialUserData);
 
             log.info("✅ 소셜 사용자 처리 완료 - userId: {}, provider: {}",
@@ -533,6 +634,52 @@ public class UserApiController {
                     "timestamp", LocalDateTime.now(),
                     "status", 500
             ));
+        }
+    }
+
+    @Operation(summary = "비밀번호 업데이트", description = "사용자의 비밀번호를 업데이트합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "비밀번호 업데이트 성공"),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+            @ApiResponse(responseCode = "404", description = "사용자를 찾을 수 없음"),
+            @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
+    @PostMapping("/{userId}/password")
+    public ResponseEntity<?> updatePassword(
+            @Parameter(description = "사용자 ID", required = true) @PathVariable String userId,
+            @Parameter(description = "새 비밀번호 정보", required = true) @RequestBody Map<String, String> request) {
+
+        try {
+            String newPassword = request.get("newPassword");
+
+            if (newPassword == null || newPassword.trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("success", false, "message", "새 비밀번호가 필요합니다."));
+            }
+
+            if (!userService.isMemberExists(userId)) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("success", false, "message", "사용자를 찾을 수 없습니다."));
+            }
+
+            boolean updated = userService.updatePassword(userId, newPassword);
+
+            if (updated) {
+                return ResponseEntity.ok(Map.of(
+                        "success", true,
+                        "message", "비밀번호가 성공적으로 업데이트되었습니다."
+                ));
+            } else {
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body(Map.of("success", false, "message", "비밀번호 업데이트에 실패했습니다."));
+            }
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of(
+                            "success", false,
+                            "message", "비밀번호 업데이트 중 오류가 발생했습니다: " + e.getMessage()
+                    ));
         }
     }
 }

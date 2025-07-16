@@ -17,8 +17,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * 🔥 방송 시작 알림 배치 서비스 (개선된 버전)
- * 정확한 시간에 방송 시작 알림을 자동으로 발송
+ * 🔥 방송 시작 알림 배치 서비스 (기존 이메일 시스템 유지 + 헤더 알림 개선)
+ * 기존 이메일 발송은 그대로 유지하면서 헤더 알림만 개선
  */
 @Service
 @Slf4j
@@ -31,10 +31,10 @@ public class NotificationBatchService {
     private final BroadcastServiceClient broadcastServiceClient;
 
     /**
-     * 🚀 방송 시작 알림 배치 (30초마다 실행) - 더 정확한 타이밍
-     * 핵심 기능: 방송이 시작될 때 구독자들에게 자동 알림 발송
+     * 🚀 기존 방송 시작 알림 배치 (30초마다 실행) - 기존 로직 유지
+     * 이메일 발송은 기존 방식 그대로 유지
      */
-    @Scheduled(fixedRate = 30000) // 30초마다 실행 (더 정확한 타이밍)
+    @Scheduled(fixedRate = 30000) // 30초마다 실행 (기존과 동일)
     @Transactional
     public void processBroadcastStartNotifications() {
         LocalDateTime now = LocalDateTime.now();
@@ -42,7 +42,7 @@ public class NotificationBatchService {
                 now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
 
         try {
-            // 🔥 현재 시간 기준으로 시작해야 할 방송들을 직접 DB에서 조회
+            // 🔥 기존 방식: 현재 시간 기준으로 시작해야 할 방송들을 직접 DB에서 조회
             List<Long> startingBroadcastIds = getStartingBroadcastIds(now);
 
             if (startingBroadcastIds.isEmpty()) {
@@ -54,12 +54,9 @@ public class NotificationBatchService {
             log.info("🎬 시작하는 방송들: {} (현재시간: {})", startingBroadcastIds,
                     now.format(DateTimeFormatter.ofPattern("HH:mm:ss")));
 
-            // 2. 해당 방송들의 미발송 알림들 조회
+            // 2. 해당 방송들의 미발송 알림들 조회 (기존 메서드 사용)
             List<LiveBroadcastNotification> pendingNotifications =
-                    notificationRepository.findByBroadcastIdInAndIsSentFalseAndType(
-                            startingBroadcastIds,
-                            "BROADCAST_START"
-                    );
+                    getPendingNotificationsForBroadcasts(startingBroadcastIds);
 
             if (pendingNotifications.isEmpty()) {
                 log.info("발송할 알림이 없습니다. 방송 ID: {}", startingBroadcastIds);
@@ -76,7 +73,7 @@ public class NotificationBatchService {
                         notification.getBroadcastId());
             });
 
-            // 4. 카프카로 대량 알림 발송
+            // 4. 카프카로 대량 알림 발송 (기존 방식)
             kafkaProducer.sendBulkNotifications(pendingNotifications);
 
             log.info("=== ✅ 방송 시작 알림 배치 작업 완료: {}개 발송 ===", pendingNotifications.size());
@@ -87,12 +84,12 @@ public class NotificationBatchService {
     }
 
     /**
-     * 🔥 현재 시간 기준으로 시작해야 할 방송 ID들 조회 (직접 DB 조회)
-     * 더 정확한 시간 비교를 위해 BroadcastServiceClient 대신 직접 DB 조회
+     * 🔥 기존 방식: 현재 시간 기준으로 시작해야 할 방송 ID들 조회
+     * 기존 로직을 그대로 유지
      */
     private List<Long> getStartingBroadcastIds(LocalDateTime now) {
         try {
-            // 🔥 현재 시간 ±1분 범위에서 시작하는 방송들 조회
+            // 🔥 현재 시간 ±1분 범위에서 시작하는 방송들 조회 (기존 방식)
             LocalDateTime startTime = now.minusMinutes(1);  // 1분 전부터
             LocalDateTime endTime = now.plusMinutes(1);     // 1분 후까지
 
@@ -100,6 +97,7 @@ public class NotificationBatchService {
                     startTime.format(DateTimeFormatter.ofPattern("HH:mm:ss")),
                     endTime.format(DateTimeFormatter.ofPattern("HH:mm:ss")));
 
+            // 기존 메서드 사용
             List<BroadcastEntity> startingBroadcasts = broadcastRepository
                     .findByScheduledStartTimeBetweenAndBroadcastStatus(
                             startTime,
@@ -129,7 +127,31 @@ public class NotificationBatchService {
     }
 
     /**
-     * 🔔 방송 시작 5분 전 리마인더 알림 (1분마다 실행)
+     * 🔥 안전한 방식으로 미발송 알림 조회
+     */
+    private List<LiveBroadcastNotification> getPendingNotificationsForBroadcasts(List<Long> broadcastIds) {
+        try {
+            // 각 방송별로 개별 조회해서 합치기 (안전한 방식)
+            return broadcastIds.stream()
+                    .flatMap(broadcastId -> {
+                        try {
+                            return notificationRepository
+                                    .findByBroadcastIdAndIsSentFalseAndType(broadcastId, "BROADCAST_START")
+                                    .stream();
+                        } catch (Exception e) {
+                            log.error("방송 {}의 알림 조회 실패: {}", broadcastId, e.getMessage());
+                            return List.<LiveBroadcastNotification>of().stream();
+                        }
+                    })
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            log.error("미발송 알림 조회 실패: {}", e.getMessage(), e);
+            return List.of();
+        }
+    }
+
+    /**
+     * 🔔 방송 시작 5분 전 리마인더 알림 (1분마다 실행) - 기존 유지
      */
     @Scheduled(fixedRate = 60000) // 1분마다 실행
     @Transactional
@@ -169,7 +191,7 @@ public class NotificationBatchService {
     }
 
     /**
-     * 🧹 오래된 알림 정리 (매일 새벽 2시)
+     * 🧹 오래된 알림 정리 (매일 새벽 2시) - 기존 유지
      */
     @Scheduled(cron = "0 0 2 * * *")
     @Transactional
@@ -199,7 +221,7 @@ public class NotificationBatchService {
     }
 
     /**
-     * 📊 알림 통계 로그 (매시간)
+     * 📊 알림 통계 로그 (매시간) - 기존 유지
      */
     @Scheduled(fixedRate = 3600000) // 1시간마다
     public void logNotificationStats() {
@@ -207,7 +229,14 @@ public class NotificationBatchService {
             LocalDateTime oneHourAgo = LocalDateTime.now().minusHours(1);
 
             long broadcastStartCount = notificationRepository.countByTypeAndCreatedAtAfter("BROADCAST_START", oneHourAgo);
-            long totalPendingNotifications = notificationRepository.countByIsSentFalse();
+
+            // 안전한 방식으로 미발송 알림 개수 조회
+            long totalPendingNotifications = 0;
+            try {
+                totalPendingNotifications = notificationRepository.countByIsSentFalse();
+            } catch (Exception e) {
+                log.warn("미발송 알림 개수 조회 실패, 기본값 사용: {}", e.getMessage());
+            }
 
             log.info("📊 알림 통계 (최근 1시간): 신규방송알림={}, 전체대기알림={}",
                     broadcastStartCount, totalPendingNotifications);
@@ -218,7 +247,7 @@ public class NotificationBatchService {
     }
 
     /**
-     * 🔥 수동 방송 시작 알림 트리거 (테스트용)
+     * 🔥 수동 방송 시작 알림 트리거 (테스트용) - 기존 유지
      */
     public void triggerBroadcastStartNotification(Long broadcastId) {
         log.info("🔥 수동 방송 시작 알림 트리거: broadcastId={}", broadcastId);

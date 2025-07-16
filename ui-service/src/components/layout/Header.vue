@@ -1,9 +1,9 @@
 <template>
+  <!-- 기존 template 그대로 유지 -->
   <nav class="navbar navbar-dark bg-white custom-navbar d-flex justify-content-between align-items-center">
-
     <!-- 왼쪽: 홈 -->
     <div class="d-flex align-items-center gap-2">
-      <router-link to="/" class="navbar-brand">트라이마켓</router-link>
+      <router-link to="/" class="navbar-brand"><img src="@/assets/logo-trimarket.png" alt="TriMarket Logo" class="logo" /></router-link>
       <router-link to="/" class="navbar-brand">홈</router-link>
       <router-link to="/broadcasts/category" class="navbar-brand">라이브 목록</router-link>
       <router-link to="/broadcasts/calendar" class="navbar-brand">예고</router-link>
@@ -38,7 +38,6 @@
       <div v-if="computedUser.id" class="user-menu-container" @mouseenter="showDropdown" @mouseleave="hideDropdown">
         <span class="navbar-brand mx-2 user-name">
           {{ displayUserName }} 님 ▼
-          <!-- 소셜 로그인 표시 -->
           <span v-if="isSocialUser" class="social-indicator" :title="`${getSocialProviderName()} 로그인`">
             {{ getSocialProviderIcon() }}
           </span>
@@ -49,7 +48,6 @@
           <router-link to="/mypage/orders" class="dropdown-item" @click="hideDropdown">
             마이페이지
           </router-link>
-          <!-- 소셜 로그인 사용자 제한 적용 -->
           <div v-if="!isSocialUser" @click="navigateToProfile" class="dropdown-item">
             회원정보관리
           </div>
@@ -76,7 +74,7 @@
         </div>
       </router-link>
 
-      <!-- 실시간 알림 아이콘 -->
+      <!-- 🔥 안전한 알림 아이콘 (이메일 시스템에 영향 X) -->
       <div v-if="computedUser.id"
            class="notification-container mx-2"
            @mouseenter="showNotificationDropdown"
@@ -125,8 +123,8 @@
                    @click="handleNotificationClick(notification)">
 
                 <div class="notification-type-icon">
-                  {{ notification.type === 'BROADCAST_START' ? '📺' :
-                    notification.type === 'BROADCAST_END' ? '🔴' :
+                  {{ notification.type === 'BROADCAST_START' ? '🔴' :
+                    notification.type === 'BROADCAST_END' ? '⚫' :
                         notification.type === 'BROADCAST_REMINDER' ? '⏰' : '📢' }}
                 </div>
 
@@ -146,7 +144,7 @@
             <div v-else class="no-notifications">
               <div class="text-muted text-center py-3">
                 <div class="mb-2">🔔</div>
-                <div class="mb-1">알림</div>
+                <div class="mb-1">알림이 없습니다</div>
                 <small>새로운 알림이 없습니다</small>
               </div>
             </div>
@@ -157,9 +155,6 @@
                          class="btn btn-sm btn-outline-primary w-100"
                          @click="hideNotificationDropdown">
               모든 알림 보기
-              <span v-if="unreadNotificationCount > 10" class="ms-1">
-                ({{ unreadNotificationCount - 10 }}개 더)
-              </span>
             </router-link>
           </div>
         </div>
@@ -171,12 +166,13 @@
 <script setup>
 import { onMounted, computed, ref, onUnmounted, watch } from "vue";
 import { useRouter } from "vue-router";
-import { user, resetUser, updateUserFromApi, setUserFromToken, isSocialLoginUser, getSocialLoginProvider } from "@/stores/userStore";
+import { user, resetUser, setUserFromToken, isSocialLoginUser, getSocialLoginProvider } from "@/stores/userStore";
 import apiClient from '@/api/axiosInstance'
 import { notificationApiCall, notificationHelpers } from '@/config/notificationConfig'
 
-
 const router = useRouter();
+
+// 상태 변수들
 const isDropdownVisible = ref(false);
 const isNotificationDropdownVisible = ref(false);
 const isLoadingNotifications = ref(false);
@@ -185,19 +181,16 @@ const unreadNotificationCount = ref(0);
 const notifications = ref([]);
 const searchKeyword = ref('');
 const isUserInfoLoaded = ref(false);
-
-// 소셜 로그인 관련 상태
 const isSocialUser = ref(false);
 const socialProvider = ref(null);
 
 let notificationPollingInterval = null;
 
+// 계산된 속성
 const computedUser = computed(() => user);
 
 const displayUserName = computed(() => {
-  // 소셜 로그인인 경우 우선순위 개선
   if (localStorage.getItem('login_type') === 'SOCIAL') {
-    // 1순위: user.name (토큰에서 제대로 추출된 이름)
     if (computedUser.value.name &&
         computedUser.value.name.trim() &&
         computedUser.value.name !== "사용자" &&
@@ -207,7 +200,6 @@ const displayUserName = computed(() => {
       return computedUser.value.name;
     }
 
-    // 2순위: sessionStorage의 social_name
     const sessionSocialName = sessionStorage.getItem('social_name');
     if (sessionSocialName &&
         sessionSocialName.trim() &&
@@ -217,7 +209,6 @@ const displayUserName = computed(() => {
       return sessionSocialName;
     }
 
-    // 3순위: localStorage의 social_name
     const localSocialName = localStorage.getItem('social_name');
     if (localSocialName &&
         localSocialName.trim() &&
@@ -227,28 +218,15 @@ const displayUserName = computed(() => {
       return localSocialName;
     }
 
-    // 4순위: current_user_name
-    const currentUserName = sessionStorage.getItem('current_user_name');
-    if (currentUserName &&
-        currentUserName.trim() &&
-        currentUserName !== "사용자" &&
-        currentUserName !== "소셜사용자" &&
-        currentUserName.length >= 2) {
-      return currentUserName;
-    }
-
-    // 5순위: 제공업체별 기본값
     const provider = localStorage.getItem('social_provider');
     const providerNames = {
       'KAKAO': '카카오사용자',
       'NAVER': '네이버사용자',
       'GOOGLE': '구글사용자'
     };
-    const providerName = providerNames[provider?.toUpperCase()] || '소셜사용자';
-    return providerName;
+    return providerNames[provider?.toUpperCase()] || '소셜사용자';
   }
 
-  // 일반 로그인인 경우
   if (computedUser.value.name &&
       computedUser.value.name.trim() &&
       computedUser.value.name !== computedUser.value.id &&
@@ -257,7 +235,6 @@ const displayUserName = computed(() => {
     return computedUser.value.name;
   }
 
-  // 저장된 이름이 있는지 확인
   const savedName = sessionStorage.getItem('current_user_name') ||
       localStorage.getItem('user_display_name');
   if (savedName &&
@@ -270,17 +247,12 @@ const displayUserName = computed(() => {
   return "사용자";
 });
 
-// 소셜 로그인 여부 체크 함수
+// 소셜 로그인 관련 함수들
 const checkSocialLoginStatus = () => {
-  const previousIsSocial = isSocialUser.value;
-  const previousProvider = socialProvider.value;
-
-  // userStore의 정확한 함수 사용
   isSocialUser.value = isSocialLoginUser();
   socialProvider.value = getSocialLoginProvider();
 };
 
-// 소셜 로그인 제공업체 이름 반환
 const getSocialProviderName = () => {
   switch (socialProvider.value) {
     case 'KAKAO':
@@ -297,7 +269,6 @@ const getSocialProviderName = () => {
   }
 };
 
-// 소셜 로그인 제공업체 아이콘 반환
 const getSocialProviderIcon = () => {
   switch (socialProvider.value) {
     case 'KAKAO':
@@ -314,322 +285,151 @@ const getSocialProviderIcon = () => {
   }
 };
 
-// 소셜 로그인 사용자 알림 표시
 const showSocialAlert = () => {
   const providerName = getSocialProviderName();
-
   alert(`${providerName} 로그인으로 가입하신 회원은 보안상의 이유로 회원정보 수정이 제한됩니다.\n\n개인정보 변경이 필요한 경우 ${providerName} 계정에서 직접 수정해주세요.`);
   hideDropdown();
 };
 
-// 회원정보관리 네비게이션 함수
 const navigateToProfile = () => {
   hideDropdown();
   router.push('/mypage/profile');
 };
 
-watch(() => computedUser.value.id, async (newUserId, oldUserId) => {
-  if (newUserId && newUserId !== oldUserId) {
-    isUserInfoLoaded.value = false;
-
-    // 소셜 로그인 체크를 가장 먼저
-    checkSocialLoginStatus();
-
-    try {
-      await validateUserInfo();
-
-      await Promise.all([
-        fetchCartCount(),
-        fetchNotifications()
-      ]);
-
-      stopNotificationPolling();
-      startNotificationPolling();
-    } catch (error) {
-      // 에러 처리
-    } finally {
-      isUserInfoLoaded.value = true;
-    }
-  } else if (!newUserId && oldUserId) {
-    resetUserData();
-    isUserInfoLoaded.value = false;
-    // 소셜 로그인 상태도 초기화
-    isSocialUser.value = false;
-    socialProvider.value = null;
-  }
-}, { immediate: false });
-
-// 로그인 타입 변화 감지 (localStorage 변화 감지)
-watch(() => localStorage.getItem('login_type'), (newType, oldType) => {
-  if (newType !== oldType && computedUser.value.id) {
-    checkSocialLoginStatus();
-  }
-});
-
-const resetUserData = () => {
-  // 현재 소셜 로그인 정보 백업
-  const currentLoginType = localStorage.getItem('login_type');
-  const currentSocialProvider = localStorage.getItem('social_provider');
-  const currentSocialName = localStorage.getItem('social_name');
-  const currentSocialEmail = localStorage.getItem('social_email');
-
-  cartCount.value = 0;
-  unreadNotificationCount.value = 0;
-  notifications.value = [];
-  stopNotificationPolling();
-
-  // 소셜 로그인 정보 복원
-  if (currentLoginType === 'SOCIAL') {
-    localStorage.setItem('login_type', 'SOCIAL');
-    sessionStorage.setItem('login_type', 'SOCIAL');
-
-    if (currentSocialProvider) {
-      localStorage.setItem('social_provider', currentSocialProvider);
-      sessionStorage.setItem('social_provider', currentSocialProvider);
-    }
-
-    if (currentSocialName) {
-      localStorage.setItem('social_name', currentSocialName);
-      sessionStorage.setItem('social_name', currentSocialName);
-    }
-
-    if (currentSocialEmail) {
-      localStorage.setItem('social_email', currentSocialEmail);
-      sessionStorage.setItem('social_email', currentSocialEmail);
-    }
-  }
-};
-
-const performSearch = () => {
-  const keyword = searchKeyword.value.trim();
-
-  if (!keyword) return;
-
-  router.push({
-    path: '/category',
-    query: { search: keyword }
-  });
-};
-
-const isTokenValid = (token) => {
-  if (!token) return false
-
+// 실제 방송 상태 확인 함수
+const checkBroadcastStatus = async (broadcastId) => {
   try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return false
-
-    let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
-    while (base64.length % 4) {
-      base64 += '='
-    }
-
-    const payloadStr = atob(base64)
-    const payload = JSON.parse(payloadStr)
-    const currentTime = Math.floor(Date.now() / 1000)
-
-    if (payload.exp && payload.exp < currentTime) {
-      return false
-    }
-
-    return true
-  } catch (error) {
-    return false
-  }
-}
-
-const validateUserInfo = async () => {
-  // 소셜 로그인 이름 우선 처리 개선
-  const socialName = localStorage.getItem('social_name') ||
-      sessionStorage.getItem('social_name');
-
-  // 소셜 이름이 있고 유효하다면 사용
-  if (socialName &&
-      socialName.trim() &&
-      socialName !== "사용자" &&
-      socialName !== "소셜사용자" &&
-      socialName.length >= 2 &&
-      !isGarbledKorean(socialName)) {
-    user.name = socialName;
-    sessionStorage.setItem('current_user_name', socialName);
-    isUserInfoLoaded.value = true;
-    return true;
-  }
-
-  // API 호출 시도
-  try {
-    const response = await apiClient.get('/api/users/profile', {
-      timeout: 3000,
+    const response = await apiClient.get(`/api/broadcasts/${broadcastId}`, {
+      timeout: 5000,
       validateStatus: function (status) {
         return status < 500;
       }
     });
 
-    if (response.status === 200 && response.data && response.data.success && response.data.data) {
-      const userData = response.data.data;
-
-      // 소셜 로그인인 경우 소셜 이름 우선 유지
-      const preservedName = localStorage.getItem('social_name') ||
-          sessionStorage.getItem('social_name');
-
-      user.id = userData.userId || userData.id;
-      user.email = userData.email;
-      user.role = userData.role || 'USER';
-      user.phone = userData.phone;
-
-      if (preservedName &&
-          preservedName.trim() &&
-          preservedName !== "사용자" &&
-          preservedName !== "소셜사용자" &&
-          preservedName.length >= 2 &&
-          !isGarbledKorean(preservedName)) {
-        user.name = preservedName;
-        sessionStorage.setItem('current_user_name', preservedName);
-      } else if (userData.name &&
-          userData.name.trim() &&
-          userData.name.length >= 1 &&
-          !isGarbledKorean(userData.name)) {
-        user.name = userData.name.trim();
-        sessionStorage.setItem('current_user_name', user.name);
-        // 소셜 로그인인데 API에서 올바른 이름이 온 경우 저장
-        if (localStorage.getItem('login_type') === 'SOCIAL') {
-          localStorage.setItem('social_name', user.name);
-          sessionStorage.setItem('social_name', user.name);
-        }
-      } else {
-        user.name = "사용자";
-      }
-
-      isUserInfoLoaded.value = true;
-      return true;
+    if (response.status === 200 && response.data) {
+      const broadcast = response.data.data || response.data;
+      const status = broadcast.broadcast_status || broadcast.broadcastStatus;
+      return status === 'live';
     }
-  } catch (error) {
-    // 에러 처리
-  }
 
-  return handleTokenFallback();
+    return false;
+
+  } catch (error) {
+    return false;
+  }
 };
 
-function isGarbledKorean(text) {
-  if (!text) return false;
+// 방송 시작 알림만 실제 상태로 필터링
+const filterBroadcastNotifications = async (notifications) => {
+  const filteredNotifications = [];
 
-  // 깨진 문자 패턴들
-  const garbledPatterns = [
-    /[\uFFFD]/g,  // 대체 문자
-    /[ì í î ë ê é è ñ ò ó ô]/g,  // 잘못된 라틴 문자들
-    /â[^\s]/g,    // â 다음에 공백이 아닌 문자
-    /Ã[^\s]/g,    // Ã 다음에 공백이 아닌 문자
-  ];
+  for (const notification of notifications) {
+    // 방송 시작 알림이 아니면 그대로 포함
+    if (notification.type !== 'BROADCAST_START') {
+      filteredNotifications.push(notification);
+      continue;
+    }
 
-  return garbledPatterns.some(pattern => pattern.test(text));
-}
+    // 방송 시작 알림인 경우 실제 라이브 중인지 확인
+    if (notification.broadcastId) {
+      const isLive = await checkBroadcastStatus(notification.broadcastId);
 
-const handleTokenFallback = () => {
-  if (user.id) {
-    isUserInfoLoaded.value = true;
+      if (isLive) {
+        // 메시지를 현재 상황에 맞게 수정
+        const updatedNotification = {
+          ...notification,
+          title: notification.title.replace('방송 시작 알림', '라이브 방송 중'),
+          message: notification.message
+              .replace('방송이 시작되면 알려드릴게요!', '지금 라이브 방송 중입니다!')
+              .replace('방송이 시작되었습니다!', '지금 라이브 방송 중입니다!')
+        };
 
-    // 올바른 키로 소셜 이름 확인
-    const preservedName = localStorage.getItem('social_name') ||
-        sessionStorage.getItem('social_name') ||
-        sessionStorage.getItem('current_user_name') ||
-        localStorage.getItem('preserved_user_name');
-
-    if (preservedName && preservedName.trim() && preservedName !== "사용자") {
-      user.name = preservedName;
-      sessionStorage.setItem('current_user_name', preservedName);
-    } else if (!user.name || user.name === "사용자") {
-      // 토큰에서 이름 추출 시도
-      const token = localStorage.getItem('jwt');
-      if (token) {
-        try {
-          const parts = token.replace('Bearer ', '').split('.');
-          if (parts.length === 3) {
-            let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-            while (base64.length % 4) {
-              base64 += '=';
-            }
-            const payload = JSON.parse(atob(base64));
-
-            if (payload.name && payload.name.trim() && payload.name !== payload.sub) {
-              user.name = payload.name;
-              sessionStorage.setItem('current_user_name', payload.name);
-              localStorage.setItem('social_name', payload.name);
-            }
-          }
-        } catch (e) {
-          // 토큰 파싱 에러 무시
-        }
+        filteredNotifications.push(updatedNotification);
       }
     }
-    return true;
   }
-  return false;
+
+  return filteredNotifications;
 };
 
-const refreshUserInfo = async () => {
-  isUserInfoLoaded.value = false;
-  const token = localStorage.getItem('jwt');
-
-  if (token && isTokenValid(token)) {
-    setUserFromToken(token);
-    await validateUserInfo();
-  }
-};
-
-window.refreshHeaderUserInfo = refreshUserInfo;
-
-const fetchCartCount = async () => {
-  if (!computedUser.value.id) return;
-
-  try {
-    const cartResponse = await apiClient.get('/api/cart/count');
-    if (cartResponse.data.success) {
-      cartCount.value = cartResponse.data.data.count || 0;
-    }
-  } catch (error) {
-    // 에러 처리
-  }
-}
-
+// 알림 조회 함수
 const fetchNotifications = async () => {
   if (!computedUser.value.id) return;
 
   try {
-    const unreadResponse = await notificationApiCall(`/unread-count?userId=${computedUser.value.id}`);
-    if (unreadResponse && unreadResponse.ok) {
-      const unreadData = await unreadResponse.json();
-      unreadNotificationCount.value = unreadData.count || 0;
-    }
+    // 기본 알림 목록 조회
+    const notificationsResponse = await notificationApiCall(`/recent?userId=${computedUser.value.id}&limit=20`);
 
-    const notificationsResponse = await notificationApiCall(`/recent?userId=${computedUser.value.id}&limit=10`);
     if (notificationsResponse && notificationsResponse.ok) {
-      const notificationsData = await notificationsResponse.json();
-      notifications.value = notificationsData || [];
-    }
-  } catch (error) {
-    // 에러 처리
-  }
-}
+      const allNotifications = await notificationsResponse.json();
 
+      // 방송 시작 알림만 실제 상태 확인하여 필터링
+      const filteredNotifications = await filterBroadcastNotifications(allNotifications);
+
+      // UI 업데이트 (최대 10개만 표시)
+      notifications.value = filteredNotifications.slice(0, 10);
+      unreadNotificationCount.value = filteredNotifications.filter(n => !n.isRead).length;
+    }
+
+  } catch (error) {
+    // 에러 시 기존 데이터 유지
+  }
+};
+
+// 폴링 시작
 const startNotificationPolling = () => {
   if (!computedUser.value.id) return;
+
   notificationPollingInterval = setInterval(() => {
     fetchNotifications();
-  }, 10000);
-}
+  }, 30000);
+};
 
 const stopNotificationPolling = () => {
   if (notificationPollingInterval) {
     clearInterval(notificationPollingInterval);
     notificationPollingInterval = null;
   }
-}
+};
 
-const formatTime = (timeString) => {
-  return notificationHelpers.formatTime(timeString);
-}
+// 알림 드롭다운 표시
+const showNotificationDropdown = async () => {
+  isNotificationDropdownVisible.value = true;
 
+  if (notifications.value.length === 0) {
+    isLoadingNotifications.value = true;
+    try {
+      await fetchNotifications();
+    } catch (error) {
+      // 에러 처리
+    } finally {
+      isLoadingNotifications.value = false;
+    }
+  } else {
+    // 이미 로드된 알림도 실시간으로 다시 확인
+    await fetchNotifications();
+  }
+};
+
+const hideNotificationDropdown = () => {
+  setTimeout(() => {
+    isNotificationDropdownVisible.value = false;
+  }, 150);
+};
+
+// 알림 클릭 처리
 const handleNotificationClick = async (notification) => {
+  // 방송 시작 알림인 경우 클릭 시에도 다시 확인
+  if (notification.type === 'BROADCAST_START' && notification.broadcastId) {
+    const isLive = await checkBroadcastStatus(notification.broadcastId);
+    if (!isLive) {
+      alert('방송이 현재 진행되지 않고 있습니다. 잠시 후 다시 확인해주세요.');
+      return;
+    }
+  }
+
   try {
+    // 읽음 처리
     if (!notification.isRead) {
       const success = await notificationHelpers.markAsRead(notification.notificationId, computedUser.value.id);
       if (success) {
@@ -641,6 +441,7 @@ const handleNotificationClick = async (notification) => {
 
     hideNotificationDropdown();
 
+    // 페이지 이동
     if (notification.type === 'BROADCAST_START') {
       if (notification.broadcastId) {
         router.push(`/live/${notification.broadcastId}`);
@@ -653,12 +454,13 @@ const handleNotificationClick = async (notification) => {
   } catch (error) {
     hideNotificationDropdown();
   }
-}
+};
 
 const markAllAsRead = async () => {
   try {
     const success = await notificationHelpers.markAllAsRead(computedUser.value.id);
     if (success) {
+      // UI 즉시 업데이트
       notifications.value.forEach(notification => {
         notification.isRead = true;
         notification.readAt = new Date().toISOString();
@@ -668,153 +470,198 @@ const markAllAsRead = async () => {
   } catch (error) {
     // 에러 처리
   }
-}
+};
 
-function showDropdown() {
-  isDropdownVisible.value = true;
-}
+// 기타 유틸리티 함수들
+const formatTime = (timeString) => {
+  return notificationHelpers.formatTime(timeString);
+};
 
-function hideDropdown() {
-  setTimeout(() => {
-    isDropdownVisible.value = false;
-  }, 150);
-}
+const performSearch = () => {
+  const keyword = searchKeyword.value.trim();
+  if (!keyword) return;
 
-function showNotificationDropdown() {
-  isNotificationDropdownVisible.value = true;
-  if (notifications.value.length === 0) {
-    isLoadingNotifications.value = true;
-    fetchNotifications().finally(() => {
-      isLoadingNotifications.value = false;
-    });
-  }
-}
+  router.push({
+    path: '/category',
+    query: { search: keyword }
+  });
+};
 
-function hideNotificationDropdown() {
-  setTimeout(() => {
-    isNotificationDropdownVisible.value = false;
-  }, 150);
-}
+const fetchCartCount = async () => {
+  if (!computedUser.value.id) return;
 
-function logout() {
-  stopNotificationPolling();
-
-  // 의도적 로그아웃이므로 모든 정보 삭제
-  resetUser(); // userStore의 resetUser 호출
-
-  cartCount.value = 0;
-  unreadNotificationCount.value = 0;
-  notifications.value = [];
-  searchKeyword.value = '';
-  isDropdownVisible.value = false;
-  isUserInfoLoaded.value = false;
-
-  // 소셜 로그인 상태도 완전 초기화
-  isSocialUser.value = false;
-  socialProvider.value = null;
-
-  router.push("/login");
-}
-
-const resetUserState = () => {
-  // 현재 소셜 로그인 정보 백업
-  const currentLoginType = localStorage.getItem('login_type');
-  const currentSocialProvider = localStorage.getItem('social_provider');
-  const currentSocialName = localStorage.getItem('social_name');
-  const currentSocialEmail = localStorage.getItem('social_email');
-
-  // 사용자 정보만 초기화
-  user.id = null;
-  user.name = null;
-  user.role = null;
-  user.email = null;
-  resetUserData();
-  isUserInfoLoaded.value = false;
-
-  // 소셜 로그인 정보 복원
-  if (currentLoginType === 'SOCIAL') {
-    localStorage.setItem('login_type', 'SOCIAL');
-    sessionStorage.setItem('login_type', 'SOCIAL');
-
-    if (currentSocialProvider) {
-      localStorage.setItem('social_provider', currentSocialProvider);
-      sessionStorage.setItem('social_provider', currentSocialProvider);
+  try {
+    const cartResponse = await apiClient.get('/api/cart/count');
+    if (cartResponse.data.success) {
+      cartCount.value = cartResponse.data.data.count || 0;
     }
-
-    if (currentSocialName) {
-      localStorage.setItem('social_name', currentSocialName);
-      sessionStorage.setItem('social_name', currentSocialName);
-    }
-
-    if (currentSocialEmail) {
-      localStorage.setItem('social_email', currentSocialEmail);
-      sessionStorage.setItem('social_email', currentSocialEmail);
-    }
+  } catch (error) {
+    // 에러 처리
   }
 };
 
+const isTokenValid = (token) => {
+  if (!token) return false;
+
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return false;
+
+    let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    while (base64.length % 4) {
+      base64 += '=';
+    }
+
+    const payloadStr = atob(base64);
+    const payload = JSON.parse(payloadStr);
+    const currentTime = Math.floor(Date.now() / 1000);
+
+    return !(payload.exp && payload.exp < currentTime);
+  } catch (error) {
+    return false;
+  }
+};
+
+const validateUserInfo = async () => {
+  const socialName = localStorage.getItem('social_name') ||
+      sessionStorage.getItem('social_name');
+
+  if (socialName &&
+      socialName.trim() &&
+      socialName !== "사용자" &&
+      socialName !== "소셜사용자" &&
+      socialName.length >= 2) {
+    user.name = socialName;
+    sessionStorage.setItem('current_user_name', socialName);
+    isUserInfoLoaded.value = true;
+    return true;
+  }
+
+  try {
+    const response = await apiClient.get('/api/users/profile', {
+      timeout: 3000,
+      validateStatus: function (status) {
+        return status < 500;
+      }
+    });
+
+    if (response.status === 200 && response.data && response.data.success && response.data.data) {
+      const userData = response.data.data;
+
+      user.id = userData.userId || userData.id;
+      user.email = userData.email;
+      user.role = userData.role || 'USER';
+      user.phone = userData.phone;
+
+      if (userData.name && userData.name.trim() && userData.name.length >= 1) {
+        user.name = userData.name.trim();
+        sessionStorage.setItem('current_user_name', user.name);
+      } else {
+        user.name = "사용자";
+      }
+
+      isUserInfoLoaded.value = true;
+      return true;
+    }
+  } catch (error) {
+    // 에러 처리
+  }
+
+  return false;
+};
+
+const resetUserData = () => {
+  cartCount.value = 0;
+  unreadNotificationCount.value = 0;
+  notifications.value = [];
+  stopNotificationPolling();
+};
+
+// 드롭다운 함수들
+const showDropdown = () => {
+  isDropdownVisible.value = true;
+};
+
+const hideDropdown = () => {
+  setTimeout(() => {
+    isDropdownVisible.value = false;
+  }, 150);
+};
+
+const logout = () => {
+  stopNotificationPolling();
+  resetUser();
+  resetUserData();
+  searchKeyword.value = '';
+  isDropdownVisible.value = false;
+  isUserInfoLoaded.value = false;
+  isSocialUser.value = false;
+  socialProvider.value = null;
+  router.push("/login");
+};
+
+// Watch 설정
+watch(() => computedUser.value.id, async (newUserId, oldUserId) => {
+  if (newUserId && newUserId !== oldUserId) {
+    isUserInfoLoaded.value = false;
+    checkSocialLoginStatus();
+
+    try {
+      await validateUserInfo();
+      await Promise.all([
+        fetchCartCount(),
+        fetchNotifications()
+      ]);
+      stopNotificationPolling();
+      startNotificationPolling();
+    } catch (error) {
+      // 에러 처리
+    } finally {
+      isUserInfoLoaded.value = true;
+    }
+  } else if (!newUserId && oldUserId) {
+    resetUserData();
+    isUserInfoLoaded.value = false;
+    isSocialUser.value = false;
+    socialProvider.value = null;
+  }
+}, { immediate: false });
+
+// 컴포넌트 생명주기
 onMounted(async () => {
   const token = localStorage.getItem("jwt");
 
   if (token && isTokenValid(token)) {
     try {
-      if (user.id && user.name) {
-        isUserInfoLoaded.value = true;
-      }
-
+      setUserFromToken(token);
       const isValid = await validateUserInfo();
 
       if (isValid) {
-        // 소셜 로그인 여부 체크 - 지연 후 실행
-        await new Promise(resolve => setTimeout(resolve, 200));
         checkSocialLoginStatus();
-
         await Promise.all([
           fetchCartCount(),
           fetchNotifications()
         ]);
-
         startNotificationPolling();
       } else {
-        // 토큰이 유효하지 않을 때만 제거
         localStorage.removeItem("jwt");
-
-        // 대신 직접 필요한 것만 초기화
-        user.id = null;
-        user.name = null;
-        user.role = null;
-        user.email = null;
         resetUserData();
-        isUserInfoLoaded.value = false;
       }
-
     } catch (error) {
       localStorage.removeItem("jwt");
-
-      // 대신 직접 필요한 것만 초기화
-      user.id = null;
-      user.name = null;
-      user.role = null;
-      user.email = null;
       resetUserData();
-      isUserInfoLoaded.value = false;
     }
   } else {
     if (token) {
       localStorage.removeItem("jwt");
     }
-
-    // 토큰이 없을 때는 사용자 정보만 초기화하고 소셜 로그인 타입은 보존
-    user.id = null;
-    user.name = null;
-    user.role = null;
-    user.email = null;
     resetUserData();
-    isUserInfoLoaded.value = false;
   }
 });
+
+onUnmounted(() => {
+  stopNotificationPolling();
+});
 </script>
-
 <style scoped src="@/assets/css/header.css">
-
 </style>

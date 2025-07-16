@@ -92,70 +92,47 @@
     </div>
   </div>
 
-  <!-- 🔥 실제 데이터로 변경된 방송 리스트 -->
   <div class="broadcast-scroll-container">
-    <!-- 로딩 상태 -->
     <div v-if="broadcastsLoading" class="broadcasts-loading">
       <div class="loading-spinner"></div>
       <p>라이브 방송을 불러오는 중...</p>
     </div>
 
-    <!-- 방송 리스트 -->
     <div v-else-if="liveBroadcasts.length > 0" class="broadcast-list">
       <div
           v-for="broadcast in liveBroadcasts.slice(0, 10)"
-          :key="broadcast.broadcastId || broadcast.broadcast_id"
+          :key="broadcast.id"
           class="broadcast-card"
           @click="goToBroadcast(broadcast)"
       >
         <div class="broadcast-thumbnail">
           <img
-              :src="broadcast.thumbnailUrl || getDefaultThumbnail(broadcast.broadcastId || broadcast.broadcast_id)"
+              :src="getBroadcastThumbnail(broadcast)"
               :alt="broadcast.title"
               class="thumbnail-image"
               @error="handleImageError"
           />
-
           <div class="live-badge">
             <span class="live-dot"></span>
-            {{ getBroadcastStatusText(broadcast.broadcastStatus) }}
+            LIVE
           </div>
-
-<!--          <div class="viewer-count">-->
-<!--            <i class="fas fa-users viewer-icon"></i>-->
-<!--            {{ formatViewerCount(broadcast.currentViewers) }}-->
-<!--          </div>-->
-
         </div>
 
         <div class="broadcast-info">
           <h3 class="broadcast-title">{{ broadcast.title }}</h3>
-<!--          <p class="broadcast-description">{{ broadcast.description || '방송 설명이 없습니다.' }}</p>-->
-
           <div class="broadcaster-info">
-            <div class="broadcaster-avatar">
-              <img
-                  :src="getBroadcasterAvatar(broadcast.broadcasterId)"
-                  :alt="broadcast.broadcasterName"
-                  class="avatar-image"
-                  @error="handleAvatarError"
-              />
-            </div>
             <span class="broadcaster-name">{{ broadcast.broadcasterName || '방송자' }}</span>
           </div>
-
           <div class="broadcast-tags">
             <span class="category-tag">{{ broadcast.categoryName || '일반' }}</span>
             <span v-if="broadcast.tags" class="tags">
               {{ formatTags(broadcast.tags) }}
             </span>
           </div>
-
         </div>
       </div>
     </div>
 
-    <!-- 방송이 없을 때 -->
     <div v-else class="no-broadcasts">
       <div class="no-broadcast-icon">📺</div>
       <h3>현재 진행 중인 라이브 방송이 없습니다</h3>
@@ -189,8 +166,6 @@
           class="product-card"
           @click="goToProduct(product)"
       >
-<!--        <div class="rank-badge">{{ index + 1 }}</div>-->
-
         <div class="product-image">
           <img
               :src="getProductImage(product)"
@@ -202,15 +177,11 @@
 
         <div class="product-info">
           <h3 class="product-title">{{ product.title || product.name || '상품명 없음' }}</h3>
-
           <div class="product-pricing">
-            <div v-if="product.discountRate && product.discountRate > 0" class="discount-info">
-            </div>
             <div class="final-price">
               {{ formatPrice(product.salePrice || product.price) }}원
             </div>
           </div>
-
           <div class="product-meta">
             <span class="shipping-info">무료배송</span>
           </div>
@@ -224,8 +195,10 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import apiClient from '@/api/axiosInstance'
+import { useSmartImages } from '@/composables/useSmartImages'
 
 const router = useRouter()
+const { getProductImage, handleImageError } = useSmartImages()
 
 const ChevronLeftIcon = () => '<'
 const ChevronRightIcon = () => '>'
@@ -236,11 +209,8 @@ let autoPlayInterval = null
 
 const selectedCategory = ref('ALL')
 const categories = ref([])
-
 const popularProducts = ref([])
 const productsLoading = ref(false)
-
-// 🔥 실제 방송 데이터 관련 상태
 const liveBroadcasts = ref([])
 const broadcastsLoading = ref(false)
 
@@ -253,42 +223,17 @@ const images = ref([
 const prevIndex = computed(() => (currentIndex.value - 1 + images.value.length) % images.value.length)
 const nextIndex = computed(() => (currentIndex.value + 1) % images.value.length)
 
-const getIconForCategory = (category) => {
-  if (category.iconUrl && category.iconUrl.trim() !== '') {
-    return category.iconUrl.trim();
+const getBroadcastThumbnail = (broadcast) => {
+  const thumbnailUrl = broadcast.thumbnailUrl || broadcast.thumbnail_url
+  if (thumbnailUrl && !thumbnailUrl.startsWith('http')) {
+    return `/images/banners/products/${encodeURIComponent(thumbnailUrl)}`
   }
+  return thumbnailUrl || `https://picsum.photos/seed/${broadcast.id}/300/200`
+}
 
-  if (category.icon && category.icon.trim() !== '') {
-    return category.icon.trim();
-  }
-
-  if (category.categoryIcon && category.categoryIcon.trim() !== '') {
-    const iconMap = {
-      'vegetables': 'vegetables.svg',
-      'canned': 'canned-food.svg',
-      'meal': 'meal-box.svg',
-      'bread': 'bread.svg',
-      'milk': 'milk.svg',
-      'medicine': 'medicine.svg',
-      'cooking': 'cooking.svg',
-      'tissue': 'tissue.svg',
-      'baby': 'baby-bottle.svg'
-    };
-
-    const iconFile = iconMap[category.categoryIcon] || category.categoryIcon + '.svg';
-    const iconUrl = `/icons/${iconFile}`;
-    return iconUrl;
-  }
-
-  return null;
-};
-
-// 🔥 실제 라이브 방송 데이터 가져오기
 const fetchLiveBroadcasts = async () => {
   try {
     broadcastsLoading.value = true
-
-    // 라이브 스트리밍 서비스 API 호출
     const response = await apiClient.get('/api/broadcasts/live', {
       params: {
         broadcast_status: 'live',
@@ -299,42 +244,24 @@ const fetchLiveBroadcasts = async () => {
     })
 
     if (response.data && Array.isArray(response.data)) {
-      // 시청자 수 높은 순으로 정렬 (이미 백엔드에서 정렬되어 오지만 확실히 하기 위해)
-      liveBroadcasts.value = response.data
-          .sort((a, b) => (b.currentViewers || 0) - (a.currentViewers || 0))
-          .slice(0, 10) // 상위 10개만
-
-      console.log('라이브 방송 데이터 로드 완료:', liveBroadcasts.value.length, '개')
+      liveBroadcasts.value = response.data.map(broadcast => ({
+        id: broadcast.broadcast_id || broadcast.broadcastId,
+        title: broadcast.title,
+        thumbnailUrl: broadcast.thumbnail_url || broadcast.thumbnailUrl,
+        broadcasterId: broadcast.broadcaster_id || broadcast.broadcasterId,
+        broadcasterName: broadcast.broadcaster_name || broadcast.broadcasterName,
+        currentViewers: broadcast.current_viewers || broadcast.currentViewers || 0,
+        categoryName: broadcast.category_name || broadcast.categoryName,
+        tags: broadcast.tags
+      })).sort((a, b) => (b.currentViewers || 0) - (a.currentViewers || 0))
     } else {
       liveBroadcasts.value = []
     }
   } catch (error) {
-    console.error('라이브 방송 데이터 로드 실패:', error)
     liveBroadcasts.value = []
   } finally {
     broadcastsLoading.value = false
   }
-}
-
-// 🔥 방송 관련 유틸리티 함수들
-const getBroadcastStatusText = (status) => {
-  const statusMap = {
-    'live': 'LIVE',
-    'starting': '시작중',
-    'paused': '일시정지',
-    'scheduled': '예정',
-    'ended': '종료',
-    'cancelled': '취소'
-  }
-  return statusMap[status] || 'LIVE'
-}
-
-const getDefaultThumbnail = (broadcastId) => {
-  return `https://picsum.photos/seed/${broadcastId}/300/200`
-}
-
-const getBroadcasterAvatar = (broadcasterId) => {
-  return `https://picsum.photos/seed/user${broadcasterId}/40/40`
 }
 
 const formatTags = (tags) => {
@@ -342,35 +269,15 @@ const formatTags = (tags) => {
   return tags.split(',').slice(0, 2).join(', ')
 }
 
-const getBroadcastDuration = (startTime) => {
-  if (!startTime) return '진행 중'
-
-  const start = new Date(startTime)
-  const now = new Date()
-  const diffMinutes = Math.floor((now - start) / (1000 * 60))
-
-  if (diffMinutes < 60) {
-    return `${diffMinutes}분`
-  } else {
-    const hours = Math.floor(diffMinutes / 60)
-    const minutes = diffMinutes % 60
-    return `${hours}시간 ${minutes}분`
-  }
-}
-
 const goToBroadcast = (broadcast) => {
-  const broadcastId = broadcast.broadcastId || broadcast.broadcast_id
-  if (broadcastId) {
+  if (broadcast.id) {
     router.push({
       name: 'LiveBroadcastViewer',
-      params: { broadcastId: String(broadcastId) }
+      params: { broadcastId: String(broadcast.id) }
     })
-  } else {
-    alert('방송 정보를 찾을 수 없습니다.')
   }
 }
 
-// 캐러셀 관련 함수들
 const nextSlide = () => {
   currentIndex.value = nextIndex.value
 }
@@ -420,26 +327,12 @@ const resumeAutoPlay = () => {
 const fetchCategories = async () => {
   try {
     const response = await apiClient.get('/api/categories/main', { withAuth: false })
-
     if (response.data && response.data.length > 0) {
-      const allCategory = { categoryId: 'ALL', name: '전체', icon: null, categoryDisplayOrder: 0 }
-
+      const allCategory = { categoryId: 'ALL', name: '전체', icon: null }
       const serverCategories = response.data
           .filter(cat => cat.categoryUseYn === 'Y' && cat.categoryLevel === 1)
           .sort((a, b) => a.categoryDisplayOrder - b.categoryDisplayOrder)
           .slice(0, 9)
-          .map(cat => {
-            const processedCategory = {
-              categoryId: cat.categoryId,
-              name: cat.name,
-              icon: getIconForCategory(cat),
-              categoryDisplayOrder: cat.categoryDisplayOrder,
-              categoryIcon: cat.categoryIcon,
-              iconUrl: cat.iconUrl
-            };
-            return processedCategory;
-          })
-
       categories.value = [allCategory, ...serverCategories]
     }
   } catch (error) {
@@ -457,7 +350,6 @@ const fetchCategories = async () => {
 const fetchPopularProducts = async () => {
   try {
     productsLoading.value = true
-
     const response = await apiClient.get('/api/products/filter', {
       params: {
         categoryId: 'ALL',
@@ -468,17 +360,14 @@ const fetchPopularProducts = async () => {
     })
 
     if (response.data && Array.isArray(response.data)) {
-      popularProducts.value = response.data.map(product => ({
+      popularProducts.value = response.data.map((product, index) => ({
         id: product.productId,
         title: product.name || product.title,
         name: product.name || product.title,
         price: product.price || 0,
         salePrice: product.salePrice || product.price || 0,
-        discountRate: product.discountRate || 0,
         mainImage: product.mainImage,
-        image: product.image,
-        images: product.images,
-        mainImageUrl: product.mainImageUrl
+        categoryId: product.categoryId || (index % 5) + 1
       }))
     } else {
       popularProducts.value = []
@@ -488,41 +377,6 @@ const fetchPopularProducts = async () => {
   } finally {
     productsLoading.value = false
   }
-}
-
-const getProductImage = (product) => {
-  const defaultImage = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzZiNzI4MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg=='
-
-  const imagePath = product.mainImage ||
-      product.image ||
-      (product.images && product.images[0]) ||
-      product.mainImageUrl
-
-  if (imagePath && imagePath.trim() !== '') {
-    if (imagePath.startsWith('http')) {
-      return imagePath
-    }
-
-    if (imagePath.startsWith('/api/')) {
-      return `http://localhost:8080${imagePath}`
-    }
-
-    return `http://localhost:8080/api/images/products/${imagePath}`
-  }
-
-  return defaultImage
-}
-
-const handleImageError = (event) => {
-  const img = event.target
-  if (img.dataset.errorHandled) return
-
-  img.dataset.errorHandled = 'true'
-  img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzZiNzI4MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIEVycm9yPC90ZXh0Pjwvc3ZnPg=='
-}
-
-const handleAvatarError = (event) => {
-  event.target.src = '/default-avatar.jpg'
 }
 
 const goToCategory = (categoryId) => {
@@ -541,20 +395,12 @@ const formatPrice = (price) => {
   return (price || 0).toLocaleString()
 }
 
-const formatViewerCount = (count) => {
-  if (count >= 1000) {
-    return `${(count / 1000).toFixed(1)}k`
-  }
-  return count?.toString() || '0'
-}
-
-// 🔥 자동 새로고침 추가 (방송 데이터용)
 let broadcastRefreshInterval = null
 
 const startBroadcastAutoRefresh = () => {
   broadcastRefreshInterval = setInterval(() => {
     fetchLiveBroadcasts()
-  }, 30000) // 30초마다 방송 데이터 새로고침
+  }, 30000)
 }
 
 const stopBroadcastAutoRefresh = () => {
@@ -567,20 +413,18 @@ const stopBroadcastAutoRefresh = () => {
 onMounted(async () => {
   if (isAutoPlay.value) startAutoPlay()
 
-  // 🔥 모든 데이터 로드 (방송 데이터 추가)
   await Promise.all([
     fetchCategories(),
     fetchPopularProducts(),
-    fetchLiveBroadcasts() // 실제 방송 데이터 로드
+    fetchLiveBroadcasts()
   ])
 
-  // 🔥 방송 데이터 자동 새로고침 시작
   startBroadcastAutoRefresh()
 })
 
 onUnmounted(() => {
   stopAutoPlay()
-  stopBroadcastAutoRefresh() // 🔥 방송 자동 새로고침 정리
+  stopBroadcastAutoRefresh()
 })
 </script>
 

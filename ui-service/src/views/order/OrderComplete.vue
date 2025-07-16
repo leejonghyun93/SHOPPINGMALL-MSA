@@ -87,9 +87,15 @@
                   class="item-row"
               >
                 <img
-                    :src="item.imageUrl || '/api/placeholder/80/80'"
+                    :src="getProductImage({
+                      image: item.imageUrl,
+                      mainImage: item.imageUrl,
+                      productName: item.productName || item.name
+                    })"
                     :alt="item.productName || item.name"
                     class="item-image"
+                    @error="handleImageError"
+                    @load="handleImageLoad"
                 />
                 <div class="item-info">
                   <h3 class="item-name">{{ item.productName || item.name }}</h3>
@@ -314,6 +320,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { user } from '@/stores/userStore'
+import { useSmartImages } from '@/composables/useSmartImages'
 
 // 상태 유틸리티 import
 import {
@@ -322,6 +329,8 @@ import {
   canCancelOrder,
   getStatusIcon
 } from '@/utils/orderStatusUtils'
+
+const { getProductImage, handleImageError, handleImageLoad } = useSmartImages()
 
 // API 기본 URL
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080'

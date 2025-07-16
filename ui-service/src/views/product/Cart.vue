@@ -72,7 +72,12 @@
                 </label>
 
                 <div class="item-image">
-                  <img :src="item.image" :alt="item.name" @error="handleImageError"/>
+                  <img
+                      :src="getProductImage(item)"
+                      :alt="item.name"
+                      @error="handleImageError"
+                      @load="handleImageLoad"
+                  />
                 </div>
 
                 <div class="item-details">
@@ -144,7 +149,12 @@
                 </label>
 
                 <div class="item-image">
-                  <img :src="item.image" :alt="item.name" @error="handleImageError"/>
+                  <img
+                      :src="getProductImage(item)"
+                      :alt="item.name"
+                      @error="handleImageError"
+                      @load="handleImageLoad"
+                  />
                 </div>
 
                 <div class="item-details">
@@ -242,8 +252,10 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { ChevronLeft, Minus, Plus, X } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import apiClient from '@/api/axiosInstance.js'
+import { useSmartImages } from '@/composables/useSmartImages'
 
 const router = useRouter()
+const { getProductImage, handleImageError, handleImageLoad } = useSmartImages()
 
 // 상수 설정
 const FREE_DELIVERY_THRESHOLD = 40000
@@ -301,7 +313,6 @@ const checkLoginStatus = () => {
 
   return isLoggedIn.value
 }
-
 
 // 개별 상품 할인 여부 확인 함수
 const hasItemDiscount = (item) => {
@@ -522,16 +533,6 @@ const goBack = () => {
 
 const formatPrice = (price) => {
   return (price || 0).toLocaleString()
-}
-
-const generatePlaceholderImage = () => {
-  return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+CiAgPHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMiIgZmlsbD0iIzZiNzI4MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPuydtOuvuOyngDwvdGV4dD4KPC9zdmc+Cg=='
-}
-
-const handleImageError = (event) => {
-  if (event.target.dataset.errorHandled) return
-  event.target.dataset.errorHandled = 'true'
-  event.target.src = generatePlaceholderImage()
 }
 
 // 안전한 선택 상품 감시
@@ -760,7 +761,8 @@ const mapCartItemToProduct = (cartItem) => {
     salePrice: salePrice > 0 && salePrice < originalPrice ? salePrice : originalPrice,
     discountRate: discountRate,
     quantity: cartItem.quantity || 1,
-    image: cartItem.productImage || cartItem.image || generatePlaceholderImage(),
+    image: cartItem.productImage || cartItem.image,
+    mainImage: cartItem.mainImage,
     category: cartItem.category || 'normal',
     deliveryType: cartItem.deliveryType || 'normal'
   }

@@ -125,7 +125,7 @@ jobs:
           # Spring 환경
           SPRING_PROFILES_ACTIVE=prod
           
-          # Config Server URL (중요!)
+          # Config Server URL (핵심!)
           CONFIG_SERVER_URL=http://config-service:8888
           
           # Database - 기본 변수들
@@ -148,13 +148,16 @@ jobs:
           
           # Production secrets
           PROD_REDIS_HOST=${{ secrets.PROD_REDIS_HOST }}
+          PROD_REDIS_PORT=${{ secrets.PROD_REDIS_PORT }}
           PROD_REDIS_PASSWORD=${{ secrets.PROD_REDIS_PASSWORD }}
           PROD_MAIL_USERNAME=${{ secrets.PROD_MAIL_USERNAME }}
           PROD_MAIL_PASSWORD=${{ secrets.PROD_MAIL_PASSWORD }}
           PROD_JWT_SECRET_KEY=${{ secrets.PROD_JWT_SECRET_KEY }}
           PROD_KAFKA_SERVERS=${{ secrets.PROD_KAFKA_SERVERS }}
+          PROD_KAFKA_TOPIC_USER_WITHDRAWAL=${{ secrets.PROD_KAFKA_TOPIC_USER_WITHDRAWAL }}
           PROD_AUTH_SERVICE_URL=${{ secrets.PROD_AUTH_SERVICE_URL }}
           PROD_USER_SERVICE_URL=${{ secrets.PROD_USER_SERVICE_URL }}
+          PROD_USER_SERVICE_DETAIL_URL=${{ secrets.PROD_USER_SERVICE_DETAIL_URL }}
           PROD_RABBITMQ_HOST=${{ secrets.PROD_RABBITMQ_HOST }}
           PROD_RABBITMQ_USERNAME=${{ secrets.PROD_RABBITMQ_USERNAME }}
           PROD_RABBITMQ_PASSWORD=${{ secrets.PROD_RABBITMQ_PASSWORD }}
@@ -163,6 +166,9 @@ jobs:
           PROD_IAMPORT_API_SECRET=${{ secrets.PROD_IAMPORT_API_SECRET }}
           PROD_IMAGE_UPLOAD_PATH=/app/uploads/products/
           PROD_IMAGE_BASE_URL=${{ secrets.PROD_IMAGE_BASE_URL }}
+          
+          # Network 설정
+          HOST_IP_ADDRESS=${{ secrets.HOST_IP_ADDRESS }}
           
           # Frontend URLs
           FRONTEND_URL=${{ secrets.FRONTEND_URL }}
@@ -274,6 +280,9 @@ jobs:
               "config-service:8888"
               "eureka-service:8761" 
               "auth-service:8082"
+              "user-service:8103"
+              "commerce-service:8090"
+              "live-streaming-service:8096"
               "apigateway-service:8080"
             )
             

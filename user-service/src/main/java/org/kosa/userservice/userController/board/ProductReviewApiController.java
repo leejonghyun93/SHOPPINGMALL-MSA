@@ -1,5 +1,11 @@
 package org.kosa.userservice.userController.board;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +25,7 @@ import java.util.HashMap;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 
+@Tag(name = "상품 리뷰", description = "상품 리뷰 관리 API")
 @Slf4j
 @RestController
 @RequestMapping("/api/board")
@@ -51,17 +58,19 @@ public class ProductReviewApiController {
         }
     }
 
+    @Operation(summary = "서비스 상태 확인", description = "Board Service 상태를 확인합니다")
     @GetMapping("/health")
     public ResponseEntity<String> health() {
         return ResponseEntity.ok("Board Service is running");
     }
 
+    @Operation(summary = "리뷰 목록 조회", description = "페이징과 검색 조건으로 리뷰 목록을 조회합니다")
     @GetMapping("/list")
     public ResponseEntity<List<ProductReviewDto>> list(
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) String searchValue,
-            @RequestParam(required = false) String sortBy
+            @Parameter(description = "페이지 번호", example = "1") @RequestParam(defaultValue = "1") int page,
+            @Parameter(description = "페이지 크기", example = "10") @RequestParam(defaultValue = "10") int size,
+            @Parameter(description = "검색어") @RequestParam(required = false) String searchValue,
+            @Parameter(description = "정렬 기준") @RequestParam(required = false) String sortBy
     ) {
         try {
             List<ProductReviewDto> reviews = productReviewService.getPagedBoards(page, size, searchValue, sortBy);
@@ -71,12 +80,13 @@ public class ProductReviewApiController {
         }
     }
 
+    @Operation(summary = "상품별 리뷰 조회", description = "특정 상품의 리뷰 목록을 조회합니다")
     @GetMapping("/product/{productId}")
     public ResponseEntity<List<ProductReviewDto>> getProductReviews(
-            @PathVariable Integer productId,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "createdAt") String sortBy
+            @Parameter(description = "상품 ID", required = true) @PathVariable Integer productId,
+            @Parameter(description = "페이지 번호", example = "1") @RequestParam(defaultValue = "1") int page,
+            @Parameter(description = "페이지 크기", example = "10") @RequestParam(defaultValue = "10") int size,
+            @Parameter(description = "정렬 기준", example = "createdAt") @RequestParam(defaultValue = "createdAt") String sortBy
     ) {
         try {
             List<ProductReviewDto> reviews = productReviewService.getProductReviews(productId, page, size, sortBy);
@@ -86,8 +96,10 @@ public class ProductReviewApiController {
         }
     }
 
+    @Operation(summary = "리뷰 상세 조회", description = "리뷰 ID로 상세 정보를 조회합니다")
     @GetMapping("/reviews/{reviewId}")
-    public ResponseEntity<ProductReviewDto> getReview(@PathVariable String reviewId) {
+    public ResponseEntity<ProductReviewDto> getReview(
+            @Parameter(description = "리뷰 ID", required = true) @PathVariable String reviewId) {
         try {
             ProductReviewDto review = productReviewService.getReviewById(reviewId);
 
@@ -101,6 +113,14 @@ public class ProductReviewApiController {
         }
     }
 
+    @Operation(summary = "리뷰 작성", description = "새로운 상품 리뷰를 작성합니다")
+    @SecurityRequirement(name = "JWT")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "리뷰 등록 성공"),
+            @ApiResponse(responseCode = "401", description = "인증 필요"),
+            @ApiResponse(responseCode = "403", description = "구매 인증 실패"),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청")
+    })
     @PostMapping("/reviews")
     public ResponseEntity<Map<String, Object>> createReview(
             @RequestBody ProductReviewDto reviewDto,
@@ -166,9 +186,11 @@ public class ProductReviewApiController {
         }
     }
 
+    @Operation(summary = "리뷰 수정", description = "기존 리뷰를 수정합니다")
+    @SecurityRequirement(name = "JWT")
     @PutMapping("/reviews/{reviewId}")
     public ResponseEntity<Map<String, Object>> updateReview(
-            @PathVariable String reviewId,
+            @Parameter(description = "리뷰 ID", required = true) @PathVariable String reviewId,
             @RequestBody ProductReviewDto reviewDto,
             HttpServletRequest request) {
 
@@ -236,9 +258,11 @@ public class ProductReviewApiController {
         }
     }
 
+    @Operation(summary = "리뷰 삭제", description = "리뷰를 삭제합니다")
+    @SecurityRequirement(name = "JWT")
     @DeleteMapping("/reviews/{reviewId}")
     public ResponseEntity<Map<String, Object>> deleteReview(
-            @PathVariable String reviewId,
+            @Parameter(description = "리뷰 ID", required = true) @PathVariable String reviewId,
             HttpServletRequest request) {
 
         String userId = extractUserIdFromJWT(request);
@@ -291,6 +315,7 @@ public class ProductReviewApiController {
         }
     }
 
+    @Operation(summary = "전체 리뷰 조회 (디버그용)", description = "디버그용 전체 리뷰 목록 조회")
     @GetMapping("/debug/all")
     public ResponseEntity<List<ProductReviewDto>> getAllReviewsDebug() {
         try {
@@ -301,6 +326,7 @@ public class ProductReviewApiController {
         }
     }
 
+    @Operation(summary = "테스트 엔드포인트", description = "서비스 테스트용 엔드포인트")
     @GetMapping("/test")
     public ResponseEntity<String> test() {
         return ResponseEntity.ok("Board Service Test OK - " + System.currentTimeMillis());

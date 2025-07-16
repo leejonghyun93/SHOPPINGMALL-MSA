@@ -4,21 +4,25 @@
       <!-- 헤더 섹션 -->
       <div class="header-section text-center mb-4">
         <div class="icon-wrapper mb-3">
-          <div class="key-icon">🔑</div>
+          <div class="key-icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M6 10V8C6 5.79086 7.79086 4 10 4H14C16.2091 4 18 5.79086 18 8V10M3 10H21L20 20H4L3 10Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
         </div>
-        <h3 class="title">비밀번호 찾기</h3>
-        <p class="subtitle">가입하신 정보를 입력하시면 비밀번호를 재설정할 수 있습니다.</p>
+        <h3 class="title">비밀번호 재설정</h3>
+        <p class="subtitle">본인 확인 후 새로운 비밀번호로 변경할 수 있습니다.</p>
       </div>
 
-      <!-- 폼 섹션 -->
-      <div class="form-card">
-        <form @submit.prevent="handleFindPassword">
+      <!-- 1단계: 본인 확인 -->
+      <div class="form-card" v-if="step === 1">
+        <form @submit.prevent="handleVerifyUser">
+          <h5 class="step-title mb-4">1단계: 본인 확인</h5>
+
           <div class="mb-3">
-            <label for="userid" class="form-label">
-              <span class="icon-emoji">👤</span>아이디
-            </label>
+            <label for="userid" class="form-label">아이디 *</label>
             <input
-                v-model="userid"
+                v-model="form.userid"
                 type="text"
                 class="form-control custom-input"
                 id="userid"
@@ -29,15 +33,26 @@
           </div>
 
           <div class="mb-3">
-            <label for="email" class="form-label">
-              <span class="icon-emoji">📧</span>가입 시 사용한 이메일
-            </label>
+            <label for="email" class="form-label">이메일 *</label>
             <input
-                v-model="email"
+                v-model="form.email"
                 type="email"
                 class="form-control custom-input"
                 id="email"
                 placeholder="example@email.com"
+                required
+                :disabled="loading"
+            />
+          </div>
+
+          <div class="mb-3">
+            <label for="name" class="form-label">이름 *</label>
+            <input
+                v-model="form.name"
+                type="text"
+                class="form-control custom-input"
+                id="name"
+                placeholder="가입시 등록한 이름"
                 required
                 :disabled="loading"
             />
@@ -49,87 +64,140 @@
               :disabled="loading"
           >
             <span v-if="loading" class="loading-spinner"></span>
-            <span v-else class="icon-emoji">✉️</span>
-            {{ loading ? '처리 중...' : '비밀번호 초기화 요청' }}
+            {{ loading ? '확인 중...' : '본인 확인' }}
           </button>
         </form>
       </div>
 
-      <!-- 결과 메시지 -->
-      <div v-if="result && !error" class="alert alert-success custom-alert mt-3">
-        <span class="icon-emoji">✅</span>
-        {{ result }}
+      <!-- 2단계: 새 비밀번호 설정 -->
+      <div class="form-card" v-if="step === 2">
+        <form @submit.prevent="handleResetPassword">
+          <h5 class="step-title mb-4">2단계: 새 비밀번호 설정</h5>
+
+          <div class="alert alert-success mb-4">
+            <strong>{{ form.userid }}</strong>님의 본인 확인이 완료되었습니다.
+          </div>
+
+          <div class="mb-3">
+            <label for="newPassword" class="form-label">새 비밀번호 *</label>
+            <input
+                v-model="form.newPassword"
+                type="password"
+                class="form-control custom-input"
+                id="newPassword"
+                placeholder="새 비밀번호를 입력하세요"
+                required
+                :disabled="loading"
+                minlength="8"
+            />
+            <small class="form-text text-muted">8자 이상, 영문/숫자/특수문자 조합 권장</small>
+          </div>
+
+          <div class="mb-3">
+            <label for="confirmPassword" class="form-label">비밀번호 확인 *</label>
+            <input
+                v-model="form.confirmPassword"
+                type="password"
+                class="form-control custom-input"
+                id="confirmPassword"
+                placeholder="새 비밀번호를 다시 입력하세요"
+                required
+                :disabled="loading"
+            />
+            <small v-if="passwordMismatch" class="text-danger">비밀번호가 일치하지 않습니다.</small>
+          </div>
+
+          <button
+              type="submit"
+              class="btn btn-success custom-btn w-100"
+              :disabled="loading || passwordMismatch || !form.newPassword || !form.confirmPassword"
+          >
+            <span v-if="loading" class="loading-spinner"></span>
+            {{ loading ? '변경 중...' : '비밀번호 변경' }}
+          </button>
+
+          <button
+              type="button"
+              class="btn btn-outline-secondary w-100 mt-2"
+              @click="goBackToStep1"
+              :disabled="loading"
+          >
+            이전 단계로
+          </button>
+        </form>
       </div>
 
-      <div v-if="error" class="alert alert-danger custom-alert mt-3">
-        <span class="icon-emoji">⚠️</span>
-        {{ error }}
-      </div>
+      <!-- 3단계: 완료 -->
+      <div v-if="step === 3" class="success-section">
+        <div class="alert alert-success custom-alert">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="me-2">
+            <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          비밀번호가 성공적으로 변경되었습니다!
+        </div>
 
-      <!-- 성공 시 추가 액션 -->
-      <div v-if="isSuccess" class="success-actions mt-4">
-        <div class="text-center">
-          <p class="success-text small mb-3">
-            이메일을 확인하신 후 새 비밀번호로 로그인해주세요.
-          </p>
+        <div class="completion-message">
+          <h5>비밀번호 변경 완료</h5>
+          <p>새로운 비밀번호로 로그인해주세요.</p>
+        </div>
+
+        <div class="text-center mt-4">
           <div class="d-grid gap-2">
-            <router-link to="/login" class="btn btn-outline-primary success-btn">
-              <span class="icon-emoji">🚪</span>
+            <router-link to="/login" class="btn btn-primary">
               로그인 페이지로 이동
             </router-link>
           </div>
         </div>
       </div>
 
-      <!-- 하단 네비게이션 -->
-      <div class="bottom-navigation mt-4">
+      <!-- 에러 메시지 -->
+      <div v-if="error" class="alert alert-danger custom-alert mt-3">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="me-2">
+          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+          <line x1="15" y1="9" x2="9" y2="15" stroke="currentColor" stroke-width="2"/>
+          <line x1="9" y1="9" x2="15" y2="15" stroke="currentColor" stroke-width="2"/>
+        </svg>
+        {{ error }}
+      </div>
+
+      <!-- 하단 네비게이션 (완료 전에만 표시) -->
+      <div v-if="step !== 3" class="bottom-navigation mt-4">
         <div class="nav-card">
           <div class="row text-center">
             <div class="col-4">
               <router-link to="/findId" class="nav-link-custom">
-                <span class="nav-icon">🔍</span>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="nav-icon">
+                  <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/>
+                  <path d="M21 21L16.65 16.65" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
                 <span>아이디 찾기</span>
               </router-link>
             </div>
             <div class="col-4">
               <router-link to="/login" class="nav-link-custom">
-                <span class="nav-icon">🚪</span>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="nav-icon">
+                  <path d="M15 3H19C20.1046 3 21 3.89543 21 5V19C21 20.1046 20.1046 21 19 21H15M10 17L15 12L10 7M15 12H3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
                 <span>로그인</span>
               </router-link>
             </div>
             <div class="col-4">
               <router-link to="/register" class="nav-link-custom">
-                <span class="nav-icon">👥</span>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="nav-icon">
+                  <path d="M16 21V19C16 16.7909 14.2091 15 12 15H5C2.79086 15 1 16.7909 1 19V21M20.5 11.5L22 13L20.5 14.5M22 13H18M12.5 7C12.5 9.20914 10.7091 11 8.5 11C6.29086 11 4.5 9.20914 4.5 7C4.5 4.79086 6.29086 3 8.5 3C10.7091 3 12.5 4.79086 12.5 7Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
                 <span>회원가입</span>
               </router-link>
             </div>
           </div>
         </div>
       </div>
-
-      <!-- 도움말 섹션 -->
-      <div class="help-section mt-4">
-        <details class="help-details">
-          <summary class="help-summary">
-            <span class="icon-emoji">❓</span>
-            비밀번호 찾기가 안 되시나요?
-          </summary>
-          <div class="help-content">
-            <ul class="help-list">
-              <li>아이디와 이메일 정보를 정확히 입력했는지 확인해주세요.</li>
-              <li>스팸함을 포함하여 이메일을 확인해주세요.</li>
-              <li>가입 시 사용한 이메일 주소가 맞는지 확인해주세요.</li>
-              <li>문제가 지속되면 고객센터(1588-1234)로 문의해주세요.</li>
-            </ul>
-          </div>
-        </details>
-      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useRoute, useRouter } from 'vue-router';
 import apiClient from '@/api/axiosInstance';
 import '@/assets/css/findIdPassword.css';
@@ -137,119 +205,136 @@ import '@/assets/css/findIdPassword.css';
 const route = useRoute();
 const router = useRouter();
 
-const userid = ref("");
-const email = ref("");
-const result = ref("");
-const error = ref("");
+const step = ref(1);
 const loading = ref(false);
-const isSuccess = ref(false);
+const error = ref("");
 
-// 아이디 찾기에서 전달받은 정보로 자동 입력
+const form = ref({
+  userid: "",
+  email: "",
+  name: "",
+  newPassword: "",
+  confirmPassword: ""
+});
+
+const passwordMismatch = computed(() => {
+  return form.value.confirmPassword && form.value.newPassword !== form.value.confirmPassword;
+});
+
 onMounted(() => {
   if (route.query.userId) {
-    userid.value = route.query.userId;
+    form.value.userid = route.query.userId;
   }
   if (route.query.email) {
-    email.value = route.query.email;
-  }
-
-  // URL 파라미터가 있다면 안내 메시지 표시
-  if (route.query.userId || route.query.email) {
-    setTimeout(() => {
-      showInfoMessage("아이디 찾기에서 전달받은 정보가 자동으로 입력되었습니다.");
-    }, 500);
+    form.value.email = route.query.email;
   }
 });
 
-const showInfoMessage = (message) => {
-  // 임시 정보 메시지 (3초 후 사라짐)
-  const tempDiv = document.createElement('div');
-  tempDiv.className = 'alert alert-info custom-alert mt-2';
-  tempDiv.innerHTML = `<span class="icon-emoji">ℹ️</span>${message}`;
-  tempDiv.style.animation = 'fadeInOut 3s ease-in-out';
-
-  const container = document.querySelector('.form-card');
-  container.appendChild(tempDiv);
-
-  setTimeout(() => {
-    if (tempDiv.parentNode) {
-      tempDiv.parentNode.removeChild(tempDiv);
-    }
-  }, 3000);
-};
-
-const handleFindPassword = async () => {
-  // 폼 검증
-  if (!userid.value.trim() || !email.value.trim()) {
-    error.value = "아이디와 이메일을 모두 입력해주세요.";
+const handleVerifyUser = async () => {
+  if (!form.value.userid.trim() || !form.value.email.trim() || !form.value.name.trim()) {
+    error.value = "모든 정보를 입력해주세요.";
     return;
   }
 
   loading.value = true;
   error.value = "";
-  result.value = "";
-  isSuccess.value = false;
 
   try {
-    // 실제 findPassword API 호출
-    const response = await apiClient.post("/auth/findPassword", {
-      userid: userid.value.trim(),
-      email: email.value.trim(),
-    }, {
-      withAuth: false,
-      timeout: 15000
+    // 사용자 정보 확인
+    const verifyResponse = await apiClient.get("/api/users/findId", {
+      params: {
+        name: form.value.name.trim(),
+        email: form.value.email.trim()
+      },
+      withAuth: false
     });
 
-    if (response.data.success !== false) {
-      result.value = response.data.message || "비밀번호 재설정 이메일이 발송되었습니다.";
-      isSuccess.value = true;
-
-      // 성공 시 폼 비활성화
-      setTimeout(() => {
-        document.querySelector('#userid').disabled = true;
-        document.querySelector('#email').disabled = true;
-      }, 100);
+    if (verifyResponse.data.success && verifyResponse.data.userId === form.value.userid.trim()) {
+      step.value = 2; // 2단계로 이동
     } else {
-      error.value = response.data.message || "비밀번호 찾기에 실패했습니다.";
+      error.value = "입력하신 정보가 일치하지 않습니다.";
     }
 
   } catch (err) {
-    if (err.response) {
-      switch (err.response.status) {
-        case 400:
-          error.value = err.response.data?.message || "입력 정보를 확인해주세요.";
-          break;
-        case 404:
-          error.value = "입력하신 정보와 일치하는 계정을 찾을 수 없습니다.";
-          break;
-        case 429:
-          error.value = "너무 많은 요청입니다. 잠시 후 다시 시도해주세요.";
-          break;
-        case 500:
-          error.value = "서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.";
-          break;
-        default:
-          error.value = err.response.data?.message || "비밀번호 찾기에 실패했습니다.";
-      }
-    } else if (err.request) {
-      error.value = "서버에 연결할 수 없습니다. 네트워크 상태를 확인해주세요.";
+    if (err.response?.status === 404) {
+      error.value = "입력하신 정보와 일치하는 계정을 찾을 수 없습니다.";
     } else {
-      error.value = "요청 처리 중 오류가 발생했습니다.";
+      error.value = "본인 확인 중 오류가 발생했습니다.";
     }
   } finally {
     loading.value = false;
   }
 };
 
-// 입력 필드 변경 시 메시지 초기화
-const clearMessages = () => {
+const handleResetPassword = async () => {
+  if (!form.value.newPassword || !form.value.confirmPassword) {
+    error.value = "새 비밀번호를 입력해주세요.";
+    return;
+  }
+
+  if (form.value.newPassword !== form.value.confirmPassword) {
+    error.value = "비밀번호가 일치하지 않습니다.";
+    return;
+  }
+
+  if (form.value.newPassword.length < 8) {
+    error.value = "비밀번호는 8자 이상이어야 합니다.";
+    return;
+  }
+
+  loading.value = true;
   error.value = "";
-  result.value = "";
-  isSuccess.value = false;
+
+  try {
+    const resetResponse = await apiClient.post("/auth/resetPasswordImmediate", {
+      userid: form.value.userid.trim(),
+      email: form.value.email.trim(),
+      name: form.value.name.trim(),
+      newPassword: form.value.newPassword
+    }, {
+      withAuth: false,
+      timeout: 15000
+    });
+
+    if (resetResponse.data.success) {
+      step.value = 3; // 완료 단계로 이동
+
+      // 폼 초기화
+      form.value = {
+        userid: "",
+        email: "",
+        name: "",
+        newPassword: "",
+        confirmPassword: ""
+      };
+    } else {
+      error.value = resetResponse.data.message || "비밀번호 변경에 실패했습니다.";
+    }
+
+  } catch (err) {
+    if (err.response) {
+      error.value = err.response.data?.message || "비밀번호 변경에 실패했습니다.";
+    } else {
+      error.value = "서버에 연결할 수 없습니다.";
+    }
+  } finally {
+    loading.value = false;
+  }
 };
 
-watch([userid, email], clearMessages);
+const goBackToStep1 = () => {
+  step.value = 1;
+  form.value.newPassword = "";
+  form.value.confirmPassword = "";
+  error.value = "";
+};
+
+// 입력값 변경시 에러 메시지 클리어
+watch(() => [form.value.userid, form.value.email, form.value.name, form.value.newPassword, form.value.confirmPassword], () => {
+  if (error.value) {
+    error.value = "";
+  }
+});
 </script>
+
 <style scoped src="@/assets/css/findPassword.css"></style>
-
-

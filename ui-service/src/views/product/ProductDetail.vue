@@ -30,9 +30,9 @@
             <span class="live-dot"></span>
             LIVE
           </div>
-          <div v-if="getDiscountRate() > 0" class="discount-badge">
-            {{ getDiscountRate() }}% 할인
-          </div>
+<!--          <div v-if="getDiscountRate() > 0" class="discount-badge">-->
+<!--            {{ getDiscountRate() }}% 할인-->
+<!--          </div>-->
         </div>
         <div v-if="product.images && product.images.length > 1" class="image-indicators">
           <div
@@ -46,22 +46,22 @@
 
       <!-- 상품 정보 섹션 -->
       <div class="product-info-section">
-        <div class="brand-info" v-if="product.brand">
-          <span class="brand-label">브랜드관</span>
-          <span class="brand-name">{{ product.brand }}</span>
-        </div>
+<!--        <div class="brand-info" v-if="product.brand">-->
+<!--          <span class="brand-label">브랜드관</span>-->
+<!--          <span class="brand-name">{{ product.brand }}</span>-->
+<!--        </div>-->
 
         <h1 class="product-title">{{ product.name || product.title }}</h1>
-        <p v-if="product.subtitle || product.productShortDescription" class="product-subtitle">
-          {{ product.subtitle || product.productShortDescription }}
-        </p>
+<!--        <p v-if="product.subtitle || product.productShortDescription" class="product-subtitle">-->
+<!--          {{ product.subtitle || product.productShortDescription }}-->
+<!--        </p>-->
 
         <div class="price-section">
           <div class="discount-info">
-            <span v-if="getDiscountRate() > 0" class="discount-rate">{{ getDiscountRate() }}%</span>
+<!--            <span v-if="getDiscountRate() > 0" class="discount-rate">{{ getDiscountRate() }}%</span>-->
             <span class="final-price">{{ formatPrice(getFinalPrice()) }}원</span>
           </div>
-          <div v-if="getDiscountRate() > 0" class="original-price">{{ formatPrice(product.price) }}원</div>
+<!--          <div v-if="getDiscountRate() > 0" class="original-price">{{ formatPrice(product.price) }}원</div>-->
         </div>
 
         <!-- 상품 상세 정보 테이블 -->
@@ -111,11 +111,19 @@
                 @click="toggleWishlist"
                 :disabled="wishlistLoading"
             >
-              <Heart
-                  :size="20"
+              <!-- 🔥 SVG 하트 아이콘 추가 -->
+              <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
                   :fill="isWishlisted ? '#ff4444' : 'none'"
                   :stroke="isWishlisted ? '#ff4444' : '#666'"
-              />
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+              >
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+              </svg>
               <span v-if="wishlistLoading" class="wishlist-loading">처리중...</span>
             </button>
           </div>
@@ -140,28 +148,72 @@
 
         <div class="tab-content">
           <div v-if="selectedTab === 'details'" class="details-content">
-            <div v-if="product.detailImages && product.detailImages.length > 0">
+            <!-- 🔥 상품 메인 이미지 (하나로 통합) -->
+            <div class="product-detail-image">
               <img
-                  v-for="(image, index) in product.detailImages"
-                  :key="index"
-                  :src="image"
-                  :alt="`상품 상세 이미지 ${index + 1}`"
+                  :src="getCurrentImage()"
+                  :alt="product.name || product.title"
                   @error="handleImageError"
+                  class="main-detail-image"
               />
             </div>
-            <div v-else class="no-detail-images">
-              <p>{{ product.productDescription || '상품 상세 이미지가 준비 중입니다.' }}</p>
-            </div>
-          </div>
 
-          <div v-if="selectedTab === 'info'" class="info-content">
-            <h3>상품 정보</h3>
-            <p v-if="product.origin">원산지: {{ product.origin }}</p>
-            <p v-if="product.deliveryInfo">포장타입: {{ product.deliveryInfo }}</p>
-            <p v-if="product.packaging">판매단위: {{ product.packaging }}</p>
-            <p v-if="product.weight">중량/용량: {{ product.weight }}</p>
-            <p v-if="product.ingredients">원재료명: {{ product.ingredients }}</p>
-            <p v-if="product.productDescription">상품설명: {{ product.productDescription }}</p>
+            <!-- 🔥 상품 정보와 상세 설명 통합 -->
+            <div class="product-detail-info">
+              <h3>상품 정보</h3>
+
+              <!-- 기본 상품 정보 -->
+              <div class="product-specs">
+                <div v-if="product.origin" class="spec-item">
+                  <span class="spec-label">원산지:</span>
+                  <span class="spec-value">{{ product.origin }}</span>
+                </div>
+                <div v-if="product.deliveryInfo" class="spec-item">
+                  <span class="spec-label">포장타입:</span>
+                  <span class="spec-value">{{ product.deliveryInfo }}</span>
+                </div>
+                <div v-if="product.packaging" class="spec-item">
+                  <span class="spec-label">판매단위:</span>
+                  <span class="spec-value">{{ product.packaging }}</span>
+                </div>
+                <div v-if="product.weight" class="spec-item">
+                  <span class="spec-label">중량/용량:</span>
+                  <span class="spec-value">{{ product.weight }}</span>
+                </div>
+                <div v-if="product.ingredients" class="spec-item">
+                  <span class="spec-label">원재료명:</span>
+                  <span class="spec-value">{{ product.ingredients }}</span>
+                </div>
+                <div v-if="product.allergyInfo" class="spec-item">
+                  <span class="spec-label">알레르기정보:</span>
+                  <span class="spec-value">{{ product.allergyInfo }}</span>
+                </div>
+              </div>
+
+              <!-- 상품 설명 -->
+              <div v-if="product.productDescription" class="product-description">
+                <h4>상품 설명</h4>
+                <p>{{ product.productDescription }}</p>
+              </div>
+
+              <!-- 추가 상세 이미지들 (있는 경우) -->
+              <div v-if="product.detailImages && product.detailImages.length > 0" class="additional-images">
+                <h4>상세 이미지</h4>
+                <img
+                    v-for="(image, index) in product.detailImages"
+                    :key="index"
+                    :src="image"
+                    :alt="`상품 상세 이미지 ${index + 1}`"
+                    @error="handleImageError"
+                    class="detail-image"
+                />
+              </div>
+
+              <!-- 상세 이미지가 없을 때 메시지 -->
+              <div v-else-if="!product.productDescription" class="no-detail-content">
+                <p>상품 상세 정보가 준비 중입니다.</p>
+              </div>
+            </div>
           </div>
 
           <!-- 리뷰 탭 -->
@@ -430,9 +482,11 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import apiClient from '@/api/axiosInstance.js'
+import { useSmartImages } from '@/composables/useSmartImages'
 
 const router = useRouter()
 const route = useRoute()
+const { getProductImage, handleImageError, handleImageLoad } = useSmartImages()
 
 // 상태 관리
 const loading = ref(false)
@@ -472,8 +526,7 @@ const expandedQna = ref(null)
 
 // 탭 계산 속성
 const tabs = computed(() => [
-  { id: 'details', label: '상품설명' },
-  { id: 'info', label: '상세정보' },
+  { id: 'details', label: '상품정보' },
   { id: 'reviews', label: `후기 (${getReviewCount()})` },
   { id: 'inquiry', label: `문의 (${getQnaCount()})` }
 ])
@@ -737,8 +790,6 @@ const updateQna = async () => {
   } catch (error) {
     if (error.response?.status === 403) {
       alert('본인의 문의만 수정할 수 있습니다.')
-    } else {
-      alert('문의 수정에 실패했습니다.')
     }
   }
 }
@@ -950,11 +1001,6 @@ const getAverageRating = () => {
 
 const getReviewCount = () => reviews.value.length;
 
-const getProductImage = (prod) => {
-  if (prod.images?.length > 0) return prod.images[0]
-  return prod.mainImage || prod.image || 'https://via.placeholder.com/300x200?text=상품+이미지'
-}
-
 const loadProductReviews = async (productId) => {
   try {
     // 먼저 상품별 리뷰 API 시도
@@ -1061,6 +1107,11 @@ const loadProduct = async () => {
 
     product.value = response.data
 
+    // 🔥 useSmartImages를 사용한 이미지 처리
+    const smartImage = getProductImage(product.value);
+    product.value.images = [smartImage];
+    product.value.mainImage = smartImage;
+
     await loadRelatedProducts(productId)
   } catch (err) {
     error.value = err.response?.data?.message || '상품 정보를 불러오는데 실패했습니다.'
@@ -1075,7 +1126,14 @@ const loadRelatedProducts = async (productId) => {
       withAuth: false
     })
 
-    relatedProducts.value = res.data || []
+    // 🔥 연관 상품에도 useSmartImages 적용
+    relatedProducts.value = (res.data || []).map((product) => {
+      return {
+        ...product,
+        mainImage: getProductImage(product)
+      };
+    });
+
   } catch (err) {
     relatedProducts.value = []
   }
@@ -1154,9 +1212,11 @@ const handleAddToCart = async () => {
 };
 
 const getCurrentImage = () => {
-  if (product.value?.images?.length > 0)
-    return product.value.images[currentImageIndex.value] || product.value.images[0]
-  return product.value?.mainImage || product.value?.image || 'https://via.placeholder.com/600x600?text=상품+이미지'
+  if (product.value?.images?.length > 0) {
+    return product.value.images[currentImageIndex.value] || product.value.images[0];
+  }
+
+  return product.value?.mainImage || getProductImage(product.value);
 }
 
 const getFinalPrice = () => {
@@ -1190,16 +1250,6 @@ const maskUserName = (name) => {
   if (name.length === 2) return name.charAt(0) + '*';
   return name.charAt(0) + '*'.repeat(name.length - 2) + name.charAt(name.length - 1);
 };
-
-const handleImageError = (e) => {
-  if (e.target.dataset.errorHandled) return
-  e.target.dataset.errorHandled = 'true'
-  e.target.style.display = 'none'
-  const placeholder = document.createElement('div')
-  placeholder.className = 'image-placeholder'
-  placeholder.innerHTML = '이미지 없음'
-  e.target.parentNode.appendChild(placeholder)
-}
 
 // 라이프사이클 - 컴포넌트 마운트
 onMounted(async () => {

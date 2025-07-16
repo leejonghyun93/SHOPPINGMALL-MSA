@@ -52,22 +52,17 @@ function isPublicEndpoint(url, method) {
 // Request 인터셉터
 apiClient.interceptors.request.use(
     (config) => {
-        console.log('🔍 Request Interceptor:', {
-            url: config.url,
-            method: config.method,
-            withAuth: config.withAuth
-        });
+
 
         // withAuth: false 옵션이 있으면 토큰 추가하지 않음
         if (config.withAuth === false) {
-            console.log('🔍 withAuth=false, 토큰 추가 안함:', config.url);
+
             return config
         }
 
         // 공개 API는 토큰을 보내지 않음
         const isPublicAPI = isPublicEndpoint(config.url, config.method)
         if (isPublicAPI) {
-            console.log('🔍 공개 API로 판단, 토큰 추가 안함:', config.url);
             return config
         }
 
@@ -75,20 +70,14 @@ apiClient.interceptors.request.use(
 
         if (token && token.trim() && token !== 'null' && token !== 'undefined') {
             try {
-                // 🔥 토큰 만료 검증 강화
+                //  만료 검증 강화
                 const cleanToken = token.startsWith('Bearer ') ? token.substring(7) : token;
                 const decoded = jwtDecode(cleanToken)
                 const now = Date.now() / 1000
 
-                console.log('🔍 토큰 검증:', {
-                    exp: decoded.exp,
-                    now: now,
-                    isExpired: decoded.exp < now,
-                    timeLeft: decoded.exp - now
-                });
+
 
                 if (decoded.exp < now) {
-                    console.log('🔍 토큰 만료됨 - 로그인 페이지로 이동');
                     alert("토큰이 만료되었습니다. 다시 로그인해주세요.")
 
                     // 소셜 로그인 정보 보존하면서 토큰만 제거

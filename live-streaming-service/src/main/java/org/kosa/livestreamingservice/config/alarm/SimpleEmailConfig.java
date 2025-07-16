@@ -31,7 +31,7 @@ public class SimpleEmailConfig {
     private String password;
 
     /**
-     * 🔥 실제 Gmail JavaMailSender (조건 수정)
+     * 실제 Gmail JavaMailSender (조건 수정)
      */
     @Bean
     @Primary
@@ -63,7 +63,7 @@ public class SimpleEmailConfig {
         props.put("mail.smtp.writetimeout", "10000");
         props.put("mail.debug", "true"); // 디버그 모드
 
-        log.info("✅ Gmail JavaMailSender 설정 완료");
+        log.info(" Gmail JavaMailSender 설정 완료");
 
         return mailSender;
     }
