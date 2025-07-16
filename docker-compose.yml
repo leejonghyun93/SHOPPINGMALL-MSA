@@ -182,7 +182,7 @@ services:
       - SPRING_RABBITMQ_PORT=5672
       - SPRING_RABBITMQ_USERNAME=admin
       - SPRING_RABBITMQ_PASSWORD=admin123
-      - JAVA_OPTS=-Xmx192m -Xms96m -XX:+UseG1GC
+      - JAVA_OPTS=-Xmx256m -Xms128m -XX:+UseG1GC
     deploy:
       resources:
         limits:
@@ -215,7 +215,7 @@ services:
       - SPRING_CONFIG_IMPORT=optional:configserver:${CONFIG_SERVER_URL:-http://config-service:8888}
       - EUREKA_CLIENT_REGISTER_WITH_EUREKA=false
       - EUREKA_CLIENT_FETCH_REGISTRY=false
-      - JAVA_OPTS=-Xmx192m -Xms96m -XX:+UseG1GC
+      - JAVA_OPTS=-Xmx256m -Xms128m -XX:+UseG1GC
     deploy:
       resources:
         limits:
@@ -262,7 +262,7 @@ services:
       - PROD_EUREKA_SERVER_URL=${PROD_EUREKA_SERVER_URL}
       - PROD_USER_SERVICE_URL=${PROD_USER_SERVICE_URL}
       - HOST_IP_ADDRESS=${HOST_IP_ADDRESS}
-      - JAVA_OPTS=-Xmx192m -Xms96m -XX:+UseG1GC
+      - JAVA_OPTS=-Xmx256m -Xms128m -XX:+UseG1GC
     deploy:
       resources:
         limits:
@@ -315,7 +315,7 @@ services:
       - PROD_AUTH_SERVICE_URL=${PROD_AUTH_SERVICE_URL}
       - PROD_EUREKA_SERVER_URL=${PROD_EUREKA_SERVER_URL}
       - HOST_IP_ADDRESS=${HOST_IP_ADDRESS}
-      - JAVA_OPTS=-Xmx192m -Xms96m -XX:+UseG1GC
+      - JAVA_OPTS=-Xmx256m -Xms128m -XX:+UseG1GC
     deploy:
       resources:
         limits:
@@ -374,7 +374,7 @@ services:
       - PROD_EUREKA_SERVER_URL=${PROD_EUREKA_SERVER_URL}
       - PROD_USER_SERVICE_URL=${PROD_USER_SERVICE_URL}
       - HOST_IP_ADDRESS=${HOST_IP_ADDRESS}
-      - JAVA_OPTS=-Xmx192m -Xms96m -XX:+UseG1GC
+      - JAVA_OPTS=-Xmx256m -Xms128m -XX:+UseG1GC
     deploy:
       resources:
         limits:
@@ -430,7 +430,7 @@ services:
       - PROD_MAIL_PASSWORD=${PROD_MAIL_PASSWORD}
       - PROD_USER_SERVICE_DETAIL_URL=${PROD_USER_SERVICE_DETAIL_URL}
       - HOST_IP_ADDRESS=${HOST_IP_ADDRESS}
-      - JAVA_OPTS=-Xmx192m -Xms96m -XX:+UseG1GC
+      - JAVA_OPTS=-Xmx256m -Xms128m -XX:+UseG1GC
     deploy:
       resources:
         limits:
@@ -459,7 +459,7 @@ services:
       retries: 10
       start_period: 240s
 
-  # API Gateway
+  # API Gateway - 🔥 메모리 대폭 증가!
   apigateway-service:
     image: ${ECR_REGISTRY}/apigateway-service:latest
     container_name: apigateway-service
@@ -475,23 +475,29 @@ services:
       - SPRING_REDIS_PORT=6379
       - SPRING_RABBITMQ_HOST=rabbitmq
       - SPRING_RABBITMQ_PORT=5672
+      - SPRING_RABBITMQ_USERNAME=admin
+      - SPRING_RABBITMQ_PASSWORD=admin123
       - FRONTEND_URL=${FRONTEND_URL:-https://shopmall.com}
       - ADMIN_URL=${ADMIN_URL:-https://admin.shopmall.com}
       - JWT_SECRET=${PROD_JWT_SECRET_KEY}
       - PROD_EUREKA_SERVER_URL=http://eureka-service:8761/eureka
       - HOST_IP_ADDRESS=${HOST_IP_ADDRESS}
-      - JAVA_OPTS=-Xmx128m -Xms64m -XX:+UseG1GC
+      # 🔥 핵심: 메모리 대폭 증가
+      - JAVA_OPTS=-Xmx512m -Xms256m -XX:+UseG1GC -XX:MaxMetaspaceSize=256m
     deploy:
       resources:
         limits:
-          memory: 256M
-          cpus: '0.15'
+          # 🔥 컨테이너 메모리 제한 대폭 증가
+          memory: 768M
+          cpus: '0.25'
         reservations:
-          memory: 128M
+          memory: 384M
     depends_on:
       eureka-service:
         condition: service_healthy
       config-service:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
       auth-service:
         condition: service_started
@@ -504,12 +510,13 @@ services:
     networks:
       - msa-network
     restart: unless-stopped
+    # 🔥 헬스체크 더 관대하게 설정
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 60s
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      interval: 60s
+      timeout: 30s
+      retries: 5
+      start_period: 300s  # 5분 대기
 
   # ======================
   # 모니터링 서비스들
