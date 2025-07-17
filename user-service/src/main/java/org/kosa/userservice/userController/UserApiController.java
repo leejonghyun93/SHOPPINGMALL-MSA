@@ -603,7 +603,7 @@ public class UserApiController {
     public ResponseEntity<?> createOrUpdateSocialUser(
             @Parameter(description = "소셜 로그인 사용자 정보", required = true) @RequestBody Map<String, Object> socialUserData) {
         try {
-            log.info("🔍 소셜 사용자 생성/업데이트 요청: provider={}, socialId={}",
+            log.info(" 소셜 사용자 생성/업데이트 요청: provider={}, socialId={}",
                     socialUserData.get("provider"), socialUserData.get("socialId"));
 
             String socialId = (String) socialUserData.get("socialId");
@@ -621,13 +621,13 @@ public class UserApiController {
 
             UserDto userDto = userService.createOrUpdateSocialUser(socialUserData);
 
-            log.info("✅ 소셜 사용자 처리 완료 - userId: {}, provider: {}",
+            log.info("소셜 사용자 처리 완료 - userId: {}, provider: {}",
                     userDto.getUserId(), provider);
 
             return ResponseEntity.ok(userDto);
 
         } catch (Exception e) {
-            log.error("💥 소셜 사용자 처리 중 오류", e);
+            log.error("소셜 사용자 처리 중 오류", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
                     "success", false,
                     "error", "INTERNAL_SERVER_ERROR",

@@ -480,7 +480,6 @@ services:
       - FRONTEND_URL=${FRONTEND_URL:-https://shopmall.com}
       - ADMIN_URL=${ADMIN_URL:-https://admin.shopmall.com}
       - JWT_SECRET=${PROD_JWT_SECRET_KEY}
-      - PROD_EUREKA_SERVER_URL=http://eureka-service:8761/eureka
       - HOST_IP_ADDRESS=${HOST_IP_ADDRESS}
       # 🔥 핵심: 메모리 대폭 증가
       - JAVA_OPTS=-Xmx512m -Xms256m -XX:+UseG1GC -XX:MaxMetaspaceSize=256m
