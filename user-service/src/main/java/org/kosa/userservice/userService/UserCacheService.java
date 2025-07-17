@@ -28,7 +28,11 @@ public class UserCacheService {
 
     public void cacheUserSession(String userId) {
         try {
+            log.info("1️⃣ 캐시 저장 - 사용자 조회 시작: userId={}", userId);
+
             Optional<UserDto> userOpt = userService.getMemberDetail(userId);
+
+            log.info("2️⃣ 사용자 정보 가져오기 완료");
             if (userOpt.isPresent()) {
                 UserDto user = userOpt.get();
 
@@ -116,7 +120,9 @@ public class UserCacheService {
         // 2. Redis에 없으면 DB에서 조회 후 캐시 저장
         log.info("Redis 캐시 미스 - DB에서 조회 후 캐시 저장: userId={}", userId);
         try {
+            log.info("userService.getMemberDetail 호출 직전");
             Optional<UserDto> userOpt = userService.getMemberDetail(userId);
+            log.info("userService.getMemberDetail 호출 직후");
             if (userOpt.isPresent()) {
                 UserDto user = userOpt.get();
 
