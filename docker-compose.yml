@@ -346,67 +346,79 @@ services:
 
   # 커머스 서비스 - 🔥 메모리 대폭 증가!
   commerce-service:
-    image: ${ECR_REGISTRY}/commerce-service:latest
-    container_name: shopmall-commerce
-    ports:
-      - "8090:8090"
-    environment:
-      - SPRING_APPLICATION_NAME=commerce-service
-      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
-      - CONFIG_SERVER_URL=${CONFIG_SERVER_URL:-http://config-service:8888}
-      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka
-      - SPRING_CONFIG_IMPORT=optional:configserver:${CONFIG_SERVER_URL:-http://config-service:8888}
-      - SPRING_REDIS_HOST=redis
-      - SPRING_REDIS_PORT=6379
-      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-      - SPRING_DATASOURCE_URL=${PROD_DB_URL}
-      - SPRING_DATASOURCE_USERNAME=${PROD_DB_USERNAME}
-      - SPRING_DATASOURCE_PASSWORD=${PROD_DB_PASSWORD}
-      - SPRING_JPA_HIBERNATE_DDL_AUTO=none
-      - PROD_REDIS_HOST=${PROD_REDIS_HOST:-redis}
-      - PROD_REDIS_PORT=${PROD_REDIS_PORT:-6379}
-      - PROD_REDIS_PASSWORD=${PROD_REDIS_PASSWORD:-}
-      - PROD_KAFKA_SERVERS=${PROD_KAFKA_SERVERS}
-      - PROD_IAMPORT_API_KEY=${PROD_IAMPORT_API_KEY}
-      - PROD_IAMPORT_API_SECRET=${PROD_IAMPORT_API_SECRET}
-      - PROD_IMAGE_UPLOAD_PATH=${PROD_IMAGE_UPLOAD_PATH:-/app/uploads/products/}
-      - PROD_IMAGE_BASE_URL=${PROD_IMAGE_BASE_URL}
-      - PROD_EUREKA_SERVER_URL=${PROD_EUREKA_SERVER_URL}
-      - PROD_USER_SERVICE_URL=${PROD_USER_SERVICE_URL}
-      - HOST_IP_ADDRESS=${HOST_IP_ADDRESS}
-      # 🔥 핵심 변경: 메모리 대폭 증가
-      - JAVA_OPTS=-Xmx768m -Xms384m -XX:+UseG1GC -XX:MaxMetaspaceSize=256m
-    deploy:
-      resources:
-        limits:
-          # 🔥 메모리 제한 대폭 증가: 384M → 1024M
-          memory: 1024M
-          cpus: '0.3'
-        reservations:
-          memory: 512M
-    depends_on:
-      mariadb:
-        condition: service_healthy
-      eureka-service:
-        condition: service_healthy
-      config-service:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-    networks:
-      - msa-network
-    restart: unless-stopped
-    # 🔥 헬스체크 더 관대하게 설정
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8090/actuator/health"]
-      interval: 90s
-      timeout: 45s
-      retries: 15
-      start_period: 360s  # 6분 대기
+      image: ${ECR_REGISTRY}/commerce-service:latest
+      container_name: shopmall-commerce
+      ports:
+        - "8090:8090"
+      environment:
+        - SPRING_APPLICATION_NAME=commerce-service
+        - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
+        - CONFIG_SERVER_URL=${CONFIG_SERVER_URL:-http://config-service:8888}
+        - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka
+        - SPRING_CONFIG_IMPORT=optional:configserver:${CONFIG_SERVER_URL:-http://config-service:8888}
+        - SPRING_REDIS_HOST=redis
+        - SPRING_REDIS_PORT=6379
+        - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+        # 🔥 RabbitMQ 환경변수 추가
+        - SPRING_RABBITMQ_HOST=rabbitmq
+        - SPRING_RABBITMQ_PORT=5672
+        - SPRING_RABBITMQ_USERNAME=admin
+        - SPRING_RABBITMQ_PASSWORD=admin123
+        - PROD_RABBITMQ_HOST=rabbitmq
+        - PROD_RABBITMQ_PORT=5672
+        - PROD_RABBITMQ_USERNAME=admin
+        - PROD_RABBITMQ_PASSWORD=admin123
+        - SPRING_DATASOURCE_URL=${PROD_DB_URL}
+        - SPRING_DATASOURCE_USERNAME=${PROD_DB_USERNAME}
+        - SPRING_DATASOURCE_PASSWORD=${PROD_DB_PASSWORD}
+        - SPRING_JPA_HIBERNATE_DDL_AUTO=none
+        - PROD_REDIS_HOST=${PROD_REDIS_HOST:-redis}
+        - PROD_REDIS_PORT=${PROD_REDIS_PORT:-6379}
+        - PROD_REDIS_PASSWORD=${PROD_REDIS_PASSWORD:-}
+        - PROD_KAFKA_SERVERS=${PROD_KAFKA_SERVERS}
+        - PROD_IAMPORT_API_KEY=${PROD_IAMPORT_API_KEY}
+        - PROD_IAMPORT_API_SECRET=${PROD_IAMPORT_API_SECRET}
+        - PROD_IMAGE_UPLOAD_PATH=${PROD_IMAGE_UPLOAD_PATH:-/app/uploads/products/}
+        - PROD_IMAGE_BASE_URL=${PROD_IMAGE_BASE_URL}
+        - PROD_EUREKA_SERVER_URL=${PROD_EUREKA_SERVER_URL}
+        - PROD_USER_SERVICE_URL=${PROD_USER_SERVICE_URL}
+        - HOST_IP_ADDRESS=${HOST_IP_ADDRESS}
+        # 🔥 핵심 변경: 메모리 대폭 증가
+        - JAVA_OPTS=-Xmx768m -Xms384m -XX:+UseG1GC -XX:MaxMetaspaceSize=256m
+      deploy:
+        resources:
+          limits:
+            # 🔥 메모리 제한 대폭 증가: 384M → 1024M
+            memory: 1024M
+            cpus: '0.3'
+          reservations:
+            memory: 512M
+      depends_on:
+        mariadb:
+          condition: service_healthy
+        eureka-service:
+          condition: service_healthy
+        config-service:
+          condition: service_healthy
+        redis:
+          condition: service_healthy
+        kafka:
+          condition: service_healthy
+        # 🔥 RabbitMQ 의존성 추가
+        rabbitmq:
+          condition: service_healthy
+      networks:
+        - msa-network
+      restart: unless-stopped
+      #  헬스체크 더 관대하게 설정
+      healthcheck:
+        test: [ "CMD", "curl", "-f", "http://localhost:8090/actuator/health" ]
+        interval: 90s
+        timeout: 45s
+        retries: 15
+        start_period: 360s  # 6분 대기
 
-  # 라이브 스트리밍 서비스 - 🔥 메모리 대폭 증가!
+  # 라이브 스트리밍 서비스 -  메모리 대폭 증가!
   live-streaming-service:
     image: ${ECR_REGISTRY}/live-streaming-service:latest
     container_name: shopmall-streaming
@@ -421,6 +433,15 @@ services:
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      # 🔥 RabbitMQ 환경변수 추가
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - SPRING_RABBITMQ_PORT=5672
+      - SPRING_RABBITMQ_USERNAME=admin
+      - SPRING_RABBITMQ_PASSWORD=admin123
+      - PROD_RABBITMQ_HOST=rabbitmq
+      - PROD_RABBITMQ_PORT=5672
+      - PROD_RABBITMQ_USERNAME=admin
+      - PROD_RABBITMQ_PASSWORD=admin123
       - SPRING_DATASOURCE_URL=${PROD_DB_URL}
       - SPRING_DATASOURCE_USERNAME=${PROD_DB_USERNAME}
       - SPRING_DATASOURCE_PASSWORD=${PROD_DB_PASSWORD}
@@ -454,12 +475,15 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+      # 🔥 RabbitMQ 의존성 추가
+      rabbitmq:
+        condition: service_healthy
     networks:
       - msa-network
     restart: unless-stopped
     # 🔥 헬스체크 더 관대하게 설정
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8096/actuator/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8096/actuator/health" ]
       interval: 90s
       timeout: 45s
       retries: 15
