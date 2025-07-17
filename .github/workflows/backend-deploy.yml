@@ -80,7 +80,6 @@ jobs:
 
       - name: Build JAR files
         run: |
-          # 의존성 순서대로 빌드: config -> eureka -> 나머지 서비스들
           for service in config-service eureka-service auth-service user-service commerce-service live-streaming-service apigateway-service; do
             echo "Building JAR for $service..."
             cd $service
@@ -125,7 +124,7 @@ jobs:
           # Spring 환경
           SPRING_PROFILES_ACTIVE=prod
           
-          # Config Server URL (핵심!)
+          # Config Server URL
           CONFIG_SERVER_URL=http://config-service:8888
           
           # Database - 기본 변수들
@@ -134,7 +133,7 @@ jobs:
           DB_USERNAME=${{ secrets.DB_USERNAME }}
           DB_PASSWORD=${{ secrets.DB_PASSWORD }}
           
-          # Database - PROD 변수들 (핵심!)
+          # Database - PROD 변수들
           PROD_DB_URL=${{ secrets.PROD_DB_URL }}
           PROD_DB_USERNAME=${{ secrets.PROD_DB_USERNAME }}
           PROD_DB_PASSWORD=${{ secrets.PROD_DB_PASSWORD }}
@@ -167,13 +166,29 @@ jobs:
           PROD_IMAGE_UPLOAD_PATH=/app/uploads/products/
           PROD_IMAGE_BASE_URL=${{ secrets.PROD_IMAGE_BASE_URL }}
           
-           #  라이브 스트리밍 서비스 추가 환경변수
+          # 라이브 스트리밍 서비스 추가 환경변수
           PROD_BROADCAST_SERVICE_URL=${{ secrets.PROD_BROADCAST_SERVICE_URL }}
           PROD_NOTIFICATION_EMAIL_ENABLED=${{ secrets.PROD_NOTIFICATION_EMAIL_ENABLED }}
           PROD_NOTIFICATION_FROM_EMAIL=${{ secrets.PROD_NOTIFICATION_FROM_EMAIL }}
           PROD_NOTIFICATION_FROM_NAME=${{ secrets.PROD_NOTIFICATION_FROM_NAME }}
           PROD_UNSUBSCRIBE_URL=${{ secrets.PROD_UNSUBSCRIBE_URL }}
-    
+          
+          # Eureka 클라이언트 설정
+          EUREKA_CLIENT_ENABLED=${{ secrets.EUREKA_CLIENT_ENABLED }}
+          EUREKA_CLIENT_REGISTER_WITH_EUREKA=${{ secrets.EUREKA_CLIENT_REGISTER_WITH_EUREKA }}
+          EUREKA_CLIENT_FETCH_REGISTRY=${{ secrets.EUREKA_CLIENT_FETCH_REGISTRY }}
+          EUREKA_INSTANCE_PREFER_IP_ADDRESS=${{ secrets.EUREKA_INSTANCE_PREFER_IP_ADDRESS }}
+          EUREKA_INSTANCE_LEASE_RENEWAL_INTERVAL_IN_SECONDS=${{ secrets.EUREKA_INSTANCE_LEASE_RENEWAL_INTERVAL_IN_SECONDS }}
+          EUREKA_INSTANCE_LEASE_EXPIRATION_DURATION_IN_SECONDS=${{ secrets.EUREKA_INSTANCE_LEASE_EXPIRATION_DURATION_IN_SECONDS }}
+          
+          # Spring Cloud Discovery 설정
+          SPRING_CLOUD_DISCOVERY_ENABLED=${{ secrets.SPRING_CLOUD_DISCOVERY_ENABLED }}
+          SPRING_CLOUD_SERVICE_REGISTRY_AUTO_REGISTRATION_ENABLED=${{ secrets.SPRING_CLOUD_SERVICE_REGISTRY_AUTO_REGISTRATION_ENABLED }}
+          
+          # Management Endpoints 설정
+          MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=${{ secrets.MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE }}
+          MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS=${{ secrets.MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS }}
+          
           # Network 설정
           HOST_IP_ADDRESS=${{ secrets.HOST_IP_ADDRESS }}
           
@@ -210,79 +225,79 @@ jobs:
             # AWS ECR 로그인
             aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin $ECR_REGISTRY
 
-            # 기존 컨테이너 정리 (순서대로)
-            echo "🛑 Stopping existing containers..."
+            # 기존 컨테이너 정리
+            echo "Stopping existing containers..."
             docker-compose down --remove-orphans || true
             docker system prune -f || true
 
-            # === 단계 1: 인프라 서비스 시작 ===
-            echo "🗄️ Starting infrastructure services..."
+            # 단계 1: 인프라 서비스 시작
+            echo "Starting infrastructure services..."
             docker-compose up -d mariadb redis rabbitmq
             
-            echo "⏳ Waiting for infrastructure services to be ready..."
+            echo "Waiting for infrastructure services to be ready..."
             sleep 60
 
-            # === 단계 2: Zookeeper와 Kafka 시작 ===
-            echo "📡 Starting Zookeeper..."
+            # 단계 2: Zookeeper와 Kafka 시작
+            echo "Starting Zookeeper..."
             docker-compose up -d zookeeper
             sleep 30
 
-            echo "🔄 Starting Kafka..."
+            echo "Starting Kafka..."
             docker-compose up -d kafka
             sleep 40
 
-            # === 단계 3: Config Service 시작 (충분한 시간!) ===
-            echo "⚙️ Starting Config Service..."
+            # 단계 3: Config Service 시작
+            echo "Starting Config Service..."
             docker-compose up -d config-service
             
-            # Config Service 헬스체크 (25번 × 15초 = 375초 = 6.25분)
-            echo "🔍 Waiting for Config Service to be healthy..."
+            # Config Service 헬스체크
+            echo "Waiting for Config Service to be healthy..."
             for i in {1..25}; do
               if curl -f http://localhost:8888/actuator/health > /dev/null 2>&1; then
-                echo "✅ Config Service is healthy!"
+                echo "Config Service is healthy!"
                 break
               else
-                echo "⏳ Config Service not ready yet... ($i/25)"
+                echo "Config Service not ready yet... ($i/25)"
                 sleep 15
               fi
             done
 
-            # === 단계 4: Eureka Service 시작 ===
-            echo "🌐 Starting Eureka Service..."
+            # 단계 4: Eureka Service 시작
+            echo "Starting Eureka Service..."
             docker-compose up -d eureka-service
             
-            # Eureka Service 헬스체크 (20번 × 20초 = 400초 = 6.7분)
-            echo "🔍 Waiting for Eureka Service to be healthy..."
+            # Eureka Service 헬스체크
+            echo "Waiting for Eureka Service to be healthy..."
             for i in {1..20}; do
               if curl -f http://localhost:8761/actuator/health > /dev/null 2>&1; then
-                echo "✅ Eureka Service is healthy!"
+                echo "Eureka Service is healthy!"
                 break
               else
-                echo "⏳ Eureka Service not ready yet... ($i/20)"
+                echo "Eureka Service not ready yet... ($i/20)"
                 sleep 20
               fi
             done
 
-            # === 단계 5: 비즈니스 서비스들 시작 ===
-            echo "🏪 Starting business services..."
+            # 단계 5: 비즈니스 서비스들 시작
+            echo "Starting business services..."
             docker-compose up -d auth-service user-service commerce-service live-streaming-service
             
             # 비즈니스 서비스들 시작 대기
-            echo "⏳ Waiting for business services to start..."
+            echo "Waiting for business services to start..."
             sleep 90
 
-            # === 단계 6: API Gateway 시작 ===
-            echo "🚪 Starting API Gateway..."
+            # 단계 6: API Gateway 시작
+            echo "Starting API Gateway..."
             docker-compose up -d apigateway-service
             
             # API Gateway 시작 대기
-            echo "⏳ Waiting for API Gateway to start..."
+            echo "Waiting for API Gateway to start..."
             sleep 60
 
-            # === 최종 헬스체크 ===
-            echo "🔍 Final health check..."
+            # 최종 헬스체크
+            echo "Final health check..."
             
-            # 개별 서비스 상태 확인 (관대한 체크)
+            # 개별 서비스 상태 확인
             services=(
               "config-service:8888"
               "eureka-service:8761" 
@@ -301,25 +316,25 @@ jobs:
               # 3번 재시도
               for attempt in {1..3}; do
                 if curl -f http://localhost:$port/actuator/health > /dev/null 2>&1; then
-                  echo "✅ $service_name is healthy"
+                  echo "$service_name is healthy"
                   break
                 else
-                  echo "⏳ $service_name attempt $attempt/3..."
+                  echo "$service_name attempt $attempt/3..."
                   sleep 10
                 fi
               done
             done
 
             # 컨테이너 상태 확인
-            echo "📊 Container status:"
+            echo "Container status:"
             docker-compose ps
 
             # 메모리 사용량 확인
-            echo "💾 Memory usage:"
+            echo "Memory usage:"
             docker stats --no-stream
 
             # Eureka 등록된 서비스 확인
-            echo "🌐 Checking registered services in Eureka..."
+            echo "Checking registered services in Eureka..."
             curl -s http://localhost:8761/eureka/apps | grep -o '<name>[^<]*</name>' | sed 's/<[^>]*>//g' || echo "Could not fetch Eureka registry"
 
-            echo "🚀 Deployment completed!"
+            echo "Deployment completed!"
