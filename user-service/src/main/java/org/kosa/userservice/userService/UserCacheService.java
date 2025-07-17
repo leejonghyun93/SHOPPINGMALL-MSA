@@ -32,7 +32,8 @@ public class UserCacheService {
 
             Optional<UserDto> userOpt = userService.getMemberDetail(userId);
 
-            log.info("2️⃣ 사용자 정보 가져오기 완료");
+            log.info("2️⃣ 사용자 정보 가져오기 완료: userId={}, 존재 여부={}", userId, userOpt.isPresent());
+
             if (userOpt.isPresent()) {
                 UserDto user = userOpt.get();
 
@@ -51,12 +52,15 @@ public class UserCacheService {
                 String key = USER_SESSION_PREFIX + userId;
                 redisTemplate.opsForValue().set(key, sessionJson, Duration.ofSeconds(SESSION_TTL));
 
-                log.info("사용자 세션 캐시 저장 완료: userId={}", userId);
+                log.info("3️⃣ 사용자 세션 캐시 저장 완료: userId={}", userId);
+            } else {
+                log.warn("⚠️ 사용자 정보가 없습니다: userId={}", userId);
             }
         } catch (Exception e) {
-            log.error("사용자 세션 캐시 저장 실패: userId={}, error={}", userId, e.getMessage());
+            log.error("❌ 사용자 세션 캐시 저장 실패: userId={}, error={}", userId, e.getMessage(), e);
         }
     }
+
 
     /**
      * Redis에서 사용자 세션 정보 조회
