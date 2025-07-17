@@ -16,19 +16,24 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 @Controller
 @RequestMapping("/api/images")
 @Slf4j
+@Tag(name = "상품 이미지 파일", description = "상품 이미지 파일 서빙 관련 API")
 public class ImageFileController {
 
     @Value("${image.upload.path:/uploads/images/}")
     private String uploadPath;
 
     /**
-     * 🔥 상품 이미지 서빙
-     * 요청 예시: GET /api/images/products/레몬.jpg
+     *  상품 이미지 서빙
+     *  요청 예시: GET /api/images/products/레몬.jpg
      */
     @GetMapping("/products/{fileName}")
+    @Operation(summary = "상품 이미지 파일 서빙")
     public ResponseEntity<Resource> serveProductImage(
             @PathVariable String fileName,
             HttpServletRequest request) {
@@ -62,9 +67,10 @@ public class ImageFileController {
     }
 
     /**
-     * ✅ 썸네일 이미지 요청 시 thumb_ 접두어 붙여서 반환, 없으면 원본 대체
+     *  썸네일 이미지 요청 시 thumb_ 접두어 붙여서 반환, 없으면 원본 대체
      */
     @GetMapping("/products/{fileName}/thumb")
+    @Operation(summary = "상품 썸네일 이미지 서빙")
     public ResponseEntity<Resource> serveThumbnail(
             @PathVariable String fileName,
             HttpServletRequest request) {

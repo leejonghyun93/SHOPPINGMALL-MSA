@@ -1,5 +1,11 @@
 package org.kosa.livestreamingservice.controller.alarm;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +28,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+@Tag(name = "알림 API", description = "알림 관리 및 방송 알림 API")
 @RestController
 @RequestMapping("/api/notifications")
 @RequiredArgsConstructor
@@ -32,10 +39,10 @@ public class NotificationController {
     private final NotificationService notificationService;
     private final BroadcastService broadcastService;
 
-    // ================================
-    //  헬스체크 (하나로 통합)
-    // ================================
-
+    @Operation(summary = "헬스체크", description = "알림 서비스의 상태를 확인합니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "서비스 정상")
+    })
     @GetMapping("/health")
     public ResponseEntity<Map<String, String>> health() {
         Map<String, String> status = new HashMap<>();
@@ -46,15 +53,14 @@ public class NotificationController {
         return ResponseEntity.ok(status);
     }
 
-    // ================================
-    // 방송 스케줄 관련
-    // ================================
-
-    /**
-     * 방송 스케줄 조회 API
-     */
+    @Operation(summary = "방송 스케줄 조회", description = "특정 날짜의 방송 스케줄을 조회합니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공",
+                    content = @Content(schema = @Schema(implementation = BroadcastScheduleDto.class)))
+    })
     @GetMapping("/broadcasts/schedule")
     public ResponseEntity<List<BroadcastScheduleDto>> getBroadcastSchedule(
+            @Parameter(description = "조회할 날짜", required = true, example = "2024-01-01")
             @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
 
         log.info("방송 스케줄 조회 요청: {}", date);
@@ -69,24 +75,28 @@ public class NotificationController {
         }
     }
 
-    /**
-     * 방송별 구독자 수 조회
-     */
+    @Operation(summary = "방송별 구독자 수 조회", description = "특정 방송의 구독자 수를 조회합니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공",
+                    content = @Content(schema = @Schema(implementation = Long.class)))
+    })
     @GetMapping("/broadcasts/{broadcastId}/subscribers/count")
-    public ResponseEntity<Long> getBroadcastSubscriberCount(@PathVariable Long broadcastId) {
+    public ResponseEntity<Long> getBroadcastSubscriberCount(
+            @Parameter(description = "방송 ID", required = true, example = "1")
+            @PathVariable Long broadcastId) {
         long count = notificationService.getBroadcastSubscriberCount(broadcastId);
         return ResponseEntity.ok(count);
     }
 
-    // ================================
-    //  알림 생성 관련
-    // ================================
-
-    /**
-     * 새 알림 생성
-     */
+    @Operation(summary = "알림 생성", description = "새로운 알림을 생성합니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "생성 성공",
+                    content = @Content(schema = @Schema(implementation = NotificationResponseDto.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청")
+    })
     @PostMapping
     public ResponseEntity<NotificationResponseDto> createNotification(
+            @Parameter(description = "알림 생성 정보", required = true)
             @Valid @RequestBody NotificationCreateDto createDto) {
 
         log.info("알림 생성 요청: broadcastId={}, userId={}",
@@ -96,11 +106,13 @@ public class NotificationController {
         return ResponseEntity.ok(response);
     }
 
-    /**
-     * 대량 알림 생성 (방송 서비스에서 호출)
-     */
+    @Operation(summary = "대량 알림 생성", description = "여러 알림을 한번에 생성합니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "생성 성공")
+    })
     @PostMapping("/bulk")
     public ResponseEntity<List<NotificationResponseDto>> createBulkNotifications(
+            @Parameter(description = "대량 알림 생성 정보", required = true)
             @Valid @RequestBody List<NotificationCreateDto> createDtos) {
 
         log.info("대량 알림 생성 요청: {}개", createDtos.size());
@@ -109,26 +121,30 @@ public class NotificationController {
         return ResponseEntity.ok(responses);
     }
 
-    /**
-     * 즉시 알림 발송 (관리자용)
-     */
+    @Operation(summary = "즉시 알림 발송", description = "특정 알림을 즉시 발송합니다. (관리자용)")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "발송 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "알림을 찾을 수 없음")
+    })
     @PostMapping("/{notificationId}/send")
-    public ResponseEntity<Void> sendNotificationNow(@PathVariable Long notificationId) {
+    public ResponseEntity<Void> sendNotificationNow(
+            @Parameter(description = "알림 ID", required = true, example = "1")
+            @PathVariable Long notificationId) {
         notificationService.sendNotificationNow(notificationId);
         return ResponseEntity.ok().build();
     }
 
-    // ================================
-    //  알림 조회 관련
-    // ================================
-
-    /**
-     * 사용자별 알림 목록 조회 (페이징)
-     */
+    @Operation(summary = "사용자별 알림 목록 조회", description = "특정 사용자의 알림 목록을 페이징으로 조회합니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공")
+    })
     @GetMapping("/users/{userId}")
     public ResponseEntity<Page<NotificationResponseDto>> getUserNotifications(
+            @Parameter(description = "사용자 ID", required = true, example = "user123")
             @PathVariable String userId,
+            @Parameter(description = "페이지 번호", example = "0")
             @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "페이지 크기", example = "20")
             @RequestParam(defaultValue = "20") int size) {
 
         Pageable pageable = PageRequest.of(page, size);
@@ -138,11 +154,13 @@ public class NotificationController {
         return ResponseEntity.ok(notifications);
     }
 
-    /**
-     * 읽지 않은 알림 목록 조회
-     */
+    @Operation(summary = "읽지 않은 알림 목록 조회", description = "사용자의 읽지 않은 알림 목록을 조회합니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공")
+    })
     @GetMapping("/users/{userId}/unread")
     public ResponseEntity<List<NotificationResponseDto>> getUnreadNotifications(
+            @Parameter(description = "사용자 ID", required = true, example = "user123")
             @PathVariable String userId) {
 
         List<NotificationResponseDto> notifications =
@@ -151,15 +169,15 @@ public class NotificationController {
         return ResponseEntity.ok(notifications);
     }
 
-    // ================================
-    //  헤더용 API (새로 추가)
-    // ================================
-
-    /**
-     *  헤더용 - 읽지 않은 알림 개수 조회
-     */
+    @Operation(summary = "읽지 않은 알림 개수 조회", description = "헤더용 - 사용자의 읽지 않은 알림 개수를 조회합니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류")
+    })
     @GetMapping("/unread-count")
-    public ResponseEntity<?> getUnreadCount(@RequestParam String userId) {
+    public ResponseEntity<?> getUnreadCount(
+            @Parameter(description = "사용자 ID", required = true, example = "user123")
+            @RequestParam String userId) {
         try {
             long count = notificationService.getUnreadCountByUserId(userId);
 
@@ -175,12 +193,16 @@ public class NotificationController {
         }
     }
 
-    /**
-     *  헤더용 - 최근 알림 목록 조회 (드롭다운용, 최대 10개)
-     */
+    @Operation(summary = "최근 알림 목록 조회", description = "헤더 드롭다운용 - 사용자의 최근 알림 목록을 조회합니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류")
+    })
     @GetMapping("/recent")
     public ResponseEntity<?> getRecentNotifications(
+            @Parameter(description = "사용자 ID", required = true, example = "user123")
             @RequestParam String userId,
+            @Parameter(description = "조회할 최대 개수", example = "10")
             @RequestParam(defaultValue = "10") int limit) {
         try {
             List<Map<String, Object>> notifications =
@@ -195,16 +217,17 @@ public class NotificationController {
         }
     }
 
-    // ================================
-    //  알림 읽음 처리 관련
-    // ================================
-
-    /**
-     *  특정 알림 읽음 처리 (헤더용 + 기존용 통합)
-     */
+    @Operation(summary = "알림 읽음 처리", description = "특정 알림을 읽음 상태로 변경합니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "처리 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "알림을 찾을 수 없음"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류")
+    })
     @PatchMapping("/{notificationId}/read")
     public ResponseEntity<?> markAsRead(
+            @Parameter(description = "알림 ID", required = true, example = "1")
             @PathVariable Long notificationId,
+            @Parameter(description = "사용자 ID", required = true, example = "user123")
             @RequestParam String userId) {
         try {
             boolean success = notificationService.markAsReadByNotificationId(notificationId, userId);
@@ -224,11 +247,15 @@ public class NotificationController {
         }
     }
 
-    /**
-     *  모든 알림 읽음 처리 (헤더용)
-     */
+    @Operation(summary = "모든 알림 읽음 처리", description = "사용자의 모든 알림을 읽음 상태로 변경합니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "처리 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류")
+    })
     @PatchMapping("/mark-all-read")
-    public ResponseEntity<?> markAllAsRead(@RequestParam String userId) {
+    public ResponseEntity<?> markAllAsRead(
+            @Parameter(description = "사용자 ID", required = true, example = "user123")
+            @RequestParam String userId) {
         try {
             int updatedCount = notificationService.markAllAsReadByUserId(userId);
 
@@ -245,17 +272,17 @@ public class NotificationController {
         }
     }
 
-    // ================================
-    //  알림 구독 관리
-    // ================================
-
-    /**
-     * 알림 구독 취소
-     */
+    @Operation(summary = "알림 구독 취소", description = "특정 방송의 알림 구독을 취소합니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "취소 성공")
+    })
     @DeleteMapping("/users/{userId}/broadcasts/{broadcastId}")
     public ResponseEntity<Void> unsubscribeNotification(
+            @Parameter(description = "사용자 ID", required = true, example = "user123")
             @PathVariable String userId,
+            @Parameter(description = "방송 ID", required = true, example = "1")
             @PathVariable Long broadcastId,
+            @Parameter(description = "알림 타입", required = true, example = "BROADCAST_START")
             @RequestParam String type) {
 
         notificationService.deleteNotification(userId, broadcastId, type);

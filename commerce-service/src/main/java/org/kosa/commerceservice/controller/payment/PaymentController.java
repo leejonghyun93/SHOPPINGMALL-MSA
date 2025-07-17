@@ -1,5 +1,6 @@
 package org.kosa.commerceservice.controller.payment;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -9,7 +10,6 @@ import org.kosa.commerceservice.dto.ApiResponse;
 import org.kosa.commerceservice.dto.order.CheckoutRequestDTO;
 import org.kosa.commerceservice.dto.order.OrderResponseDTO;
 import org.kosa.commerceservice.dto.payment.*;
-import org.kosa.commerceservice.entity.payment.Payment;
 import org.kosa.commerceservice.service.order.OrderService;
 import org.kosa.commerceservice.service.payment.PaymentService;
 import org.kosa.commerceservice.util.JwtTokenParser;
@@ -18,23 +18,27 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
-import java.util.Optional;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
 @RestController
 @RequestMapping("/api/payments")
 @RequiredArgsConstructor
 @Slf4j
+@Tag(name = "결제 API", description = "결제 관련 API")
 public class PaymentController {
 
     private final PaymentService paymentService;
     private final OrderService orderService;
     private final JwtTokenParser jwtTokenParser;
 
-    /**
-     * 프론트엔드에서 호출하는 주문 생성 API
-     * POST /api/payments/orders/checkout
-     */
     @PostMapping("/orders/checkout")
+    @Operation(
+            summary = "결제용 주문 생성",
+            description = "프론트엔드에서 결제 전 주문을 생성합니다. 로그인하지 않은 경우 게스트 사용자로 처리됩니다."
+    )
     public ResponseEntity<ApiResponse<OrderResponseDTO>> createOrderForPayment(
             @RequestBody CheckoutRequestDTO request,
             HttpServletRequest httpRequest) {
@@ -50,11 +54,9 @@ public class PaymentController {
             }
 
             request.setUserId(userId);
-
             log.info("결제용 주문 생성 요청 - userId: {}, items: {}", userId, request.getItems().size());
 
             OrderResponseDTO result = orderService.createOrder(request);
-
             return ResponseEntity.ok(ApiResponse.success("주문이 성공적으로 생성되었습니다.", result));
 
         } catch (Exception e) {
@@ -64,13 +66,14 @@ public class PaymentController {
         }
     }
 
-    /**
-     * impUid로 결제 취소하는 API (프론트엔드 호환성)
-     * POST /api/payments/{impUid}/cancel
-     */
     @PostMapping("/{impUid}/cancel")
+    @Operation(
+            summary = "impUid 기반 결제 취소",
+            description = "impUid를 사용하여 결제를 취소합니다. 로그인한 사용자만 요청할 수 있습니다.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
     public ResponseEntity<ApiResponse<PaymentCancelResponseDTO>> cancelPaymentByImpUid(
-            @PathVariable String impUid,
+            @Parameter(description = "아임포트 imp_uid", example = "imp_123456789") @PathVariable String impUid,
             HttpServletRequest httpRequest) {
         try {
             String authHeader = httpRequest.getHeader("Authorization");
@@ -82,8 +85,6 @@ public class PaymentController {
             }
 
             log.info("impUid로 결제 취소 요청 - impUid: {}, userId: {}", impUid, userId);
-
-            // PaymentService를 통해 impUid로 결제 취소 처리
             PaymentCancelResponseDTO response = paymentService.cancelPaymentByImpUid(impUid, userId, "사용자 요청에 의한 취소");
 
             return ResponseEntity.ok(ApiResponse.success("결제가 취소되었습니다.", response));
@@ -96,6 +97,10 @@ public class PaymentController {
     }
 
     @PostMapping("/verify")
+    @Operation(
+            summary = "결제 검증",
+            description = "impUid를 기반으로 결제 결과를 검증합니다."
+    )
     public ResponseEntity<ApiResponse<PaymentVerifyResponse>> verifyPayment(
             @Valid @RequestBody PaymentVerifyRequest request,
             HttpServletRequest httpRequest) {
@@ -108,12 +113,9 @@ public class PaymentController {
             }
 
             String clientIp = getClientIp(httpRequest);
-
-            log.info("결제 검증 요청 - userId: {}, impUid: {}, clientIp: {}",
-                    userId, request.getImpUid(), clientIp);
+            log.info("결제 검증 요청 - userId: {}, impUid: {}, clientIp: {}", userId, request.getImpUid(), clientIp);
 
             PaymentVerifyResponse response = paymentService.verifyPayment(request, userId);
-
             return ResponseEntity.ok(ApiResponse.success("결제 검증이 완료되었습니다.", response));
 
         } catch (Exception e) {
@@ -124,6 +126,10 @@ public class PaymentController {
     }
 
     @PostMapping("/prepare")
+    @Operation(
+            summary = "결제 준비",
+            description = "결제 전 아임포트와 금액 사전 등록을 처리합니다."
+    )
     public ResponseEntity<ApiResponse<PaymentPrepareResponse>> preparePayment(
             @Valid @RequestBody PaymentPrepareRequest request,
             HttpServletRequest httpRequest) {
@@ -136,7 +142,6 @@ public class PaymentController {
             }
 
             log.info("결제 준비 요청 - userId: {}, orderId: {}", userId, request.getOrderId());
-
             PaymentPrepareResponse response = paymentService.preparePayment(request);
 
             return ResponseEntity.ok(ApiResponse.success("결제 준비가 완료되었습니다.", response));
@@ -149,6 +154,11 @@ public class PaymentController {
     }
 
     @PostMapping("/cancel")
+    @Operation(
+            summary = "결제 취소",
+            description = "paymentId를 이용한 일반 결제 취소 처리입니다.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
     public ResponseEntity<ApiResponse<PaymentCancelResponseDTO>> cancelPayment(
             @Valid @RequestBody PaymentCancelRequestDTO request,
             HttpServletRequest httpRequest) {
@@ -162,7 +172,6 @@ public class PaymentController {
             }
 
             log.info("결제 취소 요청 - paymentId: {}, userId: {}", request.getPaymentId(), userId);
-
             PaymentCancelResponseDTO response = paymentService.cancelPayment(request);
 
             return ResponseEntity.ok(ApiResponse.success("결제가 취소되었습니다.", response));
@@ -175,6 +184,10 @@ public class PaymentController {
     }
 
     @PostMapping("/webhook")
+    @Operation(
+            summary = "아임포트 웹훅 수신",
+            description = "아임포트에서 전송하는 웹훅 이벤트를 수신하여 결제 상태를 업데이트합니다."
+    )
     public ResponseEntity<Map<String, Object>> handleWebhook(
             @RequestBody Map<String, Object> webhookData,
             HttpServletRequest request) {
@@ -183,9 +196,7 @@ public class PaymentController {
             String merchantUid = (String) webhookData.get("merchant_uid");
             String clientIp = getClientIp(request);
 
-            log.info("웹훅 수신 - impUid: {}, merchantUid: {}, clientIp: {}",
-                    impUid, merchantUid, clientIp);
-
+            log.info("웹훅 수신 - impUid: {}, merchantUid: {}, clientIp: {}", impUid, merchantUid, clientIp);
             paymentService.handleWebhook(impUid, merchantUid);
 
             return ResponseEntity.ok(Map.of("success", true));

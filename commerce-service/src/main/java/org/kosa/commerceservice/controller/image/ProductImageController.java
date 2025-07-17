@@ -3,12 +3,10 @@ package org.kosa.commerceservice.controller.image;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
 import org.kosa.commerceservice.dto.ApiResponse;
 import org.kosa.commerceservice.dto.productImage.ProductImageDto;
 import org.kosa.commerceservice.entity.productImage.ProductImage;
 import org.kosa.commerceservice.service.productImage.ProductImageService;
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
@@ -16,37 +14,42 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
 @RequestMapping("/api/images")
 @RequiredArgsConstructor
 @Slf4j
+@Tag(name = "상품 이미지", description = "상품 이미지 관련 API")
 public class ProductImageController {
 
     private final ProductImageService imageService;
 
-    //  업로드 경로 설정 추가
     @Value("${image.upload.path:./dev-uploads/images/}")
     private String uploadPath;
 
     @PostMapping
+    @Operation(summary = "상품 이미지 등록")
     public ResponseEntity<ProductImage> uploadImage(@RequestBody ProductImage image) {
         return ResponseEntity.ok(imageService.saveImage(image));
     }
 
     @GetMapping("/metadata/{productId}")
+    @Operation(summary = "상품 이미지 메타데이터 조회")
     public ResponseEntity<List<ProductImage>> getImages(@PathVariable Integer productId) {
         return ResponseEntity.ok(imageService.getImagesByProductId(productId));
     }
 
     @GetMapping("/metadata/{productId}/main")
+    @Operation(summary = "상품 메인 이미지 메타데이터 조회")
     public ResponseEntity<ProductImage> getMainImage(@PathVariable Integer productId) {
         return imageService.getMainImage(productId)
                 .map(ResponseEntity::ok)
@@ -54,12 +57,14 @@ public class ProductImageController {
     }
 
     @DeleteMapping("/{imageId}")
+    @Operation(summary = "상품 이미지 삭제")
     public ResponseEntity<Void> deleteImage(@PathVariable Integer imageId) {
         imageService.deleteImage(imageId);
         return ResponseEntity.ok().build();
     }
 
     @GetMapping("/products/{productId}")
+    @Operation(summary = "상품 이미지 조회")
     public ResponseEntity<ApiResponse<List<ProductImageDto>>> getProductImages(@PathVariable String productId) {
         try {
             Integer id = Integer.parseInt(productId);
@@ -72,6 +77,7 @@ public class ProductImageController {
     }
 
     @GetMapping("/products/{productId}/main")
+    @Operation(summary = "상품 메인 이미지 조회")
     public ResponseEntity<ApiResponse<ProductImageDto>> getProductMainImage(@PathVariable String productId) {
         try {
             Integer id = Integer.parseInt(productId);
@@ -84,9 +90,10 @@ public class ProductImageController {
     }
 
     @PostMapping("/products/main")
+    @Operation(summary = "다수 상품 메인 이미지 조회")
     public ResponseEntity<ApiResponse<Map<String, ProductImageDto>>> getMainImages(@RequestBody List<String> productIds) {
         try {
-            List<Integer> ids = productIds.stream().map(Integer::parseInt).collect(java.util.stream.Collectors.toList());
+            List<Integer> ids = productIds.stream().map(Integer::parseInt).toList();
             Map<String, ProductImageDto> mainImages = imageService.getMainImages(ids);
             return ResponseEntity.ok(ApiResponse.success(mainImages));
         } catch (Exception e) {
@@ -96,9 +103,10 @@ public class ProductImageController {
     }
 
     @PostMapping("/products/all")
+    @Operation(summary = "다수 상품 이미지 조회")
     public ResponseEntity<ApiResponse<Map<String, List<ProductImageDto>>>> getProductImages(@RequestBody List<String> productIds) {
         try {
-            List<Integer> ids = productIds.stream().map(Integer::parseInt).collect(java.util.stream.Collectors.toList());
+            List<Integer> ids = productIds.stream().map(Integer::parseInt).toList();
             Map<String, List<ProductImageDto>> allImages = imageService.getProductImages(ids);
             return ResponseEntity.ok(ApiResponse.success(allImages));
         } catch (Exception e) {
@@ -108,6 +116,7 @@ public class ProductImageController {
     }
 
     @GetMapping("/products/{productId}/exists")
+    @Operation(summary = "상품 이미지 존재 여부 확인")
     public ResponseEntity<ApiResponse<Boolean>> hasImages(@PathVariable String productId) {
         try {
             Integer id = Integer.parseInt(productId);
@@ -120,6 +129,7 @@ public class ProductImageController {
     }
 
     @GetMapping("/products/{productId}/main/exists")
+    @Operation(summary = "상품 메인 이미지 존재 여부 확인")
     public ResponseEntity<ApiResponse<Boolean>> hasMainImage(@PathVariable String productId) {
         try {
             Integer id = Integer.parseInt(productId);
@@ -131,28 +141,20 @@ public class ProductImageController {
         }
     }
 
-    //  업로드된 상품 메인 이미지 서빙
     @GetMapping("/upload/product/main/{fileName}")
-    public ResponseEntity<Resource> serveUploadProductMainImage(
-            @PathVariable String fileName,
-            HttpServletRequest request) {
-
+    @Operation(summary = "상품 메인 이미지 파일 서빙")
+    public ResponseEntity<Resource> serveUploadProductMainImage(@PathVariable String fileName, HttpServletRequest request) {
         try {
-            log.info("업로드 상품 메인 이미지 요청: {}", fileName);
-
-            // 실제 파일 경로 찾기
             Path filePath = Paths.get(uploadPath, "upload", "product", "main", fileName);
             Resource resource = new UrlResource(filePath.toUri());
 
             if (resource.exists() && resource.isReadable()) {
                 String contentType = determineContentType(fileName);
-
                 return ResponseEntity.ok()
                         .contentType(MediaType.parseMediaType(contentType))
                         .header(HttpHeaders.CACHE_CONTROL, "public, max-age=31536000")
                         .body(resource);
             } else {
-                log.warn("업로드 상품 이미지 파일을 찾을 수 없음: {}", filePath.toAbsolutePath());
                 return ResponseEntity.notFound().build();
             }
         } catch (Exception e) {
@@ -161,56 +163,25 @@ public class ProductImageController {
         }
     }
 
-    // 범용 업로드 이미지 핸들러
     @GetMapping("/upload/**")
+    @Operation(summary = "업로드된 이미지 범용 서빙")
     public ResponseEntity<Resource> serveUploadImage(HttpServletRequest request) {
         try {
-            String requestURI = request.getRequestURI();
-            // 🔥 /api/images 제거하여 실제 파일 경로 추출
-            String requestPath = requestURI.replace("/api/images", "");
-
-            log.info("업로드 이미지 요청 - 원본 URI: {}", requestURI);
-            log.info("업로드 이미지 요청 - 추출된 경로: {}", requestPath);
-
-            // 🔥 경로 정규화
+            String requestPath = request.getRequestURI().replace("/api/images", "");
             if (requestPath.startsWith("/")) {
                 requestPath = requestPath.substring(1);
             }
-
-            log.info("업로드 이미지 요청 - 정규화된 경로: {}", requestPath);
-
-            // 🔥 실제 파일 경로 구성
             Path filePath = Paths.get(uploadPath, requestPath);
-            log.info("업로드 이미지 요청 - 최종 파일 경로: {}", filePath.toAbsolutePath());
-
             Resource resource = new UrlResource(filePath.toUri());
 
             if (resource.exists() && resource.isReadable()) {
                 String fileName = filePath.getFileName().toString();
                 String contentType = determineContentType(fileName);
-
-                log.info("이미지 파일 찾음: {}", filePath.toAbsolutePath());
-
                 return ResponseEntity.ok()
                         .contentType(MediaType.parseMediaType(contentType))
                         .header(HttpHeaders.CACHE_CONTROL, "public, max-age=31536000")
                         .body(resource);
             } else {
-                log.warn("업로드 이미지 파일을 찾을 수 없음: {}", filePath.toAbsolutePath());
-
-                // 🔥 파일이 없을 때 디렉토리 구조 출력 (디버깅용)
-                Path uploadDir = Paths.get(uploadPath);
-                if (Files.exists(uploadDir)) {
-                    log.info("업로드 디렉토리 존재함: {}", uploadDir.toAbsolutePath());
-                    try (Stream<Path> paths = Files.walk(uploadDir, 3)) {
-                        paths.filter(Files::isRegularFile)
-                                .limit(10)
-                                .forEach(path -> log.info("발견된 파일: {}", path.toAbsolutePath()));
-                    }
-                } else {
-                    log.warn("업로드 디렉토리가 존재하지 않음: {}", uploadDir.toAbsolutePath());
-                }
-
                 return ResponseEntity.notFound().build();
             }
         } catch (Exception e) {
@@ -219,25 +190,15 @@ public class ProductImageController {
         }
     }
 
-
-    //  파일 확장자에 따른 Content-Type 결정
     private String determineContentType(String fileName) {
         String extension = fileName.substring(fileName.lastIndexOf(".") + 1).toLowerCase();
-
-        switch (extension) {
-            case "jpg":
-            case "jpeg":
-                return "image/jpeg";
-            case "png":
-                return "image/png";
-            case "gif":
-                return "image/gif";
-            case "webp":
-                return "image/webp";
-            case "svg":
-                return "image/svg+xml";
-            default:
-                return "image/jpeg";
-        }
+        return switch (extension) {
+            case "jpg", "jpeg" -> "image/jpeg";
+            case "png" -> "image/png";
+            case "gif" -> "image/gif";
+            case "webp" -> "image/webp";
+            case "svg" -> "image/svg+xml";
+            default -> "application/octet-stream";
+        };
     }
 }

@@ -1,5 +1,11 @@
 package org.kosa.livestreamingservice.controller.alarm;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.kosa.livestreamingservice.dto.alarm.NotificationResponseDto;
@@ -10,9 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
-/**
- * 방송 알림 구독 관리 컨트롤러
- */
+@Tag(name = "알림 구독 API", description = "방송 알림 구독 관리 API")
 @RestController
 @RequestMapping("/api/notifications/subscriptions")
 @RequiredArgsConstructor
@@ -22,23 +26,27 @@ public class NotificationSubscriptionController {
 
     private final NotificationSubscriptionService subscriptionService;
 
-    /**
-     *  방송 시작 알림 구독 신청 - 문자열/숫자 ID 모두 지원
-     */
+    @Operation(summary = "방송 시작 알림 구독", description = "특정 방송의 시작 알림을 구독합니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "구독 성공",
+                    content = @Content(schema = @Schema(implementation = NotificationResponseDto.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 파라미터"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류")
+    })
     @PostMapping("/broadcast-start")
     public ResponseEntity<?> subscribeBroadcastStart(
+            @Parameter(description = "사용자 ID", required = true, example = "user123")
             @RequestParam String userId,
+            @Parameter(description = "방송 ID", required = true, example = "1")
             @RequestParam String broadcastId) {
 
         log.info("방송 시작 알림 구독 요청: userId={}, broadcastId={}", userId, broadcastId);
 
         try {
-            //  broadcastId는 숫자여야 함
             Long broadcastIdLong = parseToLong(broadcastId, "broadcastId");
 
-            //  userId는 문자열/숫자 모두 지원
             NotificationResponseDto response = subscriptionService
-                    .subscribeBroadcastStart(userId, broadcastIdLong);  // String userId 전달
+                    .subscribeBroadcastStart(userId, broadcastIdLong);
 
             return ResponseEntity.ok(response);
 
@@ -53,13 +61,19 @@ public class NotificationSubscriptionController {
         }
     }
 
-    /**
-     *  방송 알림 구독 취소 - 문자열/숫자 ID 모두 지원
-     */
+    @Operation(summary = "방송 알림 구독 취소", description = "특정 방송의 알림 구독을 취소합니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "구독 취소 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 파라미터"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류")
+    })
     @DeleteMapping
     public ResponseEntity<?> unsubscribeBroadcast(
+            @Parameter(description = "사용자 ID", required = true, example = "user123")
             @RequestParam String userId,
+            @Parameter(description = "방송 ID", required = true, example = "1")
             @RequestParam String broadcastId,
+            @Parameter(description = "알림 타입", example = "BROADCAST_START")
             @RequestParam(defaultValue = "BROADCAST_START") String type) {
 
         log.info("방송 알림 구독 취소 요청: userId={}, broadcastId={}, type={}", userId, broadcastId, type);
@@ -67,7 +81,6 @@ public class NotificationSubscriptionController {
         try {
             Long broadcastIdLong = parseToLong(broadcastId, "broadcastId");
 
-            //  userId는 문자열 그대로 전달
             subscriptionService.unsubscribeBroadcast(userId, broadcastIdLong, type);
             return ResponseEntity.ok().build();
 
@@ -82,14 +95,17 @@ public class NotificationSubscriptionController {
         }
     }
 
-    /**
-     *  사용자의 구독 중인 방송 목록 조회 - 문자열/숫자 ID 모두 지원
-     */
+    @Operation(summary = "사용자 구독 목록 조회", description = "사용자가 구독 중인 방송 목록을 조회합니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 사용자 ID")
+    })
     @GetMapping("/users/{userId}")
-    public ResponseEntity<?> getUserSubscriptions(@PathVariable String userId) {
+    public ResponseEntity<?> getUserSubscriptions(
+            @Parameter(description = "사용자 ID", required = true, example = "user123")
+            @PathVariable String userId) {
 
         try {
-            //  userId는 문자열 그대로 전달
             List<NotificationResponseDto> subscriptions = subscriptionService.getUserSubscriptions(userId);
             return ResponseEntity.ok(subscriptions);
 
@@ -100,11 +116,16 @@ public class NotificationSubscriptionController {
         }
     }
 
-    /**
-     *  특정 방송의 구독자 수 조회
-     */
+    @Operation(summary = "방송 구독자 수 조회", description = "특정 방송의 구독자 수를 조회합니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공",
+                    content = @Content(schema = @Schema(implementation = Long.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 방송 ID")
+    })
     @GetMapping("/broadcasts/{broadcastId}/count")
-    public ResponseEntity<?> getBroadcastSubscriberCount(@PathVariable String broadcastId) {
+    public ResponseEntity<?> getBroadcastSubscriberCount(
+            @Parameter(description = "방송 ID", required = true, example = "1")
+            @PathVariable String broadcastId) {
 
         try {
             Long broadcastIdLong = parseToLong(broadcastId, "broadcastId");
@@ -118,11 +139,15 @@ public class NotificationSubscriptionController {
         }
     }
 
-    /**
-     *  방송 시작시 구독자들에게 대량 알림 생성 (내부 API)
-     */
+    @Operation(summary = "방송 시작 알림 생성", description = "방송 시작시 구독자들에게 대량 알림을 생성합니다. (내부 API)")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "알림 생성 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 방송 ID")
+    })
     @PostMapping("/broadcasts/{broadcastId}/start-notifications")
-    public ResponseEntity<?> createBroadcastStartNotifications(@PathVariable String broadcastId) {
+    public ResponseEntity<?> createBroadcastStartNotifications(
+            @Parameter(description = "방송 ID", required = true, example = "1")
+            @PathVariable String broadcastId) {
 
         log.info("방송 시작 - 구독자 알림 생성 요청: broadcastId={}", broadcastId);
 
@@ -141,7 +166,7 @@ public class NotificationSubscriptionController {
     }
 
     /**
-     *  안전한 Long 파싱 유틸리티 메서드 (broadcastId용)
+     * 안전한 Long 파싱 유틸리티 메서드 (broadcastId용)
      */
     private Long parseToLong(String value, String fieldName) {
         if (value == null || value.trim().isEmpty()) {

@@ -79,7 +79,7 @@ public class ProductQnaController {
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
-
+    @SecurityRequirement(name = "JWT")
     @Operation(summary = "상품별 Q&A 조회", description = "특정 상품의 Q&A 목록을 조회합니다")
     @GetMapping("/product/{productId}")
     public ResponseEntity<List<ProductQnaDto>> getProductQnas(
@@ -95,7 +95,7 @@ public class ProductQnaController {
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
-
+    @SecurityRequirement(name = "JWT")
     @Operation(summary = "Q&A 상세 조회", description = "Q&A ID로 상세 정보를 조회합니다")
     @GetMapping("/{qnaId}")
     public ResponseEntity<ProductQnaDto> getQna(

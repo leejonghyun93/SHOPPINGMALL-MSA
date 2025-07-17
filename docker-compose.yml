@@ -246,7 +246,7 @@ services:
       - SPRING_APPLICATION_NAME=auth-service
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
       - CONFIG_SERVER_URL=${CONFIG_SERVER_URL:-http://config-service:8888}
-      - EUREKA_CLIENT_SERVICE_URL=http://eureka-service:8761/eureka
+      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka
       - SPRING_CONFIG_IMPORT=optional:configserver:${CONFIG_SERVER_URL:-http://config-service:8888}
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
@@ -299,7 +299,7 @@ services:
       - SPRING_APPLICATION_NAME=user-service
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
       - CONFIG_SERVER_URL=${CONFIG_SERVER_URL:-http://config-service:8888}
-      - EUREKA_CLIENT_SERVICE_URL=http://eureka-service:8761/eureka
+      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka
       - SPRING_CONFIG_IMPORT=optional:configserver:${CONFIG_SERVER_URL:-http://config-service:8888}
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
@@ -354,7 +354,7 @@ services:
       - SPRING_APPLICATION_NAME=commerce-service
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
       - CONFIG_SERVER_URL=${CONFIG_SERVER_URL:-http://config-service:8888}
-      - EUREKA_CLIENT_SERVICE_URL=http://eureka-service:8761/eureka
+      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka
       - SPRING_CONFIG_IMPORT=optional:configserver:${CONFIG_SERVER_URL:-http://config-service:8888}
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
@@ -413,7 +413,7 @@ services:
       - SPRING_APPLICATION_NAME=live-streaming-service
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
       - CONFIG_SERVER_URL=${CONFIG_SERVER_URL:-http://config-service:8888}
-      - EUREKA_CLIENT_SERVICE_URL=http://eureka-service:8761/eureka
+      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka
       - SPRING_CONFIG_IMPORT=optional:configserver:${CONFIG_SERVER_URL:-http://config-service:8888}
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
@@ -469,7 +469,7 @@ services:
       - SPRING_APPLICATION_NAME=apigateway-service
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
       - CONFIG_SERVER_URL=${CONFIG_SERVER_URL:-http://config-service:8888}
-      - EUREKA_CLIENT_SERVICE_URL=http://eureka-service:8761/eureka
+      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka
       - SPRING_CONFIG_IMPORT=optional:configserver:${CONFIG_SERVER_URL:-http://config-service:8888}
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379

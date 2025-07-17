@@ -1,5 +1,6 @@
 package org.kosa.commerceservice.controller.order;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -14,17 +15,27 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/orders")
 @Slf4j
+@Tag(name = "주문 API", description = "주문 관련 API")
 public class OrderController {
 
     private final OrderService orderService;
     private final JwtTokenParser jwtTokenParser;
+
     @GetMapping("/count")
-    public ResponseEntity<ApiResponse<Integer>> getOrderCount(
-            HttpServletRequest httpRequest) {
+    @Operation(
+            summary = "사용자의 주문 개수 조회",
+            description = "JWT를 이용해 현재 로그인한 사용자의 주문 개수를 반환합니다.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    public ResponseEntity<ApiResponse<Integer>> getOrderCount(HttpServletRequest httpRequest) {
         try {
             String authHeader = httpRequest.getHeader("Authorization");
             String userId = jwtTokenParser.extractUserIdFromAuthHeader(authHeader);
@@ -35,9 +46,7 @@ public class OrderController {
             }
 
             log.info("주문 개수 조회: userId={}", userId);
-
             int orderCount = orderService.getOrderCount(userId);
-
             return ResponseEntity.ok(ApiResponse.success("주문 개수 조회 성공", orderCount));
 
         } catch (Exception e) {
@@ -46,7 +55,12 @@ public class OrderController {
                     .body(ApiResponse.error("주문 개수 조회 중 오류가 발생했습니다: " + e.getMessage()));
         }
     }
+
     @PostMapping("/checkout")
+    @Operation(
+            summary = "주문 체크아웃",
+            description = "장바구니 정보를 기반으로 주문을 생성합니다. 로그인하지 않은 경우 guest로 처리됩니다."
+    )
     public ResponseEntity<ApiResponse<OrderResponseDTO>> checkout(
             @RequestBody CheckoutRequestDTO request,
             HttpServletRequest httpRequest) {
@@ -62,7 +76,6 @@ public class OrderController {
             }
 
             request.setUserId(userId);
-
             OrderResponseDTO result = orderService.createOrder(request);
 
             return ResponseEntity.ok(ApiResponse.success("주문이 성공적으로 완료되었습니다.", result));
@@ -75,8 +88,12 @@ public class OrderController {
     }
 
     @GetMapping("/list")
-    public ResponseEntity<ApiResponse<List<OrderDTO>>> getOrderList(
-            HttpServletRequest httpRequest) {
+    @Operation(
+            summary = "사용자의 주문 목록 조회",
+            description = "JWT 인증된 사용자의 주문 내역을 반환합니다.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    public ResponseEntity<ApiResponse<List<OrderDTO>>> getOrderList(HttpServletRequest httpRequest) {
         try {
             String authHeader = httpRequest.getHeader("Authorization");
             String userId = jwtTokenParser.extractUserIdFromAuthHeader(authHeader);
@@ -87,9 +104,7 @@ public class OrderController {
             }
 
             log.info("주문 목록 조회: userId={}", userId);
-
             List<OrderDTO> orders = orderService.getUserOrders(userId);
-
             return ResponseEntity.ok(ApiResponse.success("주문 목록 조회 성공", orders));
 
         } catch (Exception e) {
@@ -100,8 +115,12 @@ public class OrderController {
     }
 
     @GetMapping("/{orderId}")
+    @Operation(
+            summary = "주문 상세 조회",
+            description = "로그인 사용자의 주문 상세 또는 공개 주문 상세 정보를 조회합니다."
+    )
     public ResponseEntity<ApiResponse<OrderDTO>> getOrderDetail(
-            @PathVariable String orderId,
+            @Parameter(description = "주문 ID", example = "ORD123456") @PathVariable String orderId,
             HttpServletRequest httpRequest) {
         try {
             log.info("주문 상세 조회: orderId={}", orderId);
@@ -110,7 +129,6 @@ public class OrderController {
             String userId = jwtTokenParser.extractUserIdFromAuthHeader(authHeader);
 
             OrderDTO order;
-
             if (userId != null) {
                 log.info("사용자별 주문 상세 조회: orderId={}, userId={}", orderId, userId);
                 order = orderService.getOrderDetail(orderId, userId);
@@ -129,11 +147,15 @@ public class OrderController {
     }
 
     @PostMapping("/{orderId}/cancel")
+    @Operation(
+            summary = "주문 취소",
+            description = "해당 주문을 로그인한 사용자가 직접 취소합니다.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
     public ResponseEntity<ApiResponse<OrderCancelResponseDTO>> cancelOrder(
-            @PathVariable String orderId,
+            @Parameter(description = "주문 ID", example = "ORD123456") @PathVariable String orderId,
             @Valid @RequestBody OrderCancelRequestDTO request,
             HttpServletRequest httpRequest) {
-
         try {
             log.info("주문 취소 요청 - orderId: {}, userId: {}", orderId, request.getUserId());
 
@@ -159,9 +181,7 @@ public class OrderController {
             }
 
             OrderCancelResponseDTO response = orderService.cancelOrder(request);
-
             log.info("주문 취소 성공: orderId={}", orderId);
-
             return ResponseEntity.ok(ApiResponse.success("주문이 성공적으로 취소되었습니다.", response));
 
         } catch (IllegalArgumentException e) {

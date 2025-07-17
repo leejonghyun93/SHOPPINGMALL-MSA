@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -28,7 +29,7 @@ import java.util.*;
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "User API", description = "사용자 관리 API")
+@Tag(name = "유저 API", description = "사용자 관리 API")
 public class UserApiController {
 
     private final UserService userService;
@@ -95,7 +96,7 @@ public class UserApiController {
             ));
         }
     }
-
+    @SecurityRequirement(name = "JWT")
     @Operation(summary = "사용자 프로필 조회 (캐시)", description = "캐시에서 사용자 프로필 정보를 조회합니다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "조회 성공"),
@@ -203,7 +204,7 @@ public class UserApiController {
                         ));
             }
         } catch (Exception e) {
-            log.error("❌ 사용자 세션 정보 조회 실패: userId={}, error={}", userId, e.getMessage());
+            log.error(" 사용자 세션 정보 조회 실패: userId={}, error={}", userId, e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of(
                             "success", false,
@@ -224,7 +225,7 @@ public class UserApiController {
         Member savedMember = userService.saveMember(member);
         return ResponseEntity.ok(savedMember);
     }
-
+    @SecurityRequirement(name = "JWT")
     @Operation(summary = "사용자 상세 정보 조회", description = "사용자 ID로 상세 정보를 조회합니다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "조회 성공"),
@@ -237,7 +238,7 @@ public class UserApiController {
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
-
+    @SecurityRequirement(name = "JWT")
     @Operation(summary = "사용자 삭제", description = "사용자 계정을 삭제합니다. 토큰 인증이 필요합니다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "삭제 성공"),
@@ -352,7 +353,7 @@ public class UserApiController {
                     .body("Update failed");
         }
     }
-
+    @SecurityRequirement(name = "JWT")
     @Operation(summary = "비밀번호 검증", description = "사용자의 현재 비밀번호를 검증합니다. 토큰 인증이 필요합니다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "비밀번호 검증 성공"),
@@ -408,7 +409,7 @@ public class UserApiController {
                     .body(Map.of("message", "비밀번호 확인 중 오류가 발생했습니다."));
         }
     }
-
+    @SecurityRequirement(name = "JWT")
     @Operation(summary = "사용자 프로필 조회", description = "토큰으로 인증된 사용자의 프로필을 조회합니다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "조회 성공"),
@@ -466,7 +467,7 @@ public class UserApiController {
                     ));
         }
     }
-
+    @SecurityRequirement(name = "JWT")
     @Operation(summary = "사용자 프로필 수정", description = "토큰으로 인증된 사용자의 프로필을 수정합니다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "수정 성공"),

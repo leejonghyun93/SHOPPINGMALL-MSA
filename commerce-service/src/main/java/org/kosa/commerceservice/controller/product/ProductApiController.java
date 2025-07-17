@@ -1,8 +1,13 @@
 package org.kosa.commerceservice.controller.product;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
 import org.kosa.commerceservice.dto.ApiResponse;
 import org.kosa.commerceservice.dto.cart.GuestCartItemDTO;
 import org.kosa.commerceservice.dto.product.ProductDTO;
@@ -14,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Tag(name = "상품 API", description = "상품 조회 및 관리 API")
 @RestController
 @RequestMapping("/api/products")
 @RequiredArgsConstructor
@@ -23,8 +29,17 @@ public class ProductApiController {
     private final ProductService productService;
     private final EnhancedProductService enhancedProductService;
 
+    @Operation(summary = "상품 상세 조회", description = "상품 ID로 상세 정보를 조회합니다. 조회 시 조회수가 증가합니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공",
+                    content = @Content(schema = @Schema(implementation = ProductDTO.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "상품을 찾을 수 없음"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "서버 오류")
+    })
     @GetMapping("/{productId}")
-    public ResponseEntity<ProductDTO> getProductDetail(@PathVariable Integer productId) {
+    public ResponseEntity<ProductDTO> getProductDetail(
+            @Parameter(description = "상품 ID", required = true, example = "1")
+            @PathVariable Integer productId) {
         try {
             log.info("상품 상세 조회 요청 - productId: {}", productId);
 
@@ -43,8 +58,15 @@ public class ProductApiController {
         }
     }
 
+    @Operation(summary = "상품 상세 조회 (이미지 포함)", description = "상품 ID로 이미지를 포함한 상세 정보를 조회합니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청")
+    })
     @GetMapping("/{productId}/with-images")
-    public ResponseEntity<ApiResponse<ProductDTO>> getProductDetailWithImages(@PathVariable Integer productId) {
+    public ResponseEntity<ApiResponse<ProductDTO>> getProductDetailWithImages(
+            @Parameter(description = "상품 ID", required = true, example = "1")
+            @PathVariable Integer productId) {
         try {
             log.info("상품 상세 조회 (이미지 포함) 요청 - productId: {}", productId);
 
@@ -64,9 +86,16 @@ public class ProductApiController {
         }
     }
 
+    @Operation(summary = "전체 상품 목록 조회", description = "전체 상품 목록을 조회합니다. 이미지 포함 여부를 선택할 수 있습니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "조회 실패")
+    })
     @GetMapping
     public ResponseEntity<ApiResponse<List<ProductDTO>>> getAllProducts(
+            @Parameter(description = "조회할 상품 수", example = "20")
             @RequestParam(defaultValue = "20") int limit,
+            @Parameter(description = "이미지 포함 여부", example = "false")
             @RequestParam(defaultValue = "false") boolean includeImages) {
         try {
             log.info("전체 상품 조회 요청 - limit: {}, includeImages: {}", limit, includeImages);
@@ -87,13 +116,21 @@ public class ProductApiController {
         }
     }
 
+    @Operation(summary = "필터로 상품 조회", description = "카테고리 필터를 적용하여 상품을 조회합니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공",
+                    content = @Content(schema = @Schema(implementation = ProductDTO.class)))
+    })
     @GetMapping("/filter")
     public ResponseEntity<List<ProductDTO>> getProductsByFilter(
+            @Parameter(description = "카테고리 ID (ALL: 전체)", example = "ALL")
             @RequestParam(name = "categoryId", defaultValue = "ALL") String categoryIdStr,
+            @Parameter(description = "조회할 상품 수", example = "10")
             @RequestParam(name = "limit", defaultValue = "10") Integer limit,
+            @Parameter(description = "이미지 포함 여부", example = "false")
             @RequestParam(name = "includeImages", defaultValue = "false") boolean includeImages) {
         try {
-            // 🔥 디버깅: 실제 받은 파라미터들 로깅
+            // 디버깅: 실제 받은 파라미터들 로깅
             log.info("🔍 실제 받은 파라미터들:");
             log.info("  - categoryIdStr: '{}'", categoryIdStr);
             log.info("  - limit: {}", limit);
@@ -106,13 +143,13 @@ public class ProductApiController {
             if (includeImages) {
                 if ("ALL".equals(categoryIdStr)) {
                     products = enhancedProductService.getProductList(limit);
-                    log.info("✅ 전체 상품 조회 (이미지 포함): {}개", products.size());
+                    log.info(" 전체 상품 조회 (이미지 포함): {}개", products.size());
                 } else {
                     try {
                         Integer categoryId = Integer.parseInt(categoryIdStr);
                         log.info("🎯 파싱된 카테고리 ID: {}", categoryId);
                         products = enhancedProductService.getProductsByCategory(categoryId, limit);
-                        log.info("✅ 카테고리 {} 상품 조회 (이미지 포함): {}개", categoryId, products.size());
+                        log.info("✅카테고리 {} 상품 조회 (이미지 포함): {}개", categoryId, products.size());
                     } catch (NumberFormatException e) {
                         log.error("❌ 잘못된 카테고리 ID 형식: '{}', 에러: {}", categoryIdStr, e.getMessage());
                         return ResponseEntity.ok(List.of());
@@ -177,10 +214,17 @@ public class ProductApiController {
         }
     }
 
+    @Operation(summary = "카테고리별 상품 조회", description = "특정 카테고리의 상품 목록을 조회합니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공")
+    })
     @GetMapping("/category/{categoryId}")
     public ResponseEntity<List<ProductDTO>> getProductsByCategory(
+            @Parameter(description = "카테고리 ID", required = true, example = "1")
             @PathVariable Integer categoryId,
+            @Parameter(description = "조회할 상품 수", example = "20")
             @RequestParam(defaultValue = "20") int limit,
+            @Parameter(description = "이미지 포함 여부", example = "false")
             @RequestParam(defaultValue = "false") boolean includeImages) {
         try {
             log.info("카테고리별 상품 조회 - categoryId: {}, limit: {}, includeImages: {}", categoryId, limit, includeImages);
@@ -199,6 +243,7 @@ public class ProductApiController {
             return ResponseEntity.ok(List.of());
         }
     }
+
     private boolean isMainCategory(Integer categoryId) {
         if (categoryId == null) {
             return false;
@@ -207,9 +252,13 @@ public class ProductApiController {
         // 실제 데이터에 맞게 조정 필요
         return categoryId < 100; // 100 미만은 메인 카테고리로 간주
     }
+
+    @Operation(summary = "카테고리별 상품 조회 (이미지 포함)", description = "특정 카테고리의 상품을 이미지와 함께 조회합니다.")
     @GetMapping("/category/{categoryId}/with-images")
     public ResponseEntity<ApiResponse<List<ProductDTO>>> getProductsByCategoryWithImages(
+            @Parameter(description = "카테고리 ID", required = true, example = "1")
             @PathVariable Integer categoryId,
+            @Parameter(description = "조회할 상품 수", example = "20")
             @RequestParam(defaultValue = "20") int limit) {
         try {
             log.info("카테고리별 상품 조회 (이미지 포함) - categoryId: {}, limit: {}", categoryId, limit);
@@ -225,10 +274,14 @@ public class ProductApiController {
         }
     }
 
+    @Operation(summary = "연관 상품 조회", description = "특정 상품과 연관된 상품 목록을 조회합니다.")
     @GetMapping("/{productId}/related")
     public ResponseEntity<List<ProductDTO>> getRelatedProducts(
+            @Parameter(description = "상품 ID", required = true, example = "1")
             @PathVariable Integer productId,
+            @Parameter(description = "조회할 상품 수", example = "4")
             @RequestParam(defaultValue = "4") int limit,
+            @Parameter(description = "이미지 포함 여부", example = "false")
             @RequestParam(defaultValue = "false") boolean includeImages) {
         try {
             log.info("연관 상품 조회 요청 - productId: {}, limit: {}, includeImages: {}", productId, limit, includeImages);
@@ -248,9 +301,12 @@ public class ProductApiController {
         }
     }
 
+    @Operation(summary = "연관 상품 조회 (이미지 포함)", description = "특정 상품과 연관된 상품을 이미지와 함께 조회합니다.")
     @GetMapping("/{productId}/related/with-images")
     public ResponseEntity<ApiResponse<List<ProductDTO>>> getRelatedProductsWithImages(
+            @Parameter(description = "상품 ID", required = true, example = "1")
             @PathVariable Integer productId,
+            @Parameter(description = "조회할 상품 수", example = "4")
             @RequestParam(defaultValue = "4") int limit) {
         try {
             log.info("연관 상품 조회 (이미지 포함) 요청 - productId: {}, limit: {}", productId, limit);
@@ -266,9 +322,12 @@ public class ProductApiController {
         }
     }
 
+    @Operation(summary = "추천 상품 조회", description = "사용자에게 추천하는 상품 목록을 조회합니다.")
     @GetMapping("/recommended")
     public ResponseEntity<ApiResponse<List<ProductDTO>>> getRecommendedProducts(
+            @Parameter(description = "사용자 ID", example = "user123")
             @RequestParam(required = false) String userId,
+            @Parameter(description = "조회할 상품 수", example = "10")
             @RequestParam(defaultValue = "10") int limit) {
         try {
             log.info("추천 상품 조회 요청 - userId: {}, limit: {}", userId, limit);
@@ -284,10 +343,14 @@ public class ProductApiController {
         }
     }
 
+    @Operation(summary = "호스트별 상품 조회", description = "특정 호스트(판매자)의 상품 목록을 조회합니다.")
     @GetMapping("/host/{hostId}")
     public ResponseEntity<List<ProductDTO>> getProductsByHost(
+            @Parameter(description = "호스트 ID", required = true, example = "1")
             @PathVariable Long hostId,
+            @Parameter(description = "조회할 상품 수", example = "20")
             @RequestParam(defaultValue = "20") int limit,
+            @Parameter(description = "이미지 포함 여부", example = "false")
             @RequestParam(defaultValue = "false") boolean includeImages) {
         try {
             log.info("HOST별 상품 조회 요청 - hostId: {}, limit: {}, includeImages: {}", hostId, limit, includeImages);
@@ -306,8 +369,10 @@ public class ProductApiController {
         }
     }
 
+    @Operation(summary = "상품 개수 통계", description = "전체 또는 카테고리별 상품 개수를 조회합니다.")
     @GetMapping("/stats/count")
     public ResponseEntity<Map<String, Object>> getProductCount(
+            @Parameter(description = "카테고리 ID (null 또는 ALL: 전체)", example = "ALL")
             @RequestParam(required = false) String categoryIdStr) {
         Map<String, Object> result = new HashMap<>();
         try {
@@ -330,6 +395,7 @@ public class ProductApiController {
         }
     }
 
+    @Operation(summary = "전체 카테고리별 상품 개수", description = "모든 카테고리의 상품 개수 통계를 조회합니다.")
     @GetMapping("/stats/count-all")
     public ResponseEntity<Map<Integer, Long>> getAllCategoryProductCounts() {
         try {
@@ -343,6 +409,7 @@ public class ProductApiController {
         }
     }
 
+    @Operation(summary = "데이터베이스 상태", description = "상품 데이터베이스의 상태를 확인합니다. (디버그용)")
     @GetMapping("/debug/status")
     public ResponseEntity<Map<String, Object>> getDatabaseStatus() {
         Map<String, Object> result = new HashMap<>();
@@ -362,8 +429,11 @@ public class ProductApiController {
         }
     }
 
+    @Operation(summary = "게스트 장바구니 상품 상세", description = "게스트 장바구니에 담긴 상품들의 상세 정보를 조회합니다.")
     @PostMapping("/guest-cart-details")
-    public ResponseEntity<List<ProductDetailDTO>> getGuestCartDetails(@RequestBody List<GuestCartItemDTO> cartItems) {
+    public ResponseEntity<List<ProductDetailDTO>> getGuestCartDetails(
+            @Parameter(description = "장바구니 상품 목록", required = true)
+            @RequestBody List<GuestCartItemDTO> cartItems) {
         log.info("게스트 장바구니 상세 조회 요청: {}개 상품", cartItems.size());
 
         try {
@@ -376,6 +446,7 @@ public class ProductApiController {
         }
     }
 
+    @Operation(summary = "테스트 엔드포인트", description = "단순 테스트용 엔드포인트")
     @PostMapping("/test-simple")
     public ResponseEntity<String> testSimple(@RequestBody String rawData) {
         log.info("받은 데이터: {}", rawData);

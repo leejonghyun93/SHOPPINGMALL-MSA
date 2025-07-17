@@ -1,5 +1,12 @@
 package org.kosa.commerceservice.controller.cart;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +25,8 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
+@Tag(name = "장바구니 API", description = "장바구니 관리 API")
+@SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/cart")
 @RequiredArgsConstructor
@@ -27,10 +36,18 @@ public class CartController {
     private final CartService cartService;
     private final JwtTokenParser jwtTokenParser;
 
+    @Operation(summary = "장바구니에 상품 추가", description = "장바구니에 새로운 상품을 추가합니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "추가 성공",
+                    content = @Content(schema = @Schema(implementation = ApiResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청")
+    })
     @PostMapping
     public ResponseEntity<ApiResponse<CartItemDTO>> addToCart(
+            @Parameter(description = "장바구니 추가 요청 정보", required = true)
             @RequestBody CartRequestDTO request,
-            HttpServletRequest httpRequest) {
+            @Parameter(hidden = true) HttpServletRequest httpRequest) {
 
         try {
             String authHeader = httpRequest.getHeader("Authorization");
@@ -64,8 +81,14 @@ public class CartController {
         }
     }
 
+    @Operation(summary = "장바구니 조회", description = "사용자의 장바구니를 조회합니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패")
+    })
     @GetMapping
-    public ResponseEntity<ApiResponse<CartDTO>> getCart(HttpServletRequest httpRequest) {
+    public ResponseEntity<ApiResponse<CartDTO>> getCart(
+            @Parameter(hidden = true) HttpServletRequest httpRequest) {
         try {
             String authHeader = httpRequest.getHeader("Authorization");
             String userId = jwtTokenParser.extractUserIdFromAuthHeader(authHeader);
@@ -96,20 +119,27 @@ public class CartController {
         }
     }
 
+    @Operation(summary = "장바구니 수량 변경", description = "장바구니 상품의 수량을 변경합니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "변경 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청")
+    })
     @PutMapping("/items")
     public ResponseEntity<ApiResponse<Void>> updateCartItem(
+            @Parameter(description = "수량 변경 요청 정보", required = true)
             @RequestBody CartUpdateRequestDTO request,
-            HttpServletRequest httpRequest) {
+            @Parameter(hidden = true) HttpServletRequest httpRequest) {
 
         try {
-            log.info("🔄 장바구니 수량 변경 요청 - cartItemId: {}, quantity: {}",
+            log.info(" 장바구니 수량 변경 요청 - cartItemId: {}, quantity: {}",
                     request.getCartItemId(), request.getQuantity());
 
             String authHeader = httpRequest.getHeader("Authorization");
             String userId = jwtTokenParser.extractUserIdFromAuthHeader(authHeader);
 
             if (userId == null) {
-                log.warn("⚠️ 인증 실패 - Authorization 헤더: {}", authHeader);
+                log.warn(" 인증 실패 - Authorization 헤더: {}", authHeader);
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(ApiResponse.<Void>builder()
                                 .success(false)
@@ -117,11 +147,11 @@ public class CartController {
                                 .build());
             }
 
-            log.info("✅ 인증 성공 - userId: {}", userId);
+            log.info("인증 성공 - userId: {}", userId);
 
-            // 🔥 추가: 요청 데이터 검증
+            // 추가: 요청 데이터 검증
             if (request.getCartItemId() == null || request.getCartItemId().trim().isEmpty()) {
-                log.error("❌ cartItemId 누락");
+                log.error(" cartItemId 누락");
                 return ResponseEntity.badRequest()
                         .body(ApiResponse.<Void>builder()
                                 .success(false)
@@ -130,7 +160,7 @@ public class CartController {
             }
 
             if (request.getQuantity() == null || request.getQuantity() <= 0) {
-                log.error("❌ 잘못된 수량: {}", request.getQuantity());
+                log.error(" 잘못된 수량: {}", request.getQuantity());
                 return ResponseEntity.badRequest()
                         .body(ApiResponse.<Void>builder()
                                 .success(false)
@@ -140,14 +170,14 @@ public class CartController {
 
             cartService.updateCartItemQuantity(userId, request.getCartItemId(), request.getQuantity());
 
-            log.info("✅ 장바구니 수량 변경 성공");
+            log.info(" 장바구니 수량 변경 성공");
             return ResponseEntity.ok(ApiResponse.<Void>builder()
                     .success(true)
                     .message("수량이 변경되었습니다.")
                     .build());
 
         } catch (Exception e) {
-            log.error("💥 장바구니 수량 변경 실패: cartItemId={}, error={}",
+            log.error(" 장바구니 수량 변경 실패: cartItemId={}, error={}",
                     request != null ? request.getCartItemId() : "null", e.getMessage(), e);
 
             return ResponseEntity.badRequest()
@@ -158,10 +188,16 @@ public class CartController {
         }
     }
 
+    @Operation(summary = "장바구니 상품 삭제", description = "장바구니에서 특정 상품을 삭제합니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "삭제 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패")
+    })
     @DeleteMapping("/items/{cartItemId}")
     public ResponseEntity<ApiResponse<Void>> removeCartItem(
+            @Parameter(description = "장바구니 항목 ID", required = true, example = "CART_ITEM_001")
             @PathVariable String cartItemId,
-            HttpServletRequest httpRequest) {
+            @Parameter(hidden = true) HttpServletRequest httpRequest) {
 
         try {
             String authHeader = httpRequest.getHeader("Authorization");
@@ -192,10 +228,17 @@ public class CartController {
         }
     }
 
+    @Operation(summary = "장바구니 상품 다중 삭제", description = "장바구니에서 여러 상품을 한번에 삭제합니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "삭제 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청")
+    })
     @DeleteMapping("/items")
     public ResponseEntity<ApiResponse<Void>> removeCartItems(
+            @Parameter(description = "삭제할 장바구니 항목 ID 목록", required = true)
             @RequestBody Map<String, List<String>> request,
-            HttpServletRequest httpRequest) {
+            @Parameter(hidden = true) HttpServletRequest httpRequest) {
 
         try {
             String authHeader = httpRequest.getHeader("Authorization");
@@ -237,13 +280,17 @@ public class CartController {
         }
     }
 
-    /**
-     * 🔥 구매 완료 후 상품 제거 API (핵심 기능)
-     */
+    @Operation(summary = "구매 완료 상품 제거", description = "구매가 완료된 상품들을 장바구니에서 제거합니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "제거 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 실패"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "잘못된 요청")
+    })
     @PostMapping("/remove-purchased-items")
     public ResponseEntity<ApiResponse<Void>> removePurchasedItems(
+            @Parameter(description = "구매 완료된 상품 ID 목록", required = true)
             @RequestBody Map<String, List<Integer>> request,
-            HttpServletRequest httpRequest) {
+            @Parameter(hidden = true) HttpServletRequest httpRequest) {
 
         try {
             String authHeader = httpRequest.getHeader("Authorization");
@@ -270,7 +317,7 @@ public class CartController {
 
             int removedCount = cartService.removePurchasedItems(userId, productIds);
 
-            log.info("✅ 장바구니에서 {}개 상품 제거 완료", removedCount);
+            log.info(" 장바구니에서 {}개 상품 제거 완료", removedCount);
 
             return ResponseEntity.ok(ApiResponse.<Void>builder()
                     .success(true)
@@ -278,7 +325,7 @@ public class CartController {
                     .build());
 
         } catch (Exception e) {
-            log.error("💥 구매 완료 상품 제거 실패: {}", e.getMessage(), e);
+            log.error("구매 완료 상품 제거 실패: {}", e.getMessage(), e);
             return ResponseEntity.badRequest()
                     .body(ApiResponse.<Void>builder()
                             .success(false)
@@ -287,9 +334,14 @@ public class CartController {
         }
     }
 
+    @Operation(summary = "장바구니 상품 개수 조회", description = "사용자의 장바구니에 담긴 상품 개수를 조회합니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공",
+                    content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+    })
     @GetMapping("/count")
     public ResponseEntity<ApiResponse<Integer>> getCartCount(
-            HttpServletRequest httpRequest) {
+            @Parameter(hidden = true) HttpServletRequest httpRequest) {
         try {
             String authHeader = httpRequest.getHeader("Authorization");
             String userId = jwtTokenParser.extractUserIdFromAuthHeader(authHeader);
