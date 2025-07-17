@@ -9,6 +9,9 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "external-services")
 public class ExternalServiceProperties {
 
-    private String frontendBaseUrl = "http://localhost:3000";
-    private String unsubscribeUrl = "http://localhost:3000/unsubscribe";
+
+    private String frontendBaseUrl = "${PROD_FRONTEND_BASE_URL:https://shopmall.com}";
+    private String unsubscribeUrl = "${PROD_UNSUBSCRIBE_URL:https://shopmall.com/unsubscribe}";
+    private String userServiceDetailUrl = "${PROD_USER_SERVICE_DETAIL_URL:http://user-service:8103/api/users}";
+    private String broadcastServiceUrl = "${PROD_BROADCAST_SERVICE_URL:http://live-streaming-service:8096/api/broadcasts}";
 }

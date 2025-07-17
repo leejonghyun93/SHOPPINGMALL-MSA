@@ -1,7 +1,9 @@
 import axios from 'axios'
 import { jwtDecode } from 'jwt-decode'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080'
+// 🔥 환경변수 기반 API URL 설정
+const API_BASE_URL = import.meta.env.VITE_API_URL ||
+    (import.meta.env.DEV ? 'http://localhost:8080' : 'http://13.209.253.241:8080')
 
 const apiClient = axios.create({
     baseURL: API_BASE_URL,
@@ -49,14 +51,11 @@ function isPublicEndpoint(url, method) {
     return alwaysPublicPaths.some(path => url.includes(path))
 }
 
-// Request 인터셉터
+// Request 인터셉터 (나머지 코드 동일)
 apiClient.interceptors.request.use(
     (config) => {
-
-
         // withAuth: false 옵션이 있으면 토큰 추가하지 않음
         if (config.withAuth === false) {
-
             return config
         }
 
@@ -70,12 +69,9 @@ apiClient.interceptors.request.use(
 
         if (token && token.trim() && token !== 'null' && token !== 'undefined') {
             try {
-                //  만료 검증 강화
                 const cleanToken = token.startsWith('Bearer ') ? token.substring(7) : token;
                 const decoded = jwtDecode(cleanToken)
                 const now = Date.now() / 1000
-
-
 
                 if (decoded.exp < now) {
                     alert("토큰이 만료되었습니다. 다시 로그인해주세요.")
@@ -101,11 +97,11 @@ apiClient.interceptors.request.use(
                     return Promise.reject(new Error("토큰 만료"))
                 }
 
-                // 🔥 토큰 형식 정규화
+                // 토큰 형식 정규화
                 const authToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`
                 config.headers.Authorization = authToken
 
-                // 🔥 위시리스트 API일 때 상세 로깅
+                // 위시리스트 API일 때 상세 로깅
                 if (config.url.includes('/api/wishlist')) {
                     console.log('🔍 위시리스트 API 요청:', {
                         url: config.url,
@@ -122,12 +118,6 @@ apiClient.interceptors.request.use(
                 localStorage.removeItem("jwt")
                 localStorage.removeItem("userId")
             }
-        } else {
-            console.log('🔍 토큰 없음 또는 유효하지 않음:', {
-                url: config.url,
-                hasToken: !!token,
-                tokenValue: token?.substring(0, 20) + '...'
-            });
         }
 
         return config
@@ -138,10 +128,9 @@ apiClient.interceptors.request.use(
     }
 )
 
-// Response 인터셉터
+// Response 인터셉터 (나머지 코드 동일)
 apiClient.interceptors.response.use(
     (response) => {
-        // 성공적인 응답에 대해서도 로깅
         if (response.config.url.includes('/api/wishlist')) {
             console.log('🔍 위시리스트 API 응답 성공:', {
                 url: response.config.url,
@@ -154,7 +143,6 @@ apiClient.interceptors.response.use(
     (error) => {
         const { config, response, message } = error
 
-        // 🔥 위시리스트 API 에러에 대한 상세 로깅
         if (config?.url?.includes('/api/wishlist')) {
             console.error('🔍 위시리스트 API 에러:', {
                 url: config.url,
@@ -194,12 +182,10 @@ apiClient.interceptors.response.use(
 
                 // 결제 완료 직후라면 401 에러를 조용히 처리
                 if (isPaymentComplete || isOrderCompletePage || hasRecentPayment || hasPaymentIdInUrl) {
-                    // /api/users/profile 요청이라면 토큰에서 기본 사용자 정보로 응답
                     if (config?.url?.includes('/api/users/profile')) {
                         const token = localStorage.getItem('jwt')
                         if (token) {
                             try {
-                                // 토큰 디코딩
                                 const parts = token.replace('Bearer ', '').split('.')
                                 if (parts.length === 3) {
                                     let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
@@ -237,15 +223,13 @@ apiClient.interceptors.response.use(
                         }
                     }
 
-                    // 다른 API는 그냥 에러 반환 (로그아웃하지 않음)
                     return Promise.reject(error)
                 }
 
-                // 🔥 위시리스트 API 401 에러 특별 처리
+                // 위시리스트 API 401 에러 특별 처리
                 if (config?.url?.includes('/api/wishlist')) {
                     console.error('🔍 위시리스트 401 에러 - 토큰 재확인 필요');
 
-                    // 토큰 상태 디버깅
                     const token = localStorage.getItem('jwt');
                     if (token) {
                         try {

@@ -47,10 +47,10 @@ public class UserCacheService {
                 String key = USER_SESSION_PREFIX + userId;
                 redisTemplate.opsForValue().set(key, sessionJson, Duration.ofSeconds(SESSION_TTL));
 
-                log.info("✅ 사용자 세션 캐시 저장 완료: userId={}", userId);
+                log.info("사용자 세션 캐시 저장 완료: userId={}", userId);
             }
         } catch (Exception e) {
-            log.error("❌ 사용자 세션 캐시 저장 실패: userId={}, error={}", userId, e.getMessage());
+            log.error("사용자 세션 캐시 저장 실패: userId={}, error={}", userId, e.getMessage());
         }
     }
 
@@ -114,7 +114,7 @@ public class UserCacheService {
         }
 
         // 2. Redis에 없으면 DB에서 조회 후 캐시 저장
-        log.info("🔄 Redis 캐시 미스 - DB에서 조회 후 캐시 저장: userId={}", userId);
+        log.info("Redis 캐시 미스 - DB에서 조회 후 캐시 저장: userId={}", userId);
         try {
             Optional<UserDto> userOpt = userService.getMemberDetail(userId);
             if (userOpt.isPresent()) {
@@ -134,11 +134,11 @@ public class UserCacheService {
                 String key = USER_SESSION_PREFIX + userId;
                 redisTemplate.opsForValue().set(key, sessionDto, Duration.ofSeconds(SESSION_TTL));
 
-                log.info("✅ DB 조회 후 캐시 저장 완료: userId={}", userId);
+                log.info("DB 조회 후 캐시 저장 완료: userId={}", userId);
                 return Optional.of(sessionDto);
             }
         } catch (Exception e) {
-            log.error("❌ DB 조회 및 캐시 저장 실패: userId={}, error={}", userId, e.getMessage());
+            log.error("DB 조회 및 캐시 저장 실패: userId={}, error={}", userId, e.getMessage());
         }
 
         return Optional.empty();

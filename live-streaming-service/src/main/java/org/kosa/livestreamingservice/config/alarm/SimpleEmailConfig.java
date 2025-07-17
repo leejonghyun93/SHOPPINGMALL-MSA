@@ -47,7 +47,6 @@ public class SimpleEmailConfig {
         mailSender.setUsername(username);
         mailSender.setPassword(password);
 
-
         // Gmail SMTP Properties (테스트에서 성공한 설정과 동일)
         Properties props = mailSender.getJavaMailProperties();
         props.put("mail.transport.protocol", "smtp");
@@ -63,7 +62,7 @@ public class SimpleEmailConfig {
         props.put("mail.smtp.writetimeout", "10000");
         props.put("mail.debug", "true"); // 디버그 모드
 
-        log.info(" Gmail JavaMailSender 설정 완료");
+        log.info("Gmail JavaMailSender 설정 완료");
 
         return mailSender;
     }
@@ -74,12 +73,12 @@ public class SimpleEmailConfig {
     @Bean
     @ConditionalOnProperty(name = "notification.email.enabled", havingValue = "false")
     public JavaMailSender dummyJavaMailSender() {
-
+        log.info("🔧 더미 JavaMailSender 생성 - 이메일 발송 비활성화");
 
         JavaMailSenderImpl mailSender = new JavaMailSenderImpl();
 
-        // 더미 설정
-        mailSender.setHost("localhost");
+        // 더미 설정 - localhost 제거
+        mailSender.setHost("dummy.example.com");
         mailSender.setPort(25);
         mailSender.setUsername("dummy");
         mailSender.setPassword("dummy");

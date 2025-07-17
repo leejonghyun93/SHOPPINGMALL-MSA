@@ -117,7 +117,7 @@ import { useRoute, useRouter } from 'vue-router'
 import apiClient from '@/api/axiosInstance.js'
 import axios from 'axios'
 import ChatCommon from '@/views/live/chat/ChatCommon.vue';
-
+import { generateStreamUrl } from '@/config/environment'
 const route = useRoute()
 const router = useRouter()
 const broadcastId = Number(route.params.broadcastId)
@@ -295,9 +295,12 @@ const generateStreamUrls = (broadcast) => {
     streamInfo.value.url = broadcast.streamUrl
   } else {
     const streamKey = broadcast.stream_key || broadcast.broadcast_id
-    const nginxHost = broadcast.nginx_host || 'localhost'
-    hlsUrl.value = `http://${nginxHost}:8080/hls/${streamKey}/index.m3u8`
+
+    // 🔥 환경 설정 유틸리티 사용
+    hlsUrl.value = generateStreamUrl(streamKey, broadcast)
     streamInfo.value.url = hlsUrl.value
+
+    console.log('스트림 URL 생성:', hlsUrl.value)
   }
 
   tryInitializeHls()

@@ -28,7 +28,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/broadcasts")
 @RequiredArgsConstructor
-@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000"})
+// 🔥 CORS 설정 제거 - API Gateway에서 처리
 public class BroadcastController {
 
     private final BroadcastService broadcastService;

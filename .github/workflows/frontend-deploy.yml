@@ -3,7 +3,6 @@ name: Frontend CI/CD (Nginx Docker)
 on:
   push:
     branches: [ main, master ]
-    # paths 조건 제거해서 모든 push에서 실행되도록
     paths:
       - 'ui-service/**'
       - 'nginx-docker/**'
@@ -45,27 +44,67 @@ jobs:
             echo "No tests found, skipping..."
           fi
 
-      # 🔥 환경변수 주입 단계 추가
-      - name: Create .env.production
+      # 🔥 개선된 환경변수 주입 단계
+      - name: Create environment files
         run: |
           cd ui-service
-          echo "VITE_API_URL=${{ secrets.PROD_API_BASE_URL }}" > .env.production
+          
+          # .env.production 생성
+          echo "# Production Environment Variables" > .env.production
+          echo "VITE_API_URL=${{ secrets.PROD_API_BASE_URL || 'http://13.209.253.241:8080' }}" >> .env.production
+          echo "VITE_NOTIFICATION_URL=${{ secrets.PROD_NOTIFICATION_URL || 'http://13.209.253.241:8096/api/notifications' }}" >> .env.production
+          echo "VITE_NGINX_HOST=${{ secrets.PROD_NGINX_HOST || '13.209.253.241' }}" >> .env.production
+          echo "VITE_NGINX_PORT=${{ secrets.PROD_NGINX_PORT || '8080' }}" >> .env.production
+          echo "VITE_FRONTEND_URL=${{ secrets.PROD_FRONTEND_URL || 'https://shopmall.com' }}" >> .env.production
           echo "VITE_KAKAO_CLIENT_ID=${{ secrets.PROD_KAKAO_CLIENT_ID }}" >> .env.production
           echo "VITE_NAVER_CLIENT_ID=${{ secrets.PROD_NAVER_CLIENT_ID }}" >> .env.production
           echo "VITE_REDIRECT_URI=${{ secrets.PROD_SOCIAL_REDIRECT_URI }}" >> .env.production
-          echo "Created .env.production with production environment variables"
+          
+          # .env.development 생성 (개발환경 테스트용)
+          echo "# Development Environment Variables" > .env.development
+          echo "VITE_API_URL=http://localhost:8080" >> .env.development
+          echo "VITE_NOTIFICATION_URL=http://localhost:8096/api/notifications" >> .env.development
+          echo "VITE_NGINX_HOST=localhost" >> .env.development
+          echo "VITE_NGINX_PORT=8080" >> .env.development
+          echo "VITE_FRONTEND_URL=http://localhost:5173" >> .env.development
+          
+          echo "✅ Created environment files:"
+          echo "📄 .env.production:"
           cat .env.production
+          echo ""
+          echo "📄 .env.development:"
+          cat .env.development
 
       - name: Build Vue application
         run: |
           cd ui-service
+          echo "🏗️ Building Vue application for production..."
           npm run build
+          
+          # 빌드 결과 확인
+          echo "📦 Build completed. Contents of dist folder:"
+          ls -la dist/
+          
+          # 환경변수가 제대로 적용되었는지 확인
+          if [ -f "dist/index.html" ]; then
+            echo "✅ index.html exists"
+          else
+            echo "❌ index.html not found!"
+            exit 1
+          fi
 
       - name: Prepare nginx-docker
         run: |
+          echo "🚀 Preparing nginx-docker deployment..."
           mkdir -p nginx-docker/vue-dist
           rm -rf nginx-docker/vue-dist/*
           cp -r ui-service/dist/* nginx-docker/vue-dist/
+          
+          # nginx-docker 구조 확인
+          echo "📁 nginx-docker structure:"
+          ls -la nginx-docker/
+          echo "📁 vue-dist contents:"
+          ls -la nginx-docker/vue-dist/
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -105,10 +144,16 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
         run: |
           cd nginx-docker
+          
+          echo "🐳 Building Docker image..."
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
+          
+          echo "📤 Pushing Docker image to ECR..."
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          
+          echo "✅ Docker image pushed successfully!"
 
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v1.0.3
@@ -117,10 +162,17 @@ jobs:
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
+            echo "🔐 Logging into ECR..."
             aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin ${{ steps.login-ecr.outputs.registry }}
+            
+            echo "🛑 Stopping existing container..."
             docker stop user-nginx || true
             docker rm user-nginx || true
+            
+            echo "📥 Pulling latest image..."
             docker pull ${{ steps.login-ecr.outputs.registry }}/user-nginx:latest
+            
+            echo "🚀 Starting new container..."
             docker run -d \
               --name user-nginx \
               --network app_msa-network \
@@ -128,11 +180,16 @@ jobs:
               -p 443:443 \
               --restart unless-stopped \
               ${{ steps.login-ecr.outputs.registry }}/user-nginx:latest
+            
+            echo "⏳ Waiting for container to start..."
             sleep 5
+            
+            echo "📊 Container status:"
             docker ps | grep user-nginx
-            echo "Checking Nginx health..."
+            
+            echo "🏥 Checking Nginx health..."
             for i in {1..5}; do
-              if curl -f http://localhost/; then
+              if curl -f http://localhost/health; then
                 echo "✅ Nginx is healthy!"
                 break
               else
@@ -140,4 +197,8 @@ jobs:
                 sleep 5
               fi
             done
+            
+            echo "🧹 Cleaning up old images..."
             docker image prune -f
+            
+            echo "🎉 Deployment completed successfully!"

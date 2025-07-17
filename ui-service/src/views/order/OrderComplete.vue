@@ -333,11 +333,13 @@ import {
 const { getProductImage, handleImageError, handleImageLoad } = useSmartImages()
 
 // API 기본 URL
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080'
+const API_BASE_URL = import.meta.env.VITE_API_URL ||
+    (import.meta.env.DEV ? 'http://localhost:8080' : 'http://13.209.253.241:8080')
 
 const route = useRoute()
 const router = useRouter()
 
+// 나머지 코드는 동일...
 const orderData = ref(null)
 const loading = ref(true)
 const error = ref('')

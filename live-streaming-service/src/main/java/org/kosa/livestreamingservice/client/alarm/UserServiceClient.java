@@ -19,7 +19,8 @@ public class UserServiceClient {
     @Autowired
     private RestTemplate restTemplate;
 
-    @Value("${user-service.url}")
+    //  환경변수로 설정 가능하도록 변경
+    @Value("${external-services.user-service-detail-url:http://user-service:8103/api/users}")
     private String userServiceUrl;
 
     /**
@@ -31,7 +32,7 @@ public class UserServiceClient {
             log.info("사용자 이메일 조회 시도: userId={}", userId);
 
             // User Service API 호출
-            String url = userServiceUrl + "/api/users/" + userId + "/email";
+            String url = userServiceUrl + "/" + userId + "/email";
 
             // API 응답 받기
             UserEmailResponse response = restTemplate.getForObject(url, UserEmailResponse.class);
@@ -59,7 +60,7 @@ public class UserServiceClient {
     @SuppressWarnings("unchecked")
     public Map<String, Object> getUserInfo(String userId) {
         try {
-            String url = userServiceUrl + "/api/users/" + userId;
+            String url = userServiceUrl + "/" + userId;
             log.info("사용자 정보 조회 API 호출: {}", url);
 
             ResponseEntity<Map> response = restTemplate.getForEntity(url, Map.class);
@@ -85,17 +86,19 @@ public class UserServiceClient {
         } catch (Exception e) {
             log.error("사용자 정보 조회 중 오류: userId={}, error={}", userId, e.getMessage());
 
-            // 🔥 실제 운영에서는 null 반환 (하드코딩 제거)
+            //  실제 운영에서는 null 반환 (하드코딩 제거)
             return null;
         }
     }
 
+    // ... 나머지 메서드들은 동일 ...
+
     /**
-     * 🔥 회원 존재 여부 확인
+     *  회원 존재 여부 확인
      */
     public boolean existsUser(String userId) {
         try {
-            String url = userServiceUrl + "/api/users/" + userId + "/exists";
+            String url = userServiceUrl + "/" + userId + "/exists";
 
             ResponseEntity<Map> response = restTemplate.getForEntity(url, Map.class);
 
@@ -113,7 +116,7 @@ public class UserServiceClient {
     }
 
     /**
-     * 🔥 사용자 이름만 조회
+     *  사용자 이름만 조회
      */
     public String getUserName(String userId) {
         try {
@@ -136,11 +139,11 @@ public class UserServiceClient {
     }
 
     /**
-     * 🔥 다중 사용자 정보 조회 (배치 처리용)
+     *  다중 사용자 정보 조회 (배치 처리용)
      */
     public Map<String, Map<String, Object>> getUserInfoBatch(java.util.List<String> userIds) {
         try {
-            String url = userServiceUrl + "/api/users/batch";
+            String url = userServiceUrl + "/batch";
 
             Map<String, Object> requestBody = Map.of("userIds", userIds);
 
@@ -164,7 +167,7 @@ public class UserServiceClient {
     }
 
     /**
-     * 🔥 사용자 프로필 이미지 URL 조회
+     *  사용자 프로필 이미지 URL 조회
      */
     public String getUserProfileImageUrl(String userId) {
         try {
@@ -183,7 +186,7 @@ public class UserServiceClient {
     }
 
     /**
-     * 🔥 사용자 등급 정보 조회
+     *  사용자 등급 정보 조회
      */
     public String getUserGrade(String userId) {
         try {
@@ -201,7 +204,7 @@ public class UserServiceClient {
         }
     }
 
-    // 응답 DTO 클래스들
+    // 응답 DTO 클래스들은 동일...
     public static class UserEmailResponse {
         private boolean success;
         private String message;
@@ -222,89 +225,5 @@ public class UserServiceClient {
         // getters and setters
         public String getEmail() { return email; }
         public void setEmail(String email) { this.email = email; }
-    }
-
-    /**
-     * 회원 정보 DTO (tb_member 테이블 구조에 맞춤)
-     */
-    public static class MemberInfo {
-        private String userId;        // USER_ID
-        private String name;          // NAME
-        private String email;         // EMAIL
-        private String phone;         // PHONE
-        private String status;        // STATUS
-        private String gradeId;       // GRADE_ID
-        private String profileImg;    // PROFILE_IMG
-
-        // Builder pattern
-        public static MemberInfoBuilder builder() {
-            return new MemberInfoBuilder();
-        }
-
-        public static class MemberInfoBuilder {
-            private String userId;
-            private String name;
-            private String email;
-            private String phone;
-            private String status;
-            private String gradeId;
-            private String profileImg;
-
-            public MemberInfoBuilder userId(String userId) {
-                this.userId = userId;
-                return this;
-            }
-
-            public MemberInfoBuilder name(String name) {
-                this.name = name;
-                return this;
-            }
-
-            public MemberInfoBuilder email(String email) {
-                this.email = email;
-                return this;
-            }
-
-            public MemberInfoBuilder phone(String phone) {
-                this.phone = phone;
-                return this;
-            }
-
-            public MemberInfoBuilder status(String status) {
-                this.status = status;
-                return this;
-            }
-
-            public MemberInfoBuilder gradeId(String gradeId) {
-                this.gradeId = gradeId;
-                return this;
-            }
-
-            public MemberInfoBuilder profileImg(String profileImg) {
-                this.profileImg = profileImg;
-                return this;
-            }
-
-            public MemberInfo build() {
-                MemberInfo info = new MemberInfo();
-                info.userId = this.userId;
-                info.name = this.name;
-                info.email = this.email;
-                info.phone = this.phone;
-                info.status = this.status;
-                info.gradeId = this.gradeId;
-                info.profileImg = this.profileImg;
-                return info;
-            }
-        }
-
-        // getters
-        public String getUserId() { return userId; }
-        public String getName() { return name; }
-        public String getEmail() { return email; }
-        public String getPhone() { return phone; }
-        public String getStatus() { return status; }
-        public String getGradeId() { return gradeId; }
-        public String getProfileImg() { return profileImg; }
     }
 }

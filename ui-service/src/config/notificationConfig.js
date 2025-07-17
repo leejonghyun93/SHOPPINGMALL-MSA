@@ -1,7 +1,10 @@
-// src/config/notificationConfig.js - 기존 코드 + 헤더용 함수 추가
+// src/config/notificationConfig.js - 환경 독립적 설정
 
 export const NOTIFICATION_CONFIG = {
-    BASE_URL: 'http://localhost:8096/api/notifications',
+    //  환경변수 기반 BASE_URL 설정
+    BASE_URL: import.meta.env.VITE_NOTIFICATION_URL ||
+        (import.meta.env.DEV ? 'http://localhost:8096/api/notifications' : 'http://13.209.253.241:8096/api/notifications'),
+
     ENDPOINTS: {
         HEALTH: '/health',
         BROADCASTS_SCHEDULE: '/broadcasts/schedule',

@@ -1,8 +1,12 @@
 import axios from "axios"
 import { jwtDecode } from "jwt-decode"
 
+//  환경변수 기반 설정
+const API_BASE_URL = import.meta.env.VITE_API_URL ||
+    (import.meta.env.DEV ? 'http://localhost:8080' : 'http://13.209.253.241:8080')
+
 const instance = axios.create({
-    // Vite 프록시를 사용하므로 baseURL 제거하거나 상대경로 사용
+    baseURL: API_BASE_URL,
     timeout: 10000,
     withCredentials: true,
     headers: {
