@@ -344,7 +344,7 @@ services:
       retries: 10
       start_period: 180s
 
-  # 커머스 서비스
+  # 커머스 서비스 - 🔥 메모리 대폭 증가!
   commerce-service:
     image: ${ECR_REGISTRY}/commerce-service:latest
     container_name: shopmall-commerce
@@ -374,14 +374,16 @@ services:
       - PROD_EUREKA_SERVER_URL=${PROD_EUREKA_SERVER_URL}
       - PROD_USER_SERVICE_URL=${PROD_USER_SERVICE_URL}
       - HOST_IP_ADDRESS=${HOST_IP_ADDRESS}
-      - JAVA_OPTS=-Xmx256m -Xms128m -XX:+UseG1GC
+      # 🔥 핵심 변경: 메모리 대폭 증가
+      - JAVA_OPTS=-Xmx768m -Xms384m -XX:+UseG1GC -XX:MaxMetaspaceSize=256m
     deploy:
       resources:
         limits:
-          memory: 384M
-          cpus: '0.15'
+          # 🔥 메모리 제한 대폭 증가: 384M → 1024M
+          memory: 1024M
+          cpus: '0.3'
         reservations:
-          memory: 192M
+          memory: 512M
     depends_on:
       mariadb:
         condition: service_healthy
@@ -396,14 +398,15 @@ services:
     networks:
       - msa-network
     restart: unless-stopped
+    # 🔥 헬스체크 더 관대하게 설정
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8090/actuator/health"]
-      interval: 60s
-      timeout: 30s
-      retries: 10
-      start_period: 240s
+      interval: 90s
+      timeout: 45s
+      retries: 15
+      start_period: 360s  # 6분 대기
 
-  # 라이브 스트리밍 서비스
+  # 라이브 스트리밍 서비스 - 🔥 메모리 대폭 증가!
   live-streaming-service:
     image: ${ECR_REGISTRY}/live-streaming-service:latest
     container_name: shopmall-streaming
@@ -430,14 +433,16 @@ services:
       - PROD_MAIL_PASSWORD=${PROD_MAIL_PASSWORD}
       - PROD_USER_SERVICE_DETAIL_URL=${PROD_USER_SERVICE_DETAIL_URL}
       - HOST_IP_ADDRESS=${HOST_IP_ADDRESS}
-      - JAVA_OPTS=-Xmx256m -Xms128m -XX:+UseG1GC
+      # 🔥 핵심 변경: 메모리 대폭 증가
+      - JAVA_OPTS=-Xmx768m -Xms384m -XX:+UseG1GC -XX:MaxMetaspaceSize=256m
     deploy:
       resources:
         limits:
-          memory: 384M
-          cpus: '0.15'
+          # 🔥 메모리 제한 대폭 증가: 384M → 1024M
+          memory: 1024M
+          cpus: '0.3'
         reservations:
-          memory: 192M
+          memory: 512M
     depends_on:
       mariadb:
         condition: service_healthy
@@ -452,12 +457,13 @@ services:
     networks:
       - msa-network
     restart: unless-stopped
+    # 🔥 헬스체크 더 관대하게 설정
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8096/actuator/health"]
-      interval: 60s
-      timeout: 30s
-      retries: 10
-      start_period: 240s
+      interval: 90s
+      timeout: 45s
+      retries: 15
+      start_period: 360s  # 6분 대기
 
   # API Gateway - 🔥 메모리 대폭 증가!
   apigateway-service:
@@ -516,6 +522,35 @@ services:
       timeout: 30s
       retries: 5
       start_period: 300s  # 5분 대기
+
+  # ======================
+  # 프론트엔드 서버
+  # ======================
+
+  # Nginx - 프론트엔드 서버
+  user-nginx:
+    image: ${ECR_REGISTRY}/user-nginx:latest
+    container_name: user-nginx
+    ports:
+      - "80:80"
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.1'
+        reservations:
+          memory: 64M
+    depends_on:
+      - apigateway-service
+    networks:
+      - msa-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   # ======================
   # 모니터링 서비스들
