@@ -8,7 +8,7 @@ services:
     image: mariadb:10.11
     container_name: shopmall-mariadb
     ports:
-      - "3307:3306"
+      - "3306:3306"
     environment:
       - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
       - MYSQL_DATABASE=${DB_NAME:-live_commerce_db}
@@ -344,7 +344,7 @@ services:
       retries: 10
       start_period: 180s
 
-  # 커머스 서비스 - 🔥 메모리 대폭 증가!
+  # 커머스 서비스 -  메모리 대폭 증가!
   commerce-service:
       image: ${ECR_REGISTRY}/commerce-service:latest
       container_name: shopmall-commerce
@@ -359,7 +359,7 @@ services:
         - SPRING_REDIS_HOST=redis
         - SPRING_REDIS_PORT=6379
         - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-        # 🔥 RabbitMQ 환경변수 추가
+        #  RabbitMQ 환경변수 추가
         - SPRING_RABBITMQ_HOST=rabbitmq
         - SPRING_RABBITMQ_PORT=5672
         - SPRING_RABBITMQ_USERNAME=admin
@@ -383,12 +383,12 @@ services:
         - PROD_EUREKA_SERVER_URL=${PROD_EUREKA_SERVER_URL}
         - PROD_USER_SERVICE_URL=${PROD_USER_SERVICE_URL}
         - HOST_IP_ADDRESS=${HOST_IP_ADDRESS}
-        # 🔥 핵심 변경: 메모리 대폭 증가
+        #  핵심 변경: 메모리 대폭 증가
         - JAVA_OPTS=-Xmx768m -Xms384m -XX:+UseG1GC -XX:MaxMetaspaceSize=256m
       deploy:
         resources:
           limits:
-            # 🔥 메모리 제한 대폭 증가: 384M → 1024M
+            #  메모리 제한 대폭 증가: 384M → 1024M
             memory: 1024M
             cpus: '0.3'
           reservations:
@@ -404,7 +404,7 @@ services:
           condition: service_healthy
         kafka:
           condition: service_healthy
-        # 🔥 RabbitMQ 의존성 추가
+        #  RabbitMQ 의존성 추가
         rabbitmq:
           condition: service_healthy
       networks:
@@ -433,7 +433,7 @@ services:
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-      # 🔥 RabbitMQ 환경변수 추가
+      #  RabbitMQ 환경변수 추가
       - SPRING_RABBITMQ_HOST=rabbitmq
       - SPRING_RABBITMQ_PORT=5672
       - SPRING_RABBITMQ_USERNAME=admin
@@ -454,12 +454,12 @@ services:
       - PROD_MAIL_PASSWORD=${PROD_MAIL_PASSWORD}
       - PROD_USER_SERVICE_DETAIL_URL=${PROD_USER_SERVICE_DETAIL_URL}
       - HOST_IP_ADDRESS=${HOST_IP_ADDRESS}
-      # 🔥 핵심 변경: 메모리 대폭 증가
+      # 핵심 변경: 메모리 대폭 증가
       - JAVA_OPTS=-Xmx768m -Xms384m -XX:+UseG1GC -XX:MaxMetaspaceSize=256m
     deploy:
       resources:
         limits:
-          # 🔥 메모리 제한 대폭 증가: 384M → 1024M
+          #  메모리 제한 대폭 증가: 384M → 1024M
           memory: 1024M
           cpus: '0.3'
         reservations:
@@ -475,13 +475,13 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
-      # 🔥 RabbitMQ 의존성 추가
+      #  RabbitMQ 의존성 추가
       rabbitmq:
         condition: service_healthy
     networks:
       - msa-network
     restart: unless-stopped
-    # 🔥 헬스체크 더 관대하게 설정
+    #  헬스체크 더 관대하게 설정
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8096/actuator/health" ]
       interval: 90s
@@ -489,7 +489,7 @@ services:
       retries: 15
       start_period: 360s  # 6분 대기
 
-  # API Gateway - 🔥 메모리 대폭 증가!
+  # API Gateway -  메모리 대폭 증가!
   apigateway-service:
     image: ${ECR_REGISTRY}/apigateway-service:latest
     container_name: apigateway-service
@@ -511,12 +511,12 @@ services:
       - ADMIN_URL=${ADMIN_URL:-https://admin.shopmall.com}
       - JWT_SECRET=${PROD_JWT_SECRET_KEY}
       - HOST_IP_ADDRESS=${HOST_IP_ADDRESS}
-      # 🔥 핵심: 메모리 대폭 증가
+      #  핵심: 메모리 대폭 증가
       - JAVA_OPTS=-Xmx512m -Xms256m -XX:+UseG1GC -XX:MaxMetaspaceSize=256m
     deploy:
       resources:
         limits:
-          # 🔥 컨테이너 메모리 제한 대폭 증가
+          #  컨테이너 메모리 제한 대폭 증가
           memory: 768M
           cpus: '0.25'
         reservations:
@@ -539,7 +539,7 @@ services:
     networks:
       - msa-network
     restart: unless-stopped
-    # 🔥 헬스체크 더 관대하게 설정
+    #  헬스체크 더 관대하게 설정
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
       interval: 60s
