@@ -433,7 +433,8 @@ services:
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-      #  RabbitMQ 환경변수 추가
+
+      # RabbitMQ 환경변수
       - SPRING_RABBITMQ_HOST=rabbitmq
       - SPRING_RABBITMQ_PORT=5672
       - SPRING_RABBITMQ_USERNAME=admin
@@ -442,9 +443,13 @@ services:
       - PROD_RABBITMQ_PORT=5672
       - PROD_RABBITMQ_USERNAME=admin
       - PROD_RABBITMQ_PASSWORD=admin123
+
+      # 데이터베이스 설정
       - SPRING_DATASOURCE_URL=${PROD_DB_URL}
       - SPRING_DATASOURCE_USERNAME=${PROD_DB_USERNAME}
       - SPRING_DATASOURCE_PASSWORD=${PROD_DB_PASSWORD}
+
+      # 누락된 필수 환경변수들 추가
       - PROD_REDIS_HOST=${PROD_REDIS_HOST:-redis}
       - PROD_REDIS_PORT=${PROD_REDIS_PORT:-6379}
       - PROD_REDIS_PASSWORD=${PROD_REDIS_PASSWORD:-}
@@ -454,12 +459,35 @@ services:
       - PROD_MAIL_PASSWORD=${PROD_MAIL_PASSWORD}
       - PROD_USER_SERVICE_DETAIL_URL=${PROD_USER_SERVICE_DETAIL_URL}
       - HOST_IP_ADDRESS=${HOST_IP_ADDRESS}
-      # 핵심 변경: 메모리 대폭 증가
+
+      # Feign Client 관련 새로운 환경변수 추가
+      - PROD_NOTIFICATION_EMAIL_ENABLED=${PROD_NOTIFICATION_EMAIL_ENABLED:-true}
+      - PROD_NOTIFICATION_FROM_EMAIL=${PROD_NOTIFICATION_FROM_EMAIL:-noreply@shopmall.com}
+      - PROD_NOTIFICATION_FROM_NAME=${PROD_NOTIFICATION_FROM_NAME:-쇼핑몰 알림}
+      - PROD_FRONTEND_BASE_URL=${PROD_FRONTEND_BASE_URL:-http://user-nginx}
+      - PROD_UNSUBSCRIBE_URL=${PROD_UNSUBSCRIBE_URL:-${PROD_FRONTEND_BASE_URL}/unsubscribe}
+
+      # broadcast-service 관련 설정 (commerce-service로 대체)
+      - PROD_BROADCAST_SERVICE_URL=${PROD_BROADCAST_SERVICE_URL:-http://commerce-service:8090/api/broadcasts}
+      - PROD_NOTIFICATION_EMAIL_ENABLED=${PROD_NOTIFICATION_EMAIL_ENABLED:-true}
+      - PROD_NOTIFICATION_FROM_EMAIL=${PROD_NOTIFICATION_FROM_EMAIL:-noreply@shopmall.com}
+      - PROD_NOTIFICATION_FROM_NAME=${PROD_NOTIFICATION_FROM_NAME:-쇼핑몰 알림}
+      - PROD_UNSUBSCRIBE_URL=${PROD_UNSUBSCRIBE_URL:-http://13.209.253.241/unsubscribe}
+
+      # Frontend Base URL (기존 것 활용)
+      - PROD_FRONTEND_BASE_URL=${PROD_FRONTEND_URL:-http://13.209.253.241}
+
+      # Feign Client 디버깅 (임시)
+      - LOGGING_LEVEL_FEIGN=DEBUG
+      - LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_CLOUD_OPENFEIGN=DEBUG
+
+
+      # 메모리 설정 (기존 유지)
       - JAVA_OPTS=-Xmx768m -Xms384m -XX:+UseG1GC -XX:MaxMetaspaceSize=256m
+
     deploy:
       resources:
         limits:
-          #  메모리 제한 대폭 증가: 384M → 1024M
           memory: 1024M
           cpus: '0.3'
         reservations:
@@ -475,19 +503,22 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
-      #  RabbitMQ 의존성 추가
       rabbitmq:
         condition: service_healthy
+      # user-service 의존성 추가 (Feign Client 때문)
+      user-service:
+        condition: service_started
+      commerce-service:
+        condition: service_started
     networks:
       - msa-network
     restart: unless-stopped
-    #  헬스체크 더 관대하게 설정
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8096/actuator/health" ]
       interval: 90s
       timeout: 45s
       retries: 15
-      start_period: 360s  # 6분 대기
+      start_period: 360s
 
   # API Gateway -  메모리 대폭 증가!
   apigateway-service:

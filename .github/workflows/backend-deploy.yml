@@ -167,6 +167,13 @@ jobs:
           PROD_IMAGE_UPLOAD_PATH=/app/uploads/products/
           PROD_IMAGE_BASE_URL=${{ secrets.PROD_IMAGE_BASE_URL }}
           
+           #  라이브 스트리밍 서비스 추가 환경변수
+          PROD_BROADCAST_SERVICE_URL=${{ secrets.PROD_BROADCAST_SERVICE_URL }}
+          PROD_NOTIFICATION_EMAIL_ENABLED=${{ secrets.PROD_NOTIFICATION_EMAIL_ENABLED }}
+          PROD_NOTIFICATION_FROM_EMAIL=${{ secrets.PROD_NOTIFICATION_FROM_EMAIL }}
+          PROD_NOTIFICATION_FROM_NAME=${{ secrets.PROD_NOTIFICATION_FROM_NAME }}
+          PROD_UNSUBSCRIBE_URL=${{ secrets.PROD_UNSUBSCRIBE_URL }}
+    
           # Network 설정
           HOST_IP_ADDRESS=${{ secrets.HOST_IP_ADDRESS }}
           
