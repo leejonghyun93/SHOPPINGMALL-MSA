@@ -723,7 +723,7 @@ services:
 
   # Grafana - 시각화 대시보드
   grafana:
-    image: grafana/grafana:10.0.0
+    image: grafana/grafana:12.0.2
     container_name: shopmall-grafana
     ports:
       - "3000:3000"
