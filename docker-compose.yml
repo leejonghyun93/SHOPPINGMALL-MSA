@@ -363,14 +363,15 @@ services:
       - MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=${MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE:-health,info,metrics,env,beans}
       - MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS=${MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS:-always}
 
-      - JAVA_OPTS=-Xmx256m -Xms128m -XX:+UseG1GC
+      # JVM 메모리 설정 증가 (중요!)
+      - JAVA_OPTS=-Xmx512m -Xms256m -XX:+UseG1GC
     deploy:
       resources:
         limits:
-          memory: 384M
-          cpus: '0.15'
+          memory: 768M  # 384M → 768M 증가
+          cpus: '0.25'  # 0.15 → 0.25 증가
         reservations:
-          memory: 192M
+          memory: 384M  # 192M → 384M 증가
     depends_on:
       mariadb:
         condition: service_healthy
@@ -387,10 +388,10 @@ services:
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8103/actuator/health"]
-      interval: 60s
-      timeout: 30s
-      retries: 10
-      start_period: 180s
+      interval: 90s        # 60s → 90s 증가
+      timeout: 45s         # 30s → 45s 증가
+      retries: 15          # 10 → 15 증가
+      start_period: 600s   # 180s → 600s (10분으로 증가)
 
   # 커머스 서비스
   commerce-service:
