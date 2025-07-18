@@ -134,7 +134,7 @@
     </div>
 
     <div v-else class="no-broadcasts">
-      <div class="no-broadcast-icon">📺</div>
+      <div class="no-broadcast-icon"></div>
       <h3>현재 진행 중인 라이브 방송이 없습니다</h3>
       <p>잠시 후 다시 확인해주세요!</p>
     </div>
@@ -154,7 +154,7 @@
     </div>
 
     <div v-else-if="!popularProducts || popularProducts.length === 0" class="no-products">
-      <div class="no-products-icon">📦</div>
+      <div class="no-products-icon"></div>
       <h3>현재 표시할 상품이 없습니다</h3>
       <p>잠시 후 다시 확인해주세요!</p>
     </div>

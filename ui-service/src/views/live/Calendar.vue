@@ -198,7 +198,7 @@
 
       <!-- 방송이 없는 경우 -->
       <div v-else class="no-broadcasts text-center py-5">
-        <div class="display-4 text-muted mb-3">📺</div>
+        <div class="display-4 text-muted mb-3"></div>
         <h5 class="text-muted">{{ getSelectedDateText() }}에 예정된 방송이 없습니다</h5>
         <p class="text-muted small">다른 날짜를 선택해보세요</p>
       </div>

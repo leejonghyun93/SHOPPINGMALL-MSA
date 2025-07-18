@@ -12,6 +12,7 @@ on:
       - 'live-streaming-service/**'
       - 'user-service/**'
       - 'docker-compose.yml'
+      - 'monitoring/**'
       - '.github/workflows/**'
   pull_request:
     branches: [ main, master ]
@@ -119,63 +120,132 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Create optimized .env file
+      - name: Create complete .env file
         run: |
           cat > .env << EOF
+          # AWS ECR
           ECR_REGISTRY=${{ secrets.ECR_REGISTRY }}
+          
+          # Spring 환경
           SPRING_PROFILES_ACTIVE=prod
+          
+          # Config Server URL
           CONFIG_SERVER_URL=http://config-service:8888
           
-          # Database
+          # Database - 기본 변수들
           DB_ROOT_PASSWORD=${{ secrets.DB_ROOT_PASSWORD }}
           DB_NAME=${{ secrets.DB_NAME }}
           DB_USERNAME=${{ secrets.DB_USERNAME }}
           DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+          
+          # Database - PROD 변수들
           PROD_DB_URL=${{ secrets.PROD_DB_URL }}
           PROD_DB_USERNAME=${{ secrets.PROD_DB_USERNAME }}
           PROD_DB_PASSWORD=${{ secrets.PROD_DB_PASSWORD }}
           
-          # Config Server
+          # Config Server Git 설정
           CONFIG_REPO_GIT_URI=${{ secrets.CONFIG_REPO_GIT_URI }}
           CONFIG_GIT_USERNAME=${{ secrets.CONFIG_GIT_USERNAME }}
           CONFIG_GIT_PASSWORD=${{ secrets.CONFIG_GIT_PASSWORD }}
+          CONFIG_SERVER_USERNAME=config
           CONFIG_SERVER_PASSWORD=${{ secrets.CONFIG_SERVER_PASSWORD }}
           
-          # Redis & External Services
+          # Redis & Cache
           PROD_REDIS_HOST=${{ secrets.PROD_REDIS_HOST }}
           PROD_REDIS_PORT=${{ secrets.PROD_REDIS_PORT }}
           PROD_REDIS_PASSWORD=${{ secrets.PROD_REDIS_PASSWORD }}
-          PROD_KAFKA_SERVERS=${{ secrets.PROD_KAFKA_SERVERS }}
-          PROD_EUREKA_SERVER_URL=${{ secrets.PROD_EUREKA_SERVER_URL }}
+          
+          # Mail 설정
+          PROD_MAIL_USERNAME=${{ secrets.PROD_MAIL_USERNAME }}
+          PROD_MAIL_PASSWORD=${{ secrets.PROD_MAIL_PASSWORD }}
+          
+          # JWT 설정
           PROD_JWT_SECRET_KEY=${{ secrets.PROD_JWT_SECRET_KEY }}
+          
+          # Kafka 설정
+          PROD_KAFKA_SERVERS=${{ secrets.PROD_KAFKA_SERVERS }}
+          PROD_KAFKA_TOPIC_USER_WITHDRAWAL=${{ secrets.PROD_KAFKA_TOPIC_USER_WITHDRAWAL }}
           
           # Services URLs
           PROD_AUTH_SERVICE_URL=${{ secrets.PROD_AUTH_SERVICE_URL }}
           PROD_USER_SERVICE_URL=${{ secrets.PROD_USER_SERVICE_URL }}
           PROD_USER_SERVICE_DETAIL_URL=${{ secrets.PROD_USER_SERVICE_DETAIL_URL }}
+          PROD_EUREKA_SERVER_URL=${{ secrets.PROD_EUREKA_SERVER_URL }}
           
-          # Other configs
+          # RabbitMQ 설정
+          PROD_RABBITMQ_HOST=${{ secrets.PROD_RABBITMQ_HOST }}
+          PROD_RABBITMQ_PORT=${{ secrets.PROD_RABBITMQ_PORT }}
+          PROD_RABBITMQ_USERNAME=${{ secrets.PROD_RABBITMQ_USERNAME }}
+          PROD_RABBITMQ_PASSWORD=${{ secrets.PROD_RABBITMQ_PASSWORD }}
+          
+          # Payment 설정
+          PROD_IAMPORT_API_KEY=${{ secrets.PROD_IAMPORT_API_KEY }}
+          PROD_IAMPORT_API_SECRET=${{ secrets.PROD_IAMPORT_API_SECRET }}
+          
+          # Image 설정
+          PROD_IMAGE_UPLOAD_PATH=${{ secrets.PROD_IMAGE_UPLOAD_PATH }}
+          PROD_IMAGE_BASE_URL=${{ secrets.PROD_IMAGE_BASE_URL }}
+          
+          # Live Streaming Service 설정
+          PROD_BROADCAST_SERVICE_URL=${{ secrets.PROD_BROADCAST_SERVICE_URL }}
+          PROD_NOTIFICATION_EMAIL_ENABLED=${{ secrets.PROD_NOTIFICATION_EMAIL_ENABLED }}
+          PROD_NOTIFICATION_FROM_EMAIL=${{ secrets.PROD_NOTIFICATION_FROM_EMAIL }}
+          PROD_NOTIFICATION_FROM_NAME=${{ secrets.PROD_NOTIFICATION_FROM_NAME }}
+          PROD_FRONTEND_URL=${{ secrets.PROD_FRONTEND_URL }}
+          PROD_UNSUBSCRIBE_URL=${{ secrets.PROD_UNSUBSCRIBE_URL }}
+          
+          # Eureka 클라이언트 설정
+          EUREKA_CLIENT_ENABLED=${{ secrets.EUREKA_CLIENT_ENABLED }}
+          EUREKA_CLIENT_REGISTER_WITH_EUREKA=${{ secrets.EUREKA_CLIENT_REGISTER_WITH_EUREKA }}
+          EUREKA_CLIENT_FETCH_REGISTRY=${{ secrets.EUREKA_CLIENT_FETCH_REGISTRY }}
+          EUREKA_INSTANCE_PREFER_IP_ADDRESS=${{ secrets.EUREKA_INSTANCE_PREFER_IP_ADDRESS }}
+          EUREKA_INSTANCE_LEASE_RENEWAL_INTERVAL_IN_SECONDS=${{ secrets.EUREKA_INSTANCE_LEASE_RENEWAL_INTERVAL_IN_SECONDS }}
+          EUREKA_INSTANCE_LEASE_EXPIRATION_DURATION_IN_SECONDS=${{ secrets.EUREKA_INSTANCE_LEASE_EXPIRATION_DURATION_IN_SECONDS }}
+          
+          # Eureka Server 설정
+          EUREKA_SERVER_ENABLE_SELF_PRESERVATION=${{ secrets.EUREKA_SERVER_ENABLE_SELF_PRESERVATION }}
+          EUREKA_SERVER_PEER_EUREKA_NODES_UPDATE_INTERVAL_MS=${{ secrets.EUREKA_SERVER_PEER_EUREKA_NODES_UPDATE_INTERVAL_MS }}
+          EUREKA_SERVER_PEER_NODE_READ_TIMEOUT_MS=${{ secrets.EUREKA_SERVER_PEER_NODE_READ_TIMEOUT_MS }}
+          
+          # Spring Cloud Discovery 설정
+          SPRING_CLOUD_DISCOVERY_ENABLED=${{ secrets.SPRING_CLOUD_DISCOVERY_ENABLED }}
+          SPRING_CLOUD_SERVICE_REGISTRY_AUTO_REGISTRATION_ENABLED=${{ secrets.SPRING_CLOUD_SERVICE_REGISTRY_AUTO_REGISTRATION_ENABLED }}
+          SPRING_CLOUD_CONFIG_FAIL_FAST=${{ secrets.SPRING_CLOUD_CONFIG_FAIL_FAST }}
+          
+          # Management Endpoints 설정
+          MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=${{ secrets.MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE }}
+          MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS=${{ secrets.MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS }}
+          
+          # Network 설정
           HOST_IP_ADDRESS=${{ secrets.HOST_IP_ADDRESS }}
+          
+          # Frontend URLs
           FRONTEND_URL=${{ secrets.FRONTEND_URL }}
           ADMIN_URL=${{ secrets.ADMIN_URL }}
+          
+          # Kafka Host
+          KAFKA_HOST=kafka
+          
+          # 🔥 모니터링 설정 (추가)
+          GRAFANA_ADMIN_PASSWORD=${{ secrets.GRAFANA_ADMIN_PASSWORD }}
           EOF
 
-      - name: Copy files to EC2
+      - name: Copy files to EC2 (including monitoring)
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: "docker-compose.yml,.env"
+          source: "docker-compose.yml,.env,monitoring"
           target: "/home/ec2-user/app/"
 
-      - name: Deploy to EC2 (Rolling Update)
+      - name: Deploy to EC2 (Rolling Update with Monitoring)
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          command_timeout: 20m
+          command_timeout: 25m
           script: |
             cd /home/ec2-user/app
             source .env
@@ -194,25 +264,46 @@ jobs:
             # Rolling Update 배포
             echo "🔄 Starting rolling update..."
             
-            # 1. Config & Eureka 먼저 업데이트 (항상 먼저)
+            # 1. 인프라 서비스 확인 (이미 실행 중이면 스킵)
+            if ! docker ps | grep -q mariadb; then
+              echo "🗄️ Starting infrastructure services..."
+              docker-compose up -d mariadb redis rabbitmq
+              sleep 60
+              docker-compose up -d zookeeper
+              sleep 30
+              docker-compose up -d kafka
+              sleep 40
+            fi
+            
+            # 2. Config & Eureka 먼저 업데이트
+            echo "⚙️ Updating Config & Eureka services..."
             docker-compose up -d config-service
-            sleep 30
-            docker-compose up -d eureka-service
             sleep 45
-
-            # 2. 비즈니스 서비스들 병렬 업데이트
-            docker-compose up -d auth-service user-service commerce-service live-streaming-service
+            docker-compose up -d eureka-service
             sleep 60
 
-            # 3. API Gateway 마지막 업데이트
+            # 3. 비즈니스 서비스들 병렬 업데이트
+            echo "🏪 Updating business services..."
+            docker-compose up -d auth-service user-service commerce-service live-streaming-service
+            sleep 90
+
+            # 4. API Gateway 업데이트
+            echo "🌐 Updating API Gateway..."
             docker-compose up -d apigateway-service
+            sleep 45
+
+            # 5. 프론트엔드 업데이트
+            echo "🎨 Updating frontend..."
+            docker-compose up -d user-nginx
             sleep 30
 
-            # 4. Nginx 업데이트 (프론트엔드)
-            docker-compose up -d user-nginx
+            # 6. 🔥 모니터링 서비스 시작
+            echo "📊 Starting monitoring services..."
+            docker-compose up -d prometheus grafana
+            sleep 30
 
             # Health Check
-            echo "🏥 Health checking services..."
+            echo "🏥 Health checking all services..."
             services_check="config-service:8888 eureka-service:8761 auth-service:8082 user-service:8103 commerce-service:8090 live-streaming-service:8096 apigateway-service:8080"
             
             for service_port in $services_check; do
@@ -230,8 +321,31 @@ jobs:
               done
             done
 
+            # 모니터링 서비스 Health Check
+            echo "📊 Checking monitoring services..."
+            curl -f http://localhost:9090/-/healthy > /dev/null 2>&1 && echo "✅ Prometheus healthy" || echo "❌ Prometheus unhealthy"
+            curl -f http://localhost:3000/api/health > /dev/null 2>&1 && echo "✅ Grafana healthy" || echo "❌ Grafana unhealthy"
+
+            # 컨테이너 상태 확인
+            echo "📋 Final container status:"
+            docker-compose ps
+
+            # 메모리 사용량 확인
+            echo "💾 Memory usage:"
+            docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}}"
+
+            # Eureka 등록된 서비스 확인
+            echo "🔍 Checking Eureka registered services..."
+            curl -s http://localhost:8761/eureka/apps | grep -o '<name>[^<]*</name>' | sed 's/<[^>]*>//g' || echo "Could not fetch Eureka registry"
+
             # 컨테이너 정리
             echo "🧹 Cleaning up..."
             docker system prune -f --volumes
 
-            echo "🎉 Rolling update completed!"
+            echo "🎉 Deployment completed!"
+            echo "🌐 Services available at:"
+            echo "  - Main Site: http://13.209.253.241"
+            echo "  - API Gateway: http://13.209.253.241:8080"
+            echo "  - Eureka: http://13.209.253.241:8761"
+            echo "  - Prometheus: http://13.209.253.241:9090"
+            echo "  - Grafana: http://13.209.253.241:3000 (admin/admin123)"
