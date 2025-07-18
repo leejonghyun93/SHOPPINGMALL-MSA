@@ -24,10 +24,10 @@ public class SimpleEmailConfig {
     @Value("${spring.mail.port:587}")
     private int port;
 
-    @Value("${spring.mail.username}")
+    @Value("${spring.mail.username:${PROD_MAIL_USERNAME}}")  // 수정
     private String username;
 
-    @Value("${spring.mail.password}")
+    @Value("${spring.mail.password:${PROD_MAIL_PASSWORD}}")  // 수정
     private String password;
 
     /**
