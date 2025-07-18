@@ -22,6 +22,7 @@ import java.util.stream.Collectors;
 public class BroadcastServiceClient {
 
     private final BroadcastRepository broadcastRepository;
+
     private final UserServiceClient userServiceClient;
 
     /**

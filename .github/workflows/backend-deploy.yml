@@ -165,6 +165,7 @@ jobs:
           # Kafka 설정
           PROD_KAFKA_SERVERS=${{ secrets.PROD_KAFKA_SERVERS }}
           PROD_KAFKA_TOPIC_USER_WITHDRAWAL=${{ secrets.PROD_KAFKA_TOPIC_USER_WITHDRAWAL }}
+          SPRING_KAFKA_BOOTSTRAP_SERVERS=${{ secrets.SPRING_KAFKA_BOOTSTRAP_SERVERS }}
           
           # Services URLs
           PROD_AUTH_SERVICE_URL=${{ secrets.PROD_AUTH_SERVICE_URL }}

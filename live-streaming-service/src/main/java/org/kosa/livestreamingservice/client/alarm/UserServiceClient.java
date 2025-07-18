@@ -14,7 +14,7 @@ import java.util.List;
 @Component
 @Slf4j
 @RequiredArgsConstructor
-@ConditionalOnBean(UserServiceFeignClient.class)
+//@ConditionalOnBean(UserServiceFeignClient.class)
 public class UserServiceClient {
 
     private final UserServiceFeignClient userServiceFeignClient;
