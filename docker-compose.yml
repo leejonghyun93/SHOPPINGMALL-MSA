@@ -759,7 +759,7 @@ services:
 
 networks:
   msa-network:
-    external: true
+#    external: true
     driver: bridge
     ipam:
       config:
