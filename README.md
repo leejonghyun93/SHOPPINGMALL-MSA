@@ -115,32 +115,6 @@ cp .env.example .env
 # .env 파일을 편집하여 필요한 환경 변수 설정
 ```
 
-2. **필수 환경 변수**
-```env
-# Database
-DB_ROOT_PASSWORD=your_root_password
-DB_NAME=live_commerce_db
-DB_USERNAME=kosa
-DB_PASSWORD=your_db_password
-
-# Production Database
-PROD_DB_URL=jdbc:mariadb://mariadb:3306/live_commerce_db
-PROD_DB_USERNAME=kosa
-PROD_DB_PASSWORD=your_prod_password
-
-# Config Server
-CONFIG_REPO_GIT_URI=https://github.com/your-org/config-repo.git
-CONFIG_SERVER_PASSWORD=your_config_password
-
-# JWT & Security
-PROD_JWT_SECRET_KEY=your_jwt_secret_key
-
-# External Services
-PROD_MAIL_USERNAME=your_email@domain.com
-PROD_MAIL_PASSWORD=your_email_password
-PROD_IAMPORT_API_KEY=your_iamport_key
-PROD_IAMPORT_API_SECRET=your_iamport_secret
-```
 
 ### 로컬 개발 환경 실행
 
