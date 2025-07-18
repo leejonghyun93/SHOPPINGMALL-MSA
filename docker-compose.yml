@@ -745,10 +745,12 @@ services:
       - prometheus
     networks:
       - msa-network
+
     restart: unless-stopped
 
 networks:
   msa-network:
+    external: true
     driver: bridge
     ipam:
       config:
