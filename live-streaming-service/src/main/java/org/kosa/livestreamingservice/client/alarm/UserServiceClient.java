@@ -2,6 +2,7 @@ package org.kosa.livestreamingservice.client.alarm;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
@@ -13,6 +14,7 @@ import java.util.List;
 @Component
 @Slf4j
 @RequiredArgsConstructor
+@ConditionalOnBean(UserServiceFeignClient.class)
 public class UserServiceClient {
 
     private final UserServiceFeignClient userServiceFeignClient;
