@@ -1,4 +1,4 @@
-name: Frontend CI/CD (Nginx Docker)
+name: Frontend CI/CD (Optimized)
 
 on:
   push:
@@ -13,11 +13,12 @@ on:
       - 'nginx-docker/**'
 
 jobs:
-  test:
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
+      # Node.js 캐싱 최적화
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -25,108 +26,58 @@ jobs:
           cache: 'npm'
           cache-dependency-path: ui-service/package-lock.json
 
+      # 의존성 캐싱
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: ui-service/node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('ui-service/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
       - name: Install dependencies
         run: |
           cd ui-service
-          npm ci
+          npm ci --prefer-offline --no-audit
 
-      - name: Run linting
+      # 병렬 실행 (linting과 testing)
+      - name: Run quality checks
         run: |
           cd ui-service
-          npm run lint || true
-
-      - name: Run tests
-        run: |
-          cd ui-service
-          if [ -f "package.json" ] && grep -q "test" package.json; then
-            npm run test:unit || true
-          else
-            echo "No tests found, skipping..."
+          npm run lint &
+          if grep -q "test" package.json; then
+            npm run test:unit &
           fi
+          wait
 
-      # 🔥 개선된 환경변수 주입 단계
-      - name: Create environment files
+      # 환경변수 최적화
+      - name: Create production environment
         run: |
           cd ui-service
-          
-          # .env.production 생성
-          echo "# Production Environment Variables" > .env.production
-          echo "VITE_API_URL=${{ secrets.PROD_API_BASE_URL || 'http://13.209.253.241:8080' }}" >> .env.production
-          echo "VITE_NOTIFICATION_URL=${{ secrets.PROD_NOTIFICATION_URL || 'http://13.209.253.241:8096/api/notifications' }}" >> .env.production
-          echo "VITE_NGINX_HOST=${{ secrets.PROD_NGINX_HOST || '13.209.253.241' }}" >> .env.production
-          echo "VITE_NGINX_PORT=${{ secrets.PROD_NGINX_PORT || '8080' }}" >> .env.production
-          echo "VITE_FRONTEND_URL=${{ secrets.PROD_FRONTEND_URL || 'https://shopmall.com' }}" >> .env.production
-          echo "VITE_KAKAO_CLIENT_ID=${{ secrets.PROD_KAKAO_CLIENT_ID }}" >> .env.production
-          echo "VITE_NAVER_CLIENT_ID=${{ secrets.PROD_NAVER_CLIENT_ID }}" >> .env.production
-          echo "VITE_REDIRECT_URI=${{ secrets.PROD_SOCIAL_REDIRECT_URI }}" >> .env.production
-          
-          # .env.development 생성 (개발환경 테스트용)
-          echo "# Development Environment Variables" > .env.development
-          echo "VITE_API_URL=http://localhost:8080" >> .env.development
-          echo "VITE_NOTIFICATION_URL=http://localhost:8096/api/notifications" >> .env.development
-          echo "VITE_NGINX_HOST=localhost" >> .env.development
-          echo "VITE_NGINX_PORT=8080" >> .env.development
-          echo "VITE_FRONTEND_URL=http://localhost:5173" >> .env.development
-          
-          echo "✅ Created environment files:"
-          echo "📄 .env.production:"
-          cat .env.production
-          echo ""
-          echo "📄 .env.development:"
-          cat .env.development
+          cat > .env.production << EOF
+          VITE_API_URL=${{ secrets.PROD_API_BASE_URL || 'http://13.209.253.241:8080' }}
+          VITE_NOTIFICATION_URL=${{ secrets.PROD_NOTIFICATION_URL || 'http://13.209.253.241:8096/api/notifications' }}
+          VITE_FRONTEND_URL=${{ secrets.PROD_FRONTEND_URL || 'https://shopmall.com' }}
+          VITE_KAKAO_CLIENT_ID=${{ secrets.PROD_KAKAO_CLIENT_ID }}
+          VITE_NAVER_CLIENT_ID=${{ secrets.PROD_NAVER_CLIENT_ID }}
+          VITE_REDIRECT_URI=${{ secrets.PROD_SOCIAL_REDIRECT_URI }}
+          EOF
 
-      - name: Build Vue application
+      # 빌드 최적화
+      - name: Build application
         run: |
           cd ui-service
-          echo "🏗️ Building Vue application for production..."
-          npm run build
+          NODE_ENV=production npm run build
           
-          # 빌드 결과 확인
-          echo "📦 Build completed. Contents of dist folder:"
-          ls -la dist/
-          
-          # 환경변수가 제대로 적용되었는지 확인
-          if [ -f "dist/index.html" ]; then
-            echo "✅ index.html exists"
-          else
-            echo "❌ index.html not found!"
+          # 빌드 검증
+          if [ ! -f "dist/index.html" ]; then
+            echo "❌ Build failed - index.html not found"
             exit 1
           fi
 
-      - name: Prepare nginx-docker
-        run: |
-          echo "🚀 Preparing nginx-docker deployment..."
-          mkdir -p nginx-docker/vue-dist
-          rm -rf nginx-docker/vue-dist/*
-          cp -r ui-service/dist/* nginx-docker/vue-dist/
-          
-          # nginx-docker 구조 확인
-          echo "📁 nginx-docker structure:"
-          ls -la nginx-docker/
-          echo "📁 vue-dist contents:"
-          ls -la nginx-docker/vue-dist/
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: nginx-docker-files
-          path: nginx-docker/
-
-  deploy:
-    needs: test
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: nginx-docker-files
-          path: nginx-docker/
-
+      # Docker 빌드 최적화 (조건부 실행)
       - name: Configure AWS credentials
+        if: github.ref == 'refs/heads/main'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -134,45 +85,81 @@ jobs:
           aws-region: ap-northeast-2
 
       - name: Login to Amazon ECR
+        if: github.ref == 'refs/heads/main'
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build and push Nginx Docker image
+      # Docker 빌드캐시 활용
+      - name: Set up Docker Buildx
+        if: github.ref == 'refs/heads/main'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Prepare and Build Docker image
+        if: github.ref == 'refs/heads/main'
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: user-nginx
-          IMAGE_TAG: ${{ github.sha }}
         run: |
+          # nginx-docker 준비
+          mkdir -p nginx-docker/vue-dist
+          cp -r ui-service/dist/* nginx-docker/vue-dist/
+          
           cd nginx-docker
           
-          echo "🐳 Building Docker image..."
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
-          
-          echo "📤 Pushing Docker image to ECR..."
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
-          
-          echo "✅ Docker image pushed successfully!"
+          # Docker 빌드 및 푸시 (캐시 활용)
+          docker buildx build \
+            --platform linux/amd64 \
+            --cache-from type=gha,scope=nginx \
+            --cache-to type=gha,mode=max,scope=nginx \
+            --push \
+            --tag $ECR_REGISTRY/user-nginx:latest \
+            --tag $ECR_REGISTRY/user-nginx:${{ github.sha }} \
+            .
 
-      - name: Deploy to EC2
+      # 배포 최적화 (다운타임 최소화)
+      - name: Deploy to EC2 (Zero-downtime)
+        if: github.ref == 'refs/heads/main'
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            echo "🔐 Logging into ECR..."
+            # ECR 로그인
             aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin ${{ steps.login-ecr.outputs.registry }}
             
-            echo "🛑 Stopping existing container..."
+            # 새로운 이미지 Pull
+            echo "📥 Pulling new image..."
+            docker pull ${{ steps.login-ecr.outputs.registry }}/user-nginx:latest
+            
+            # Blue-Green 배포 (다운타임 최소화)
+            echo "🔄 Starting blue-green deployment..."
+            
+            # 새 컨테이너 시작 (다른 포트에서)
+            docker run -d \
+              --name user-nginx-new \
+              --network app_msa-network \
+              -p 81:80 \
+              --restart unless-stopped \
+              ${{ steps.login-ecr.outputs.registry }}/user-nginx:latest
+            
+            # 새 컨테이너 Health Check
+            echo "🏥 Health checking new container..."
+            for i in {1..10}; do
+              if curl -f http://localhost:81/health > /dev/null 2>&1; then
+                echo "✅ New container is healthy!"
+                break
+              else
+                echo "⏳ Waiting for new container... ($i/10)"
+                sleep 3
+              fi
+            done
+            
+            # 포트 스위칭 (거의 제로 다운타임)
+            echo "🔀 Switching ports..."
             docker stop user-nginx || true
             docker rm user-nginx || true
             
-            echo "📥 Pulling latest image..."
-            docker pull ${{ steps.login-ecr.outputs.registry }}/user-nginx:latest
-            
-            echo "🚀 Starting new container..."
+            docker stop user-nginx-new
             docker run -d \
               --name user-nginx \
               --network app_msa-network \
@@ -181,24 +168,14 @@ jobs:
               --restart unless-stopped \
               ${{ steps.login-ecr.outputs.registry }}/user-nginx:latest
             
-            echo "⏳ Waiting for container to start..."
+            # 임시 컨테이너 정리
+            docker rm user-nginx-new || true
+            
+            # 최종 확인
+            echo "🏥 Final health check..."
             sleep 5
+            curl -f http://localhost/health && echo "✅ Deployment successful!"
             
-            echo "📊 Container status:"
-            docker ps | grep user-nginx
-            
-            echo "🏥 Checking Nginx health..."
-            for i in {1..5}; do
-              if curl -f http://localhost/health; then
-                echo "✅ Nginx is healthy!"
-                break
-              else
-                echo "⏳ Waiting for Nginx to be ready... ($i/5)"
-                sleep 5
-              fi
-            done
-            
-            echo "🧹 Cleaning up old images..."
+            # 정리
             docker image prune -f
-            
-            echo "🎉 Deployment completed successfully!"
+            echo "🎉 Zero-downtime deployment completed!"

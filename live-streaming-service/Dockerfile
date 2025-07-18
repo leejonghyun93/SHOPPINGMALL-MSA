@@ -1,14 +1,25 @@
-FROM openjdk:17-jdk-slim AS builder
-WORKDIR /app
-COPY mvnw .
-COPY .mvn .mvn
-COPY pom.xml .
-COPY src src
-RUN chmod +x ./mvnw
-RUN ./mvnw clean package -DskipTests -Dmaven.javadoc.skip=true
+# Live Streaming Service Dockerfile
+FROM maven:3.9.4-eclipse-temurin-17-alpine AS builder
 
+WORKDIR /app
+
+# 의존성 캐싱을 위해 pom.xml 먼저 복사
+COPY pom.xml .
+COPY .mvn .mvn
+COPY mvnw .
+RUN chmod +x ./mvnw
+
+# 의존성 다운로드 (캐시 레이어)
+RUN ./mvnw dependency:go-offline -B
+
+# 소스 코드 복사 및 빌드
+COPY src src
+RUN ./mvnw clean package -DskipTests -B
+
+# 런타임 이미지
 FROM eclipse-temurin:17-jre-alpine
-RUN apk add --no-cache curl && \
+
+RUN apk add --no-cache curl tzdata && \
     rm -rf /var/cache/apk/* && \
     addgroup -g 1000 appuser && \
     adduser -u 1000 -G appuser -D appuser
@@ -19,12 +30,12 @@ RUN chown appuser:appuser app.jar
 
 USER appuser
 
-# 라이브 스트리밍용 메모리 설정 (스트리밍 처리 - 가장 많이 필요)
-ENV JAVA_OPTS="-Xmx128m -Xms64m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -Djava.security.egd=file:/dev/./urandom"
+# 라이브 스트리밍용 메모리 설정 (스트리밍 처리 - 높은 메모리 필요)
+ENV JAVA_OPTS="-Xmx512m -Xms256m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication -Djava.security.egd=file:/dev/./urandom"
 
 EXPOSE 8096
 
-HEALTHCHECK --interval=30s --timeout=3s --start-period=30s --retries=3 \
+HEALTHCHECK --interval=60s --timeout=10s --start-period=120s --retries=3 \
   CMD curl -f http://localhost:8096/actuator/health || exit 1
 
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
