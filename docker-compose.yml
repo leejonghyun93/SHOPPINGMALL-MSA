@@ -706,6 +706,7 @@ services:
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
+    restart: unless-stopped
     deploy:
       resources:
         limits:
@@ -719,7 +720,7 @@ services:
       - auth-service
     networks:
       - msa-network
-    restart: unless-stopped
+
 
   # Grafana - 시각화 대시보드
   grafana:
@@ -734,6 +735,7 @@ services:
     volumes:
       - grafana_data:/var/lib/grafana
       - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    restart: unless-stopped
     deploy:
       resources:
         limits:
@@ -746,7 +748,8 @@ services:
     networks:
       - msa-network
 
-    restart: unless-stopped
+
+
 
 networks:
   msa-network:
