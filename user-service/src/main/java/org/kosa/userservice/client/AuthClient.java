@@ -17,7 +17,7 @@ public class AuthClient {
     @Value("${auth-service.url:http://localhost:8082}")
     private String authServiceUrl;
 
-    // ✅ LoadBalancer 없는 RestTemplate 사용
+    //  LoadBalancer 없는 RestTemplate 사용
     public AuthClient(@Qualifier("restTemplate") RestTemplate restTemplate) {
         this.restTemplate = restTemplate;
     }
@@ -44,11 +44,11 @@ public class AuthClient {
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 AuthResponse authResponse = response.getBody();
-                log.debug("✅ 토큰 검증 성공: userId={}, name={}",
+                log.debug(" 토큰 검증 성공: userId={}, name={}",
                         authResponse.getUserId(), authResponse.getName());
                 return authResponse;
             } else {
-                log.warn("⚠️ 토큰 검증 실패: {}", response.getStatusCode());
+                log.warn("⚠ 토큰 검증 실패: {}", response.getStatusCode());
                 return AuthResponse.builder()
                         .success(false)
                         .message("토큰 검증 실패")
@@ -56,7 +56,7 @@ public class AuthClient {
             }
 
         } catch (Exception e) {
-            log.error("❌ Auth-Service 호출 실패: {}", e.getMessage());
+            log.error(" Auth-Service 호출 실패: {}", e.getMessage());
             return AuthResponse.builder()
                     .success(false)
                     .message("인증 서비스 연결 실패")
