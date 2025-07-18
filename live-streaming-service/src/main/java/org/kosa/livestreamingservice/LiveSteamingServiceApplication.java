@@ -1,13 +1,16 @@
 package org.kosa.livestreamingservice;
 
+import org.kosa.livestreamingservice.client.alarm.UserServiceFeignClient;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.cloud.openfeign.EnableFeignClients;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
 @EnableScheduling  // 배치 작업을 위한 스케줄링 활성화
 @EnableFeignClients
+@ConditionalOnBean(UserServiceFeignClient.class)
 public class LiveSteamingServiceApplication {
 
     public static void main(String[] args) {
