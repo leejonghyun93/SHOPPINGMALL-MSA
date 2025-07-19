@@ -1,4 +1,5 @@
 package org.kosa.livestreamingservice.config.alarm;
+
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
@@ -16,8 +17,9 @@ public class NotificationProperties {
     public static class Email {
         private Boolean enabled = true;
         private Integer reminderMinutes = 10;
-        private String fromEmail;
-        private String fromName = "쇼핑몰 라이브방송";
+        //  환경변수 직접 참조하도록 수정
+        private String fromEmail = "${PROD_NOTIFICATION_FROM_EMAIL:fhohffodf93@gmail.com}";
+        private String fromName = "${PROD_NOTIFICATION_FROM_NAME:쇼핑몰 라이브방송}";
         private Integer retryCount = 3;
         private Long retryDelay = 5000L;
         private String templatePath = "classpath:/templates/email/";
