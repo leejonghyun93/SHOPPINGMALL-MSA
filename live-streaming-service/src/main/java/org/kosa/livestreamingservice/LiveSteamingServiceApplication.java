@@ -7,7 +7,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
 @EnableScheduling  // 배치 작업을 위한 스케줄링 활성화
-@EnableFeignClients
+@EnableFeignClients(basePackages = "org.kosa.livestreamingservice.client")
 public class LiveSteamingServiceApplication {
 
     public static void main(String[] args) {
