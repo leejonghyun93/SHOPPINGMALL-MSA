@@ -770,11 +770,8 @@ services:
 
 networks:
   msa-network:
-#    external: true
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 172.20.0.0/16
+    external: true
+    name: app_msa-network
 
 volumes:
   mariadb_data:
