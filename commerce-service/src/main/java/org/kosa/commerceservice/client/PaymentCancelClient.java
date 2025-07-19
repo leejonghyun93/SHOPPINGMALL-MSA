@@ -9,7 +9,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 
 @FeignClient(
         name = "payment-service",
-        url = "${payment.service.url:http://localhost:8081}",
         fallback = PaymentCancelClientFallback.class
 )
 public interface PaymentCancelClient {
