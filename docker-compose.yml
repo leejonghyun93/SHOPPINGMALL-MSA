@@ -502,6 +502,7 @@ services:
       - "8096:8096"
     environment:
       - SPRING_APPLICATION_NAME=live-streaming-service
+      - SERVER_PORT=8096
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
       - CONFIG_SERVER_URL=${CONFIG_SERVER_URL:-http://config-service:8888}
       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka
