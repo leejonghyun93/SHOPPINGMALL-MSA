@@ -24,7 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 public class AuthService {
 
-    @Value("${services.user-service.url:#{environment.USER_SERVICE_URL ?: 'http://localhost:8103'}}")
+    @Value("${user-service.url:http://user-service:8103}")
     private String userServiceUrl;
 
     private final JwtUtil jwtUtil;

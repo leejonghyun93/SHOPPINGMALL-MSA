@@ -262,6 +262,7 @@ services:
     environment:
       - SPRING_APPLICATION_NAME=auth-service
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
+      - USER_SERVICE_URL=http://user-service:8103
       - CONFIG_SERVER_URL=${CONFIG_SERVER_URL:-http://config-service:8888}
       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka
       - SPRING_CONFIG_IMPORT=optional:configserver:${CONFIG_SERVER_URL:-http://config-service:8888}

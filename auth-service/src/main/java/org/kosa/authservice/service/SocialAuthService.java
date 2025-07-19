@@ -22,7 +22,7 @@ import java.util.Map;
 @Slf4j
 public class SocialAuthService {
 
-    @Value("${user-service.url:http://localhost:8103}")
+    @Value("${user-service.url:http://user-service:8103}")
     private String userServiceUrl;
 
     @Value("${social.kakao.client-id:}")

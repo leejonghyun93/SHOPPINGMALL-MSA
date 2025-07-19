@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 /**
  * User Service와 통신하기 위한 Feign Client
  */
-@FeignClient(name = "user-service", url = "${user-service.url:http://localhost:8103}")
+@FeignClient(name = "user-service")
 public interface UserClient {
 
     /**
