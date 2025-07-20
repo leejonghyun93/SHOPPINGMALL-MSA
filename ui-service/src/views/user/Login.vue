@@ -236,14 +236,50 @@ const checkSocialLoginCallback = async () => {
 
 // 페이지 로드 시 저장된 아이디 불러오기
 onMounted(() => {
+  // 기존 저장된 아이디 로딩
   const savedUserId = localStorage.getItem("savedUserId");
   if (savedUserId) {
     form.userid = savedUserId;
     rememberId.value = true;
   }
 
-  // 소셜 콜백 처리 활성화
-  checkSocialLoginCallback();
+  // 🔥 백엔드에서 보낸 토큰/에러 처리
+  const urlParams = new URLSearchParams(window.location.search);
+  const token = urlParams.get('token');
+  const error = urlParams.get('error');
+
+  if (error) {
+    console.error('❌ 소셜 로그인 에러:', decodeURIComponent(error));
+    errorMessage.value = decodeURIComponent(error);
+    // URL 정리
+    window.history.replaceState({}, document.title, window.location.pathname);
+    return;
+  }
+
+  if (token) {
+    console.log('✅ 백엔드에서 토큰 받음:', token.substring(0, 20) + '...');
+
+    try {
+      // 토큰 저장
+      localStorage.setItem('jwt', token);
+      localStorage.setItem('login_type', 'SOCIAL');
+
+      // 사용자 정보 설정
+      setUserFromToken(token);
+
+      console.log('✅ 소셜 로그인 완료, 홈으로 이동');
+
+      // 홈으로 이동
+      router.push('/');
+
+    } catch (tokenError) {
+      console.error('❌ 토큰 처리 오류:', tokenError);
+      errorMessage.value = "로그인 처리 중 오류가 발생했습니다.";
+    }
+
+    // URL 정리
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
 });
 
 const handleLogin = async () => {
@@ -344,8 +380,11 @@ const getRedirectUri = (provider) => {
 };
 
 // 카카오 로그인 함수 수정
+
 const handleKakaoLogin = () => {
-  if (!KAKAO_CLIENT_ID) {
+  console.log('=== 카카오 로그인 시작 ===');
+
+  if (!import.meta.env.VITE_KAKAO_CLIENT_ID) {
     errorMessage.value = "카카오 로그인 설정이 완료되지 않았습니다.";
     return;
   }
@@ -353,26 +392,27 @@ const handleKakaoLogin = () => {
   try {
     const state = generateRandomState();
     localStorage.setItem('oauth_state', state);
-    localStorage.setItem('oauth_provider', 'kakao'); // 제공업체 저장
+    localStorage.setItem('oauth_provider', 'kakao');
 
-    const redirectUri = getRedirectUri('kakao'); // /auth/kakao/callback
+    // 🔥 SocialAuthController의 /auth/callback 엔드포인트 사용
+    const redirectUri = `http://13.209.253.241:8080/auth/callback`;
 
     const kakaoAuthUrl = `https://kauth.kakao.com/oauth/authorize?` +
-        `client_id=${KAKAO_CLIENT_ID}&` +
+        `client_id=${import.meta.env.VITE_KAKAO_CLIENT_ID}&` +
         `redirect_uri=${encodeURIComponent(redirectUri)}&` +
         `response_type=code&` +
         `state=${state}`;
 
-    console.log('카카오 로그인 URL:', kakaoAuthUrl);
+    console.log('✅ 카카오 인증 URL 생성 완료');
     console.log('Redirect URI:', redirectUri);
 
     window.location.href = kakaoAuthUrl;
+
   } catch (error) {
-    console.error('카카오 로그인 오류:', error);
+    console.error('❌ 카카오 로그인 오류:', error);
     errorMessage.value = "카카오 로그인 처리 중 오류가 발생했습니다.";
   }
 };
-
 // 네이버 로그인 함수 수정
 const handleNaverLogin = () => {
   if (!NAVER_CLIENT_ID) {
@@ -385,7 +425,7 @@ const handleNaverLogin = () => {
     localStorage.setItem('oauth_state', state);
     localStorage.setItem('oauth_provider', 'naver'); // 제공업체 저장
 
-    const redirectUri = getRedirectUri('naver'); // /auth/naver/callback
+    const redirectUri = `${window.location.origin}/auth/callback`; // /auth/naver/callback
 
     const naverAuthUrl = `https://nid.naver.com/oauth2.0/authorize?` +
         `client_id=${NAVER_CLIENT_ID}&` +
