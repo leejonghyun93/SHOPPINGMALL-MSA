@@ -117,7 +117,8 @@ const isLoading = ref(false);
 // 환경변수에서 소셜 로그인 설정 가져오기
 const KAKAO_CLIENT_ID = import.meta.env.VITE_KAKAO_CLIENT_ID;
 const NAVER_CLIENT_ID = import.meta.env.VITE_NAVER_CLIENT_ID;
-const REDIRECT_URI = import.meta.env.VITE_REDIRECT_URI || `${window.location.origin}/auth/callback`;
+
+const REDIRECT_URI = `${window.location.origin}/auth/callback`;
 
 // 소셜 로그인 토큰 처리 함수
 const handleSocialLoginToken = async (token) => {
@@ -337,6 +338,12 @@ const handleLogin = async () => {
 };
 
 // 카카오 로그인
+const getRedirectUri = (provider) => {
+  const baseUrl = window.location.origin;
+  return `${baseUrl}/auth/${provider}/callback`;
+};
+
+// 카카오 로그인 함수 수정
 const handleKakaoLogin = () => {
   if (!KAKAO_CLIENT_ID) {
     errorMessage.value = "카카오 로그인 설정이 완료되지 않았습니다.";
@@ -346,20 +353,27 @@ const handleKakaoLogin = () => {
   try {
     const state = generateRandomState();
     localStorage.setItem('oauth_state', state);
+    localStorage.setItem('oauth_provider', 'kakao'); // 제공업체 저장
+
+    const redirectUri = getRedirectUri('kakao'); // /auth/kakao/callback
 
     const kakaoAuthUrl = `https://kauth.kakao.com/oauth/authorize?` +
         `client_id=${KAKAO_CLIENT_ID}&` +
-        `redirect_uri=${encodeURIComponent(REDIRECT_URI)}&` +
+        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
         `response_type=code&` +
         `state=${state}`;
 
+    console.log('카카오 로그인 URL:', kakaoAuthUrl);
+    console.log('Redirect URI:', redirectUri);
+
     window.location.href = kakaoAuthUrl;
   } catch (error) {
+    console.error('카카오 로그인 오류:', error);
     errorMessage.value = "카카오 로그인 처리 중 오류가 발생했습니다.";
   }
 };
 
-// 네이버 로그인
+// 네이버 로그인 함수 수정
 const handleNaverLogin = () => {
   if (!NAVER_CLIENT_ID) {
     errorMessage.value = "네이버 로그인 설정이 완료되지 않았습니다.";
@@ -369,16 +383,23 @@ const handleNaverLogin = () => {
   try {
     const state = generateRandomState();
     localStorage.setItem('oauth_state', state);
+    localStorage.setItem('oauth_provider', 'naver'); // 제공업체 저장
+
+    const redirectUri = getRedirectUri('naver'); // /auth/naver/callback
 
     const naverAuthUrl = `https://nid.naver.com/oauth2.0/authorize?` +
         `client_id=${NAVER_CLIENT_ID}&` +
-        `redirect_uri=${encodeURIComponent(REDIRECT_URI)}&` +
+        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
         `response_type=code&` +
         `state=${state}&` +
         `scope=profile`;
 
+    console.log('네이버 로그인 URL:', naverAuthUrl);
+    console.log('Redirect URI:', redirectUri);
+
     window.location.href = naverAuthUrl;
   } catch (error) {
+    console.error('네이버 로그인 오류:', error);
     errorMessage.value = "네이버 로그인 처리 중 오류가 발생했습니다.";
   }
 };

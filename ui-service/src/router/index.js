@@ -67,17 +67,28 @@ const routes = [
     },
     {
         path: '/auth/callback',
-        name: 'SocialBackendCallback',
-        // 이 경로는 실제로는 백엔드가 처리하므로 컴포넌트 필요 없음
-        // 하지만 라우터 정의상 필요하므로 더미 컴포넌트 또는 리다이렉트 설정
-        redirect: '/login'
-    },
-    {
-        path: '/auth/social-callback',
         name: 'SocialCallback',
         component: SocialCallback,
         meta: {
             title: '로그인 처리 중...',
+            hideNavigation: true
+        }
+    },
+    {
+        path: '/auth/kakao/callback',
+        name: 'KakaoCallback',
+        component: SocialCallback,
+        meta: {
+            title: '카카오 로그인 처리 중...',
+            hideNavigation: true
+        }
+    },
+    {
+        path: '/auth/naver/callback',
+        name: 'NaverCallback',
+        component: SocialCallback,
+        meta: {
+            title: '네이버 로그인 처리 중...',
             hideNavigation: true
         }
     },
