@@ -415,7 +415,9 @@ const handleKakaoLogin = () => {
 };
 // 네이버 로그인 함수 수정
 const handleNaverLogin = () => {
-  if (!NAVER_CLIENT_ID) {
+  console.log('=== 네이버 로그인 시작 ===');
+
+  if (!import.meta.env.VITE_NAVER_CLIENT_ID) {
     errorMessage.value = "네이버 로그인 설정이 완료되지 않았습니다.";
     return;
   }
@@ -423,23 +425,25 @@ const handleNaverLogin = () => {
   try {
     const state = generateRandomState();
     localStorage.setItem('oauth_state', state);
-    localStorage.setItem('oauth_provider', 'naver'); // 제공업체 저장
+    localStorage.setItem('oauth_provider', 'naver');
 
-    const redirectUri = `${window.location.origin}/auth/callback`; // /auth/naver/callback
+    // 🔥 백엔드 SocialAuthController의 /auth/callback 엔드포인트 사용 (카카오와 동일)
+    const redirectUri = `http://13.209.253.241:8080/auth/callback`;
 
     const naverAuthUrl = `https://nid.naver.com/oauth2.0/authorize?` +
-        `client_id=${NAVER_CLIENT_ID}&` +
+        `client_id=${import.meta.env.VITE_NAVER_CLIENT_ID}&` +
         `redirect_uri=${encodeURIComponent(redirectUri)}&` +
         `response_type=code&` +
-        `state=${state}&` +
-        `scope=profile`;
+        `state=${state}`;
 
-    console.log('네이버 로그인 URL:', naverAuthUrl);
+    console.log('✅ 네이버 인증 URL 생성 완료');
     console.log('Redirect URI:', redirectUri);
+    console.log('네이버 Client ID:', import.meta.env.VITE_NAVER_CLIENT_ID);
 
     window.location.href = naverAuthUrl;
+
   } catch (error) {
-    console.error('네이버 로그인 오류:', error);
+    console.error('❌ 네이버 로그인 오류:', error);
     errorMessage.value = "네이버 로그인 처리 중 오류가 발생했습니다.";
   }
 };
