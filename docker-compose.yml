@@ -296,12 +296,12 @@ services:
       - GOOGLE_CLIENT_ID=${PROD_GOOGLE_CLIENT_ID:-disabled}
       - GOOGLE_CLIENT_SECRET=${PROD_GOOGLE_CLIENT_SECRET:-disabled}
 
-      # ⭐ OAuth Redirect URI 설정 (추가됨)
+      # OAuth Redirect URI 설정 (추가됨)
       - KAKAO_REDIRECT_URI=${PROD_KAKAO_REDIRECT_URI:-http://13.209.253.241:8080/auth/kakao/callback}
       - NAVER_REDIRECT_URI=${PROD_NAVER_REDIRECT_URI:-http://13.209.253.241:8080/auth/naver/callback}
       - SOCIAL_REDIRECT_URI=${PROD_SOCIAL_REDIRECT_URI:-http://13.209.253.241:8080/auth/callback}
 
-      # ⭐ OAuth Redirect URI 설정 (추가됨)
+      #  OAuth Redirect URI 설정 (추가됨)
       - KAKAO_REDIRECT_URI=${PROD_KAKAO_REDIRECT_URI:-http://13.209.253.241:8080/auth/kakao/callback}
       - NAVER_REDIRECT_URI=${PROD_NAVER_REDIRECT_URI:-http://13.209.253.241:8080/auth/naver/callback}
       - SOCIAL_REDIRECT_URI=${PROD_SOCIAL_REDIRECT_URI:-http://13.209.253.241:8080/auth/callback}
