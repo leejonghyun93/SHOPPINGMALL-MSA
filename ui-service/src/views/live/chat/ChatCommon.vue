@@ -210,6 +210,18 @@ const displayNotice = computed(() => {
 let socket = null;
 let stompClient = null;
 let chatSubscription = null;
+const getWebSocketUrl = () => {
+  const hostname = window.location.hostname;
+
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return 'http://localhost:8080/ws-chat';
+  } else {
+    // 환경변수에서 운영 IP 가져오기
+    const prodIp = import.meta.env.VITE_PROD_IP || '13.209.253.241';
+    return `http://${prodIp}:8080/ws-chat`;
+  }
+};
+
 
 const createWebSocketConnection = () => {
   if (connectionStatus.value === 'connecting') {
@@ -226,8 +238,8 @@ const createWebSocketConnection = () => {
       // 무시
     }
   }
-
-  const wsUrl = 'http://192.168.4.134:8080/ws-chat';
+  const wsUrl = getWebSocketUrl();
+  // const wsUrl = 'http://192.168.4.134:8080/ws-chat';
 
   try {
     socket = new SockJS(wsUrl);

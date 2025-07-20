@@ -741,6 +741,13 @@ services:
     container_name: user-nginx
     ports:
       - "80:80"
+    environment:
+      # 프론트엔드 환경변수 추가
+      - VITE_PROD_IP=${VITE_PROD_IP:-13.209.253.241}
+      - VITE_API_URL=${VITE_API_URL:-http://13.209.253.241:8080}
+      - VITE_KAKAO_CLIENT_ID=${PROD_KAKAO_CLIENT_ID}
+      - VITE_NAVER_CLIENT_ID=${PROD_NAVER_CLIENT_ID}
+      - VITE_REDIRECT_URI=${PROD_SOCIAL_REDIRECT_URI}
     deploy:
       resources:
         limits:
