@@ -239,13 +239,14 @@ const createWebSocketConnection = () => {
     }
   }
 
-  // 🔥 URL 변경
-  const wsUrl = 'http://3.39.101.58:8081/ws-chat';
+  //  URL 변경
+  // const wsUrl = 'http://3.39.101.58:8081/ws-chat';
+  const wsUrl = import.meta.env.VITE_PROD_WS_URL;
 
   try {
-    // 🔥 socket 변수 제거하고 직접 webSocketFactory에서 생성
+    //  socket 변수 제거하고 직접 webSocketFactory에서 생성
     stompClient = new Client({
-      webSocketFactory: () => new SockJS(wsUrl),  // 🔥 직접 생성
+      webSocketFactory: () => new SockJS(wsUrl),  //  직접 생성
       reconnectDelay: 5000,
       heartbeatIncoming: 4000,
       heartbeatOutgoing: 4000,
@@ -267,7 +268,7 @@ const createWebSocketConnection = () => {
           systemOnly: true
         });
 
-        // 📌 채팅 메시지 구독
+        //  채팅 메시지 구독
         chatSubscription = stompClient.subscribe('/topic/public', (msg) => {
           try {
             const received = JSON.parse(msg.body);
@@ -289,14 +290,14 @@ const createWebSocketConnection = () => {
           }
         });
 
-        // 📌 방송 상태 변경 구독
+        //  방송 상태 변경 구독
         stompClient.subscribe(`/topic/broadcast/${props.broadcastId}/status`, msg => {
           const payload = JSON.parse(msg.body);
           broadcastStatus.value = payload.status;
           isChatEnabled.value = ['live', 'start', 'stop'].includes(broadcastStatus.value.toLowerCase());
         });
 
-        // 📌 참여자 수 구독
+        //  참여자 수 구독
         stompClient.subscribe(`/topic/participants/${props.broadcastId}`, msg => {
           const count = parseInt(msg.body, 10);
 
@@ -307,19 +308,19 @@ const createWebSocketConnection = () => {
           participantCount.value = isNaN(count) ? 0 : count;
         });
 
-        // 📌 채팅 금지 STOMP 채널 구독
+        //  채팅 금지 STOMP 채널 구독
         if (userState.userId) {
           stompClient.subscribe(`/topic/ban/${userState.userId}`, msg => {
             const data = JSON.parse(msg.body);
             isBanned.value = data.banned;
 
             if (data.banned) {
-              alertRef.value?.open('⚠️ 부적절한 채팅창사용으로 5분간 채팅이 금지되었습니다.');
+              alertRef.value?.open('⚠ 부적절한 채팅창사용으로 5분간 채팅이 금지되었습니다.');
               setTimeout(() => {
                 isBanned.value = false;
               }, data.duration * 1000);
             } else {
-              alertRef.value?.open('✅ 채팅 금지가 해제되었습니다.');
+              alertRef.value?.open('채팅 금지가 해제되었습니다.');
             }
           });
         }
