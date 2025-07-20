@@ -216,9 +216,9 @@ const getWebSocketUrl = () => {
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
     return 'http://localhost:8080/ws-chat';
   } else {
-    // 환경변수에서 운영 IP 가져오기
-    const prodIp = import.meta.env.VITE_PROD_IP || '13.209.253.241';
-    return `http://${prodIp}:8080/ws-chat`;
+    // 환경변수에서 전체 URL 가져오기 (http:// 포함)
+    const prodUrl = import.meta.env.VITE_PROD_URL || 'http://13.209.253.241:8080';
+    return `${prodUrl}/ws-chat`;  // ⭐ http:// 중복 제거
   }
 };
 
