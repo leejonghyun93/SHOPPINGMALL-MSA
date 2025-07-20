@@ -221,6 +221,8 @@ let chatSubscription = null;
 //     return import.meta.env.VITE_PROD_WS_URL;     // GitHub Secrets에서 가져오기
 //   }
 // };
+// ChatCommon.vue의 createWebSocketConnection 함수 수정
+
 const createWebSocketConnection = () => {
   if (connectionStatus.value === 'connecting') {
     return;
@@ -236,16 +238,17 @@ const createWebSocketConnection = () => {
       // 무시
     }
   }
-  // const wsUrl = getWebSocketUrl();
-  // const wsUrl = 'http://192.168.4.134:8080/ws-chat';
-  const wsUrl = 'http://3.39.101.58:8081/ws-chat';
-  try {
-    socket = new SockJS(wsUrl);
 
+  // 🔥 URL 변경
+  const wsUrl = 'http://3.39.101.58:8081/ws-chat';
+
+  try {
+    // 🔥 socket 변수 제거하고 직접 webSocketFactory에서 생성
     stompClient = new Client({
-      webSocketFactory: () => {
-        return socket;
-      },
+      webSocketFactory: () => new SockJS(wsUrl),  // 🔥 직접 생성
+      reconnectDelay: 5000,
+      heartbeatIncoming: 4000,
+      heartbeatOutgoing: 4000,
 
       connectHeaders: {
         Authorization: (localStorage.getItem('jwt') || sessionStorage.getItem('jwt')) ?
@@ -253,10 +256,6 @@ const createWebSocketConnection = () => {
         uuid,
         broadcastId: props.broadcastId
       },
-
-      reconnectDelay: 5000,
-      heartbeatIncoming: 4000,
-      heartbeatOutgoing: 4000,
 
       onConnect: (frame) => {
         connectionStatus.value = 'connected';
@@ -268,6 +267,7 @@ const createWebSocketConnection = () => {
           systemOnly: true
         });
 
+        // 📌 채팅 메시지 구독
         chatSubscription = stompClient.subscribe('/topic/public', (msg) => {
           try {
             const received = JSON.parse(msg.body);
@@ -289,12 +289,14 @@ const createWebSocketConnection = () => {
           }
         });
 
+        // 📌 방송 상태 변경 구독
         stompClient.subscribe(`/topic/broadcast/${props.broadcastId}/status`, msg => {
           const payload = JSON.parse(msg.body);
           broadcastStatus.value = payload.status;
           isChatEnabled.value = ['live', 'start', 'stop'].includes(broadcastStatus.value.toLowerCase());
         });
 
+        // 📌 참여자 수 구독
         stompClient.subscribe(`/topic/participants/${props.broadcastId}`, msg => {
           const count = parseInt(msg.body, 10);
 
@@ -304,6 +306,7 @@ const createWebSocketConnection = () => {
 
           participantCount.value = isNaN(count) ? 0 : count;
         });
+
         // 📌 채팅 금지 STOMP 채널 구독
         if (userState.userId) {
           stompClient.subscribe(`/topic/ban/${userState.userId}`, msg => {
@@ -320,8 +323,6 @@ const createWebSocketConnection = () => {
             }
           });
         }
-
-
       },
 
       onStompError: (frame) => {
