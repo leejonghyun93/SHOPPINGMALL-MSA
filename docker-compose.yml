@@ -306,6 +306,12 @@ services:
       - MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED=true
       - MANAGEMENT_METRICS_EXPORT_PROMETHEUS_ENABLED=true
       - JAVA_OPTS=-Xmx256m -Xms128m -XX:+UseG1GC
+
+      - SPRING_MAIL_HOST=smtp.gmail.com
+      - SPRING_MAIL_PORT=587
+      - SPRING_MAIL_USERNAME=${PROD_MAIL_USERNAME}
+      - SPRING_MAIL_PASSWORD=${PROD_MAIL_PASSWORD}
+      - SPRING_MAIL_FROM=${PROD_NOTIFICATION_FROM_EMAIL}
     deploy:
       resources:
         limits:
@@ -331,7 +337,8 @@ services:
       timeout: 30s
       retries: 10
       start_period: 180s
-
+  # .env 파일 수정 또는 docker-compose.yml에서 직접 설정
+  # PROD_MAIL_PASSWORD=새로운_앱_비밀번호
   # 사용자 서비스
   user-service:
     image: ${ECR_REGISTRY}/user-service:latest
