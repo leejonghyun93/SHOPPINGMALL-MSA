@@ -511,7 +511,7 @@ services:
       - CONFIG_SERVER_URL=${CONFIG_SERVER_URL:-http://config-service:8888}
       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-service:8761/eureka
       - SPRING_CONFIG_IMPORT=optional:configserver:${CONFIG_SERVER_URL:-http://config-service:8888}
-
+      - JAVA_OPTS=-Xmx768m -Xms384m -XX:+UseG1GC -XX:MaxMetaspaceSize=256m -Dspring.redis.host=redis -Dspring.data.redis.host=redis -Dspring.redis.port=6379
       #  Redis 설정 수정 (Docker 서비스명 직접 지정)
       - SPRING_REDIS_HOST=redis
       - SPRING_REDIS_PORT=6379
@@ -585,7 +585,7 @@ services:
       - LOGGING_LEVEL_FEIGN=DEBUG
       - LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_CLOUD_OPENFEIGN=DEBUG
 
-      - JAVA_OPTS=-Xmx768m -Xms384m -XX:+UseG1GC -XX:MaxMetaspaceSize=256m
+
 
     deploy:
       resources:
