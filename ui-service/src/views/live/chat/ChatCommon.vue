@@ -211,16 +211,16 @@ let socket = null;
 let stompClient = null;
 let chatSubscription = null;
 
-const getWebSocketUrl = () => {
-  const hostname = window.location.hostname;
-  const port = window.location.port;
-
-  if (hostname === 'localhost' || hostname === '127.0.0.1' || port === '5173') {
-    return 'http://192.168.4.134:8080/ws-chat';  // 로컬 개발용
-  } else {
-    return import.meta.env.VITE_PROD_WS_URL;     // GitHub Secrets에서 가져오기
-  }
-};
+// const getWebSocketUrl = () => {
+//   const hostname = window.location.hostname;
+//   const port = window.location.port;
+//
+//   if (hostname === 'localhost' || hostname === '127.0.0.1' || port === '5173') {
+//     return 'http://192.168.4.134:8080/ws-chat';  // 로컬 개발용
+//   } else {
+//     return import.meta.env.VITE_PROD_WS_URL;     // GitHub Secrets에서 가져오기
+//   }
+// };
 const createWebSocketConnection = () => {
   if (connectionStatus.value === 'connecting') {
     return;
@@ -237,31 +237,8 @@ const createWebSocketConnection = () => {
     }
   }
   // const wsUrl = getWebSocketUrl();
-  // 📍 createWebSocketConnection 함수에서 수정할 부분
-
-  const createWebSocketConnection = () => {
-    if (connectionStatus.value === 'connecting') {
-      return;
-    }
-
-    connectionStatus.value = 'connecting';
-    isConnecting.value = true;
-
-    if (stompClient) {
-      try {
-        stompClient.deactivate();
-      } catch (error) {
-        // 무시
-      }
-    }
-
-    // 이 부분을 변경
-    // const wsUrl = getWebSocketUrl();
-    // const wsUrl = 'http://192.168.4.134:8080/ws-chat';
-
-    const wsUrl = 'http://3.39.101.58:8081/ws-chat';
-    // const wsUrl = 'http://3.39.101.58:8081/ws-chat';
-
+  // const wsUrl = 'http://192.168.4.134:8080/ws-chat';
+  const wsUrl = 'http://3.39.101.58:8081/ws-chat';
   try {
     socket = new SockJS(wsUrl);
 
