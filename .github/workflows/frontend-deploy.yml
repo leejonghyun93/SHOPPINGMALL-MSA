@@ -56,6 +56,7 @@ jobs:
           cd ui-service
           cat > .env.production << EOF
           VITE_API_URL=${{ secrets.PROD_API_BASE_URL || 'http://13.209.253.241:8080' }}
+          VITE_PROD_WS_URL=${{ secrets.VITE_PROD_WS_URL }}
           VITE_NOTIFICATION_URL=${{ secrets.PROD_NOTIFICATION_URL || 'http://13.209.253.241:8096/api/notifications' }}
           VITE_FRONTEND_URL=${{ secrets.PROD_FRONTEND_URL || 'https://shopmall.com' }}
           VITE_KAKAO_CLIENT_ID=${{ secrets.PROD_KAKAO_CLIENT_ID }}

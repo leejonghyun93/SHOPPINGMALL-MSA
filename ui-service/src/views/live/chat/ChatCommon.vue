@@ -210,19 +210,17 @@ const displayNotice = computed(() => {
 let socket = null;
 let stompClient = null;
 let chatSubscription = null;
+
 const getWebSocketUrl = () => {
   const hostname = window.location.hostname;
+  const port = window.location.port;
 
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return 'http://localhost:8080/ws-chat';
+  if (hostname === 'localhost' || hostname === '127.0.0.1' || port === '5173') {
+    return 'http://192.168.4.134:8080/ws-chat';  // 로컬 개발용
   } else {
-    // 환경변수에서 전체 URL 가져오기 (http:// 포함)
-    const prodUrl = import.meta.env.VITE_PROD_URL || 'http://13.209.253.241:8080';
-    return `${prodUrl}/ws-chat`;  // ⭐ http:// 중복 제거
+    return import.meta.env.VITE_PROD_WS_URL;     // GitHub Secrets에서 가져오기
   }
 };
-
-
 const createWebSocketConnection = () => {
   if (connectionStatus.value === 'connecting') {
     return;
