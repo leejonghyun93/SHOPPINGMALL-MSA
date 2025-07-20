@@ -7,6 +7,7 @@ services:
     ports:
       - "3306:3306"
     environment:
+      - TZ=Asia/Seoul
       - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
       - MYSQL_DATABASE=${DB_NAME:-live_commerce_db}
       - MYSQL_USER=${DB_USERNAME:-kosa}
@@ -132,7 +133,7 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      # 🔥 리스너 설정 변경
+      #  리스너 설정 변경
       KAFKA_LISTENERS: INTERNAL://0.0.0.0:9093,EXTERNAL://0.0.0.0:9092
       KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9093,EXTERNAL://localhost:9092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
@@ -174,6 +175,8 @@ services:
     ports:
       - "8888:8888"
     environment:
+      - TZ=Asia/Seoul
+      - JAVA_OPTS=-Duser.timezone=Asia/Seoul
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
       - CONFIG_REPO_GIT_URI=${CONFIG_REPO_GIT_URI}
       - CONFIG_GIT_USERNAME=${CONFIG_GIT_USERNAME:-}
@@ -213,6 +216,8 @@ services:
     ports:
       - "8761:8761"
     environment:
+      - TZ=Asia/Seoul
+      - JAVA_OPTS=-Duser.timezone=Asia/Seoul
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
       - CONFIG_SERVER_URL=${CONFIG_SERVER_URL:-http://config-service:8888}
       - SPRING_CONFIG_IMPORT=optional:configserver:${CONFIG_SERVER_URL:-http://config-service:8888}
@@ -260,6 +265,8 @@ services:
     ports:
       - "8082:8082"
     environment:
+      - TZ=Asia/Seoul
+      - JAVA_OPTS=-Duser.timezone=Asia/Seoul
       - SPRING_APPLICATION_NAME=auth-service
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
       - USER_SERVICE_URL=http://user-service:8103
@@ -346,6 +353,8 @@ services:
     ports:
       - "8103:8103"
     environment:
+      - TZ=Asia/Seoul
+      - JAVA_OPTS=-Duser.timezone=Asia/Seoul
       - SPRING_APPLICATION_NAME=user-service
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
       - CONFIG_SERVER_URL=${CONFIG_SERVER_URL:-http://config-service:8888}
@@ -421,6 +430,8 @@ services:
     ports:
       - "8090:8090"
     environment:
+      - TZ=Asia/Seoul
+      - JAVA_OPTS=-Duser.timezone=Asia/Seoul
       - SPRING_APPLICATION_NAME=commerce-service
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
       - CONFIG_SERVER_URL=${CONFIG_SERVER_URL:-http://config-service:8888}
@@ -512,6 +523,8 @@ services:
     ports:
       - "8096:8096"
     environment:
+      - TZ=Asia/Seoul
+      - JAVA_OPTS=-Duser.timezone=Asia/Seoul
       - SPRING_APPLICATION_NAME=live-streaming-service
       - SERVER_PORT=8096
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
@@ -635,6 +648,8 @@ services:
     ports:
       - "8080:8080"
     environment:
+      - TZ=Asia/Seoul
+      - JAVA_OPTS=-Duser.timezone=Asia/Seoul
       - SPRING_APPLICATION_NAME=apigateway-service
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
       - CONFIG_SERVER_URL=${CONFIG_SERVER_URL:-http://config-service:8888}
@@ -774,6 +789,8 @@ services:
     ports:
       - "3000:3000"
     environment:
+      - TZ=Asia/Seoul
+      - JAVA_OPTS=-Duser.timezone=Asia/Seoul
       - GF_SECURITY_ADMIN_PASSWORD=admin123
       - GF_SECURITY_ADMIN_USER=admin
       - GF_INSTALL_PLUGINS=grafana-piechart-panel
