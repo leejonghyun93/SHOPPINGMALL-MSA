@@ -259,7 +259,7 @@ const createWebSocketConnection = () => {
     // const wsUrl = getWebSocketUrl();
     // const wsUrl = 'http://192.168.4.134:8080/ws-chat';
 
-
+    const wsUrl = 'http://3.39.101.58:8081/ws-chat';
     // const wsUrl = 'http://3.39.101.58:8081/ws-chat';
 
   try {
