@@ -86,7 +86,6 @@ const processSocialCallback = async () => {
           const jsonStr = decoder.decode(bytes)
           payload = JSON.parse(jsonStr)
         } catch (e) {
-          // fallback to simple decoding
           try {
             const jsonStr = atob(base64)
             payload = JSON.parse(jsonStr)

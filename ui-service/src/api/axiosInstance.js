@@ -1,7 +1,7 @@
 import axios from 'axios'
 import { jwtDecode } from 'jwt-decode'
 
-// 🔥 환경변수 기반 API URL 설정
+//  환경변수 기반 API URL 설정
 const API_BASE_URL = import.meta.env.VITE_API_URL ||
     (import.meta.env.DEV ? 'http://localhost:8080' : 'http://13.209.253.241:8080')
 

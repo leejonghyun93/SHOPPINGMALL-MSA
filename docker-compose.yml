@@ -296,12 +296,7 @@ services:
       - GOOGLE_CLIENT_ID=${PROD_GOOGLE_CLIENT_ID:-disabled}
       - GOOGLE_CLIENT_SECRET=${PROD_GOOGLE_CLIENT_SECRET:-disabled}
 
-      # OAuth Redirect URI 설정 (추가됨)
-      - KAKAO_REDIRECT_URI=${PROD_KAKAO_REDIRECT_URI:-http://13.209.253.241:8080/auth/kakao/callback}
-      - NAVER_REDIRECT_URI=${PROD_NAVER_REDIRECT_URI:-http://13.209.253.241:8080/auth/naver/callback}
-      - SOCIAL_REDIRECT_URI=${PROD_SOCIAL_REDIRECT_URI:-http://13.209.253.241:8080/auth/callback}
-
-      #  OAuth Redirect URI 설정 (추가됨)
+      # OAuth Redirect URI 설정 (중복 제거됨)
       - KAKAO_REDIRECT_URI=${PROD_KAKAO_REDIRECT_URI:-http://13.209.253.241:8080/auth/kakao/callback}
       - NAVER_REDIRECT_URI=${PROD_NAVER_REDIRECT_URI:-http://13.209.253.241:8080/auth/naver/callback}
       - SOCIAL_REDIRECT_URI=${PROD_SOCIAL_REDIRECT_URI:-http://13.209.253.241:8080/auth/callback}
@@ -326,6 +321,7 @@ services:
       - MANAGEMENT_METRICS_EXPORT_PROMETHEUS_ENABLED=true
       - JAVA_OPTS=-Xmx256m -Xms128m -XX:+UseG1GC
 
+      # Mail 설정
       - SPRING_MAIL_HOST=smtp.gmail.com
       - SPRING_MAIL_PORT=587
       - SPRING_MAIL_USERNAME=${PROD_MAIL_USERNAME}
@@ -351,7 +347,7 @@ services:
       - msa-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8082/actuator/health" ]
       interval: 60s
       timeout: 30s
       retries: 10
