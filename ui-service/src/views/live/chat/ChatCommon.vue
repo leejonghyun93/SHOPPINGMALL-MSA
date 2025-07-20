@@ -236,8 +236,31 @@ const createWebSocketConnection = () => {
       // 무시
     }
   }
-  const wsUrl = getWebSocketUrl();
-  // const wsUrl = 'http://192.168.4.134:8080/ws-chat';
+  // const wsUrl = getWebSocketUrl();
+  // 📍 createWebSocketConnection 함수에서 수정할 부분
+
+  const createWebSocketConnection = () => {
+    if (connectionStatus.value === 'connecting') {
+      return;
+    }
+
+    connectionStatus.value = 'connecting';
+    isConnecting.value = true;
+
+    if (stompClient) {
+      try {
+        stompClient.deactivate();
+      } catch (error) {
+        // 무시
+      }
+    }
+
+    // 이 부분을 변경
+    // const wsUrl = getWebSocketUrl();
+    // const wsUrl = 'http://192.168.4.134:8080/ws-chat';
+
+
+    // const wsUrl = 'http://3.39.101.58:8081/ws-chat';
 
   try {
     socket = new SockJS(wsUrl);
