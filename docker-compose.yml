@@ -561,7 +561,13 @@ services:
       - PROD_RABBITMQ_PORT=${PROD_RABBITMQ_PORT:-5672}
       - PROD_RABBITMQ_USERNAME=${PROD_RABBITMQ_USERNAME:-admin}
       - PROD_RABBITMQ_PASSWORD=${PROD_RABBITMQ_PASSWORD:-admin123}
-
+      # MyBatis 설정 추가 (Config Server보다 우선순위 높음)
+      - MYBATIS_MAPPER_LOCATIONS=classpath:mappers/*.xml
+      - MYBATIS_TYPE_ALIASES_PACKAGE=org.kosa.livestreamingservice.dto.chat
+      - MYBATIS_CONFIGURATION_MAP_UNDERSCORE_TO_CAMEL_CASE=true
+      - SPRING_MYBATIS_MAPPER_LOCATIONS=classpath:mappers/*.xml
+      - SPRING_MYBATIS_TYPE_ALIASES_PACKAGE=org.kosa.livestreamingservice.dto.chat
+      - SPRING_MYBATIS_CONFIGURATION_MAP_UNDERSCORE_TO_CAMEL_CASE=true
       # 데이터베이스 설정
       - SPRING_DATASOURCE_URL=${PROD_DB_URL}
       - SPRING_DATASOURCE_USERNAME=${PROD_DB_USERNAME}
