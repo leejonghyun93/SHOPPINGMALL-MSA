@@ -226,8 +226,6 @@ const nextIndex = computed(() => (currentIndex.value + 1) % images.value.length)
 const getBroadcastThumbnail = (broadcast) => {
   const thumbnailUrl = broadcast.thumbnailUrl || broadcast.thumbnail_url
 
-  console.log('방송 썸네일 요청:', broadcast.title, thumbnailUrl)
-
   // 1. 썸네일이 있는 경우 - useSmartImages의 로직 활용
   if (thumbnailUrl && thumbnailUrl.trim() !== '') {
     // useSmartImages와 동일한 처리 로직 적용
@@ -235,41 +233,36 @@ const getBroadcastThumbnail = (broadcast) => {
     // DB의 /upload/product/main/ 경로인 경우
     if (thumbnailUrl.startsWith('/upload/product/main/')) {
       const fileName = thumbnailUrl.split('/').pop()
-      const finalUrl = `/images/banners/products/${fileName}`  // ✅ useSmartImages와 동일한 경로
-      console.log('✅ UI Service 폴더 썸네일:', finalUrl)
+      const finalUrl = `/images/banners/products/${fileName}`
       return finalUrl
     }
 
     // 외부 URL인 경우 그대로 사용
     if (thumbnailUrl.startsWith('http')) {
-      console.log('✅ 외부 썸네일 URL:', thumbnailUrl)
       return thumbnailUrl
     }
 
     // 파일명만 있는 경우
     if (!thumbnailUrl.includes('/')) {
       const finalUrl = `/images/banners/products/${thumbnailUrl}`
-      console.log('✅ 파일명 썸네일:', finalUrl)
       return finalUrl
     }
   }
 
   // 2. 썸네일이 없는 경우 - 방송용 기본 이미지 또는 상품 이미지 활용
-  console.log('썸네일 없음, 대체 이미지 생성')
 
   // 방송에 연결된 첫 번째 상품의 이미지 사용
   if (broadcast.products && broadcast.products.length > 0) {
     const firstProduct = broadcast.products[0]
     const productImage = getProductImage(firstProduct)
-    console.log('✅ 연결된 상품 이미지 사용:', productImage)
     return productImage
   }
 
   // 최종 기본 이미지
   const defaultImage = '/images/banners/products/default-product.jpg'
-  console.log('⚠️ 기본 썸네일 사용:', defaultImage)
   return defaultImage
 }
+
 const fetchLiveBroadcasts = async () => {
   try {
     broadcastsLoading.value = true

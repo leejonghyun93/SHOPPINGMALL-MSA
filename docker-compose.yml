@@ -620,9 +620,8 @@ services:
       - LOGGING_LEVEL_FEIGN=DEBUG
       - LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_CLOUD_OPENFEIGN=DEBUG
 
-
-
     deploy:
+      replicas: 2
       resources:
         limits:
           memory: 1024M
