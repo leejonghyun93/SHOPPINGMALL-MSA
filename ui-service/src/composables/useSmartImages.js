@@ -11,11 +11,10 @@ export function useSmartImages() {
         console.log('🔍 getProductImage 호출됨:', product)
 
         // 🔥 관리자가 업로드한 이미지 - API Gateway를 통해 서버에서 가져오기
-        if (product.mainImage && product.mainImage.startsWith('/upload/')) {
-            const fileName = product.mainImage.split('/').pop()
-            const finalUrl = `${API_GATEWAY_URL}/images/${fileName}`
-            console.log('✅ 서버 업로드 이미지 (mainImage):', finalUrl)
-            return finalUrl
+        if (product.mainImage && product.mainImage.startsWith('/upload/product/main/')) {
+            const fileName = product.mainImage.split('/').pop(); // 파일명만 추출
+            const finalUrl = `${API_GATEWAY_URL}/images/${fileName}`;
+            return finalUrl;
         }
 
         // 🔥 image 필드도 업로드된 파일인 경우
@@ -69,8 +68,8 @@ export function useSmartImages() {
         }
 
         // 🔥 기본 이미지 - 프론트엔드 static 파일
-        const defaultImage = `${BASE_IMAGE_PATH}default-product.jpg`
-        console.log('⚠️ 기본 이미지 사용:', defaultImage)
+        const defaultImage = `https://via.placeholder.com/300x300/f8f9fa/6c757d?text=상품+준비중`
+        console.log('⚠️ 온라인 기본 이미지 사용:', defaultImage)
         return defaultImage
     }
 
