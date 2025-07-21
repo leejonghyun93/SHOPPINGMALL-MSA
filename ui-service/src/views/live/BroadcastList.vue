@@ -423,52 +423,45 @@ const getBroadcastStatusText = (status) => {
 const getBroadcastThumbnail = (broadcast) => {
   console.log('방송 썸네일 요청:', broadcast.title, broadcast.thumbnail_url || broadcast.thumbnailUrl)
 
-  // 1. 방송에 썸네일 URL이 있는 경우
   const thumbnailUrl = broadcast.thumbnail_url || broadcast.thumbnailUrl
 
+  // 1. 썸네일이 있는 경우 - useSmartImages와 동일한 로직
   if (thumbnailUrl && thumbnailUrl.trim() !== '') {
-    console.log('썸네일 URL 발견:', thumbnailUrl)
+    // DB 경로인 경우
+    if (thumbnailUrl.startsWith('/upload/product/main/')) {
+      const fileName = thumbnailUrl.split('/').pop()
+      const finalUrl = `/images/banners/products/${fileName}`
+      console.log('✅ UI Service 폴더 썸네일:', finalUrl)
+      return finalUrl
+    }
 
-    // HTTP/HTTPS로 시작하는 절대 경로인 경우 그대로 사용
-    if (thumbnailUrl.startsWith('http://') || thumbnailUrl.startsWith('https://')) {
-      console.log('절대 경로 썸네일 사용:', thumbnailUrl)
+    // 외부 URL인 경우
+    if (thumbnailUrl.startsWith('http')) {
+      console.log('✅ 외부 썸네일 URL:', thumbnailUrl)
       return thumbnailUrl
     }
 
-    // 상대 경로인 경우 useSmartImages의 BASE_IMAGE_PATH 활용
-    if (!thumbnailUrl.startsWith('http')) {
-      const relativePath = `/images/banners/products/${encodeURIComponent(thumbnailUrl)}`
-      console.log('상대 경로 썸네일 변환:', relativePath)
-      return relativePath
+    // 파일명만 있는 경우
+    if (!thumbnailUrl.includes('/')) {
+      const finalUrl = `/images/banners/products/${thumbnailUrl}`
+      console.log('✅ 파일명 썸네일:', finalUrl)
+      return finalUrl
     }
-
-    return thumbnailUrl
   }
 
-  // 2. 썸네일이 없는 경우 - useSmartImages의 getProductImage 활용
-  console.log('썸네일 없음, useSmartImages로 대체 이미지 생성')
-
-  const broadcastForImage = {
-    id: broadcast.broadcast_id || broadcast.broadcastId,
-    name: broadcast.title || '라이브 방송',
-    categoryId: broadcast.category_id || broadcast.categoryId || 1,
-    // getProductImage가 인식할 수 있는 형태로 변환
-    mainImage: null, // 방송에는 mainImage가 없으므로 null
-    image: null      // 기본 이미지로 fallback되도록
+  // 2. 방송에 연결된 상품 이미지 활용 (BroadcastList의 경우)
+  if (broadcast.products && broadcast.products.length > 0) {
+    const firstProduct = broadcast.products[0]
+    // useSmartImages의 getProductImage 활용
+    const productImage = getProductImage(firstProduct)
+    console.log('✅ 방송 상품 이미지 사용:', productImage)
+    return productImage
   }
 
-  const smartImage = getProductImage(broadcastForImage)
-  console.log('useSmartImages 결과:', smartImage)
-
-  // getProductImage가 기본 이미지를 반환하는 경우, 방송 ID 기반 picsum으로 대체
-  if (smartImage === '/images/banners/products/default-product.jpg') {
-    const broadcastId = broadcast.broadcast_id || broadcast.broadcastId || 'default'
-    const fallbackImage = `https://picsum.photos/seed/broadcast-${broadcastId}/300/200`
-    console.log('기본 이미지 대신 picsum 사용:', fallbackImage)
-    return fallbackImage
-  }
-
-  return smartImage
+  // 3. 최종 기본 이미지
+  const defaultImage = '/images/banners/products/default-product.jpg'
+  console.log('⚠️ 기본 썸네일 사용:', defaultImage)
+  return defaultImage
 }
 
 /**

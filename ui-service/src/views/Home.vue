@@ -228,36 +228,48 @@ const getBroadcastThumbnail = (broadcast) => {
 
   console.log('방송 썸네일 요청:', broadcast.title, thumbnailUrl)
 
-  //  업로드된 파일인 경우 API Gateway를 통해 접근
-  if (thumbnailUrl && thumbnailUrl.startsWith('/upload/')) {
-    const fileName = thumbnailUrl.split('/').pop()
-    const finalUrl = `http://13.209.253.241:8080/images/${fileName}`
-    console.log('서버 업로드 썸네일:', finalUrl)
-    return finalUrl
-  }
+  // 1. 썸네일이 있는 경우 - useSmartImages의 로직 활용
+  if (thumbnailUrl && thumbnailUrl.trim() !== '') {
+    // useSmartImages와 동일한 처리 로직 적용
 
-  //  이미 완전한 URL인 경우
-  if (thumbnailUrl && thumbnailUrl.startsWith('http')) {
-    console.log('외부 썸네일 URL:', thumbnailUrl)
-    return thumbnailUrl
-  }
+    // DB의 /upload/product/main/ 경로인 경우
+    if (thumbnailUrl.startsWith('/upload/product/main/')) {
+      const fileName = thumbnailUrl.split('/').pop()
+      const finalUrl = `/images/banners/products/${fileName}`  // ✅ useSmartImages와 동일한 경로
+      console.log('✅ UI Service 폴더 썸네일:', finalUrl)
+      return finalUrl
+    }
 
-  //  파일명만 있는 경우
-  if (thumbnailUrl && !thumbnailUrl.startsWith('/')) {
-    // UUID 패턴인지 확인 (서버 업로드 파일)
-    if (thumbnailUrl.includes('-') && thumbnailUrl.length > 30) {
-      const finalUrl = `http://13.209.253.241:8080/images/${thumbnailUrl}`
-      console.log('서버 파일명 썸네일:', finalUrl)
+    // 외부 URL인 경우 그대로 사용
+    if (thumbnailUrl.startsWith('http')) {
+      console.log('✅ 외부 썸네일 URL:', thumbnailUrl)
+      return thumbnailUrl
+    }
+
+    // 파일명만 있는 경우
+    if (!thumbnailUrl.includes('/')) {
+      const finalUrl = `/images/banners/products/${thumbnailUrl}`
+      console.log('✅ 파일명 썸네일:', finalUrl)
       return finalUrl
     }
   }
 
-  //  기본 썸네일 - 온라인 placeholder
-  const fallbackUrl = `https://via.placeholder.com/300x200/f0f0f0/999999?text=${encodeURIComponent(broadcast.title || 'No Image')}`
-  console.log('기본 썸네일 사용:', fallbackUrl)
-  return fallbackUrl
-}
+  // 2. 썸네일이 없는 경우 - 방송용 기본 이미지 또는 상품 이미지 활용
+  console.log('썸네일 없음, 대체 이미지 생성')
 
+  // 방송에 연결된 첫 번째 상품의 이미지 사용
+  if (broadcast.products && broadcast.products.length > 0) {
+    const firstProduct = broadcast.products[0]
+    const productImage = getProductImage(firstProduct)
+    console.log('✅ 연결된 상품 이미지 사용:', productImage)
+    return productImage
+  }
+
+  // 최종 기본 이미지
+  const defaultImage = '/images/banners/products/default-product.jpg'
+  console.log('⚠️ 기본 썸네일 사용:', defaultImage)
+  return defaultImage
+}
 const fetchLiveBroadcasts = async () => {
   try {
     broadcastsLoading.value = true
