@@ -1,42 +1,59 @@
 /**
- * 수정된 스마트 이미지 시스템 (Commerce Service 직접 접근)
+ * 하이브리드 방식 스마트 이미지 시스템
+ * - 관리자 업로드 이미지: API Gateway를 통해 서버에서
+ * - 기본 이미지들: 프론트엔드 static 파일에서
  */
 export function useSmartImages() {
-    const BASE_IMAGE_PATH = '/images/banners/products/'
-    // 🔥 Commerce Service에 직접 접근 (8090 포트)
-    const COMMERCE_SERVICE_URL = 'http://13.209.253.241:8090'
+    const BASE_IMAGE_PATH = '/images/banners/products/'  // 프론트엔드 static 파일
+    const API_GATEWAY_URL = 'http://13.209.253.241:8080'  // 서버 업로드 파일
 
     const getProductImage = (product) => {
         console.log('🔍 getProductImage 호출됨:', product)
 
-        // 🔥 관리자가 업로드한 이미지 - Commerce Service 직접 접근
+        // 🔥 관리자가 업로드한 이미지 - API Gateway를 통해 서버에서 가져오기
         if (product.mainImage && product.mainImage.startsWith('/upload/')) {
             const fileName = product.mainImage.split('/').pop()
-            const finalUrl = `${COMMERCE_SERVICE_URL}/images/${fileName}`
-            console.log('✅ 업로드 이미지 (mainImage):', finalUrl)
+            const finalUrl = `${API_GATEWAY_URL}/images/${fileName}`
+            console.log('✅ 서버 업로드 이미지 (mainImage):', finalUrl)
             return finalUrl
         }
 
         // 🔥 image 필드도 업로드된 파일인 경우
         if (product.image && product.image.startsWith('/upload/')) {
             const fileName = product.image.split('/').pop()
-            const finalUrl = `${COMMERCE_SERVICE_URL}/images/${fileName}`
-            console.log('✅ 업로드 이미지 (image):', finalUrl)
+            const finalUrl = `${API_GATEWAY_URL}/images/${fileName}`
+            console.log('✅ 서버 업로드 이미지 (image):', finalUrl)
             return finalUrl
         }
 
         // 🔥 파일명만 있는 경우 (관리자 업로드)
         if (product.mainImage && !product.mainImage.startsWith('/') && !product.mainImage.startsWith('http')) {
-            const finalUrl = `${COMMERCE_SERVICE_URL}/images/${product.mainImage}`
-            console.log('✅ 파일명 이미지 (mainImage):', finalUrl)
-            return finalUrl
+            // UUID 패턴인지 확인 (관리자가 업로드한 파일)
+            if (product.mainImage.includes('-') && product.mainImage.length > 30) {
+                const finalUrl = `${API_GATEWAY_URL}/images/${product.mainImage}`
+                console.log('✅ 서버 업로드 파일명 (mainImage):', finalUrl)
+                return finalUrl
+            } else {
+                // 일반 파일명은 프론트엔드 static 파일
+                const finalUrl = `${BASE_IMAGE_PATH}${product.mainImage}`
+                console.log('✅ 프론트엔드 static 파일 (mainImage):', finalUrl)
+                return finalUrl
+            }
         }
 
         // 🔥 image 필드가 파일명만 있는 경우
         if (product.image && !product.image.startsWith('/') && !product.image.startsWith('http')) {
-            const finalUrl = `${COMMERCE_SERVICE_URL}/images/${product.image}`
-            console.log('✅ 파일명 이미지 (image):', finalUrl)
-            return finalUrl
+            // UUID 패턴인지 확인 (관리자가 업로드한 파일)
+            if (product.image.includes('-') && product.image.length > 30) {
+                const finalUrl = `${API_GATEWAY_URL}/images/${product.image}`
+                console.log('✅ 서버 업로드 파일명 (image):', finalUrl)
+                return finalUrl
+            } else {
+                // 일반 파일명은 프론트엔드 static 파일
+                const finalUrl = `${BASE_IMAGE_PATH}${product.image}`
+                console.log('✅ 프론트엔드 static 파일 (image):', finalUrl)
+                return finalUrl
+            }
         }
 
         // 이미 완전한 URL인 경우 (http로 시작하는 외부 이미지)
@@ -45,25 +62,25 @@ export function useSmartImages() {
             return product.image
         }
 
-        // 이미 완전한 경로인 경우 (/images로 시작) - 기본 이미지들
+        // 이미 완전한 경로인 경우 (/images로 시작) - 프론트엔드 static 파일
         if (product.image && product.image.startsWith('/images')) {
-            console.log('✅ 기본 이미지:', product.image)
+            console.log('✅ 프론트엔드 static 이미지:', product.image)
             return product.image
         }
 
-        // 기본 이미지
-        const defaultImage = '/images/banners/products/default-product.jpg'
-        console.log('⚠️ 기본 이미지 사용:', defaultImage)
+        // 🔥 기본 이미지 - 프론트엔드 static 파일에서
+        const defaultImage = `${BASE_IMAGE_PATH}default-product.jpg`
+        console.log('⚠️ 프론트엔드 기본 이미지 사용:', defaultImage)
         return defaultImage
     }
 
     const handleImageError = (event) => {
         console.log('❌ 이미지 로드 실패:', event.target.src)
 
-        // 첫 번째 실패: 기본 이미지로 교체
+        // 첫 번째 실패: 프론트엔드 기본 이미지로 교체
         if (!event.target.src.includes('default-product.jpg')) {
-            console.log('🔄 기본 이미지로 교체')
-            event.target.src = '/images/banners/products/default-product.jpg'
+            console.log('🔄 프론트엔드 기본 이미지로 교체')
+            event.target.src = `${BASE_IMAGE_PATH}default-product.jpg`
         } else {
             // 기본 이미지도 실패하면 숨김 처리
             console.log('🚫 기본 이미지도 실패, 숨김 처리')
