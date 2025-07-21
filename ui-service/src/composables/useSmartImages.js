@@ -1,5 +1,5 @@
 /**
- * 운영용 스마트 이미지 시스템 - 실제 이미지 표시
+ * 운영용 스마트 이미지 시스템 - UI Service 폴더 경로 직접 사용
  */
 export function useSmartImages() {
     const BASE_IMAGE_PATH = '/images/banners/products/'
@@ -8,74 +8,24 @@ export function useSmartImages() {
     const getProductImage = (product) => {
         console.log('🔍 getProductImage 호출됨:', product)
 
-        // 🔥 DB에서 /upload/product/main/파일명.jpg 패턴 처리
+        // 🔥 DB의 /upload/product/main/파일명.jpg → UI Service 폴더의 실제 파일명 그대로 사용
         if (product.mainImage && product.mainImage.startsWith('/upload/product/main/')) {
             const fileName = product.mainImage.split('/').pop()
-            const finalUrl = `${API_GATEWAY_URL}/images/${fileName}`
-            console.log('✅ DB 업로드 이미지:', finalUrl)
+            const finalUrl = `${BASE_IMAGE_PATH}${fileName}`
+            console.log('✅ UI Service 폴더 이미지:', finalUrl)
             return finalUrl
         }
 
-        // 🔥 /upload/파일명.jpg 패턴 처리
-        if (product.mainImage && product.mainImage.startsWith('/upload/') && !product.mainImage.includes('/product/main/')) {
-            const fileName = product.mainImage.split('/').pop()
-            const finalUrl = `${API_GATEWAY_URL}/images/${fileName}`
-            console.log('✅ 서버 업로드 이미지:', finalUrl)
-            return finalUrl
+        // 🔥 외부 Unsplash 이미지 (https://images.unsplash.com)
+        if (product.mainImage && product.mainImage.startsWith('https://images.unsplash.com')) {
+            console.log('✅ 외부 Unsplash 이미지:', product.mainImage)
+            return product.mainImage
         }
 
-        // 🔥 UUID 파일명만 있는 경우
-        if (product.mainImage && !product.mainImage.startsWith('/') && !product.mainImage.startsWith('http')) {
-            if (product.mainImage.includes('-') && product.mainImage.length > 30) {
-                const finalUrl = `${API_GATEWAY_URL}/images/${product.mainImage}`
-                console.log('✅ UUID 파일명 이미지:', finalUrl)
-                return finalUrl
-            }
-        }
-
-        // 🔥 외부 URL (https://images.unsplash.com)
+        // 🔥 다른 외부 URL
         if (product.mainImage && product.mainImage.startsWith('http')) {
             console.log('✅ 외부 이미지 URL:', product.mainImage)
             return product.mainImage
-        }
-
-        // 🔥 프론트엔드 static 이미지 (/images/로 시작)
-        if (product.mainImage && product.mainImage.startsWith('/images/')) {
-            console.log('✅ 프론트엔드 static 이미지:', product.mainImage)
-            return product.mainImage
-        }
-
-        // 🔥 image 필드도 확인
-        if (product.image) {
-            if (product.image.startsWith('/upload/product/main/')) {
-                const fileName = product.image.split('/').pop()
-                const finalUrl = `${API_GATEWAY_URL}/images/${fileName}`
-                console.log('✅ DB 업로드 이미지 (image 필드):', finalUrl)
-                return finalUrl
-            }
-
-            if (product.image.startsWith('http')) {
-                console.log('✅ 외부 이미지 URL (image 필드):', product.image)
-                return product.image
-            }
-        }
-
-        // 🔥 실제 상품 이미지 - 프로젝트 내 파일 사용
-        const productImageMap = {
-            70: 'oatmeal.jpg',        // 무농약 오트밀
-            69: 'strawberry.jpg',     // 국내산 딸기
-            68: 'seafood.jpg',        // 모듬 해물탕
-            67: 'meal-kit.jpg',       // 부대찌개 밀키트
-            66: 'banana.jpg',         // 고당도 바나나
-            60: 'apple.jpg',          // 아오리 사과
-            62: 'dumpling.jpg',       // 수제 왕만두
-            63: 'vitamin.jpg'         // 비타민C
-        }
-
-        if (productImageMap[product.id]) {
-            const finalUrl = `${BASE_IMAGE_PATH}${productImageMap[product.id]}`
-            console.log('✅ 프로젝트 내 실제 이미지:', finalUrl)
-            return finalUrl
         }
 
         // 🔥 기본 이미지
