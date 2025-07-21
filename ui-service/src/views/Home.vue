@@ -225,10 +225,37 @@ const nextIndex = computed(() => (currentIndex.value + 1) % images.value.length)
 
 const getBroadcastThumbnail = (broadcast) => {
   const thumbnailUrl = broadcast.thumbnailUrl || broadcast.thumbnail_url
-  if (thumbnailUrl && !thumbnailUrl.startsWith('http')) {
-    return `/images/banners/products/${encodeURIComponent(thumbnailUrl)}`
+
+  console.log('방송 썸네일 요청:', broadcast.title, thumbnailUrl)
+
+  //  업로드된 파일인 경우 API Gateway를 통해 접근
+  if (thumbnailUrl && thumbnailUrl.startsWith('/upload/')) {
+    const fileName = thumbnailUrl.split('/').pop()
+    const finalUrl = `http://13.209.253.241:8080/images/${fileName}`
+    console.log('서버 업로드 썸네일:', finalUrl)
+    return finalUrl
   }
-  return thumbnailUrl || `https://picsum.photos/seed/${broadcast.id}/300/200`
+
+  //  이미 완전한 URL인 경우
+  if (thumbnailUrl && thumbnailUrl.startsWith('http')) {
+    console.log('외부 썸네일 URL:', thumbnailUrl)
+    return thumbnailUrl
+  }
+
+  //  파일명만 있는 경우
+  if (thumbnailUrl && !thumbnailUrl.startsWith('/')) {
+    // UUID 패턴인지 확인 (서버 업로드 파일)
+    if (thumbnailUrl.includes('-') && thumbnailUrl.length > 30) {
+      const finalUrl = `http://13.209.253.241:8080/images/${thumbnailUrl}`
+      console.log('서버 파일명 썸네일:', finalUrl)
+      return finalUrl
+    }
+  }
+
+  //  기본 썸네일 - 온라인 placeholder
+  const fallbackUrl = `https://via.placeholder.com/300x200/f0f0f0/999999?text=${encodeURIComponent(broadcast.title || 'No Image')}`
+  console.log('기본 썸네일 사용:', fallbackUrl)
+  return fallbackUrl
 }
 
 const fetchLiveBroadcasts = async () => {

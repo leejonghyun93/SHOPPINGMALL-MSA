@@ -1,11 +1,11 @@
 /**
- * 하이브리드 방식 스마트 이미지 시스템
+ * 운영용 스마트 이미지 시스템
  * - 관리자 업로드 이미지: API Gateway를 통해 서버에서
  * - 기본 이미지들: 프론트엔드 static 파일에서
  */
 export function useSmartImages() {
     const BASE_IMAGE_PATH = '/images/banners/products/'  // 프론트엔드 static 파일
-    const API_GATEWAY_URL = 'http://13.209.253.241:8080'  // 서버 업로드 파일
+    const API_GATEWAY_URL = import.meta.env.VITE_API_BASE_URL || 'http://13.209.253.241:8080'  // 환경변수 사용
 
     const getProductImage = (product) => {
         console.log('🔍 getProductImage 호출됨:', product)
@@ -68,9 +68,9 @@ export function useSmartImages() {
             return product.image
         }
 
-        // 🔥 기본 이미지 - 프론트엔드 static 파일에서
+        // 🔥 기본 이미지 - 프론트엔드 static 파일
         const defaultImage = `${BASE_IMAGE_PATH}default-product.jpg`
-        console.log('⚠️ 프론트엔드 기본 이미지 사용:', defaultImage)
+        console.log('⚠️ 기본 이미지 사용:', defaultImage)
         return defaultImage
     }
 
@@ -82,9 +82,10 @@ export function useSmartImages() {
             console.log('🔄 프론트엔드 기본 이미지로 교체')
             event.target.src = `${BASE_IMAGE_PATH}default-product.jpg`
         } else {
-            // 기본 이미지도 실패하면 숨김 처리
-            console.log('🚫 기본 이미지도 실패, 숨김 처리')
-            event.target.style.display = 'none'
+            // 기본 이미지도 실패하면 대체 이미지나 숨김 처리
+            console.log('🔄 최종 대체 이미지 사용')
+            // 최종 대체: 간단한 SVG 데이터 URL 또는 숨김
+            event.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2Y1ZjVmNSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4='
         }
     }
 
