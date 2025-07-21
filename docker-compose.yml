@@ -528,7 +528,7 @@ services:
   # 라이브 스트리밍 서비스
   live-streaming-service:
     image: ${ECR_REGISTRY}/live-streaming-service:latest
-    container_name: shopmall-streaming
+#    container_name: shopmall-streaming
     ports:
       - "8096-8097:8096"
 
