@@ -663,7 +663,7 @@ const formatPrice = (price) => {
 // 수정된 방송 클릭 핸들러
 const handleBroadcastClick = (broadcast) => {
   // 라이브 방송인 경우 바로 방송 페이지로 이동
-  if (broadcast.status && broadcast.status.trim() === 'live') {
+  if (broadcast.status && broadcast.status.trim() === 'Live') {
     goToBroadcast(broadcast)
   }
   // 종료된 방송이고 다시보기가 있는 경우
@@ -778,7 +778,6 @@ const saveLocalNotification = (userId, broadcastId) => {
   if (!existing.includes(stringId)) {
     existing.push(stringId)
     localStorage.setItem(key, JSON.stringify(existing))
-    console.log('로컬 알림 저장:', stringId)
   }
 }
 
@@ -789,7 +788,6 @@ const removeLocalNotification = (userId, broadcastId) => {
 
   const filtered = existing.filter(id => id !== stringId)
   localStorage.setItem(key, JSON.stringify(filtered))
-  console.log('로컬 알림 제거:', stringId)
 }
 
 
@@ -800,12 +798,10 @@ watch(selectedDate, async (newDate) => {
 
 // 컴포넌트 초기화
 onMounted(async () => {
-  console.log('🔥 Calendar 컴포넌트 마운트 시작')
 
   await checkNotificationServer()
   await loadBroadcastSchedule()
 
-  console.log('🔥 Calendar 컴포넌트 마운트 완료')
 })
 </script>
 
