@@ -298,14 +298,16 @@ const createWebSocketConnection = () => {
         });
 
         //  참여자 수 구독
-        // 수정 후 (1번 파일처럼) - 항상 업데이트
         stompClient.subscribe(`/topic/participants/${props.broadcastId}`, msg => {
           const count = parseInt(msg.body, 10);
-          console.log('👥 참가자 수 수신:', count); // 디버깅용
 
-          // 조건문 제거 - 항상 업데이트하도록 변경
+          if (!hasInitialParticipantSet.value) {
+            return;
+          }
+
           participantCount.value = isNaN(count) ? 0 : count;
         });
+
         //  채팅 금지 STOMP 채널 구독
         if (userState.userId) {
           stompClient.subscribe(`/topic/ban/${userState.userId}`, msg => {
@@ -451,6 +453,16 @@ const loadBroadcastStatus = async () => {
   }
 };
 
+const loadInitialParticipantCount = async () => {
+  try {
+    const res = await axios.get(`/api/chat/participants/${props.broadcastId}`);
+    participantCount.value = res.data.count;
+    hasInitialParticipantSet.value = true;
+  } catch (e) {
+    participantCount.value = 0;
+    hasInitialParticipantSet.value = true;
+  }
+};
 
 const loadChatHistory = async () => {
   try {
@@ -726,8 +738,6 @@ onUnmounted(() => {
     navigator.sendBeacon(`/api/chat/disconnect/${props.broadcastId}?id=${disconnectId}`);
     document.removeEventListener('click', () => showContextMenu.value = false);
   }
-
-
 });
 
 defineExpose({
