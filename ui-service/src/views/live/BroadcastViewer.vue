@@ -26,7 +26,7 @@
             <h1 class="broadcast-title">{{ broadcast.title }}</h1>
             <div class="channel-stats">
               <span class="live-badge">{{ getBroadcastStatusText(broadcast.broadcast_status) }}</span>
-              <span class="viewer-count">{{ formatViewerCount(broadcast.current_viewers) }} 시청</span>
+<!--              <span class="viewer-count">{{ formatViewerCount(broadcast.current_viewers) }} 시청</span>-->
               <span class="duration">{{ getBroadcastDuration(broadcast.actual_start_time) }}</span>
             </div>
           </div>
