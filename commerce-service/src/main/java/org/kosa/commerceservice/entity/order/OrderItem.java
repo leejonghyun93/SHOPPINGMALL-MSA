@@ -30,7 +30,7 @@ public class OrderItem {
     private Integer quantity;
 
     @Column(name = "STATUS", length = 20, nullable = false)
-    private String status;
+    private String status = "주문완료";
 
     @Column(name = "TOTAL_PRICE", nullable = false)
     private Integer totalPrice;
