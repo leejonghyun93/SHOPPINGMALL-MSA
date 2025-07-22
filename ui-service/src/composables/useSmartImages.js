@@ -1,9 +1,9 @@
-/**
- * 운영용 스마트 이미지 시스템 - 다양한 이미지 소스 지원
- */
 export function useSmartImages() {
     const BASE_IMAGE_PATH = '/images/banners/products/'
     const API_GATEWAY_URL = 'http://13.209.253.241:8080'
+
+    // 새로운 업로드 경로 설정
+    const UPLOAD_BASE_PATH = '/upload/'
 
     const getProductImage = (product) => {
         if (!product) {
@@ -30,10 +30,9 @@ export function useSmartImages() {
 
         // 2. 이미지 URL이 있는 경우 처리
         if (imageUrl) {
-            // DB의 /upload/product/main/ 경로인 경우
-            if (imageUrl.startsWith('/upload/product/main/')) {
-                const fileName = imageUrl.split('/').pop()
-                return `${BASE_IMAGE_PATH}${fileName}`
+            // 모든 /upload/ 경로는 그대로 반환 (기존과 신규 모두 지원)
+            if (imageUrl.startsWith('/upload/')) {
+                return imageUrl
             }
 
             // 상대 경로인 경우 (/images/로 시작)
@@ -51,14 +50,14 @@ export function useSmartImages() {
                 return `${API_GATEWAY_URL}${imageUrl}`
             }
 
-            // 파일명만 있는 경우
+            // 파일명만 있는 경우 - 새로운 업로드 경로 사용
             if (!imageUrl.includes('/') && imageUrl.includes('.')) {
-                return `${BASE_IMAGE_PATH}${imageUrl}`
+                return `${UPLOAD_BASE_PATH}${imageUrl}`
             }
 
             // 기타 상대 경로
             if (!imageUrl.startsWith('http')) {
-                return `${BASE_IMAGE_PATH}${imageUrl}`
+                return `${UPLOAD_BASE_PATH}${imageUrl}`
             }
         }
 
