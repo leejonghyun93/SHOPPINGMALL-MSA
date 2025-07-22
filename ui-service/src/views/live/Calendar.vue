@@ -223,23 +223,26 @@ const router = useRouter()
 
 // 방송 썸네일 이미지 처리 함수 (useSmartImages 활용)
 const getBroadcastThumbnail = (broadcast) => {
-  // useSmartImages의 getProductImage 함수를 활용하도록 객체 재구성
-  const imageObject = {
-    image: broadcast.thumbnailUrl || broadcast.thumbnail_url,
-    mainImage: broadcast.thumbnailUrl || broadcast.thumbnail_url,
-    title: broadcast.title,
-    name: broadcast.title
+  // 1. 방송 썸네일 URL 추출
+  const thumbnailUrl = broadcast.thumbnailUrl || broadcast.thumbnail_url
+
+  if (thumbnailUrl && thumbnailUrl.trim() !== '') {
+    // useSmartImages의 getProductImage를 활용하여 경로 변환
+    const thumbnailObject = {
+      mainImage: thumbnailUrl,
+      image: thumbnailUrl,
+      imageUrl: thumbnailUrl,
+      name: broadcast.title || '방송',
+      title: broadcast.title || '방송'
+    }
+
+    // useSmartImages로 경로 변환 처리
+    const convertedImage = getProductImage(thumbnailObject)
+    return convertedImage
   }
 
-  // useSmartImages의 getProductImage 함수 사용
-  const imageUrl = getProductImage(imageObject)
-
-  // 기본 이미지가 없으면 Picsum 사용
-  if (imageUrl === '/images/banners/products/default-product.jpg') {
-    return `https://picsum.photos/seed/${broadcast.id}/300/200`
-  }
-
-  return imageUrl
+  // 2. 기본 이미지가 없으면 Picsum 사용
+  return `https://picsum.photos/seed/${broadcast.id}/300/200`
 }
 
 // 상태 관리

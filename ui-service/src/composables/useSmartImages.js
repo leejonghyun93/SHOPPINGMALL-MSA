@@ -30,32 +30,13 @@ export function useSmartImages() {
 
         // 2. 이미지 URL이 있는 경우 처리
         if (imageUrl) {
-            // DB의 /upload/ 경로인 경우 (가장 중요한 수정 부분)
-            if (imageUrl.startsWith('/upload/')) {
-                // /upload/0ce36f4e-c114-4bae-b198-c6010a9b7816.jpg -> /images/0ce36f4e-c114-4bae-b198-c6010a9b7816.jpg
-                // /upload/product/main/filename.jpg -> /images/filename.jpg
-
-                let fileName = imageUrl
-
-                // /upload/product/main/ 패턴인 경우 파일명만 추출
-                if (imageUrl.includes('/upload/product/main/')) {
-                    fileName = imageUrl.split('/').pop()
-                    return `/images/${fileName}`
-                }
-                // /upload/ 바로 다음에 파일명이 오는 경우
-                else if (imageUrl.startsWith('/upload/')) {
-                    fileName = imageUrl.replace('/upload/', '')
-                    return `/images/${fileName}`
-                }
-            }
-
-            // DB의 /upload/product/main/ 경로인 경우 (기존 코드 유지 - 혹시 모르니)
+            // DB의 /upload/product/main/ 경로인 경우
             if (imageUrl.startsWith('/upload/product/main/')) {
                 const fileName = imageUrl.split('/').pop()
-                return `/images/${fileName}`
+                return `${BASE_IMAGE_PATH}${fileName}`
             }
 
-            // 상대 경로인 경우 (/images/로 시작) - 이미 올바른 경로
+            // 상대 경로인 경우 (/images/로 시작)
             if (imageUrl.startsWith('/images/')) {
                 return imageUrl
             }
@@ -70,16 +51,14 @@ export function useSmartImages() {
                 return `${API_GATEWAY_URL}${imageUrl}`
             }
 
-            // 파일명만 있는 경우 (확장자 있음)
+            // 파일명만 있는 경우
             if (!imageUrl.includes('/') && imageUrl.includes('.')) {
-                return `/images/${imageUrl}`
+                return `${BASE_IMAGE_PATH}${imageUrl}`
             }
 
-            // 기타 상대 경로 - /images/ 경로로 변환
+            // 기타 상대 경로
             if (!imageUrl.startsWith('http')) {
-                // 맨 앞의 '/' 제거 후 /images/ 추가
-                const cleanPath = imageUrl.startsWith('/') ? imageUrl.substring(1) : imageUrl
-                return `/images/${cleanPath}`
+                return `${BASE_IMAGE_PATH}${imageUrl}`
             }
         }
 
@@ -105,7 +84,7 @@ export function useSmartImages() {
             }
             const categoryImage = categoryImages[categoryId]
             if (categoryImage) {
-                return `/images/${categoryImage}`
+                return `${BASE_IMAGE_PATH}${categoryImage}`
             }
         }
 

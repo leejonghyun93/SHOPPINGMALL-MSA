@@ -395,42 +395,34 @@ const getBroadcastStatusText = (status) => {
 
 // 방송 썸네일 이미지 처리 (useSmartImages 활용 + Home.vue 로직 결합)
 const getBroadcastThumbnail = (broadcast) => {
+  // 1. 방송 썸네일 URL 추출
   const thumbnailUrl = broadcast.thumbnail_url || broadcast.thumbnailUrl
 
-  // 1. 썸네일이 있는 경우 - useSmartImages와 동일한 로직
   if (thumbnailUrl && thumbnailUrl.trim() !== '') {
-    // DB 경로인 경우
-    if (thumbnailUrl.startsWith('/upload/product/main/')) {
-      const fileName = thumbnailUrl.split('/').pop()
-      const finalUrl = `/images/banners/products/${fileName}`
-      return finalUrl
+    // useSmartImages의 getProductImage를 활용하여 경로 변환
+    const thumbnailObject = {
+      mainImage: thumbnailUrl,
+      image: thumbnailUrl,
+      imageUrl: thumbnailUrl,
+      name: broadcast.title || '방송',
+      title: broadcast.title || '방송'
     }
 
-    // 외부 URL인 경우
-    if (thumbnailUrl.startsWith('http')) {
-      return thumbnailUrl
-    }
-
-    // 파일명만 있는 경우
-    if (!thumbnailUrl.includes('/')) {
-      const finalUrl = `/images/banners/products/${thumbnailUrl}`
-      return finalUrl
-    }
+    // useSmartImages로 경로 변환 처리
+    const convertedImage = getProductImage(thumbnailObject)
+    return convertedImage
   }
 
-  // 2. 방송에 연결된 상품 이미지 활용 (BroadcastList의 경우)
+  // 2. 방송에 연결된 상품 이미지 활용
   if (broadcast.products && broadcast.products.length > 0) {
     const firstProduct = broadcast.products[0]
-    // useSmartImages의 getProductImage 활용
     const productImage = getProductImage(firstProduct)
     return productImage
   }
 
   // 3. 최종 기본 이미지
-  const defaultImage = '/images/banners/products/default-product.jpg'
-  return defaultImage
+  return '/images/banners/products/default-product.jpg'
 }
-
 /**
  * 방송자 아바타 생성 (useSmartImages 활용)
  */
