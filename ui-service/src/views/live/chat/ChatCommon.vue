@@ -301,9 +301,9 @@ const createWebSocketConnection = () => {
         stompClient.subscribe(`/topic/participants/${props.broadcastId}`, msg => {
           const count = parseInt(msg.body, 10);
 
-          if (!hasInitialParticipantSet.value) {
-            return;
-          }
+          // if (!hasInitialParticipantSet.value) {
+          //   return;
+          // }
 
           participantCount.value = isNaN(count) ? 0 : count;
         });
