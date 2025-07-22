@@ -231,7 +231,7 @@ const getBroadcastThumbnail = (broadcast) => {
     name: broadcast.title
   }
 
-  // useSmartImages의 getProductImage 함수 사용 (이미 두 경로 모두 지원)
+  // useSmartImages의 getProductImage 함수 사용
   const imageUrl = getProductImage(imageObject)
 
   // 기본 이미지가 없으면 Picsum 사용
