@@ -247,7 +247,7 @@ const routes = [
         }
     },
 
-    // 🔥 에러 페이지 라우트 추가
+    // 에러 페이지 라우트 추가
     {
         path: '/error/:code',
         name: 'ErrorPage',
@@ -306,9 +306,9 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
     // 페이지 타이틀 설정
     if (to.meta.title) {
-        document.title = `${to.meta.title} - Your Site Name`
+        document.title = `${to.meta.title} - 트라이마켓`
     } else {
-        document.title = 'Your Site Name'
+        document.title = '트라이마켓'
     }
 
     // 인증이 필요한 페이지 체크
