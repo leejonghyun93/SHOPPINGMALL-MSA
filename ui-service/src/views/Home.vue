@@ -226,43 +226,32 @@ const nextIndex = computed(() => (currentIndex.value + 1) % images.value.length)
 const getBroadcastThumbnail = (broadcast) => {
   const thumbnailUrl = broadcast.thumbnailUrl || broadcast.thumbnail_url
 
-  // 1. 썸네일이 있는 경우 - useSmartImages의 로직 활용
+  // 1. 썸네일이 있는 경우 - useSmartImages 활용
   if (thumbnailUrl && thumbnailUrl.trim() !== '') {
-    // useSmartImages와 동일한 처리 로직 적용
-
-    // DB의 /upload/product/main/ 경로인 경우
-    if (thumbnailUrl.startsWith('/upload/product/main/')) {
-      const fileName = thumbnailUrl.split('/').pop()
-      const finalUrl = `/images/banners/products/${fileName}`
-      return finalUrl
+    // useSmartImages의 getProductImage 함수를 활용하여 경로 변환
+    const thumbnailObject = {
+      mainImage: thumbnailUrl,
+      image: thumbnailUrl,
+      imageUrl: thumbnailUrl,
+      name: broadcast.title || '방송',
+      title: broadcast.title || '방송'
     }
 
-    // 외부 URL인 경우 그대로 사용
-    if (thumbnailUrl.startsWith('http')) {
-      return thumbnailUrl
-    }
-
-    // 파일명만 있는 경우
-    if (!thumbnailUrl.includes('/')) {
-      const finalUrl = `/images/banners/products/${thumbnailUrl}`
-      return finalUrl
-    }
+    // useSmartImages로 경로 변환 처리
+    const convertedImage = getProductImage(thumbnailObject)
+    return convertedImage
   }
 
-  // 2. 썸네일이 없는 경우 - 방송용 기본 이미지 또는 상품 이미지 활용
-
-  // 방송에 연결된 첫 번째 상품의 이미지 사용
+  // 2. 방송에 연결된 상품 이미지 활용
   if (broadcast.products && broadcast.products.length > 0) {
     const firstProduct = broadcast.products[0]
     const productImage = getProductImage(firstProduct)
     return productImage
   }
 
-  // 최종 기본 이미지
-  const defaultImage = '/images/banners/products/default-product.jpg'
-  return defaultImage
+  // 3. 최종 기본 이미지
+  return '/images/banners/products/default-product.jpg'
 }
-
 const fetchLiveBroadcasts = async () => {
   try {
     broadcastsLoading.value = true

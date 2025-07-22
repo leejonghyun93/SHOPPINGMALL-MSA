@@ -91,7 +91,7 @@ public class OrderService {
 
             Order order = Order.builder()
                     .userId(request.getUserId())
-                    .orderStatus(getDefaultValue(request.getOrderStatus(), "PENDING"))
+                    .orderStatus(getDefaultValue(request.getOrderStatus(), "결제완료"))
                     .phone(getDefaultValue(request.getPhone(), ""))
                     .email(getDefaultValue(request.getEmail(), ""))
                     .recipientName(getDefaultValue(request.getRecipientName(), "수령인"))

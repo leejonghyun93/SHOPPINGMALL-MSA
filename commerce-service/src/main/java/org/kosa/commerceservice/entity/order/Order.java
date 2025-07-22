@@ -27,7 +27,7 @@ public class Order {
 
     @Column(name = "ORDER_STATUS", length = 20, nullable = false)
     @Builder.Default
-    private String orderStatus = "PENDING";
+    private String orderStatus = "결제완료";
 
     @Column(name = "PHONE", length = 20)
     private String phone;
