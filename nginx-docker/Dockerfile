@@ -1,20 +1,26 @@
-# Dockerfile (사용자 서비스용)
-FROM nginx:alpine
+FROM nginx:1.25-alpine
 
-# 기본 nginx 설정 제거
-RUN rm /etc/nginx/conf.d/default.conf
+RUN apk add --no-cache wget
 
-# 커스텀 nginx 설정 복사
-COPY nginx.conf /etc/nginx/nginx.conf
+RUN rm -f /etc/nginx/conf.d/default.conf
 
-# 사용자 Vue 빌드 파일만 복사
+RUN mkdir -p /var/www/html/vue-app && \
+    chown -R nginx:nginx /var/www/html && \
+    chmod -R 755 /var/www/html
+
 COPY vue-dist/ /var/www/html/vue-app/
 
-# 디렉토리 권한 설정
-RUN chmod -R 755 /var/www/html/vue-app/
+COPY nginx.conf /etc/nginx/nginx.conf
 
-# 포트 노출
+RUN chmod 644 /etc/nginx/nginx.conf
+
+RUN chown -R nginx:nginx /var/www/html/vue-app/ && \
+    find /var/www/html/vue-app/ -type f -exec chmod 644 {} \; && \
+    find /var/www/html/vue-app/ -type d -exec chmod 755 {} \;
+
 EXPOSE 80
 
-# nginx 시작
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost/health || exit 1
+
 CMD ["nginx", "-g", "daemon off;"]
