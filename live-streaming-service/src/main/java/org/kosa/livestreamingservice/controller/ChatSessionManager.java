@@ -1,4 +1,4 @@
-package org.kosa.livestreamingservice;
+package org.kosa.livestreamingservice.controller;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,8 +15,9 @@ public class ChatSessionManager {
 
     private final RedisTemplate<String, String> redisTemplate;
     private final SimpMessagingTemplate messagingTemplate;
+    private final MetricsController metricsController; // 추가
 
-    // Redis 참여자 SET 키
+    // Redis 참여자 SET 키 생성
     private String getKey(Long broadcastId) {
         return "chat:participants:" + broadcastId;
     }
@@ -35,7 +36,7 @@ public class ChatSessionManager {
         // TTL 설정
         redisTemplate.expire(key, 1, TimeUnit.HOURS);
 
-        // 🔥 모든 사용자에게 업데이트된 참여자 수 브로드캐스트
+        // 참여자 수 브로드캐스트
         broadcastCountToTopic(broadcastId);
 
         log.info("➕ 참여자 등록: ID={}, 방송ID={}, 세션ID={}", id, broadcastId, sessionId);
@@ -62,7 +63,7 @@ public class ChatSessionManager {
         redisTemplate.delete("chat:session:broadcast:" + sessionId);
     }
 
-    // REST API에서 직접 제거 요청 시 사용 (uuid or userId 직접 전달)
+    // REST API에서 직접 제거 요청 시 사용
     public void removeSessionManually(Long broadcastId, String id) {
         redisTemplate.opsForSet().remove(getKey(broadcastId), id);
         broadcastCountToTopic(broadcastId);
@@ -75,11 +76,22 @@ public class ChatSessionManager {
         return count != null ? count.intValue() : 0;
     }
 
-    // 참여자 수 STOMP로 전체 브로드캐스트
+    // 참여자 수 STOMP로 전체 브로드캐스트 + 메트릭 업데이트
     public void broadcastCountToTopic(Long broadcastId) {
         int count = getParticipantCount(broadcastId);
-        messagingTemplate.convertAndSend("/topic/participants/" + broadcastId, count);
-    }
 
-//    public void banUserFromChat(Long broadcastId, String userIdOrUuid, int duration)
+        // 1. STOMP로 브로드캐스트
+        messagingTemplate.convertAndSend("/topic/participants/" + broadcastId, count);
+
+        // 2. 메트릭 업데이트 추가
+        try {
+            if (metricsController != null) {
+                metricsController.updateChatParticipants(String.valueOf(broadcastId), count);
+            }
+        } catch (Exception e) {
+            log.warn("메트릭 업데이트 실패: {}", e.getMessage());
+        }
+
+        log.debug("📊 참여자 수 브로드캐스트: 방송ID={}, 참여자수={}", broadcastId, count);
+    }
 }
