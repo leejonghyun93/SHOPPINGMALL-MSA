@@ -30,10 +30,17 @@ export function useSmartImages() {
 
         // 2. 이미지 URL이 있는 경우 처리
         if (imageUrl) {
-            // DB의 /upload/product/main/ 경로인 경우
-            if (imageUrl.startsWith('/upload/product/main/')) {
-                const fileName = imageUrl.split('/').pop()
-                return `${BASE_IMAGE_PATH}${fileName}`
+            // DB의 /upload/ 경로인 경우 (모든 패턴 처리)
+            if (imageUrl.startsWith('/upload/')) {
+                // 모든 /upload/ 경로를 /images/로 변환
+                const pathWithoutUpload = imageUrl.replace('/upload/', '')
+
+                // /upload/product/main/xxx.jpg -> xxx.jpg -> /images/xxx.jpg
+                // /upload/xxx.PNG -> xxx.PNG -> /images/xxx.PNG
+                const fileName = pathWithoutUpload.includes('/') ?
+                    pathWithoutUpload.split('/').pop() : pathWithoutUpload
+
+                return `/images/${fileName}`
             }
 
             // 상대 경로인 경우 (/images/로 시작)
@@ -53,12 +60,13 @@ export function useSmartImages() {
 
             // 파일명만 있는 경우
             if (!imageUrl.includes('/') && imageUrl.includes('.')) {
-                return `${BASE_IMAGE_PATH}${imageUrl}`
+                return `/images/${imageUrl}`
             }
 
             // 기타 상대 경로
             if (!imageUrl.startsWith('http')) {
-                return `${BASE_IMAGE_PATH}${imageUrl}`
+                const cleanPath = imageUrl.startsWith('/') ? imageUrl.substring(1) : imageUrl
+                return `/images/${cleanPath}`
             }
         }
 
@@ -84,7 +92,7 @@ export function useSmartImages() {
             }
             const categoryImage = categoryImages[categoryId]
             if (categoryImage) {
-                return `${BASE_IMAGE_PATH}${categoryImage}`
+                return `/images/${categoryImage}`
             }
         }
 
