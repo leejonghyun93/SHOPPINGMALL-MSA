@@ -2,9 +2,9 @@
   <div class="chat-container">
     <!-- 상단 툴바 -->
     <div class="chat-topbar">
-      <span class="chat-participant-count">참여중: {{ participantCount }}명</span>
+      <span class="chat-participant-count">👥 시청자{{ participantCount }}명</span>
       <button class="notice-toggle-btn" @click="toggleNotice">
-        {{ isNoticeExpanded ? '공지 숨기기' : '라이브 공지사항 보기' }}
+        📢 {{ isNoticeExpanded ? '공지 숨기기' : '라이브 공지사항 보기' }}
       </button>
     </div>
 
@@ -23,6 +23,7 @@
       >
         <div class="menu-item" @click="handleBanClick">🚫 5분간 채팅금지</div>
       </div>
+
       <!-- 메시지 리스트 -->
       <div class="chat-messages" ref="messagesContainer" @scroll="handleScroll">
         <div
@@ -42,7 +43,7 @@
               <template v-if="!isMyMessage(msg)">
                 <div class="nickname">
                   <template v-if="msg.from === '관리자'">
-                    <span class="admin-nickname">관리자 {{ msg.from }}</span>
+                    <span class="admin-nickname">👑 {{ msg.from }}</span>
                   </template>
                   <template v-else>
                     {{ msg.from }}
@@ -77,28 +78,28 @@
             :disabled="!isChatEnabled || !isLoggedIn || isBanned"
             :placeholder="
             !isChatEnabled
-              ? '채팅이 비활성화되었습니다.'
-              : isBanned
-              ? '⛔ 채팅이 일시적으로 제한되었습니다.'
-              : isLoggedIn
-              ? '메시지를 입력하세요'
-              : '로그인 후 사용가능'
-          "
+            ? '채팅이 비활성화되었습니다.'
+            : isBanned
+            ? '⛔ 채팅이 일시적으로 제한되었습니다.'
+            : isLoggedIn
+            ? '메시지를 입력하세요'
+            : '로그인 후 사용가능'
+"
         />
         <button @click="sendMessage" :disabled="!isChatEnabled || !isLoggedIn || isBanned" class="send-button">
           전송
         </button>
-        <button @click="toggleTools" class="tools-toggle">스티커</button>
+        <button @click="toggleTools" class="tools-toggle">😎</button>
       </div>
 
       <!-- 스티커 도구창 -->
       <div v-if="showTools" class="chat-tools">
         <div class="tools-header">
           <div class="tab-buttons">
-            <button :class="{ active: activeTab === 'bear' }" @click="activeTab = 'bear'">곰</button>
-            <button :class="{ active: activeTab === 'rabbit' }" @click="activeTab = 'rabbit'">토끼</button>
+            <button :class="{ active: activeTab === 'bear' }" @click="activeTab = 'bear'">🐻</button>
+            <button :class="{ active: activeTab === 'rabbit' }" @click="activeTab = 'rabbit'">🐰</button>
           </div>
-          <button class="close-tools" @click="showTools = false">닫기</button>
+          <button class="close-tools" @click="showTools = false">✖</button>
         </div>
         <div class="sticker-list">
           <img
@@ -126,8 +127,9 @@
   <CustomAlert ref="alertRef" />
 </template>
 
+
 <script setup>
-import { ref, nextTick, onMounted, onUnmounted, computed, defineExpose } from 'vue';
+import { ref, nextTick, onMounted, computed, defineExpose, onUnmounted } from 'vue';
 import SockJS from 'sockjs-client';
 import { Client } from '@stomp/stompjs';
 import { stickerMap } from './EmojiMap';
@@ -138,25 +140,19 @@ import userStateBridge from '@/stores/userStateBridge';
 import { getOrCreateUUID } from '@/stores/uuid.js';
 import CustomAlert from '@/views/live/chat/CustomAlert.vue';
 
+
+
 const props = defineProps({
   class: String,
-  broadcastId: {
-    type: [Number, String],
-    required: true,
-    default: 0
-  },
-  role: {
-    type: String,
-    default: 'user'
-  }
+  broadcastId: String,
+  role: { type: String, default: 'user' }
 });
 
 const emit = defineEmits(['host-detected']);
 
-const broadcastIdNum = computed(() => {
-  const id = typeof props.broadcastId === 'string' ? parseInt(props.broadcastId) : props.broadcastId;
-  return id;
-});
+const isMyMessage = (msg) => {
+  return msg.userId && msg.userId === userState.userId;
+};
 
 const router = useRouter();
 const isLoggedIn = ref(false);
@@ -171,302 +167,121 @@ const loading = ref(true);
 const activeTab = ref('bear');
 const isBanned = ref(false);
 const alertRef = ref(null);
-const noticeMessage = ref('');
-const isNoticeExpanded = ref(false);
 
 const broadcastStatus = ref('');
 const isChatEnabled = ref(false);
 const isHost = ref(false);
+const noticeMessage = ref('');
+const isNoticeExpanded = ref(false);
+const uuid = getOrCreateUUID();
 const participantCount = ref(0);
 const hasInitialParticipantSet = ref(false);
 const showContextMenu = ref(false);
 const contextMenuPos = ref({ x: 0, y: 0 });
 const selectedMsg = ref(null);
 
-const isConnecting = ref(false);
-const connectionRetries = ref(0);
-const maxRetries = 5;
-const connectionStatus = ref('disconnected');
-const uuid = getOrCreateUUID();
 
-const currentUser = computed(() => {
-  return userState.currentUser || userState.name || null;
-});
-
-const currentUserId = computed(() => {
-  return userState.userId || userState.id || null;
-});
-
-const normalize = str => String(str || '').trim();
-
-const isMyMessage = msg => {
-  return msg.userId && msg.userId === currentUserId.value;
-};
-
-const displayNotice = computed(() => {
-  return noticeMessage.value.trim() !== '' ? noticeMessage.value : '등록된 공지사항이 없습니다.';
-});
-
-let socket = null;
-let stompClient = null;
 let chatSubscription = null;
 
-// const getWebSocketUrl = () => {
-//   const hostname = window.location.hostname;
-//   const port = window.location.port;
-//
-//   if (hostname === 'localhost' || hostname === '127.0.0.1' || port === '5173') {
-//     return 'http://192.168.4.134:8080/ws-chat';  // 로컬 개발용
-//   } else {
-//     return import.meta.env.VITE_PROD_WS_URL;     // GitHub Secrets에서 가져오기
-//   }
-// };
-// ChatCommon.vue의 createWebSocketConnection 함수 수정
 
-const createWebSocketConnection = () => {
-  if (connectionStatus.value === 'connecting') {
-    return;
-  }
-
-  connectionStatus.value = 'connecting';
-  isConnecting.value = true;
-
-  if (stompClient) {
-    try {
-      stompClient.deactivate();
-    } catch (error) {
-      // 무시
-    }
-  }
-
-  //  URL 변경
-  // const wsUrl = 'http://3.39.101.58:8081/ws-chat';
-  const wsUrl = import.meta.env.VITE_PROD_WS_URL;
-
-  try {
-    //  socket 변수 제거하고 직접 webSocketFactory에서 생성
-    stompClient = new Client({
-      webSocketFactory: () => new SockJS(wsUrl),  //  직접 생성
-      reconnectDelay: 5000,
-      heartbeatIncoming: 4000,
-      heartbeatOutgoing: 4000,
-
-      connectHeaders: {
-        Authorization: (localStorage.getItem('jwt') || sessionStorage.getItem('jwt')) ?
-            `Bearer ${localStorage.getItem('jwt') || sessionStorage.getItem('jwt')}` : '',
-        uuid,
-        broadcastId: props.broadcastId
-      },
-
-      onConnect: (frame) => {
-        connectionStatus.value = 'connected';
-        isConnecting.value = false;
-        connectionRetries.value = 0;
-
-        messages.value.push({
-          text: '채팅방에 연결되었습니다.',
-          systemOnly: true
-        });
-
-        //  채팅 메시지 구독
-        chatSubscription = stompClient.subscribe('/topic/public', (msg) => {
-          try {
-            const received = JSON.parse(msg.body);
-
-            if (received.type === 'notice') {
-              noticeMessage.value = received.text.trim() || '';
-              return;
-            }
-
-            messages.value.push(received);
-
-            nextTick(() => {
-              isScrolledToBottom()
-                  ? scrollToBottom()
-                  : (showScrollToBottom.value = true);
-            });
-          } catch (error) {
-            // 무시
-          }
-        });
-
-        //  방송 상태 변경 구독
-        stompClient.subscribe(`/topic/broadcast/${props.broadcastId}/status`, msg => {
-          const payload = JSON.parse(msg.body);
-          broadcastStatus.value = payload.status;
-          isChatEnabled.value = ['live', 'start', 'stop'].includes(broadcastStatus.value.toLowerCase());
-        });
-
-        //  참여자 수 구독
-        stompClient.subscribe(`/topic/participants/${props.broadcastId}`, msg => {
-          const count = parseInt(msg.body, 10);
-
-          if (!hasInitialParticipantSet.value) {
-            return;
-          }
-
-          participantCount.value = isNaN(count) ? 0 : count;
-        });
-
-        //  채팅 금지 STOMP 채널 구독
-        if (userState.userId) {
-          stompClient.subscribe(`/topic/ban/${userState.userId}`, msg => {
-            const data = JSON.parse(msg.body);
-            isBanned.value = data.banned;
-
-            if (data.banned) {
-              alertRef.value?.open('⚠ 부적절한 채팅창사용으로 5분간 채팅이 금지되었습니다.');
-              setTimeout(() => {
-                isBanned.value = false;
-              }, data.duration * 1000);
-            } else {
-              alertRef.value?.open('채팅 금지가 해제되었습니다.');
-            }
-          });
-        }
-      },
-
-      onStompError: (frame) => {
-        connectionStatus.value = 'failed';
-        isConnecting.value = false;
-
-        if (connectionRetries.value < maxRetries) {
-          connectionRetries.value++;
-
-          messages.value.push({
-            text: `채팅 서버 재연결 시도 중... (${connectionRetries.value}/${maxRetries})`,
-            systemOnly: true
-          });
-
-          setTimeout(() => {
-            createWebSocketConnection();
-          }, 5000);
-        } else {
-          connectionStatus.value = 'failed';
-          messages.value.push({
-            text: '채팅 서버 연결에 실패했습니다. 페이지를 새로고침 해주세요.',
-            systemOnly: true
-          });
-        }
-      },
-
-      onWebSocketError: (error) => {
-        connectionStatus.value = 'failed';
-        isConnecting.value = false;
-      },
-
-      onDisconnect: (frame) => {
-        connectionStatus.value = 'disconnected';
-        isConnecting.value = false;
-
-        messages.value.push({
-          text: '채팅 서버 연결이 끊어졌습니다.',
-          systemOnly: true
-        });
+const stompClient = new Client({
+  webSocketFactory: () => new SockJS(import.meta.env.VITE_PROD_WS_URL),
+  reconnectDelay: 5000,
+  onConnect: () => {
+    // 📌 채팅 메시지 구독
+    chatSubscription = stompClient.subscribe('/topic/public', msg => {
+      const received = JSON.parse(msg.body);
+      if (received.type === 'notice') {
+        noticeMessage.value = received.text.trim() || '';
+        return;
       }
+      messages.value.push(received);
+      nextTick(() => {
+        isScrolledToBottom() ? scrollToBottom() : (showScrollToBottom.value = true);
+      });
     });
 
-    stompClient.activate();
+    // 📌 방송 상태 변경 구독
+    stompClient.subscribe(`/topic/broadcast/${props.broadcastId}/status`, msg => {
+      const payload = JSON.parse(msg.body);
+      broadcastStatus.value = payload.status;
+      isChatEnabled.value = ['live', 'start', 'stop'].includes(broadcastStatus.value.toLowerCase());
+    });
+    // 📌 참여자 수 구독
+    stompClient.subscribe(`/topic/participants/${props.broadcastId}`, msg => {
+      const count = parseInt(msg.body, 10);
+      console.log('👥 참가자 수 수신:', count);
 
-  } catch (error) {
-    connectionStatus.value = 'failed';
-    isConnecting.value = false;
+      console.log('🧪 connectHeaders.broadcastId:', props.broadcastId);
+
+      console.log('🧪 uuid:', uuid);
+
+      // if (!hasInitialParticipantSet.value) {
+      //   console.log('🧪 초기 API 수신 전이라 STOMP 반영 안 함');
+      //    return;
+      //  }
+
+      participantCount.value = isNaN(count) ? 0 : count;
+    });
+
+    // 📌 채팅 금지 STOMP 채널 구독
+    if (userState.userId) {
+      stompClient.subscribe(`/topic/ban/${userState.userId}`, msg => {
+        const data = JSON.parse(msg.body);
+        isBanned.value = data.banned;
+
+        if (data.banned) {
+          alertRef.value?.open('⚠️ 부적절한 채팅창사용으로 5분간 채팅이 금지되었습니다.');
+          setTimeout(() => {
+            isBanned.value = false;
+          }, data.duration * 1000);
+        } else {
+          alertRef.value?.open('✅ 채팅 금지가 해제되었습니다.');
+        }
+      });
+    }
+
+
   }
-};
+});
 
-const loadUserInfo = async () => {
-  userStateBridge.checkSync();
-
-  if (currentUser.value && currentUserId.value) {
-    isLoggedIn.value = true;
-    return;
-  }
-
+onMounted(async () => {
   const token = localStorage.getItem('jwt') || sessionStorage.getItem('jwt');
+
+  stompClient.connectHeaders = {
+    Authorization: token ? `Bearer ${token}` : '',
+    uuid,
+    broadcastId: props.broadcastId
+  };
+  stompClient.activate();
 
   if (token) {
     try {
       const res = await axios.get('/api/users/profile', {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${token}` }
       });
-
-      if (res.data) {
-        let userData = res.data;
-
-        if (res.data.success && res.data.data) {
-          userData = res.data.data;
-        }
-
-        const nickname = userData.nickname || userData.name || userData.username || userData.userName;
-        const userId = userData.userId || userData.id || userData.user_id;
-
-        if (nickname) {
-          userState.currentUser = nickname;
-          userState.userId = userId;
-          userState.name = nickname;
-          userState.id = userId;
-          userState.email = userData.email;
-          userState.role = userData.role || 'USER';
-          userState.phone = userData.phone;
-
-          isLoggedIn.value = true;
-          userStateBridge.forceSync();
-        }
-      }
-
-      try {
-        const hostRes = await axios.get(`/api/members/me/${props.broadcastId}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-
-        isHost.value = hostRes.data.host === true;
-
-        if (isHost.value) {
-          userState.currentUser = '관리자';
-        }
-
-        emit('host-detected', isHost.value);
-
-      } catch (hostErr) {
-        // 무시
-      }
-
+      isLoggedIn.value = true;
+      isHost.value = res.data.host === true;
+      userState.userId = res.data.userId;
+      userState.currentUser = isHost.value ? '관리자' : res.data.nickname;
+      emit('host-detected', isHost.value);
     } catch (err) {
-      if (err.response?.status === 401) {
-        localStorage.removeItem('jwt');
-        sessionStorage.removeItem('jwt');
-        isLoggedIn.value = false;
-      }
+      console.warn('❌ 사용자 정보 조회 실패:', err);
+      localStorage.removeItem('jwt');
+      sessionStorage.removeItem('jwt');
     }
-  } else {
-    isLoggedIn.value = false;
   }
-};
 
-const loadBroadcastStatus = async () => {
   try {
     const res = await axios.get(`/api/broadcasts/${props.broadcastId}/status`);
     broadcastStatus.value = res.data.status;
     isChatEnabled.value = ['live', 'start', 'stop'].includes(broadcastStatus.value.toLowerCase());
   } catch (err) {
-    isChatEnabled.value = true;
+    console.error('❌ 방송 상태 조회 실패:', err);
   }
-};
 
-const loadInitialParticipantCount = async () => {
   try {
-    const res = await axios.get(`/api/chat/participants/${props.broadcastId}`);
-    participantCount.value = res.data.count;
-    hasInitialParticipantSet.value = true;
-  } catch (e) {
-    participantCount.value = 0;
-    hasInitialParticipantSet.value = true;
-  }
-};
-
-const loadChatHistory = async () => {
-  try {
-    const res = await axios.get(`/api/chat/history/${broadcastIdNum.value}`);
+    const res = await axios.get(`/api/chat/history/${props.broadcastId}`);
     const history = res.data || [];
 
     messages.value.push(...history.filter(msg => msg.type !== 'notice'));
@@ -476,138 +291,93 @@ const loadChatHistory = async () => {
       noticeMessage.value = lastNotice.text.trim();
     }
 
+    messages.value.push({ text: '채팅방에 입장하셨습니다.', systemOnly: true });
+
   } catch (err) {
-    // 무시
+    console.error('❌ 채팅 기록 조회 실패:', err);
   }
-};
+
+  try {
+    const res = await axios.get(`/api/chat/participants/${props.broadcastId}`);
+    console.log('🟢 참가자 수 초기 조회 응답:', res.data);
+    participantCount.value = res.data.count;
+    hasInitialParticipantSet.value = true;
+  } catch (e) {
+    console.warn('❌ 참가자 수 초기 조회 실패', e);
+  }
+
+  if (userState.userId) {
+    try {
+      const res = await axios.get(`/api/chat/ban-status/${props.broadcastId}/${userState.userId}`);
+      if (res.data.banned) {
+        isBanned.value = true;
+        console.warn('⚠️ 서버에 의해 금지된 사용자입니다.');
+      }
+    } catch (err) {
+      console.error('❌ 금지 상태 확인 실패:', err);
+    }
+  }
+
+  document.addEventListener('click', () => showContextMenu.value = false);
+  loading.value = false;
+  scrollToBottom();
+});
+
+const filteredStickers = computed(() => {
+  return Object.entries(stickerMap)
+      .filter(([key]) => key.startsWith(activeTab.value))
+      .reduce((acc, [key, src]) => {
+        acc[key] = src;
+        return acc;
+      }, {});
+});
 
 const sendMessage = () => {
-  if (!newMessage.value.trim()) {
-    return;
-  }
-
-  if (!isLoggedIn.value) {
-    showLoginModal.value = true;
-    return;
-  }
-
-  if (!isChatEnabled.value) {
-    messages.value.push({
-      text: '현재 채팅이 비활성화되어 있습니다.',
-      systemOnly: true
-    });
-    return;
-  }
   if (!isLoggedIn.value || isBanned.value || newMessage.value.trim() === '' || !stompClient.connected) {
     if (isBanned.value) {
       alertRef.value?.open('⚠️ 채팅이 금지된 상태입니다. 잠시 후 다시 시도해주세요.');
     }
     return;
   }
-  if (!currentUser.value) {
-    userStateBridge.checkSync();
-
-    if (!currentUser.value) {
-      loadUserInfo().then(() => {
-        if (currentUser.value) {
-          sendMessage();
-        } else {
-          showLoginModal.value = true;
-        }
-      });
-      return;
-    }
-  }
-
-  if (connectionStatus.value !== 'connected' || !stompClient || !stompClient.connected) {
-    if (connectionStatus.value !== 'connecting') {
-      createWebSocketConnection();
-    }
-
-    messages.value.push({
-      text: '채팅 서버에 연결 중입니다. 잠시 후 다시 시도해주세요.',
-      systemOnly: true
-    });
-    return;
-  }
 
   const payload = {
-    from: currentUser.value,
-    text: newMessage.value.trim(),
+    from: userState.currentUser,
+    text: newMessage.value,
     type: 'text',
-    broadcastId: broadcastIdNum.value,
-    userId: currentUserId.value
+    broadcastId: props.broadcastId,
+    userId: userState.userId
   };
 
-  try {
-    stompClient.publish({
-      destination: '/app/sendMessage',
-      body: JSON.stringify(payload)
-    });
+  stompClient.publish({ destination: '/app/sendMessage', body: JSON.stringify(payload) });
+  newMessage.value = '';
+  focusInput();
+  scrollToBottom();
+};
 
-    newMessage.value = '';
-    focusInput();
-
-  } catch (error) {
-    messages.value.push({
-      text: '메시지 전송에 실패했습니다. 다시 시도해주세요.',
-      systemOnly: true
-    });
-  }
+const sendSticker = key => {
+  if (!isLoggedIn.value || !stompClient.connected) return;
+  const payload = {
+    from: userState.currentUser,
+    type: 'sticker',
+    text: key,
+    broadcastId: props.broadcastId,
+    userId: userState.userId
+  };
+  stompClient.publish({ destination: '/app/sendMessage', body: JSON.stringify(payload) });
+  focusInput();
+  scrollToBottom();
 };
 
 const sendNotice = (text) => {
-  if (connectionStatus.value !== 'connected' || !stompClient || !stompClient.connected) {
-    return;
-  }
-
+  if (!stompClient.connected) return;
   const payload = {
-    from: currentUser.value,
+    from: userState.currentUser,
     type: 'notice',
     text: text || '',
-    broadcastId: broadcastIdNum.value,
-    userId: currentUserId.value,
+    broadcastId: props.broadcastId,
+    userId: userState.userId
   };
-
-  stompClient.publish({
-    destination: '/app/sendMessage',
-    body: JSON.stringify(payload),
-  });
-};
-
-const sendSticker = (stickerKey) => {
-  if (!isLoggedIn.value) {
-    showLoginModal.value = true;
-    return;
-  }
-
-  if (!isChatEnabled.value) {
-    messages.value.push({
-      text: '현재 채팅이 비활성화되어 있습니다.',
-      systemOnly: true
-    });
-    return;
-  }
-
-  if (connectionStatus.value !== 'connected' || !stompClient || !stompClient.connected) {
-    return;
-  }
-
-  const payload = {
-    from: currentUser.value,
-    type: 'sticker',
-    text: stickerKey,
-    broadcastId: broadcastIdNum.value,
-    userId: currentUserId.value,
-  };
-
-  stompClient.publish({
-    destination: '/app/sendMessage',
-    body: JSON.stringify(payload),
-  });
-
-  showTools.value = false;
-  focusInput();
+  stompClient.publish({ destination: '/app/sendMessage', body: JSON.stringify(payload) });
 };
 
 const focusInput = () => nextTick(() => inputRef.value?.focus());
@@ -627,12 +397,12 @@ const isScrolledToBottom = (threshold = 200) => {
 const handleScroll = () => {
   showScrollToBottom.value = !isScrolledToBottom(200);
 };
+
+
 const toggleTools = () => {
   showTools.value = !showTools.value;
   focusInput();
-  if (showTools.value) {
-    scrollToBottom();
-  }
+  if (showTools.value) scrollToBottom();
 };
 const goToLogin = () => router.push('/login');
 const handleInputFocus = e => {
@@ -641,9 +411,13 @@ const handleInputFocus = e => {
     showLoginModal.value = true;
   }
 };
+
+const shouldShowMoreBtn = computed(() => noticeMessage.value.length > 10);
+const displayNotice = computed(() => noticeMessage.value.trim() || '등록된 공지사항이 없습니다.');
 const toggleNotice = () => {
   isNoticeExpanded.value = !isNoticeExpanded.value;
 };
+
 const onRightClick = (event, msg) => {
   if (!isHost.value || isMyMessage(msg)) return;
 
@@ -684,69 +458,17 @@ const handleBanClick = async () => {
 
   showContextMenu.value = false;
 };
-const checkWebSocketConnection = () => {
-  userStateBridge.checkSync();
-};
 
-const reconnect = () => {
-  connectionRetries.value = 0;
-  connectionStatus.value = 'disconnected';
-  createWebSocketConnection();
-};
-
-onMounted(async () => {
-  userStateBridge.forceSync();
-
-  await loadUserInfo();
-  await loadBroadcastStatus();
-  await loadChatHistory();
-  await loadInitialParticipantCount();
-
-  setTimeout(() => {
-    createWebSocketConnection();
-  }, 1000);
-  if (userState.userId) {
-    try {
-      const res = await axios.get(`/api/chat/ban-status/${props.broadcastId}/${userState.userId}`);
-      if (res.data.banned) {
-        isBanned.value = true;
-        console.warn('⚠️ 서버에 의해 금지된 사용자입니다.');
-      }
-    } catch (err) {
-      console.error('❌ 금지 상태 확인 실패:', err);
-    }
-  }
-
-  document.addEventListener('click', () => showContextMenu.value = false);
-  loading.value = false;
-  scrollToBottom();
-});
+defineExpose({ sendNotice });
 
 onUnmounted(() => {
-  connectionStatus.value = 'disconnected';
-
-  if (chatSubscription) {
-    chatSubscription.unsubscribe();
-  }
-
-  if (stompClient) {
-    stompClient.deactivate();
-  }
-
-  const disconnectId = isLoggedIn.value ? currentUserId.value : uuid;
-  if (disconnectId) {
-    navigator.sendBeacon(`/api/chat/disconnect/${props.broadcastId}?id=${disconnectId}`);
-    document.removeEventListener('click', () => showContextMenu.value = false);
-  }
-});
-
-defineExpose({
-  sendNotice,
-  checkWebSocketConnection,
-  reconnect
+  if (chatSubscription) chatSubscription.unsubscribe();
+  if (stompClient.connected) stompClient.deactivate();
+  const disconnectId = isLoggedIn.value ? userState.userId : uuid;
+  navigator.sendBeacon(`/api/chat/disconnect/${props.broadcastId}?id=${disconnectId}`);
+  document.removeEventListener('click', () => showContextMenu.value = false);
 });
 </script>
-
 <style scoped>
 .chat-container {
   display: flex;
