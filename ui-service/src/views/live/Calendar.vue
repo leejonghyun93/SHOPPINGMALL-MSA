@@ -127,9 +127,9 @@
                 </div>
 
                 <!-- 방송자 정보 -->
-                <div class="broadcaster-name">
-                  {{ broadcast.broadcasterName }}
-                </div>
+<!--                <div class="broadcaster-name">-->
+<!--                  {{ broadcast.broadcasterName }}-->
+<!--                </div>-->
 
                 <!-- 방송 상태별 버튼/상태 표시 -->
                 <div class="broadcast-action">
