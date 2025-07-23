@@ -121,7 +121,7 @@
         <div class="broadcast-info">
           <h3 class="broadcast-title">{{ broadcast.title }}</h3>
           <div class="broadcaster-info">
-            <span class="broadcaster-name">{{ broadcast.broadcasterName || '방송자' }}</span>
+<!--            <span class="broadcaster-name">{{ broadcast.broadcasterName || '방송자' }}</span>-->
           </div>
           <div class="broadcast-tags">
             <span class="category-tag">{{ broadcast.categoryName || '일반' }}</span>
