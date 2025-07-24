@@ -412,7 +412,6 @@ Grafana           : 3000
 - **Grafana**: http://13.209.253.241:3000 (admin/admin123)
 
 
-## 팀원 및 역할
 
 ### Frontend 개발
 - Vue.js 컴포넌트 개발
