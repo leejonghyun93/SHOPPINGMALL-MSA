@@ -230,21 +230,6 @@ client:
 register-with-eureka: false
 fetch-registry: false
 
-# Spring Batch 설정
-spring:
-batch:
-jdbc:
-initialize-schema: always
-job:
-enabled: false  # 자동 실행 방지
-
-# 배치 Job 설정
-batch:
-jobs:
-order-settlement:
-cron: "0 0 2 * * ?"  # 매일 새벽 2시
-user-statistics:
-cron: "0 30 1 * * ?"  # 매일 새벽 1시 30분
 # MyBatis 설정
 mybatis:
 mapper-locations: classpath:mappers/*.xml
