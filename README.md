@@ -411,9 +411,6 @@ Grafana           : 3000
 - **Prometheus**: http://13.209.253.241:9090
 - **Grafana**: http://13.209.253.241:3000 (admin/admin123)
 
-## API 문서
-- Swagger UI: `http://localhost:8080/swagger-ui.html`
-- API 명세서는 각 서비스별로 자동 생성
 
 ## 팀원 및 역할
 
