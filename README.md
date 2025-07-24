@@ -404,14 +404,6 @@ Grafana           : 3000
 - 사용자 트래픽 분석
 - 에러 로그 추적
 
-### 접속 URL
-- **메인 사이트**: http://13.209.253.241
-- **API Gateway**: http://13.209.253.241:8080
-- **Eureka Dashboard**: http://13.209.253.241:8761
-- **Prometheus**: http://13.209.253.241:9090
-- **Grafana**: http://13.209.253.241:3000 (admin/admin123)
-
-
 
 ### Frontend 개발
 - Vue.js 컴포넌트 개발
