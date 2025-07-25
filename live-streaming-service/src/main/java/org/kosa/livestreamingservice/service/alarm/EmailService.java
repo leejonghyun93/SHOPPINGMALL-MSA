@@ -21,11 +21,10 @@ public class EmailService {
     private final JavaMailSender mailSender;
     private final NotificationProperties notificationProperties;
 
-    // GitHub Secrets에서 환경변수 직접 주입
-    @Value("${PROD_NOTIFICATION_FROM_EMAIL:${SPRING_MAIL_FROM:${NOTIFICATION_EMAIL_FROM_EMAIL:noreply@shopmall.com}}}")
+    @Value("${notification.email.from-email}")
     private String fromEmail;
 
-    @Value("${PROD_NOTIFICATION_FROM_NAME:${NOTIFICATION_EMAIL_FROM_NAME:쇼핑몰 알림}}")
+    @Value("${notification.email.from-name}")
     private String fromName;
 
     @Value("${SPRING_MAIL_USERNAME:}")

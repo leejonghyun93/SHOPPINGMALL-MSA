@@ -18,7 +18,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * 🔥 방송 시작 알림 배치 서비스 (방송 정보 포함 개선)
+ * 방송 시작 알림 배치 서비스 (방송 정보 포함 개선)
  * 실제 방송 정보를 함께 전달하여 이메일 null 문제 해결
  */
 @Service
@@ -32,7 +32,7 @@ public class NotificationBatchService {
     private final BroadcastServiceClient broadcastServiceClient;
 
     /**
-     * 🚀 방송 시작 알림 배치 (30초마다 실행) - 방송 정보 포함하여 발송
+     *  방송 시작 알림 배치 (30초마다 실행) - 방송 정보 포함하여 발송
      */
     @Scheduled(fixedRate = 30000) // 30초마다 실행
     @Transactional
@@ -51,7 +51,7 @@ public class NotificationBatchService {
                 return;
             }
 
-            log.info("🎬 시작하는 방송들: {} (현재시간: {})",
+            log.info("시작하는 방송들: {} (현재시간: {})",
                     startingBroadcasts.stream().map(BroadcastEntity::getBroadcastId).collect(Collectors.toList()),
                     now.format(DateTimeFormatter.ofPattern("HH:mm:ss")));
 
@@ -63,18 +63,18 @@ public class NotificationBatchService {
             }
 
             if (totalSentNotifications > 0) {
-                log.info("=== ✅ 방송 시작 알림 배치 작업 완료: {}개 발송 ===", totalSentNotifications);
+                log.info("===  방송 시작 알림 배치 작업 완료: {}개 발송 ===", totalSentNotifications);
             } else {
                 log.info("발송할 알림이 없습니다.");
             }
 
         } catch (Exception e) {
-            log.error("❌ 방송 시작 알림 배치 작업 실패: {}", e.getMessage(), e);
+            log.error("방송 시작 알림 배치 작업 실패: {}", e.getMessage(), e);
         }
     }
 
     /**
-     * 🎯 개별 방송의 알림 처리 (방송 정보 포함)
+     *  개별 방송의 알림 처리 (방송 정보 포함)
      */
     private int processBroadcastNotifications(BroadcastEntity broadcast) {
         try {
@@ -89,7 +89,7 @@ public class NotificationBatchService {
                 return 0;
             }
 
-            log.info("📬 발송할 알림 개수: {} (방송: {} - {})",
+            log.info(" 발송할 알림 개수: {} (방송: {} - {})",
                     pendingNotifications.size(),
                     broadcast.getBroadcastId(),
                     broadcast.getTitle());
@@ -105,7 +105,7 @@ public class NotificationBatchService {
                         notification.getBroadcastId());
             });
 
-            // 4. ✅ 방송 정보를 포함하여 카프카로 알림 발송
+            // 4.  방송 정보를 포함하여 카프카로 알림 발송
             kafkaProducer.sendBulkNotificationsWithBroadcastInfo(
                     pendingNotifications,
                     broadcast.getTitle(),                    // 실제 방송 제목
@@ -113,7 +113,7 @@ public class NotificationBatchService {
                     broadcast.getScheduledStartTime()        // 실제 시작시간
             );
 
-            log.info("✅ 방송 {}의 알림 {}개 발송 완료", broadcast.getBroadcastId(), pendingNotifications.size());
+            log.info("", broadcast.getBroadcastId(), pendingNotifications.size());
 
             return pendingNotifications.size();
 
@@ -124,7 +124,7 @@ public class NotificationBatchService {
     }
 
     /**
-     * 🔍 현재 시간 기준으로 시작해야 할 방송들 조회
+     * 현재 시간 기준으로 시작해야 할 방송들 조회
      */
     private List<BroadcastEntity> getStartingBroadcasts(LocalDateTime now) {
         try {
@@ -145,7 +145,7 @@ public class NotificationBatchService {
 
             // 발견된 방송들 로그
             startingBroadcasts.forEach(broadcast -> {
-                log.info("🎯 시작 예정 방송 발견 - ID: {}, 제목: {}, 시작시간: {}",
+                log.info(" 시작 예정 방송 발견 - ID: {}, 제목: {}, 시작시간: {}",
                         broadcast.getBroadcastId(),
                         broadcast.getTitle(),
                         broadcast.getScheduledStartTime().format(DateTimeFormatter.ofPattern("HH:mm:ss")));
@@ -160,7 +160,7 @@ public class NotificationBatchService {
     }
 
     /**
-     * 🎭 방송자 이름 조회 (타입 오류 수정)
+     *  방송자 이름 조회 (타입 오류 수정)
      */
     private String getBroadcasterName(BroadcastEntity broadcast) {
         try {
@@ -191,7 +191,7 @@ public class NotificationBatchService {
     }
 
     /**
-     * 🔔 방송 시작 5분 전 리마인더 알림 (1분마다 실행)
+     *  방송 시작 5분 전 리마인더 알림 (1분마다 실행)
      */
     @Scheduled(fixedRate = 60000) // 1분마다 실행
     @Transactional
@@ -216,7 +216,7 @@ public class NotificationBatchService {
                     );
 
             if (!upcomingBroadcasts.isEmpty()) {
-                log.info("🔔 5분 후 시작하는 방송들: {}",
+                log.info(" 5분 후 시작하는 방송들: {}",
                         upcomingBroadcasts.stream()
                                 .map(b -> b.getBroadcastId() + "(" + b.getTitle() + ")")
                                 .collect(Collectors.toList()));
@@ -231,7 +231,7 @@ public class NotificationBatchService {
     }
 
     /**
-     * 🧹 오래된 알림 정리 (매일 새벽 2시)
+     *  오래된 알림 정리 (매일 새벽 2시)
      */
     @Scheduled(cron = "0 0 2 * * *")
     @Transactional
@@ -261,7 +261,7 @@ public class NotificationBatchService {
     }
 
     /**
-     * 📊 알림 통계 로그 (매시간)
+     * 알림 통계 로그 (매시간)
      */
     @Scheduled(fixedRate = 3600000) // 1시간마다
     public void logNotificationStats() {
@@ -278,7 +278,7 @@ public class NotificationBatchService {
                 log.warn("미발송 알림 개수 조회 실패, 기본값 사용: {}", e.getMessage());
             }
 
-            log.info("📊 알림 통계 (최근 1시간): 신규방송알림={}, 전체대기알림={}",
+            log.info(" 알림 통계 (최근 1시간): 신규방송알림={}, 전체대기알림={}",
                     broadcastStartCount, totalPendingNotifications);
 
         } catch (Exception e) {
@@ -286,41 +286,4 @@ public class NotificationBatchService {
         }
     }
 
-    /**
-     * 🔥 수동 방송 시작 알림 트리거 (테스트용) - 방송 정보 포함
-     */
-    public void triggerBroadcastStartNotification(Long broadcastId) {
-        log.info("🔥 수동 방송 시작 알림 트리거: broadcastId={}", broadcastId);
-
-        try {
-            // 1. 방송 정보 조회
-            BroadcastEntity broadcast = broadcastRepository.findById(broadcastId)
-                    .orElseThrow(() -> new RuntimeException("방송을 찾을 수 없습니다: " + broadcastId));
-
-            // 2. 미발송 알림 조회
-            List<LiveBroadcastNotification> pendingNotifications =
-                    notificationRepository.findByBroadcastIdAndIsSentFalseAndType(
-                            broadcastId, "BROADCAST_START"
-                    );
-
-            if (!pendingNotifications.isEmpty()) {
-                // 3. 방송 정보 포함하여 발송
-                String broadcasterName = getBroadcasterName(broadcast);
-
-                kafkaProducer.sendBulkNotificationsWithBroadcastInfo(
-                        pendingNotifications,
-                        broadcast.getTitle(),
-                        broadcasterName,
-                        broadcast.getScheduledStartTime()
-                );
-
-                log.info("✅ 수동 알림 발송 완료: {}개 (방송: {})", pendingNotifications.size(), broadcast.getTitle());
-            } else {
-                log.warn("⚠️ 발송할 알림이 없습니다: broadcastId={}", broadcastId);
-            }
-
-        } catch (Exception e) {
-            log.error("❌ 수동 알림 발송 실패: broadcastId={}, error={}", broadcastId, e.getMessage());
-        }
-    }
 }

@@ -68,30 +68,6 @@ public class SimpleEmailConfig {
     }
 
     /**
-     * 🔧 더미 JavaMailSender - 이메일 비활성화시만 사용
-     */
-    @Bean
-    @ConditionalOnProperty(name = "notification.email.enabled", havingValue = "false")
-    public JavaMailSender dummyJavaMailSender() {
-        log.info("🔧 더미 JavaMailSender 생성 - 이메일 발송 비활성화");
-
-        JavaMailSenderImpl mailSender = new JavaMailSenderImpl();
-
-        // 더미 설정 - localhost 제거
-        mailSender.setHost("dummy.example.com");
-        mailSender.setPort(25);
-        mailSender.setUsername("dummy");
-        mailSender.setPassword("dummy");
-
-        Properties props = mailSender.getJavaMailProperties();
-        props.put("mail.transport.protocol", "smtp");
-        props.put("mail.smtp.auth", "false");
-        props.put("mail.debug", "false");
-
-        return mailSender;
-    }
-
-    /**
      * 이메일 마스킹 (로그용)
      */
     private String maskEmail(String email) {

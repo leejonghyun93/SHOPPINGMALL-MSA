@@ -236,16 +236,6 @@ public class BroadcastServiceClient {
     }
 
     /**
-     * 테스트용 메서드 (개발 환경에서만 사용)
-     */
-    public List<Long> getBroadcastsStartingNowForTest() {
-        List<Long> startingBroadcasts = new ArrayList<>();
-        startingBroadcasts.add(11L);
-        log.info("🧪 테스트용 방송 시작: {}", startingBroadcasts);
-        return startingBroadcasts;
-    }
-
-    /**
      * 방송 정보 DTO
      */
     public static class BroadcastInfo {
