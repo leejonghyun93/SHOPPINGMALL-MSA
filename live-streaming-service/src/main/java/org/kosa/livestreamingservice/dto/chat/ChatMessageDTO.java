@@ -11,7 +11,7 @@ public class ChatMessageDTO {
     private String type;           // 메시지 타입 (text, sticker 등)
     private String broadcastId;    // 방송 ID (프론트에서 임시로 넘겨도 됨)
 
-    // 🔽 DB 저장용 추가 필드
+    // DB 저장용 추가 필드
     private String userId;         // 사용자 ID (토큰에서 파싱한 값)
     private Boolean isDeleted = false;   // 삭제 여부
     private Boolean isBlurred = false;   // 블러 처리 여부

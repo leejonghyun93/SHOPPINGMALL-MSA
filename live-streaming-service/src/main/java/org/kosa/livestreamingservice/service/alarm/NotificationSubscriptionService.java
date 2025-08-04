@@ -62,7 +62,7 @@ public class NotificationSubscriptionService {
                 .userId(userId)
                 .type("BROADCAST_START")
                 .title(broadcastInfo.title + " 방송 시작 알림")
-                .message(String.format("%s님의 방송이 시작되면 알려드릴게요!", broadcasterName))  // 🔥 실제 이름 사용
+                .message(String.format("%s님의 방송이 시작되면 알려드릴게요!", broadcasterName))  //  실제 이름 사용
                 .priority("HIGH")
                 .isSent(false)
                 .isRead(false)
@@ -79,7 +79,7 @@ public class NotificationSubscriptionService {
     }
 
     /**
-     * ❌ 방송 알림 구독 취소
+     * 방송 알림 구독 취소
      */
     public void unsubscribeBroadcast(String userId, Long broadcastId, String type) {
         log.info("방송 알림 구독 취소: userId={}, broadcastId={}, type={}", userId, broadcastId, type);
@@ -98,7 +98,7 @@ public class NotificationSubscriptionService {
     }
 
     /**
-     * 📋 사용자의 구독 중인 방송 목록 조회
+     * 사용자의 구독 중인 방송 목록 조회
      */
     @Transactional(readOnly = true)
     public List<NotificationResponseDto> getUserSubscriptions(String userId) {
@@ -116,7 +116,7 @@ public class NotificationSubscriptionService {
     }
 
     /**
-     * 🎯 특정 방송의 구독자 수 조회
+     * 특정 방송의 구독자 수 조회
      */
     @Transactional(readOnly = true)
     public long getBroadcastSubscriberCount(Long broadcastId) {
@@ -128,7 +128,7 @@ public class NotificationSubscriptionService {
     }
 
     /**
-     * 🔥 방송 시작시 구독자들에게 대량 알림 생성 (Live Streaming Service에서 호출)
+     * 방송 시작시 구독자들에게 대량 알림 생성 (Live Streaming Service에서 호출)
      */
     public List<NotificationResponseDto> createBroadcastStartNotifications(Long broadcastId) {
         log.info("방송 시작 알림 처리: broadcastId={}", broadcastId);
@@ -161,7 +161,7 @@ public class NotificationSubscriptionService {
                     String userEmail = userEmailService.getUserEmail(notification.getUserId());
 
                     if (userEmail != null) {
-                        // 🔥 실제 방송자 이름으로 이메일 발송
+                        // 실제 방송자 이름으로 이메일 발송
                         emailService.sendBroadcastStartNotification(
                                 userEmail,
                                 notification.getUserId(),
@@ -204,7 +204,7 @@ public class NotificationSubscriptionService {
     }
 
     /**
-     * 📊 사용자의 모든 알림 목록 조회 (읽음/안읽음 포함)
+     * 사용자의 모든 알림 목록 조회 (읽음/안읽음 포함)
      */
     @Transactional(readOnly = true)
     public List<NotificationResponseDto> getAllUserNotifications(String userId) {
@@ -219,7 +219,7 @@ public class NotificationSubscriptionService {
     }
 
     /**
-     * 🔍 특정 방송의 구독자 목록 조회 (관리자용)
+     * 특정 방송의 구독자 목록 조회 (관리자용)
      */
     @Transactional(readOnly = true)
     public List<NotificationResponseDto> getBroadcastSubscribers(Long broadcastId) {
@@ -234,7 +234,7 @@ public class NotificationSubscriptionService {
     }
 
     /**
-     * 🧹 만료된 구독 정리 (방송이 끝난 후)
+     *  만료된 구독 정리 (방송이 끝난 후)
      */
     @Transactional
     public int cleanupExpiredSubscriptions(Long broadcastId) {
@@ -252,7 +252,7 @@ public class NotificationSubscriptionService {
     }
 
     /**
-     * 🔥 방송자 정보 갱신 (방송 정보 변경시)
+     * 방송자 정보 갱신 (방송 정보 변경시)
      * 기존 알림 메시지의 방송자 이름을 업데이트
      */
     @Transactional

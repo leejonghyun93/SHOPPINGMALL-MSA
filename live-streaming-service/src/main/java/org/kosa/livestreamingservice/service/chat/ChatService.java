@@ -67,7 +67,7 @@ public class ChatService {
     }
 
     public void banUser(Long broadcastId, String userId, long durationSeconds) {
-        log.info("🔒 채팅 금지 요청 → broadcastId={}, userId={}, durationSeconds={}", broadcastId, userId, durationSeconds);
+        log.info("채팅 금지 요청 → broadcastId={}, userId={}, durationSeconds={}", broadcastId, userId, durationSeconds);
 
         try {
             // 1. Redis에 금지 상태 저장 (TTL 설정)
@@ -77,7 +77,7 @@ public class ChatService {
             }
 
             redisTemplate.opsForValue().set(key, "banned", Duration.ofSeconds(durationSeconds));
-            log.info("✅ Redis에 금지 키 [{}] 등록 완료", key);
+            log.info("Redis에 금지 키 [{}] 등록 완료", key);
 
             // 2. 프론트에 즉시 '금지됨' 메시지 전송
             messagingTemplate.convertAndSend("/topic/ban/" + userId,
@@ -88,14 +88,14 @@ public class ChatService {
             scheduler.schedule(() -> {
                 try {
                     messagingTemplate.convertAndSend("/topic/ban/" + userId, Map.of("banned", false));
-                    log.info("🔓 자동 해제 메시지 전송 완료 → /topic/ban/{}", userId);
+                    log.info("자동 해제 메시지 전송 완료 → /topic/ban/{}", userId);
                 } catch (Exception e) {
-                    log.error("❌ 자동 해제 메시지 전송 실패", e);
+                    log.error("자동 해제 메시지 전송 실패", e);
                 }
             }, durationSeconds, TimeUnit.SECONDS);
 
         } catch (Exception e) {
-            log.error("❌ 채팅 금지 처리 중 예외 발생", e);
+            log.error("채팅 금지 처리 중 예외 발생", e);
             throw e; // 예외 다시 던져서 500 응답 유지
         }
     }
@@ -107,17 +107,17 @@ public class ChatService {
 
     @PreDestroy
     public void shutdownScheduler() {
-        log.info("🛑 채팅 스케줄러 종료 시도 중...");
+        log.info("채팅 스케줄러 종료 시도 중...");
         scheduler.shutdown();
         try {
             if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
-                log.warn("⚠️ 스케줄러 종료 대기 초과. 강제 종료 시도.");
+                log.warn("⚠스케줄러 종료 대기 초과. 강제 종료 시도.");
                 scheduler.shutdownNow();
             } else {
-                log.info("✅ 채팅 스케줄러 정상 종료됨.");
+                log.info("채팅 스케줄러 정상 종료됨.");
             }
         } catch (InterruptedException e) {
-            log.error("❌ 스케줄러 종료 중 인터럽트 발생", e);
+            log.error("스케줄러 종료 중 인터럽트 발생", e);
             scheduler.shutdownNow();
             Thread.currentThread().interrupt(); // 현재 스레드 상태 복구
         }

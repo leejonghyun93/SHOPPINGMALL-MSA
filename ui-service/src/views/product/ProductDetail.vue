@@ -111,7 +111,7 @@
                 @click="toggleWishlist"
                 :disabled="wishlistLoading"
             >
-              <!-- 🔥 SVG 하트 아이콘 추가 -->
+              <!--  SVG 하트 아이콘 추가 -->
               <svg
                   width="20"
                   height="20"
@@ -148,7 +148,7 @@
 
         <div class="tab-content">
           <div v-if="selectedTab === 'details'" class="details-content">
-            <!-- 🔥 상품 메인 이미지 (하나로 통합) -->
+            <!-- 상품 메인 이미지 (하나로 통합) -->
             <div class="product-detail-image">
               <img
                   :src="getCurrentImage()"
@@ -158,7 +158,7 @@
               />
             </div>
 
-            <!-- 🔥 상품 정보와 상세 설명 통합 -->
+            <!-- 상품 정보와 상세 설명 통합 -->
             <div class="product-detail-info">
               <h3>상품 정보</h3>
 
@@ -401,7 +401,7 @@
                 <div class="qna-header">
                   <div class="qna-info">
                     <span class="qna-type">{{ qna.qnaType }}</span>
-                    <span v-if="qna.isSecret === 'Y'" class="secret-badge">🔒 비밀글</span>
+                    <span v-if="qna.isSecret === 'Y'" class="secret-badge">비밀글</span>
                     <span :class="['qna-status', qna.qnaStatus.toLowerCase()]">
                       {{ getQnaStatusText(qna.qnaStatus) }}
                     </span>
@@ -1107,7 +1107,7 @@ const loadProduct = async () => {
 
     product.value = response.data
 
-    // 🔥 useSmartImages를 사용한 이미지 처리
+    // useSmartImages를 사용한 이미지 처리
     const smartImage = getProductImage(product.value);
     product.value.images = [smartImage];
     product.value.mainImage = smartImage;
@@ -1126,7 +1126,7 @@ const loadRelatedProducts = async (productId) => {
       withAuth: false
     })
 
-    // 🔥 연관 상품에도 useSmartImages 적용
+    // 연관 상품에도 useSmartImages 적용
     relatedProducts.value = (res.data || []).map((product) => {
       return {
         ...product,

@@ -217,7 +217,7 @@ const likeProduct = async (productId) => {
         products.value[productIndex].viewCount = (products.value[productIndex].viewCount || 0) + 1
       }
 
-      alert('상품을 좋아요 했습니다! ❤️')
+      alert('상품을 좋아요 했습니다!')
     } else {
       alert('좋아요 처리에 실패했습니다.')
     }
@@ -296,7 +296,7 @@ const generateStreamUrls = (broadcast) => {
   } else {
     const streamKey = broadcast.stream_key || broadcast.broadcast_id
 
-    // 🔥 환경 설정 유틸리티 사용
+    // 환경 설정 유틸리티 사용
     hlsUrl.value = generateStreamUrl(streamKey, broadcast)
     streamInfo.value.url = hlsUrl.value
 

@@ -81,7 +81,7 @@
                 <span class="time-text">{{ timeSlot.time }}</span>
                 <!-- 시간 지남 표시 추가 -->
                 <div v-if="shouldShowAsPast(broadcast)" class="past-indicator">
-                  🕐
+                  시간 지남
                 </div>
               </div>
 
@@ -127,9 +127,9 @@
                 </div>
 
                 <!-- 방송자 정보 -->
-<!--                <div class="broadcaster-name">-->
-<!--                  {{ broadcast.broadcasterName }}-->
-<!--                </div>-->
+                <!--                <div class="broadcaster-name">-->
+                <!--                  {{ broadcast.broadcasterName }}-->
+                <!--                </div>-->
 
                 <!-- 방송 상태별 버튼/상태 표시 -->
                 <div class="broadcast-action">
@@ -151,7 +151,7 @@
                   <!-- 라이브 중인 방송 (live) - 방송중 상태 표시 -->
                   <div v-else-if="broadcast.status && broadcast.status.trim() === 'live'" class="live-status">
                     <span class="badge bg-danger">
-                      🔴 방송중
+                      방송중
                     </span>
                     <button
                         class="btn btn-danger btn-sm ms-2"
@@ -447,7 +447,7 @@ const fetchBroadcastsFromDB = async (date) => {
 
 // 사용자 알림 구독 상태 조회
 const loadUserNotificationSettings = async (scheduleData) => {
-  console.log('🔥 알림 설정 로드 시작')
+  console.log('알림 설정 로드 시작')
 
   if (scheduleData.length === 0) {
     console.log('스케줄 데이터가 비어있음')
@@ -458,7 +458,7 @@ const loadUserNotificationSettings = async (scheduleData) => {
     const user = getCurrentUser()
     if (!user.identifier) {
       console.log('사용자 정보 없음')
-      // 🔥 사용자 정보 없으면 모든 알림을 false로 설정
+      // 사용자 정보 없으면 모든 알림을 false로 설정
       scheduleData.forEach(timeSlot => {
         timeSlot.broadcasts.forEach(broadcast => {
           broadcast.isNotificationSet = false
@@ -470,7 +470,7 @@ const loadUserNotificationSettings = async (scheduleData) => {
     const userParam = user.identifier
     console.log('사용자 ID:', userParam)
 
-    // 🔥 3. 현재 스케줄의 모든 방송 ID 수집
+    // 3. 현재 스케줄의 모든 방송 ID 수집
     const allBroadcastIds = []
     scheduleData.forEach(timeSlot => {
       timeSlot.broadcasts.forEach(broadcast => {
@@ -483,7 +483,7 @@ const loadUserNotificationSettings = async (scheduleData) => {
 
     console.log('현재 스케줄의 방송 ID들:', allBroadcastIds)
 
-    // 🔥 4. 서버에서 사용자 구독 정보 가져오기
+    // 4. 서버에서 사용자 구독 정보 가져오기
     const endpoint = `/subscriptions/users/${userParam}`
 
     try {
@@ -493,35 +493,35 @@ const loadUserNotificationSettings = async (scheduleData) => {
         const userSubscriptions = await response.json()
         console.log('서버에서 가져온 전체 구독 목록:', userSubscriptions)
 
-        // 🔥 5. 서버 데이터를 Set으로 변환 (빠른 검색을 위해)
+        // 5. 서버 데이터를 Set으로 변환 (빠른 검색을 위해)
         const subscribedBroadcastIds = new Set(
             userSubscriptions.map(sub => String(sub.broadcastId))
         )
 
         console.log('구독 중인 방송 ID Set:', Array.from(subscribedBroadcastIds))
 
-        // 🔥 6. 현재 스케줄의 각 방송에 대해 구독 상태 설정
+        // 6. 현재 스케줄의 각 방송에 대해 구독 상태 설정
         let matchedCount = 0
         scheduleData.forEach(timeSlot => {
           timeSlot.broadcasts.forEach(broadcast => {
             const broadcastId = String(broadcast.id || broadcast.broadcastId || broadcast.broadcast_id || '')
             const isSubscribed = subscribedBroadcastIds.has(broadcastId)
 
-            // 🔥 반드시 boolean으로 설정
+            // 반드시 boolean으로 설정
             broadcast.isNotificationSet = Boolean(isSubscribed)
 
             if (isSubscribed) {
               matchedCount++
-              console.log(`✅ 구독 중인 방송 발견: "${broadcast.title}" (ID: ${broadcastId})`)
+              console.log(`구독 중인 방송 발견: "${broadcast.title}" (ID: ${broadcastId})`)
             } else {
-              console.log(`❌ 구독 안함: "${broadcast.title}" (ID: ${broadcastId})`)
+              console.log(`구독 안함: "${broadcast.title}" (ID: ${broadcastId})`)
             }
           })
         })
 
         console.log(`총 ${matchedCount}개 방송이 구독 상태로 설정됨`)
 
-        // 🔥 7. 로컬 스토리지에 백업 (서버와 동기화)
+        // 7. 로컬 스토리지에 백업 (서버와 동기화)
         syncLocalNotifications(userParam, Array.from(subscribedBroadcastIds))
 
         return scheduleData
@@ -534,7 +534,7 @@ const loadUserNotificationSettings = async (scheduleData) => {
     } catch (serverError) {
       console.error('서버 조회 실패, 로컬 데이터 사용:', serverError)
 
-      // 🔥 8. 서버 실패 시 로컬 스토리지에서 복원
+      // 8. 서버 실패 시 로컬 스토리지에서 복원
       const localNotifications = getLocalNotifications(userParam)
       console.log('로컬 스토리지에서 가져온 알림 목록:', localNotifications)
 
@@ -545,7 +545,7 @@ const loadUserNotificationSettings = async (scheduleData) => {
           broadcast.isNotificationSet = Boolean(isSubscribed)
 
           if (isSubscribed) {
-            console.log(`📱 로컬에서 복원: "${broadcast.title}" (ID: ${broadcastId})`)
+            console.log(`로컬에서 복원: "${broadcast.title}" (ID: ${broadcastId})`)
           }
         })
       })
@@ -556,7 +556,7 @@ const loadUserNotificationSettings = async (scheduleData) => {
   } catch (error) {
     console.error('알림 설정 로드 완전 실패:', error)
 
-    // 🔥 9. 모든 실패 시 false로 초기화
+    // 9. 모든 실패 시 false로 초기화
     scheduleData.forEach(timeSlot => {
       timeSlot.broadcasts.forEach(broadcast => {
         broadcast.isNotificationSet = false
@@ -585,7 +585,7 @@ const getLocalNotifications = (userId) => {
 
 // 방송 스케줄 로드 함수
 const loadBroadcastSchedule = async (date = selectedDate.value) => {
-  console.log('🔥 방송 스케줄 로드 시작')
+  console.log('방송 스케줄 로드 시작')
 
   isLoadingSchedule.value = true
 
@@ -600,7 +600,7 @@ const loadBroadcastSchedule = async (date = selectedDate.value) => {
     // 3. 최종 데이터 설정
     broadcastSchedule.value = scheduleData
 
-    console.log('🔥 최종 설정된 스케줄 데이터:', broadcastSchedule.value)
+    console.log('최종 설정된 스케줄 데이터:', broadcastSchedule.value)
 
   } catch (error) {
     console.error('방송 스케줄 로드 실패:', error)
@@ -730,10 +730,10 @@ const toggleNotification = async (broadcast) => {
     const userParam = user.identifier
     const broadcastId = String(broadcast.id || broadcast.broadcastId || broadcast.broadcast_id || '')
 
-    console.log(`🔔 알림 토글 시작 - 방송: "${broadcast.title}", ID: ${broadcastId}, 현재 상태: ${broadcast.isNotificationSet}`)
+    console.log(`알림 토글 시작 - 방송: "${broadcast.title}", ID: ${broadcastId}, 현재 상태: ${broadcast.isNotificationSet}`)
 
     if (broadcast.isNotificationSet) {
-      // 🔥 구독 취소
+      // 구독 취소
       await unsubscribeBroadcast(userParam, broadcastId)
 
       // UI 즉시 업데이트
@@ -742,11 +742,11 @@ const toggleNotification = async (broadcast) => {
       // 로컬 스토리지에서 제거
       removeLocalNotification(userParam, broadcastId)
 
-      console.log('✅ 구독 취소 완료')
+      console.log('구독 취소 완료')
       alert('알림 구독이 취소되었습니다')
 
     } else {
-      // 🔥 구독 설정
+      // 구독 설정
       await subscribeBroadcastStart(userParam, broadcastId)
 
       // UI 즉시 업데이트
@@ -755,14 +755,14 @@ const toggleNotification = async (broadcast) => {
       // 로컬 스토리지에 저장
       saveLocalNotification(userParam, broadcastId)
 
-      console.log('✅ 구독 설정 완료')
+      console.log('구독 설정 완료')
       alert('방송 시작 알림을 설정했습니다!')
     }
 
   } catch (error) {
     console.error('알림 설정 에러:', error)
 
-    // 🔥 에러 발생 시 원래 상태로 복원
+    // 에러 발생 시 원래 상태로 복원
     broadcast.isNotificationSet = !broadcast.isNotificationSet
 
     // 에러 처리 로직...

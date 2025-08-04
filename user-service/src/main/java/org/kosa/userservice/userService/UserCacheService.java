@@ -25,14 +25,13 @@ public class UserCacheService {
     /**
      * 사용자 세션 정보를 Redis에 저장
      */
-
     public void cacheUserSession(String userId) {
         try {
-            log.info("1️⃣ 캐시 저장 - 사용자 조회 시작: userId={}", userId);
+            log.info("캐시 저장 - 사용자 조회 시작: userId={}", userId);
 
             Optional<UserDto> userOpt = userService.getMemberDetail(userId);
 
-            log.info("2️⃣ 사용자 정보 가져오기 완료: userId={}, 존재 여부={}", userId, userOpt.isPresent());
+            log.info("사용자 정보 가져오기 완료: userId={}, 존재 여부={}", userId, userOpt.isPresent());
 
             if (userOpt.isPresent()) {
                 UserDto user = userOpt.get();
@@ -52,15 +51,14 @@ public class UserCacheService {
                 String key = USER_SESSION_PREFIX + userId;
                 redisTemplate.opsForValue().set(key, sessionJson, Duration.ofSeconds(SESSION_TTL));
 
-                log.info("3️⃣ 사용자 세션 캐시 저장 완료: userId={}", userId);
+                log.info("사용자 세션 캐시 저장 완료: userId={}", userId);
             } else {
-                log.warn("⚠️ 사용자 정보가 없습니다: userId={}", userId);
+                log.warn("사용자 정보가 없습니다: userId={}", userId);
             }
         } catch (Exception e) {
-            log.error("❌ 사용자 세션 캐시 저장 실패: userId={}, error={}", userId, e.getMessage(), e);
+            log.error("사용자 세션 캐시 저장 실패: userId={}, error={}", userId, e.getMessage(), e);
         }
     }
-
 
     /**
      * Redis에서 사용자 세션 정보 조회
@@ -71,17 +69,17 @@ public class UserCacheService {
             String sessionJson = (String) redisTemplate.opsForValue().get(key);
 
             if (sessionJson != null) {
-                log.debug("✅ Redis에서 사용자 세션 조회 성공: userId={}", userId);
+                log.debug("Redis에서 사용자 세션 조회 성공: userId={}", userId);
 
                 // 간단한 JSON 파싱
                 UserSessionDto sessionDto = parseJsonToUserSession(sessionJson);
                 return Optional.ofNullable(sessionDto);
             } else {
-                log.debug("⚠️ Redis에 사용자 세션이 없음: userId={}", userId);
+                log.debug("Redis에 사용자 세션이 없음: userId={}", userId);
                 return Optional.empty();
             }
         } catch (Exception e) {
-            log.error("❌ Redis 사용자 세션 조회 실패: userId={}, error={}", userId, e.getMessage());
+            log.error("Redis 사용자 세션 조회 실패: userId={}, error={}", userId, e.getMessage());
             return Optional.empty();
         }
     }
@@ -111,6 +109,7 @@ public class UserCacheService {
             return null;
         }
     }
+
     /**
      * 사용자 세션 정보 조회 (캐시 미스 시 DB 조회 후 캐시 저장)
      */
@@ -161,9 +160,9 @@ public class UserCacheService {
         try {
             String key = USER_SESSION_PREFIX + userId;
             redisTemplate.delete(key);
-            log.info("✅ 사용자 세션 캐시 삭제 완료: userId={}", userId);
+            log.info("사용자 세션 캐시 삭제 완료: userId={}", userId);
         } catch (Exception e) {
-            log.error("❌ 사용자 세션 캐시 삭제 실패: userId={}, error={}", userId, e.getMessage());
+            log.error("사용자 세션 캐시 삭제 실패: userId={}, error={}", userId, e.getMessage());
         }
     }
 
@@ -174,9 +173,9 @@ public class UserCacheService {
         try {
             removeUserSession(userId);
             cacheUserSession(userId);
-            log.info("✅ 사용자 세션 캐시 갱신 완료: userId={}", userId);
+            log.info("사용자 세션 캐시 갱신 완료: userId={}", userId);
         } catch (Exception e) {
-            log.error("❌ 사용자 세션 캐시 갱신 실패: userId={}, error={}", userId, e.getMessage());
+            log.error("사용자 세션 캐시 갱신 실패: userId={}, error={}", userId, e.getMessage());
         }
     }
 

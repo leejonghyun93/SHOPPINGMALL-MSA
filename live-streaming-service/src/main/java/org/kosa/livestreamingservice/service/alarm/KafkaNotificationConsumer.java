@@ -48,7 +48,7 @@ public class KafkaNotificationConsumer {
             // 3. 발송 완료 처리
             markNotificationAsSent(message.getNotificationId());
 
-            // 🆕 4. 실시간 WebSocket 알림 전송
+            // 4. 실시간 WebSocket 알림 전송
             sendRealTimeNotification(message);
 
             log.info("알림 처리 완료: notificationId={}, email={}",
@@ -132,7 +132,7 @@ public class KafkaNotificationConsumer {
 
 
     /**
-     * 🆕 실시간 WebSocket 알림 전송
+     * 실시간 WebSocket 알림 전송
      */
     private void sendRealTimeNotification(NotificationMessageDto message) {
         try {
@@ -163,7 +163,7 @@ public class KafkaNotificationConsumer {
         }
     }
     /**
-     * 🆕 Entity를 ResponseDto로 변환 (추가된 메서드)
+     * Entity를 ResponseDto로 변환 (추가된 메서드)
      */
     private NotificationResponseDto convertToResponseDto(LiveBroadcastNotification notification) {
         return NotificationResponseDto.builder()

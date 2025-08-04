@@ -19,7 +19,7 @@ public class ProductImageDto {
     private LocalDateTime createdDate;
     private LocalDateTime updatedDate;
 
-    // 🔥 정적 변수 제거하고 동적으로 처리
+    //  정적 변수 제거하고 동적으로 처리
     public static ProductImageDto from(ProductImage entity) {
         ProductImageDto dto = new ProductImageDto();
         dto.setImageId(entity.getImageId());
@@ -36,7 +36,7 @@ public class ProductImageDto {
         return dto;
     }
 
-    // 🔥 상대 경로만 저장 (baseUrl은 서비스에서 주입)
+    //  상대 경로만 저장 (baseUrl은 서비스에서 주입)
     private static String buildCompleteImageUrl(String imageUrl, String fileName) {
         // 이미 완전한 URL인 경우
         if (imageUrl != null && imageUrl.startsWith("http")) {

@@ -29,13 +29,13 @@ public class OrderWithdrawalService {
         String userId = event.getUserId();
 
         try {
-            log.info("📦 사용자 탈퇴 주문 처리 시작: userId={}", userId);
+            log.info("사용자 탈퇴 주문 처리 시작: userId={}", userId);
 
             List<OrderDTO> activeOrders = orderService.getActiveUserOrders(userId);
-            log.info("📊 활성 주문 수: {}", activeOrders.size());
+            log.info("활성 주문 수: {}", activeOrders.size());
 
             if (activeOrders.isEmpty()) {
-                log.info("📭 처리할 활성 주문이 없습니다: userId={}", userId);
+                log.info(" 처리할 활성 주문이 없습니다: userId={}", userId);
                 return;
             }
 
@@ -106,7 +106,7 @@ public class OrderWithdrawalService {
     private void processPaymentCompletedOrders(List<OrderDTO> orders, String userId) {
         if (orders == null || orders.isEmpty()) return;
 
-        log.info("💰 결제 완료 주문 처리: {}건", orders.size());
+        log.info("결제 완료 주문 처리: {}건", orders.size());
 
         for (OrderDTO order : orders) {
             try {
@@ -118,11 +118,11 @@ public class OrderWithdrawalService {
                         "회원탈퇴로 인한 자동 환불"
                 );
 
-                log.info("✅ 결제 완료 주문 취소 및 환불: orderId={}, amount={}",
+                log.info(" 결제 완료 주문 취소 및 환불: orderId={}, amount={}",
                         order.getOrderId(), order.getTotalPrice());
 
             } catch (Exception e) {
-                log.error("❌ 결제 완료 주문 처리 실패: orderId={}, error={}",
+                log.error(" 결제 완료 주문 처리 실패: orderId={}, error={}",
                         order.getOrderId(), e.getMessage());
             }
         }
@@ -131,7 +131,7 @@ public class OrderWithdrawalService {
     private void processShippingOrders(List<OrderDTO> orders, String userId) {
         if (orders == null || orders.isEmpty()) return;
 
-        log.info("🚚 배송 중 주문 처리: {}건 (고객센터 알림)", orders.size());
+        log.info(" 배송 중 주문 처리: {}건 (고객센터 알림)", orders.size());
 
         for (OrderDTO order : orders) {
             try {
@@ -143,10 +143,10 @@ public class OrderWithdrawalService {
                                 order.getOrderId(), userId, LocalDateTime.now())
                 );
 
-                log.info("📞 배송 중 주문 고객센터 알림: orderId={}", order.getOrderId());
+                log.info(" 배송 중 주문 고객센터 알림: orderId={}", order.getOrderId());
 
             } catch (Exception e) {
-                log.error("❌ 배송 중 주문 처리 실패: orderId={}, error={}",
+                log.error(" 배송 중 주문 처리 실패: orderId={}, error={}",
                         order.getOrderId(), e.getMessage());
             }
         }
@@ -155,16 +155,16 @@ public class OrderWithdrawalService {
     private void processDeliveredOrders(List<OrderDTO> orders, String userId) {
         if (orders == null || orders.isEmpty()) return;
 
-        log.info("📦 배송 완료 주문 처리: {}건 (개인정보 마스킹)", orders.size());
+        log.info("배송 완료 주문 처리: {}건 (개인정보 마스킹)", orders.size());
 
         for (OrderDTO order : orders) {
             try {
                 orderService.updateOrderStatus(order.getOrderId(), "DELIVERED_MEMBER_WITHDRAWN");
 
-                log.info("🔒 배송 완료 주문 개인정보 마스킹: orderId={}", order.getOrderId());
+                log.info("배송 완료 주문 개인정보 마스킹: orderId={}", order.getOrderId());
 
             } catch (Exception e) {
-                log.error("❌ 배송 완료 주문 처리 실패: orderId={}, error={}",
+                log.error("배송 완료 주문 처리 실패: orderId={}, error={}",
                         order.getOrderId(), e.getMessage());
             }
         }
@@ -172,12 +172,12 @@ public class OrderWithdrawalService {
 
     private void processPersonalDataMasking(String userId, UserWithdrawalEvent event) {
         try {
-            log.info("🔒 개인정보 마스킹 처리 시작: userId={}", userId);
+            log.info("개인정보 마스킹 처리 시작: userId={}", userId);
 
-            log.info("🔒 개인정보 마스킹 처리 완료: userId={}", userId);
+            log.info("개인정보 마스킹 처리 완료: userId={}", userId);
 
         } catch (Exception e) {
-            log.error("❌ 개인정보 마스킹 처리 실패: userId={}, error={}", userId, e.getMessage());
+            log.error("개인정보 마스킹 처리 실패: userId={}, error={}", userId, e.getMessage());
             notificationService.notifyDataProtectionOfficer(
                     "개인정보 마스킹 실패",
                     String.format("사용자 %s의 탈퇴 처리 중 개인정보 마스킹 실패: %s", userId, e.getMessage())
@@ -212,7 +212,7 @@ public class OrderWithdrawalService {
             }
 
         } catch (Exception e) {
-            log.error("❌ 고객센터 알림 처리 실패: error={}", e.getMessage());
+            log.error("고객센터 알림 처리 실패: error={}", e.getMessage());
         }
     }
 }

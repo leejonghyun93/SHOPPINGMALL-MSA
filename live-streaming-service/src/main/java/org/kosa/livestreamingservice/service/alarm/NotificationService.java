@@ -268,11 +268,11 @@ public class NotificationService {
     }
 
     // ================================
-    // 🔥 헤더용 메서드들 (추가)
+    //  헤더용 메서드들 (추가)
     // ================================
 
     /**
-     * 🔥 읽지 않은 알림 개수 조회 (헤더용)
+     * 읽지 않은 알림 개수 조회 (헤더용)
      */
     @Transactional(readOnly = true)
     public long getUnreadCountByUserId(String userId) {
@@ -280,7 +280,7 @@ public class NotificationService {
     }
 
     /**
-     * 🔥 최근 알림 목록 조회 (헤더용)
+     * 최근 알림 목록 조회 (헤더용)
      */
     @Transactional(readOnly = true)
     public List<Map<String, Object>> getRecentNotificationsByUserId(String userId, int limit) {
@@ -302,21 +302,21 @@ public class NotificationService {
     }
 
     /**
-     * 🔥 모든 알림 읽음 처리 (헤더용)
+     * 모든 알림 읽음 처리 (헤더용)
      */
     public int markAllAsReadByUserId(String userId) {
         return markAllAsRead(userId); // 기존 메서드 재사용
     }
 
     /**
-     * 🔥 특정 알림 읽음 처리 (헤더용)
+     *  특정 알림 읽음 처리 (헤더용)
      */
     public boolean markAsReadByNotificationId(Long notificationId, String userId) {
         return markAsRead(notificationId, userId); // 기존 메서드 재사용
     }
 
     /**
-     * 🔥 Entity를 헤더용 Map으로 변환
+     *  Entity를 헤더용 Map으로 변환
      */
     private Map<String, Object> convertToHeaderMap(LiveBroadcastNotification notification) {
         Map<String, Object> map = new HashMap<>();

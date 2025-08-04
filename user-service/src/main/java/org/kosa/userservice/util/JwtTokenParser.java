@@ -26,7 +26,7 @@ public class JwtTokenParser {
     }
 
     /**
-     * 🔥 순수 JWT 방식: 토큰에서 사용자 ID 추출
+     * 순수 JWT 방식: 토큰에서 사용자 ID 추출
      * Auth-Service 호출이 불가능한 경우에만 사용
      */
     public String extractUserIdFromToken(String token) {

@@ -2,7 +2,7 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="org.kosa.userservice.mapper.ProductQnaMapper">
 
-    <!-- 🔥 재사용 가능한 컬럼 정의 -->
+    <!--  재사용 가능한 컬럼 정의 -->
     <sql id="qnaColumns">
         QNA_ID as qnaId,
         PRODUCT_ID as productId,
@@ -78,7 +78,7 @@
         </choose>
     </sql>
 
-    <!-- 🔥 회원 이름 조회 -->
+    <!-- 회원 이름 조회 -->
     <select id="selectMemberNameByUserId" resultType="string">
         SELECT NAME
         FROM tb_member
@@ -87,7 +87,7 @@
           AND SECESSION_YN = 'N'
     </select>
 
-    <!-- 🔥 구매 인증 확인 -->
+    <!-- 구매 인증 확인 -->
     <select id="checkPurchaseVerification" resultType="int">
         SELECT COUNT(*)
         FROM tb_order o
@@ -136,7 +136,7 @@
         WHERE PRODUCT_ID = #{productId}
     </select>
 
-    <!-- 🔥 Q&A 상세 조회 (답변 정보 포함) -->
+    <!-- Q&A 상세 조회 (답변 정보 포함) -->
     <select id="selectQnaById" resultType="org.kosa.userservice.dto.board.ProductQnaDto">
         SELECT
             q.QNA_ID as qnaId,
@@ -162,7 +162,7 @@
         WHERE q.QNA_ID = #{qnaId}
     </select>
 
-    <!-- 🔥 Q&A 등록 -->
+    <!-- Q&A 등록 -->
     <insert id="insertQna" parameterType="org.kosa.userservice.dto.board.ProductQnaDto">
         INSERT INTO tb_product_qna (
             QNA_ID,
@@ -197,7 +197,7 @@
                  )
     </insert>
 
-    <!-- 🔥 Q&A 수정 -->
+    <!-- Q&A 수정 -->
     <update id="updateQna" parameterType="org.kosa.userservice.dto.board.ProductQnaDto">
         UPDATE tb_product_qna
         SET
@@ -209,7 +209,7 @@
         WHERE QNA_ID = #{qnaId}
     </update>
 
-    <!-- 🔥 Q&A 삭제 -->
+    <!-- Q&A 삭제 -->
     <delete id="deleteQna">
         DELETE FROM tb_product_qna
         WHERE QNA_ID = #{qnaId}
@@ -222,7 +222,7 @@
         WHERE QNA_ID = #{qnaId}
     </update>
 
-    <!-- 🔥 특정 Q&A의 답변 목록 조회 -->
+    <!-- 특정 Q&A의 답변 목록 조회 -->
     <select id="selectAnswersByQnaId" resultType="org.kosa.userservice.dto.board.ProductQnaAnswerDto">
         SELECT
         <include refid="answerColumns"/>
@@ -232,7 +232,7 @@
         ORDER BY CREATED_DATE ASC
     </select>
 
-    <!-- 🔥 답변 등록 -->
+    <!-- 답변 등록 -->
     <insert id="insertAnswer" parameterType="org.kosa.userservice.dto.board.ProductQnaAnswerDto">
         INSERT INTO tb_product_qna_answer (
             ANSWER_ID,
@@ -257,7 +257,7 @@
                  )
     </insert>
 
-    <!-- 🔥 답변 수정 -->
+    <!-- 답변 수정 -->
     <update id="updateAnswer" parameterType="org.kosa.userservice.dto.board.ProductQnaAnswerDto">
         UPDATE tb_product_qna_answer
         SET
@@ -266,13 +266,13 @@
         WHERE ANSWER_ID = #{answerId}
     </update>
 
-    <!-- 🔥 답변 삭제 -->
+    <!-- 답변 삭제 -->
     <delete id="deleteAnswer">
         DELETE FROM tb_product_qna_answer
         WHERE ANSWER_ID = #{answerId}
     </delete>
 
-    <!-- 🔥 Q&A 상태 업데이트 -->
+    <!-- Q&A 상태 업데이트 -->
     <update id="updateQnaStatus">
         UPDATE tb_product_qna
         SET
@@ -282,7 +282,7 @@
         WHERE QNA_ID = #{qnaId}
     </update>
 
-    <!-- 🔥 사용자별 Q&A 조회 (마이페이지용) -->
+    <!-- 사용자별 Q&A 조회 (마이페이지용) -->
     <select id="selectQnasByUserId" resultType="org.kosa.userservice.dto.board.ProductQnaDto">
         SELECT
         <include refid="qnaColumns"/>

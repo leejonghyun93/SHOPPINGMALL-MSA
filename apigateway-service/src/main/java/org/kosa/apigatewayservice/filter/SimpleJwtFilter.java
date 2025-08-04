@@ -31,7 +31,7 @@ public class SimpleJwtFilter implements WebFilter {
 
     private SecretKey getSigningKey() {
         if (jwtSecret.length() < 32) {
-            log.warn("⚠️ JWT secret key가 너무 짧습니다. 최소 32바이트 필요");
+            log.warn("JWT secret key가 너무 짧습니다. 최소 32바이트 필요");
             jwtSecret = "rrYd2zPDUkx7BUhgDsOTxHCbsBkeTgE/uoARWYSqBjU=";
         }
         return Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
@@ -42,17 +42,17 @@ public class SimpleJwtFilter implements WebFilter {
         String path = exchange.getRequest().getPath().value();
         String method = exchange.getRequest().getMethod().name();
 
-        log.debug("🔍 JWT Filter - Path: {}, Method: {}", path, method);
+        log.debug("JWT Filter - Path: {}, Method: {}", path, method);
 
         // CORS OPTIONS 요청은 무조건 통과
         if (HttpMethod.OPTIONS.equals(exchange.getRequest().getMethod())) {
-            log.debug("✅ CORS OPTIONS 요청 - 무조건 통과: {}", path);
+            log.debug(" CORS OPTIONS 요청 - 무조건 통과: {}", path);
             return chain.filter(exchange);
         }
 
         // 완전 공개 경로는 JWT 검증 스킵
         if (isPublicPath(path, method)) {
-            log.debug("✅ 공개 경로로 인식, JWT 검증 스킵: {} ({})", path, method);
+            log.debug("공개 경로로 인식, JWT 검증 스킵: {} ({})", path, method);
             return chain.filter(exchange);
         }
 
@@ -61,15 +61,15 @@ public class SimpleJwtFilter implements WebFilter {
         // Authorization 헤더가 없는 경우
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             if (isAuthRequiredPath(path, method)) {
-                log.warn("❌ 인증 필요 경로인데 토큰 없음: {} ({})", path, method);
+                log.warn("인증 필요 경로인데 토큰 없음: {} ({})", path, method);
                 return handleUnauthorized(exchange, "Authorization header missing");
             }
-            log.debug("⚠️ 토큰 없지만 선택적 인증 경로로 통과: {}", path);
+            log.debug(" 토큰 없지만 선택적 인증 경로로 통과: {}", path);
             return chain.filter(exchange);
         }
 
         String token = authHeader.substring(7);
-        log.debug("🔍 토큰 추출 완료. 길이: {}", token.length());
+        log.debug("토큰 추출 완료. 길이: {}", token.length());
 
         try {
             // JWT 토큰 파싱 및 검증
@@ -79,20 +79,20 @@ public class SimpleJwtFilter implements WebFilter {
                     .parseClaimsJws(token)
                     .getBody();
 
-            log.debug("✅ JWT 토큰 파싱 성공");
+            log.debug("JWT 토큰 파싱 성공");
 
             String userId = extractUserId(claims);
             String role = claims.get("role", String.class);
 
             if (userId == null || userId.trim().isEmpty()) {
-                log.error("❌ 사용자 식별자를 찾을 수 없음 - 토큰 거부");
+                log.error("사용자 식별자를 찾을 수 없음 - 토큰 거부");
                 if (isAuthRequiredPath(path, method)) {
                     return handleUnauthorized(exchange, "사용자 식별자를 찾을 수 없습니다");
                 }
                 return chain.filter(exchange);
             }
 
-            log.info("✅ JWT 토큰 검증 성공 - UserId: '{}', Role: '{}'", userId, role);
+            log.info("JWT 토큰 검증 성공 - UserId: '{}', Role: '{}'", userId, role);
 
             // Spring Security Context에 인증 정보 설정
             List<SimpleGrantedAuthority> authorities = Collections.singletonList(
@@ -102,21 +102,21 @@ public class SimpleJwtFilter implements WebFilter {
             UsernamePasswordAuthenticationToken authToken =
                     new UsernamePasswordAuthenticationToken(userId, null, authorities);
 
-            log.debug("✅ JWT 인증 성공 - 요청 전달 (토큰 그대로 전달): {}", path);
+            log.debug("JWT 인증 성공 - 요청 전달 (토큰 그대로 전달): {}", path);
 
             // 원본 요청 그대로 전달 (Authorization 헤더 유지)
             return chain.filter(exchange)
                     .contextWrite(ReactiveSecurityContextHolder.withAuthentication(authToken));
 
         } catch (Exception e) {
-            log.error("❌ JWT 파싱 실패: {}", e.getMessage());
+            log.error("JWT 파싱 실패: {}", e.getMessage());
 
             if (isAuthRequiredPath(path, method)) {
-                log.error("❌ 인증 필요 경로인데 토큰 유효하지 않음: {} ({})", path, method);
+                log.error("인증 필요 경로인데 토큰 유효하지 않음: {} ({})", path, method);
                 return handleUnauthorized(exchange, "Invalid JWT token: " + e.getMessage());
             }
 
-            log.debug("⚠️ 토큰 무효하지만 선택적 인증 경로로 통과: {}", path);
+            log.debug("토큰 무효하지만 선택적 인증 경로로 통과: {}", path);
             return chain.filter(exchange);
         }
     }
@@ -148,7 +148,7 @@ public class SimpleJwtFilter implements WebFilter {
     }
 
     private boolean isPublicPath(String path, String method) {
-        // 🔥 개발/운영 환경 공통 공개 경로
+        // 개발/운영 환경 공통 공개 경로
 
         // 인증 관련
         if (path.startsWith("/auth/") || path.equals("/auth")) {
@@ -307,7 +307,7 @@ public class SimpleJwtFilter implements WebFilter {
     }
 
     private Mono<Void> handleUnauthorized(ServerWebExchange exchange, String message) {
-        log.warn("🚫 401 응답 반환: {}", message);
+        log.warn(" 401 응답 반환: {}", message);
 
         exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
         exchange.getResponse().getHeaders().add("Content-Type", "application/json");

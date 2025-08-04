@@ -13,7 +13,7 @@ public interface BroadcastViewerRepository extends JpaRepository<BroadcastEntity
 
     /**
      * 방송의 상품 목록과 상세 정보 조회
-     * 🔥 수정: 컬럼명을 대문자로 변경, PRODUCT_STATUS를 '판매중'으로 변경
+     *  수정: 컬럼명을 대문자로 변경, PRODUCT_STATUS를 '판매중'으로 변경
      */
     @Query(value = "SELECT " +
             "p.PRODUCT_ID, " +
@@ -42,7 +42,7 @@ public interface BroadcastViewerRepository extends JpaRepository<BroadcastEntity
 
     /**
      * 방송의 메인 상품 조회 (featured 상품)
-     * 🔥 수정: 컬럼명을 대문자로 변경, PRODUCT_STATUS를 '판매중'으로 변경
+     *  수정: 컬럼명을 대문자로 변경, PRODUCT_STATUS를 '판매중'으로 변경
      */
     @Query(value = "SELECT " +
             "p.PRODUCT_ID, " +
@@ -72,7 +72,7 @@ public interface BroadcastViewerRepository extends JpaRepository<BroadcastEntity
 
     /**
      * 방송의 상품 개수 조회
-     * 🔥 수정: 컬럼명을 대문자로 변경, PRODUCT_STATUS를 '판매중'으로 변경
+     * 수정: 컬럼명을 대문자로 변경, PRODUCT_STATUS를 '판매중'으로 변경
      */
     @Query(value = "SELECT COUNT(*) FROM tb_broadcast_products bp " +
             "JOIN tb_product p ON bp.product_id = p.PRODUCT_ID " +
@@ -83,7 +83,7 @@ public interface BroadcastViewerRepository extends JpaRepository<BroadcastEntity
     Integer countBroadcastProducts(@Param("broadcastId") Long broadcastId);
 
     /**
-     * 🔥 새로 추가: 디버깅용 - 모든 상품 상태 확인
+     * 새로 추가: 디버깅용 - 모든 상품 상태 확인
      */
     @Query(value = "SELECT bp.product_id, p.NAME, p.PRODUCT_STATUS, p.display_yn " +
             "FROM tb_broadcast_products bp " +
@@ -94,7 +94,7 @@ public interface BroadcastViewerRepository extends JpaRepository<BroadcastEntity
     List<Object[]> debugBroadcastProducts(@Param("broadcastId") Long broadcastId);
 
     /**
-     * 🔥 새로 추가: 기본 연결 개수만 확인
+     *  새로 추가: 기본 연결 개수만 확인
      */
     @Query(value = "SELECT COUNT(*) FROM tb_broadcast_products WHERE broadcast_id = :broadcastId",
             nativeQuery = true)

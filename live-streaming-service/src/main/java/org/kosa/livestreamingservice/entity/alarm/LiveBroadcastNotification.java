@@ -56,6 +56,4 @@ public class LiveBroadcastNotification {
     @Column(name = "read_at")
     private LocalDateTime readAt;
 
-    // 🔧 LiveBroadcast 연관관계 제거 (독립적으로 동작)
-    // broadcastId로만 참조하여 마이크로서비스 간 결합도 낮춤
 }

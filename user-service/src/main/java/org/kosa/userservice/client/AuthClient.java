@@ -27,7 +27,7 @@ public class AuthClient {
      */
     public AuthResponse validateToken(String token) {
         try {
-            log.debug("🔍 Auth-Service 토큰 검증 요청: {}", authServiceUrl);
+            log.debug("Auth-Service 토큰 검증 요청: {}", authServiceUrl);
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);

@@ -17,7 +17,7 @@ export const userState = reactive({
     phone: null,
 });
 
-// 🔄 두 상태 시스템 동기화 함수
+// 두 상태 시스템 동기화 함수
 const syncUserStates = () => {
     // userStore -> userState 동기화
     userState.userId = userState.id;
@@ -86,11 +86,11 @@ export function setUserFromToken(token) {
             userState.phone = payload.phone;
         }
 
-        // 🔄 동기화 실행
+        // 동기화 실행
         syncUserStates();
         return true;
     } catch (e) {
-        console.error('❌ 토큰 파싱 실패:', e);
+        console.error('토큰 파싱 실패:', e);
         resetUser();
         return false;
     }
@@ -194,7 +194,7 @@ export function updateUserFromApi(userData) {
 
     userState.role = userData.role || userState.role || 'USER';
 
-    // 🔄 동기화 실행
+    // 동기화 실행
     syncUserStates();
     return true;
 }
@@ -244,7 +244,7 @@ export function restoreNameAfterPayment() {
         localStorage.removeItem('payment_user_phone');
     }
 
-    // 🔄 동기화 실행
+    // 동기화 실행
     syncUserStates();
     return true;
 }
@@ -267,7 +267,7 @@ export function setSocialLogin(token, provider, socialName = null, socialEmail =
     });
 }
 
-// 🆕 채팅용 사용자 정보 업데이트 함수
+// 채팅용 사용자 정보 업데이트 함수
 export function updateChatUserInfo(nickname, userId) {
     userState.currentUser = nickname;
     userState.userId = userId;
@@ -288,12 +288,12 @@ export function updateChatUserInfo(nickname, userId) {
     });
 }
 
-// 🆕 강제 동기화 함수 (디버깅용)
+// 강제 동기화 함수 (디버깅용)
 export function forceSyncUserStates() {
     syncUserStates();
 }
 
-// 🆕 사용자 상태 확인 함수 (디버깅용)
+// 사용자 상태 확인 함수 (디버깅용)
 export function checkUserState() {
     console.log('🔍 현재 사용자 상태:', {
         // 새로운 통합 상태
@@ -319,7 +319,7 @@ export function checkUserState() {
     });
 }
 
-// 🆕 하위 호환성을 위한 user 객체 (Header.vue에서 사용)
+// 하위 호환성을 위한 user 객체 (Header.vue에서 사용)
 export const user = userState;
 
 // 앱 시작 시 자동으로 사용자 정보 초기화

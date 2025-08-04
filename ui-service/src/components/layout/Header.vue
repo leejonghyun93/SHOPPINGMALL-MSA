@@ -74,7 +74,7 @@
         </div>
       </router-link>
 
-      <!-- 🔥 안전한 알림 아이콘 (이메일 시스템에 영향 X) -->
+      <!-- 안전한 알림 아이콘 (이메일 시스템에 영향 X) -->
       <div v-if="computedUser.id"
            class="notification-container mx-2"
            @mouseenter="showNotificationDropdown"

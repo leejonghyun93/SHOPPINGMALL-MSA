@@ -39,7 +39,7 @@ public class ChatSessionManager {
         // 참여자 수 브로드캐스트
         broadcastCountToTopic(broadcastId);
 
-        log.info("➕ 참여자 등록: ID={}, 방송ID={}, 세션ID={}", id, broadcastId, sessionId);
+        log.info("참여자 등록: ID={}, 방송ID={}, 세션ID={}", id, broadcastId, sessionId);
     }
 
     // 세션 제거 시 (sessionId 기준)
@@ -53,9 +53,9 @@ public class ChatSessionManager {
             // 참여자 SET에서 제거
             redisTemplate.opsForSet().remove(getKey(broadcastId), id);
             broadcastCountToTopic(broadcastId);
-            log.info("🧹 세션 제거: ID={}, 방송ID={}, 세션ID={}", id, broadcastId, sessionId);
+            log.info("세션 제거: ID={}, 방송ID={}, 세션ID={}", id, broadcastId, sessionId);
         } else {
-            log.warn("❌ 세션 정보 누락: sessionId={}", sessionId);
+            log.warn("세션 정보 누락: sessionId={}", sessionId);
         }
 
         // 매핑 데이터 정리
@@ -67,7 +67,7 @@ public class ChatSessionManager {
     public void removeSessionManually(Long broadcastId, String id) {
         redisTemplate.opsForSet().remove(getKey(broadcastId), id);
         broadcastCountToTopic(broadcastId);
-        log.info("🧹 수동 세션 제거 요청: ID={}, 방송ID={}", id, broadcastId);
+        log.info("수동 세션 제거 요청: ID={}, 방송ID={}", id, broadcastId);
     }
 
     // 현재 참여자 수 조회
@@ -75,14 +75,6 @@ public class ChatSessionManager {
         Long count = redisTemplate.opsForSet().size(getKey(broadcastId));
         return count != null ? count.intValue() : 0;
     }
-
-    // 참여자 수 STOMP로 전체 브로드캐스트
-//    public void broadcastCountToTopic(Long broadcastId) {
-//        int count = getParticipantCount(broadcastId);
-//        messagingTemplate.convertAndSend("/topic/participants/" + broadcastId, count);
-//    }
-
-//    public void banUserFromChat(Long broadcastId, String userIdOrUuid, int duration)
 
     // 참여자 수 STOMP로 전체 브로드캐스트 + 메트릭 업데이트
     public void broadcastCountToTopic(Long broadcastId) {
@@ -100,6 +92,6 @@ public class ChatSessionManager {
             log.warn("메트릭 업데이트 실패: {}", e.getMessage());
         }
 
-        log.debug("📊 참여자 수 브로드캐스트: 방송ID={}, 참여자수={}", broadcastId, count);
+        log.debug("참여자 수 브로드캐스트: 방송ID={}, 참여자수={}", broadcastId, count);
     }
 }

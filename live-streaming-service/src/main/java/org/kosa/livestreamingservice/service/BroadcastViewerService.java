@@ -33,10 +33,10 @@ public class BroadcastViewerService {
         String broadcasterName = getBroadcasterName(broadcast.getBroadcasterId());
         String categoryName = getCategoryName(broadcast.getCategoryId());
 
-        log.info("🎥 방송 상세 조회 - broadcastId: {}, streamUrl: {}",
+        log.info("방송 상세 조회 - broadcastId: {}, streamUrl: {}",
                 broadcastId, broadcast.getStreamUrl());
 
-        return ViewerResponse.builder() // 🔥 BroadcastDto. 제거
+        return ViewerResponse.builder() //  BroadcastDto. 제거
                 .broadcastId(broadcast.getBroadcastId())
                 .broadcasterId(broadcast.getBroadcasterId())
                 .broadcasterName(broadcasterName)

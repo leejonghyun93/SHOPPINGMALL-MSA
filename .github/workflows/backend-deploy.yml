@@ -177,7 +177,7 @@ jobs:
           # JWT 설정
           PROD_JWT_SECRET_KEY=${{ secrets.PROD_JWT_SECRET_KEY }}
           
-          # ⭐ OAuth 소셜 로그인 설정 (추가됨)
+          # OAuth 소셜 로그인 설정 
           PROD_KAKAO_CLIENT_ID=${{ secrets.PROD_KAKAO_CLIENT_ID }}
           PROD_KAKAO_CLIENT_SECRET=${{ secrets.PROD_KAKAO_CLIENT_SECRET }}
           PROD_NAVER_CLIENT_ID=${{ secrets.PROD_NAVER_CLIENT_ID }}

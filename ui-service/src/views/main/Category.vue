@@ -467,7 +467,7 @@ const fetchProducts = async () => {
       return
     }
 
-    // 🔥 useSmartImages를 사용한 간단한 이미지 처리
+    // useSmartImages를 사용한 간단한 이미지 처리
     const convertedProducts = productData.map((product, index) => {
       return {
         id: product.productId || `product_${index}`,

@@ -25,7 +25,7 @@ public interface ProductRepository extends JpaRepository<Product, Integer> {
             Pageable pageable
     );
 
-    // ⭐ 전체 상품 조회 (카테고리 ALL용) - 이것이 바로 찾던 메서드!
+    // 전체 상품 조회 (카테고리 ALL용) - 이것이 바로 찾던 메서드!
     @Query(value = "SELECT * FROM tb_product WHERE PRODUCT_STATUS = '판매중' AND display_yn = 'Y' ORDER BY CREATED_DATE DESC", nativeQuery = true)
     List<Product> findAllActiveProducts(Pageable pageable);
 

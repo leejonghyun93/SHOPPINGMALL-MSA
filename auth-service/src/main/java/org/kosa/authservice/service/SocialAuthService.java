@@ -51,18 +51,18 @@ public class SocialAuthService {
      */
     @PostConstruct
     public void logConfiguration() {
-        log.info("🔧 소셜 로그인 설정 확인:");
-        log.info("  📁 User Service URL: {}", userServiceUrl);
-        log.info("  🟡 카카오 Client ID: {}", maskSensitiveData(kakaoClientId));
-        log.info("  🟡 카카오 Client Secret: {}", maskSensitiveData(kakaoClientSecret));
-        log.info("  🟡 카카오 Redirect URI: {}", kakaoRedirectUri);
-        log.info("  🟢 네이버 Client ID: {}", maskSensitiveData(naverClientId));
-        log.info("  🟢 네이버 Client Secret: {}", maskSensitiveData(naverClientSecret));
-        log.info("  🟢 네이버 Redirect URI: {}", naverRedirectUri);
+        log.info("소셜 로그인 설정 확인:");
+        log.info("  User Service URL: {}", userServiceUrl);
+        log.info("  카카오 Client ID: {}", maskSensitiveData(kakaoClientId));
+        log.info("  카카오 Client Secret: {}", maskSensitiveData(kakaoClientSecret));
+        log.info("  카카오 Redirect URI: {}", kakaoRedirectUri);
+        log.info("  네이버 Client ID: {}", maskSensitiveData(naverClientId));
+        log.info("  네이버 Client Secret: {}", maskSensitiveData(naverClientSecret));
+        log.info("  네이버 Redirect URI: {}", naverRedirectUri);
     }
 
     private String maskSensitiveData(String data) {
-        if (data == null || data.isEmpty()) return "❌ 설정되지 않음";
+        if (data == null || data.isEmpty()) return "설정되지 않음";
         if (data.length() <= 8) return data.substring(0, 2) + "***";
         return data.substring(0, 4) + "***" + data.substring(data.length() - 4);
     }
@@ -72,12 +72,12 @@ public class SocialAuthService {
      */
     public AuthResponse processSocialLogin(String code, String state) {
         try {
-            log.info("🔍 소셜 로그인 처리 시작 - code: {}, state: {}",
+            log.info("소셜 로그인 처리 시작 - code: {}, state: {}",
                     code != null ? code.substring(0, Math.min(code.length(), 10)) + "..." : null, state);
 
-            // 🔥 입력값 검증 강화
+            // 입력값 검증 강화
             if (code == null || code.trim().isEmpty()) {
-                log.error("❌ Authorization code가 null 또는 빈 값입니다");
+                log.error("Authorization code가 null 또는 빈 값입니다");
                 return AuthResponse.builder()
                         .success(false)
                         .message("인증 코드가 제공되지 않았습니다.")
@@ -85,41 +85,41 @@ public class SocialAuthService {
             }
 
             // 1. 카카오 로그인 시도
-            log.info("🟡 카카오 로그인 먼저 시도");
+            log.info("카카오 로그인 먼저 시도");
             try {
                 AuthResponse kakaoResult = processKakaoLogin(code);
                 if (kakaoResult.isSuccess()) {
-                    log.info("✅ 카카오 로그인 성공");
+                    log.info("카카오 로그인 성공");
                     return kakaoResult;
                 } else {
-                    log.warn("⚠️ 카카오 로그인 실패: {}", kakaoResult.getMessage());
+                    log.warn("카카오 로그인 실패: {}", kakaoResult.getMessage());
                 }
             } catch (Exception kakaoEx) {
-                log.error("💥 카카오 로그인 처리 중 예외 발생", kakaoEx);
+                log.error("카카오 로그인 처리 중 예외 발생", kakaoEx);
             }
 
             // 2. 네이버 로그인 시도
-            log.info("🟢 카카오 실패, 네이버 로그인 시도");
+            log.info("카카오 실패, 네이버 로그인 시도");
             try {
                 AuthResponse naverResult = processNaverLogin(code, state);
                 if (naverResult.isSuccess()) {
-                    log.info("✅ 네이버 로그인 성공");
+                    log.info("네이버 로그인 성공");
                     return naverResult;
                 } else {
-                    log.warn("⚠️ 네이버 로그인 실패: {}", naverResult.getMessage());
+                    log.warn("네이버 로그인 실패: {}", naverResult.getMessage());
                 }
             } catch (Exception naverEx) {
-                log.error("💥 네이버 로그인 처리 중 예외 발생", naverEx);
+                log.error("네이버 로그인 처리 중 예외 발생", naverEx);
             }
 
-            log.warn("⚠️ 모든 소셜 로그인 시도 실패");
+            log.warn("모든 소셜 로그인 시도 실패");
             return AuthResponse.builder()
                     .success(false)
                     .message("지원하지 않는 소셜 로그인이거나 인증에 실패했습니다.")
                     .build();
 
         } catch (Exception e) {
-            log.error("💥 소셜 로그인 처리 중 예외 발생", e);
+            log.error("소셜 로그인 처리 중 예외 발생", e);
             return AuthResponse.builder()
                     .success(false)
                     .message("소셜 로그인 처리 중 시스템 오류가 발생했습니다: " + e.getMessage())
@@ -132,11 +132,11 @@ public class SocialAuthService {
      */
     private AuthResponse processKakaoLogin(String code) {
         try {
-            log.info("🟡 카카오 로그인 처리 시작");
+            log.info("카카오 로그인 처리 시작");
 
             // 설정값 확인
             if (kakaoClientId == null || kakaoClientId.trim().isEmpty()) {
-                log.error("❌ 카카오 클라이언트 ID가 설정되지 않았습니다");
+                log.error("카카오 클라이언트 ID가 설정되지 않았습니다");
                 return AuthResponse.builder()
                         .success(false)
                         .message("카카오 로그인 설정이 올바르지 않습니다.")
@@ -146,7 +146,7 @@ public class SocialAuthService {
             // 1. Access Token 발급
             KakaoTokenResponse tokenResponse = getKakaoAccessToken(code);
             if (tokenResponse == null) {
-                log.warn("❌ 카카오 토큰 발급 실패 - tokenResponse is null");
+                log.warn("카카오 토큰 발급 실패 - tokenResponse is null");
                 return AuthResponse.builder()
                         .success(false)
                         .message("카카오 토큰 발급에 실패했습니다.")
@@ -154,19 +154,19 @@ public class SocialAuthService {
             }
 
             if (tokenResponse.getAccessToken() == null) {
-                log.warn("❌ 카카오 토큰 발급 실패 - access_token is null");
+                log.warn("카카오 토큰 발급 실패 - access_token is null");
                 return AuthResponse.builder()
                         .success(false)
                         .message("카카오 액세스 토큰을 받지 못했습니다.")
                         .build();
             }
 
-            log.info("✅ 카카오 토큰 발급 성공");
+            log.info("카카오 토큰 발급 성공");
 
             // 2. 사용자 정보 조회
             KakaoUserResponse userResponse = getKakaoUserInfo(tokenResponse.getAccessToken());
             if (userResponse == null) {
-                log.warn("❌ 카카오 사용자 정보 조회 실패 - userResponse is null");
+                log.warn("카카오 사용자 정보 조회 실패 - userResponse is null");
                 return AuthResponse.builder()
                         .success(false)
                         .message("카카오 사용자 정보 조회에 실패했습니다.")
@@ -174,14 +174,14 @@ public class SocialAuthService {
             }
 
             if (userResponse.getId() == null) {
-                log.warn("❌ 카카오 사용자 정보 조회 실패 - user id is null");
+                log.warn("카카오 사용자 정보 조회 실패 - user id is null");
                 return AuthResponse.builder()
                         .success(false)
                         .message("카카오 사용자 ID를 받지 못했습니다.")
                         .build();
             }
 
-            log.info("✅ 카카오 사용자 정보 조회 성공 - id: {}, email: {}, nickname: {}",
+            log.info("카카오 사용자 정보 조회 성공 - id: {}, email: {}, nickname: {}",
                     userResponse.getId(), userResponse.getEmail(), userResponse.getNickname());
 
             // 3. 소셜 사용자 정보 객체 생성
@@ -198,7 +198,7 @@ public class SocialAuthService {
             return processUserCreationOrUpdate(socialUser);
 
         } catch (Exception e) {
-            log.error("💥 카카오 로그인 처리 중 오류", e);
+            log.error("카카오 로그인 처리 중 오류", e);
             return AuthResponse.builder()
                     .success(false)
                     .message("카카오 로그인 처리 중 오류가 발생했습니다: " + e.getMessage())
@@ -211,31 +211,31 @@ public class SocialAuthService {
      */
     private AuthResponse processNaverLogin(String code, String state) {
         try {
-            log.info("🟢 네이버 로그인 처리 시작");
+            log.info("네이버 로그인 처리 시작");
 
             // 1. Access Token 발급
             NaverTokenResponse tokenResponse = getNaverAccessToken(code, state);
             if (tokenResponse == null || tokenResponse.getAccessToken() == null) {
-                log.warn("❌ 네이버 토큰 발급 실패");
+                log.warn("네이버 토큰 발급 실패");
                 return AuthResponse.builder()
                         .success(false)
                         .message("네이버 인증에 실패했습니다.")
                         .build();
             }
 
-            log.info("✅ 네이버 토큰 발급 성공");
+            log.info("네이버 토큰 발급 성공");
 
             // 2. 사용자 정보 조회
             NaverUserResponse userResponse = getNaverUserInfo(tokenResponse.getAccessToken());
             if (userResponse == null || userResponse.getId() == null) {
-                log.warn("❌ 네이버 사용자 정보 조회 실패");
+                log.warn("네이버 사용자 정보 조회 실패");
                 return AuthResponse.builder()
                         .success(false)
                         .message("네이버 사용자 정보 조회에 실패했습니다.")
                         .build();
             }
 
-            log.info("✅ 네이버 사용자 정보 조회 성공 - id: {}, email: {}, name: {}",
+            log.info("네이버 사용자 정보 조회 성공 - id: {}, email: {}, name: {}",
                     userResponse.getId(), userResponse.getEmail(), userResponse.getName());
 
             // 3. 소셜 사용자 정보 객체 생성
@@ -254,7 +254,7 @@ public class SocialAuthService {
             return processUserCreationOrUpdate(socialUser);
 
         } catch (Exception e) {
-            log.error("💥 네이버 로그인 처리 중 오류", e);
+            log.error("네이버 로그인 처리 중 오류", e);
             return AuthResponse.builder()
                     .success(false)
                     .message("네이버 로그인 처리 중 오류가 발생했습니다.")
@@ -267,10 +267,10 @@ public class SocialAuthService {
      */
     private KakaoTokenResponse getKakaoAccessToken(String code) {
         try {
-            log.debug("🔍 카카오 토큰 발급 요청 시작");
+            log.debug("카카오 토큰 발급 요청 시작");
 
-            // 🔥 상세 파라미터 로그 추가
-            log.info("📋 카카오 토큰 요청 파라미터:");
+            // 상세 파라미터 로그 추가
+            log.info("카카오 토큰 요청 파라미터:");
             log.info("  - grant_type: authorization_code");
             log.info("  - client_id: {}", maskSensitiveData(kakaoClientId));
             log.info("  - client_secret: {}", maskSensitiveData(kakaoClientSecret));
@@ -289,15 +289,15 @@ public class SocialAuthService {
 
             HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(params, headers);
 
-            log.info("🚀 카카오 토큰 API 호출: https://kauth.kakao.com/oauth/token");
+            log.info("카카오 토큰 API 호출: https://kauth.kakao.com/oauth/token");
 
             ResponseEntity<KakaoTokenResponse> response = restTemplate.postForEntity(
                     "https://kauth.kakao.com/oauth/token", request, KakaoTokenResponse.class);
 
-            log.info("📥 카카오 토큰 API 응답 - Status: {}", response.getStatusCode());
+            log.info("카카오 토큰 API 응답 - Status: {}", response.getStatusCode());
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                log.debug("✅ 카카오 토큰 발급 성공");
+                log.debug("카카오 토큰 발급 성공");
                 KakaoTokenResponse tokenResponse = response.getBody();
                 log.info("  - access_token: {}...",
                         tokenResponse.getAccessToken() != null ?
@@ -305,15 +305,15 @@ public class SocialAuthService {
                 return tokenResponse;
             }
 
-            log.warn("❌ 카카오 토큰 발급 실패 - HTTP Status: {}", response.getStatusCode());
+            log.warn("카카오 토큰 발급 실패 - HTTP Status: {}", response.getStatusCode());
             return null;
 
         } catch (HttpClientErrorException e) {
-            log.error("💥 카카오 토큰 발급 중 HTTP 오류 - Status: {}, Body: {}",
+            log.error("카카오 토큰 발급 중 HTTP 오류 - Status: {}, Body: {}",
                     e.getStatusCode(), e.getResponseBodyAsString());
             return null;
         } catch (Exception e) {
-            log.error("💥 카카오 토큰 발급 중 오류", e);
+            log.error("카카오 토큰 발급 중 오류", e);
             return null;
         }
     }
@@ -323,10 +323,10 @@ public class SocialAuthService {
      */
     private NaverTokenResponse getNaverAccessToken(String code, String state) {
         try {
-            log.debug("🔍 네이버 토큰 발급 요청 시작");
+            log.debug("네이버 토큰 발급 요청 시작");
 
-            // 🔥 상세 파라미터 로그 추가
-            log.info("📋 네이버 토큰 요청 파라미터:");
+            // 상세 파라미터 로그 추가
+            log.info("네이버 토큰 요청 파라미터:");
             log.info("  - grant_type: authorization_code");
             log.info("  - client_id: {}", maskSensitiveData(naverClientId));
             log.info("  - client_secret: {}", maskSensitiveData(naverClientSecret));
@@ -347,15 +347,15 @@ public class SocialAuthService {
 
             HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(params, headers);
 
-            log.info("🚀 네이버 토큰 API 호출: https://nid.naver.com/oauth2.0/token");
+            log.info("네이버 토큰 API 호출: https://nid.naver.com/oauth2.0/token");
 
             ResponseEntity<NaverTokenResponse> response = restTemplate.postForEntity(
                     "https://nid.naver.com/oauth2.0/token", request, NaverTokenResponse.class);
 
-            log.info("📥 네이버 토큰 API 응답 - Status: {}", response.getStatusCode());
+            log.info("네이버 토큰 API 응답 - Status: {}", response.getStatusCode());
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                log.debug("✅ 네이버 토큰 발급 성공");
+                log.debug("네이버 토큰 발급 성공");
                 NaverTokenResponse tokenResponse = response.getBody();
                 log.info("  - access_token: {}...",
                         tokenResponse.getAccessToken() != null ?
@@ -363,15 +363,15 @@ public class SocialAuthService {
                 return tokenResponse;
             }
 
-            log.warn("❌ 네이버 토큰 발급 실패 - HTTP Status: {}", response.getStatusCode());
+            log.warn("네이버 토큰 발급 실패 - HTTP Status: {}", response.getStatusCode());
             return null;
 
         } catch (HttpClientErrorException e) {
-            log.error("💥 네이버 토큰 발급 중 HTTP 오류 - Status: {}, Body: {}",
+            log.error("네이버 토큰 발급 중 HTTP 오류 - Status: {}, Body: {}",
                     e.getStatusCode(), e.getResponseBodyAsString());
             return null;
         } catch (Exception e) {
-            log.error("💥 네이버 토큰 발급 중 오류", e);
+            log.error("네이버 토큰 발급 중 오류", e);
             return null;
         }
     }
@@ -381,8 +381,8 @@ public class SocialAuthService {
      */
     private KakaoUserResponse getKakaoUserInfo(String accessToken) {
         try {
-            log.debug("🔍 카카오 사용자 정보 조회 시작");
-            log.info("🚀 카카오 사용자 정보 API 호출: https://kapi.kakao.com/v2/user/me");
+            log.debug("카카오 사용자 정보 조회 시작");
+            log.info("카카오 사용자 정보 API 호출: https://kapi.kakao.com/v2/user/me");
             log.info("  - Authorization: Bearer {}...", accessToken.substring(0, Math.min(20, accessToken.length())));
 
             HttpHeaders headers = new HttpHeaders();
@@ -393,22 +393,22 @@ public class SocialAuthService {
             ResponseEntity<KakaoUserResponse> response = restTemplate.exchange(
                     "https://kapi.kakao.com/v2/user/me", HttpMethod.GET, request, KakaoUserResponse.class);
 
-            log.info("📥 카카오 사용자 정보 API 응답 - Status: {}", response.getStatusCode());
+            log.info("카카오 사용자 정보 API 응답 - Status: {}", response.getStatusCode());
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                log.debug("✅ 카카오 사용자 정보 조회 성공");
+                log.debug("카카오 사용자 정보 조회 성공");
                 return response.getBody();
             }
 
-            log.warn("❌ 카카오 사용자 정보 조회 실패 - HTTP Status: {}", response.getStatusCode());
+            log.warn("카카오 사용자 정보 조회 실패 - HTTP Status: {}", response.getStatusCode());
             return null;
 
         } catch (HttpClientErrorException e) {
-            log.error("💥 카카오 사용자 정보 조회 중 HTTP 오류 - Status: {}, Body: {}",
+            log.error("카카오 사용자 정보 조회 중 HTTP 오류 - Status: {}, Body: {}",
                     e.getStatusCode(), e.getResponseBodyAsString());
             return null;
         } catch (Exception e) {
-            log.error("💥 카카오 사용자 정보 조회 중 오류", e);
+            log.error("카카오 사용자 정보 조회 중 오류", e);
             return null;
         }
     }
@@ -418,8 +418,8 @@ public class SocialAuthService {
      */
     private NaverUserResponse getNaverUserInfo(String accessToken) {
         try {
-            log.debug("🔍 네이버 사용자 정보 조회 시작");
-            log.info("🚀 네이버 사용자 정보 API 호출: https://openapi.naver.com/v1/nid/me");
+            log.debug("네이버 사용자 정보 조회 시작");
+            log.info("네이버 사용자 정보 API 호출: https://openapi.naver.com/v1/nid/me");
             log.info("  - Authorization: Bearer {}...", accessToken.substring(0, Math.min(20, accessToken.length())));
 
             HttpHeaders headers = new HttpHeaders();
@@ -430,56 +430,56 @@ public class SocialAuthService {
             ResponseEntity<NaverUserResponse> response = restTemplate.exchange(
                     "https://openapi.naver.com/v1/nid/me", HttpMethod.GET, request, NaverUserResponse.class);
 
-            log.info("📥 네이버 사용자 정보 API 응답 - Status: {}", response.getStatusCode());
+            log.info("네이버 사용자 정보 API 응답 - Status: {}", response.getStatusCode());
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                log.debug("✅ 네이버 사용자 정보 조회 성공");
+                log.debug("네이버 사용자 정보 조회 성공");
                 return response.getBody();
             }
 
-            log.warn("❌ 네이버 사용자 정보 조회 실패 - HTTP Status: {}", response.getStatusCode());
+            log.warn("네이버 사용자 정보 조회 실패 - HTTP Status: {}", response.getStatusCode());
             return null;
 
         } catch (HttpClientErrorException e) {
-            log.error("💥 네이버 사용자 정보 조회 중 HTTP 오류 - Status: {}, Body: {}",
+            log.error("네이버 사용자 정보 조회 중 HTTP 오류 - Status: {}, Body: {}",
                     e.getStatusCode(), e.getResponseBodyAsString());
             return null;
         } catch (Exception e) {
-            log.error("💥 네이버 사용자 정보 조회 중 오류", e);
+            log.error("네이버 사용자 정보 조회 중 오류", e);
             return null;
         }
     }
 
     /**
-     * 🔥 소셜 사용자 생성 또는 업데이트 후 JWT 토큰 발급 (이름 포함)
+     * 소셜 사용자 생성 또는 업데이트 후 JWT 토큰 발급 (이름 포함)
      */
     private AuthResponse processUserCreationOrUpdate(SocialUserInfo socialUser) {
         try {
-            log.info("🔍 소셜 사용자 처리 시작 - provider: {}, socialId: {}, name: '{}', nickname: '{}'",
+            log.info("소셜 사용자 처리 시작 - provider: {}, socialId: {}, name: '{}', nickname: '{}'",
                     socialUser.getProvider(), socialUser.getSocialId(), socialUser.getName(), socialUser.getNickname());
 
             // User Service에 소셜 사용자 정보 전송
             UserDto user = createOrUpdateUserInUserService(socialUser);
 
             if (user == null) {
-                log.error("❌ User Service에서 사용자 생성/업데이트 실패");
+                log.error("User Service에서 사용자 생성/업데이트 실패");
                 return AuthResponse.builder()
                         .success(false)
                         .message("사용자 정보 처리 중 오류가 발생했습니다.")
                         .build();
             }
 
-            log.info("✅ 소셜 사용자 처리 성공 - userId: {}, name: '{}'", user.getUserId(), user.getName());
+            log.info("소셜 사용자 처리 성공 - userId: {}, name: '{}'", user.getUserId(), user.getName());
 
-            // 🔥 실제 이름을 찾아서 토큰에 포함
+            // 실제 이름을 찾아서 토큰에 포함
             String actualName = determineActualName(user, socialUser);
 
-            log.info("🔍 최종 결정된 이름: '{}'", actualName);
+            log.info("최종 결정된 이름: '{}'", actualName);
 
-            // 🔥 이름을 포함하여 JWT 토큰 생성
+            // 이름을 포함하여 JWT 토큰 생성
             String accessToken = jwtUtil.generateToken(user.getUserId(), "USER", actualName);
 
-            log.info("✅ 소셜 로그인 완료 - userId: {}, provider: {}, name: '{}'",
+            log.info("소셜 로그인 완료 - userId: {}, provider: {}, name: '{}'",
                     user.getUserId(), socialUser.getProvider(), actualName);
 
             return AuthResponse.builder()
@@ -488,13 +488,13 @@ public class SocialAuthService {
                     .token(accessToken)
                     .userId(user.getUserId())
                     .username(user.getUserId())
-                    .name(actualName) // 🔥 실제 이름을 응답에도 포함
+                    .name(actualName) // 실제 이름을 응답에도 포함
                     .email(user.getEmail())
                     .phone(user.getPhone())
                     .build();
 
         } catch (Exception e) {
-            log.error("💥 소셜 사용자 처리 중 오류", e);
+            log.error("소셜 사용자 처리 중 오류", e);
             return AuthResponse.builder()
                     .success(false)
                     .message("사용자 정보 처리 중 오류가 발생했습니다.")
@@ -503,10 +503,10 @@ public class SocialAuthService {
     }
 
     /**
-     * 🔥 실제 사용할 이름 결정 (우선순위: DB 이름 → 소셜 이름 → 닉네임)
+     * 실제 사용할 이름 결정 (우선순위: DB 이름 → 소셜 이름 → 닉네임)
      */
     private String determineActualName(UserDto user, SocialUserInfo socialUser) {
-        log.info("🔍 이름 결정 시작 - DB name: '{}', Social name: '{}', Social nickname: '{}'",
+        log.info("이름 결정 시작 - DB name: '{}', Social name: '{}', Social nickname: '{}'",
                 user.getName(), socialUser.getName(), socialUser.getNickname());
 
         // 1. 소셜에서 받은 실제 이름이 있으면 최우선 사용
@@ -516,7 +516,7 @@ public class SocialAuthService {
                     !socialName.equals("사용자") &&
                     !socialName.equals(user.getUserId()) &&
                     socialName.length() >= 2) {
-                log.info("🔍 소셜 실제 이름 사용: '{}'", socialName);
+                log.info("소셜 실제 이름 사용: '{}'", socialName);
                 return socialName;
             }
         }
@@ -528,7 +528,7 @@ public class SocialAuthService {
                     !nickname.equals("사용자") &&
                     !nickname.equals(user.getUserId()) &&
                     nickname.length() >= 2) {
-                log.info("🔍 소셜 닉네임 사용: '{}'", nickname);
+                log.info("소셜 닉네임 사용: '{}'", nickname);
                 return nickname;
             }
         }
@@ -540,7 +540,7 @@ public class SocialAuthService {
                     !dbName.equals("사용자") &&
                     !dbName.equals(user.getUserId()) &&
                     dbName.length() >= 2) {
-                log.info("🔍 DB 이름 사용: '{}'", dbName);
+                log.info("DB 이름 사용: '{}'", dbName);
                 return dbName;
             }
         }
@@ -562,24 +562,22 @@ public class SocialAuthService {
                 providerName = "소셜사용자";
         }
 
-        log.info("🔍 제공업체 기본값 사용: '{}'", providerName);
+        log.info("제공업체 기본값 사용: '{}'", providerName);
         return providerName;
     }
 
     /**
      * User Service에 소셜 사용자 생성/업데이트 요청
      */
-    // SocialAuthService.java의 createOrUpdateUserInUserService 메서드 수정
-
     private UserDto createOrUpdateUserInUserService(SocialUserInfo socialUser) {
         try {
             String url = userServiceUrl + "/api/users/social";
 
-            log.debug("🔍 User Service 소셜 사용자 요청: {}", url);
+            log.debug("User Service 소셜 사용자 요청: {}", url);
 
             // User Service 연결 확인
             if (userServiceUrl == null || userServiceUrl.trim().isEmpty()) {
-                log.error("❌ User Service URL이 설정되지 않았습니다");
+                log.error("User Service URL이 설정되지 않았습니다");
                 return null;
             }
 
@@ -596,41 +594,41 @@ public class SocialAuthService {
             requestBody.put("gender", socialUser.getGender());
             requestBody.put("mobile", socialUser.getMobile());
 
-            log.info("📤 User Service 요청 데이터: provider={}, name='{}', nickname='{}'",
+            log.info("User Service 요청 데이터: provider={}, name='{}', nickname='{}'",
                     socialUser.getProvider(), socialUser.getName(), socialUser.getNickname());
 
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
 
             ResponseEntity<UserDto> response = restTemplate.postForEntity(url, request, UserDto.class);
 
-            log.info("📥 User Service 응답 - Status: {}", response.getStatusCode());
+            log.info("User Service 응답 - Status: {}", response.getStatusCode());
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 UserDto responseUser = response.getBody();
-                log.info("✅ User Service 소셜 사용자 처리 성공 - userId: {}, name: '{}'",
+                log.info("User Service 소셜 사용자 처리 성공 - userId: {}, name: '{}'",
                         responseUser.getUserId(), responseUser.getName());
                 return responseUser;
             } else {
-                log.error("❌ User Service 소셜 사용자 처리 실패 - Status: {}", response.getStatusCode());
+                log.error("User Service 소셜 사용자 처리 실패 - Status: {}", response.getStatusCode());
                 return null;
             }
 
         } catch (org.springframework.web.client.ResourceAccessException e) {
             // 네트워크 연결 오류 (ConnectException 등을 포함)
-            log.error("💥 User Service 연결 실패 - URL: {}, error: {}", userServiceUrl, e.getMessage());
+            log.error("User Service 연결 실패 - URL: {}, error: {}", userServiceUrl, e.getMessage());
 
             // 원인이 ConnectException인지 확인
             Throwable cause = e.getCause();
             if (cause instanceof java.net.ConnectException) {
-                log.error("💥 연결 거부됨 - User Service가 실행 중인지 확인하세요");
+                log.error("연결 거부됨 - User Service가 실행 중인지 확인하세요");
             }
             return null;
         } catch (HttpClientErrorException e) {
-            log.error("💥 User Service 요청 중 HTTP 오류 - Status: {}, Body: {}",
+            log.error("User Service 요청 중 HTTP 오류 - Status: {}, Body: {}",
                     e.getStatusCode(), e.getResponseBodyAsString());
             return null;
         } catch (Exception e) {
-            log.error("💥 User Service 소셜 사용자 요청 중 오류 - type: {}, message: {}",
+            log.error("User Service 소셜 사용자 요청 중 오류 - type: {}, message: {}",
                     e.getClass().getSimpleName(), e.getMessage());
             return null;
         }

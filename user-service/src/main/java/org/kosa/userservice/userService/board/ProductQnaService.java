@@ -100,7 +100,7 @@ public class ProductQnaService {
         }
     }
 
-    // 🔥 Q&A 등록 (구매 인증 포함)
+    //  Q&A 등록 (구매 인증 포함)
     @Transactional
     public String createQna(ProductQnaDto qnaDto) {
         log.info("서비스: createQna 호출됨 - productId: {}, userId: {}, title: {}",
@@ -158,7 +158,7 @@ public class ProductQnaService {
         }
     }
 
-    // 🔥 Q&A 수정
+    //  Q&A 수정
     @Transactional
     public boolean updateQna(ProductQnaDto qnaDto) {
         log.info("서비스: updateQna 호출됨 - qnaId: {}", qnaDto.getQnaId());
@@ -180,7 +180,7 @@ public class ProductQnaService {
         }
     }
 
-    // 🔥 Q&A 삭제
+    // Q&A 삭제
     @Transactional
     public boolean deleteQna(String qnaId) {
         log.info("서비스: deleteQna 호출됨 - qnaId: {}", qnaId);
@@ -199,7 +199,7 @@ public class ProductQnaService {
         }
     }
 
-    // 🔥 회원 정보 조회
+    // 회원 정보 조회
     public String getMemberNameByUserId(String userId) {
         log.info("서비스: getMemberNameByUserId 호출됨 - userId: {}", userId);
 
@@ -213,7 +213,7 @@ public class ProductQnaService {
         }
     }
 
-    // 🔥 구매 인증 확인
+    // 구매 인증 확인
     public boolean verifyPurchase(String userId, Integer productId) {
         log.info("서비스: verifyPurchase 호출됨 - userId: {}, productId: {}", userId, productId);
 
@@ -281,14 +281,14 @@ public class ProductQnaService {
         }
     }
 
-    // 🔥 ID 생성 메서드
+    // ID 생성 메서드
     private String generateQnaId() {
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
         int random = (int) (Math.random() * 1000);
         return "Q" + timestamp + String.format("%03d", random);
     }
 
-    // 🔥 유틸리티 메서드들
+    // 유틸리티 메서드들
     private String booleanToString(boolean value) {
         return value ? "Y" : "N";
     }

@@ -36,11 +36,11 @@ public class JwtAuthorizationGatewayFilterFactory extends AbstractGatewayFilterF
             String path = exchange.getRequest().getURI().getPath();
             HttpMethod method = exchange.getRequest().getMethod();
 
-            log.info("🔍 JWT Authorization Filter - Path: {}, Method: {}", path, method);
+            log.info("JWT Authorization Filter - Path: {}, Method: {}", path, method);
 
             // CORS Preflight 요청은 통과
             if (method == HttpMethod.OPTIONS) {
-                log.info("✅ CORS Preflight request - allowing: {}", path);
+                log.info("CORS Preflight request - allowing: {}", path);
                 return chain.filter(exchange);
             }
 
@@ -48,7 +48,7 @@ public class JwtAuthorizationGatewayFilterFactory extends AbstractGatewayFilterF
             String authHeader = exchange.getRequest().getHeaders().getFirst("Authorization");
 
             if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                log.warn("❌ Missing or invalid Authorization header for path: {} [{}]", path, method);
+                log.warn("Missing or invalid Authorization header for path: {} [{}]", path, method);
                 exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
                 return exchange.getResponse().setComplete();
             }
@@ -70,21 +70,21 @@ public class JwtAuthorizationGatewayFilterFactory extends AbstractGatewayFilterF
                 String userId = subject != null ? subject : username;
 
                 if (userId == null) {
-                    log.error("❌ JWT에서 사용자 식별자를 찾을 수 없음");
+                    log.error("JWT에서 사용자 식별자를 찾을 수 없음");
                     exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
                     return exchange.getResponse().setComplete();
                 }
 
-                log.info("✅ JWT validated - Subject: '{}', Username: '{}', Final UserId: '{}'", subject, username, userId);
+                log.info("JWT validated - Subject: '{}', Username: '{}', Final UserId: '{}'", subject, username, userId);
 
-                // 🔥 X-헤더 생성 제거 - 원본 요청 그대로 전달
+                // X-헤더 생성 제거 - 원본 요청 그대로 전달
                 // 백엔드 서비스들이 각자 JWT 토큰을 파싱하여 사용자 정보 추출
-                log.info("✅ JWT Authorization 성공 - 원본 요청 그대로 전달 (X-헤더 없이): {}", path);
+                log.info(" JWT Authorization 성공 - 원본 요청 그대로 전달 (X-헤더 없이): {}", path);
 
                 return chain.filter(exchange);
 
             } catch (JwtException | IllegalArgumentException e) {
-                log.error("❌ JWT validation failed for path: {}, error: {}", path, e.getMessage());
+                log.error(" JWT validation failed for path: {}, error: {}", path, e.getMessage());
                 exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
                 return exchange.getResponse().setComplete();
             }

@@ -34,7 +34,7 @@ public class JwtUtil {
     }
 
     /**
-     * 🔒 보안 강화된 JWT 토큰 생성 - 이름 포함 가능
+     * 보안 강화된 JWT 토큰 생성 - 이름 포함 가능
      */
     public String generateToken(String userId) {
         return generateToken(userId, "USER", null);
@@ -45,13 +45,13 @@ public class JwtUtil {
     }
 
     /**
-     * 🔥 이름을 포함한 JWT 토큰 생성 (소셜 로그인용)
+     *  이름을 포함한 JWT 토큰 생성 (소셜 로그인용)
      */
     public String generateToken(String userId, String role, String name) {
         Date now = new Date(System.currentTimeMillis());
         Date expiryDate = new Date(now.getTime() + jwtExpiration);
 
-        log.info("🔍 JWT 토큰 생성 - userId: '{}', role: '{}', name: '{}'", userId, role, name);
+        log.info("JWT 토큰 생성 - userId: '{}', role: '{}', name: '{}'", userId, role, name);
 
         try {
             JwtBuilder builder = Jwts.builder()
@@ -63,7 +63,7 @@ public class JwtUtil {
                     .setExpiration(expiryDate)
                     .setIssuer("auth-service"); // 발급자
 
-            // 🔥 이름 처리 로직 개선
+            // 이름 처리 로직 개선
             if (name != null && !name.trim().isEmpty()) {
                 String cleanName = name.trim();
 
@@ -74,20 +74,20 @@ public class JwtUtil {
                         cleanName.length() > 0) {
 
                     builder.claim("name", cleanName);
-                    log.info("✅ 토큰에 이름 포함: '{}'", cleanName);
+                    log.info("토큰에 이름 포함: '{}'", cleanName);
                 } else {
-                    log.info("⚠️ 토큰에 이름 미포함 - 기본값 처리: '{}'", cleanName);
+                    log.info("토큰에 이름 미포함 - 기본값 처리: '{}'", cleanName);
                 }
             } else {
-                log.info("⚠️ 토큰에 이름 미포함 - name이 null 또는 빈 문자열: '{}'", name);
+                log.info("토큰에 이름 미포함 - name이 null 또는 빈 문자열: '{}'", name);
             }
 
             String token = builder.signWith(getSigningKey(), SignatureAlgorithm.HS256).compact();
 
-            // 🔥 생성된 토큰의 내용 확인 (디버깅용)
+            // 생성된 토큰의 내용 확인 (디버깅용)
             try {
                 Claims claims = getAllClaimsFromToken(token);
-                log.info("🔍 생성된 토큰 내용 확인:");
+                log.info(" 생성된 토큰 내용 확인:");
                 log.info("  - subject: {}", claims.getSubject());
                 log.info("  - username: {}", claims.get("username"));
                 log.info("  - name: {}", claims.get("name"));
@@ -104,7 +104,7 @@ public class JwtUtil {
     }
 
     /**
-     * 🔒 리프레시 토큰 생성 (더 긴 만료시간, 최소 정보)
+     * 리프레시 토큰 생성 (더 긴 만료시간, 최소 정보)
      */
     public String generateRefreshToken(String userId) {
         Date now = new Date(System.currentTimeMillis());
@@ -151,7 +151,7 @@ public class JwtUtil {
     }
 
     /**
-     * 🔥 토큰에서 이름 추출
+     * 토큰에서 이름 추출
      */
     public String getNameFromToken(String token) {
         try {
@@ -326,7 +326,7 @@ public class JwtUtil {
     }
 
     /**
-     * 🔒 보안을 위한 토큰 검증 (사용자 정보 포함하지 않음)
+     * 보안을 위한 토큰 검증 (사용자 정보 포함하지 않음)
      */
     public Boolean validateToken(String token) {
         return validateAccessToken(token);

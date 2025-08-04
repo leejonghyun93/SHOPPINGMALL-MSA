@@ -47,7 +47,7 @@ public class GatewaySecurityConfig {
                 .authorizeExchange(exchanges ->
                         exchanges
                                 // ===========================================
-                                // 🔥 SWAGGER UI 관련 (인증 무시)
+                                //  SWAGGER UI 관련 (인증 무시)
                                 // ===========================================
                                 .pathMatchers("/swagger-ui/**").permitAll()
                                 .pathMatchers("/swagger-ui.html").permitAll()

@@ -36,7 +36,7 @@ public class WebSocketEventListener {
                 String token = jwt.substring(7);
                 userId = jwtUtil.validateTokenAndGetUserId(token);
             } catch (JwtException e) {
-                log.warn("❌ WebSocket 연결 시 토큰 오류: {}", e.getMessage());
+                log.warn("WebSocket 연결 시 토큰 오류: {}", e.getMessage());
             }
         }
 
@@ -48,7 +48,7 @@ public class WebSocketEventListener {
             // 세션 추가 (이때 broadcastCountToTopic이 호출되어 기존 유저들한테 알림감)
             sessionManager.addSession(broadcastIdLong, id, sessionId);
 
-            // 🔥 핵심: 새로 연결된 유저에게 현재 참여자 수 즉시 전송
+            // 핵심: 새로 연결된 유저에게 현재 참여자 수 즉시 전송
             int currentCount = sessionManager.getParticipantCount(broadcastIdLong);
             messagingTemplate.convertAndSend("/topic/participants/" + broadcastIdLong, currentCount);
 
@@ -64,6 +64,6 @@ public class WebSocketEventListener {
         // Redis에서 sessionId 기반으로 userId/uuid, broadcastId 조회 후 제거
         sessionManager.removeSessionBySessionId(sessionId);
 
-        log.info("🔴 WebSocket 연결 해제됨: 세션ID={}", sessionId);
+        log.info("WebSocket 연결 해제됨: 세션ID={}", sessionId);
     }
 }

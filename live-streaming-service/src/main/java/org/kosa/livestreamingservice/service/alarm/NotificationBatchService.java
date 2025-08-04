@@ -99,7 +99,7 @@ public class NotificationBatchService {
 
             // 3. 각 알림에 대해 상세 로그
             pendingNotifications.forEach(notification -> {
-                log.info("📧 알림 발송 대상 - ID: {}, 사용자: {}, 방송: {}",
+                log.info(" 알림 발송 대상 - ID: {}, 사용자: {}, 방송: {}",
                         notification.getNotificationId(),
                         notification.getUserId(),
                         notification.getBroadcastId());

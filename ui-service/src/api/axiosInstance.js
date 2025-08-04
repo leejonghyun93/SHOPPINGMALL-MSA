@@ -103,7 +103,7 @@ apiClient.interceptors.request.use(
 
                 // 위시리스트 API일 때 상세 로깅
                 if (config.url.includes('/api/wishlist')) {
-                    console.log('🔍 위시리스트 API 요청:', {
+                    console.log('위시리스트 API 요청:', {
                         url: config.url,
                         method: config.method,
                         hasToken: !!config.headers.Authorization,
@@ -114,7 +114,7 @@ apiClient.interceptors.request.use(
                 }
 
             } catch (error) {
-                console.error('🔍 토큰 처리 에러:', error);
+                console.error('토큰 처리 에러:', error);
                 localStorage.removeItem("jwt")
                 localStorage.removeItem("userId")
             }
@@ -123,7 +123,7 @@ apiClient.interceptors.request.use(
         return config
     },
     (error) => {
-        console.error('🔍 Request Interceptor Error:', error);
+        console.error(' Request Interceptor Error:', error);
         return Promise.reject(error)
     }
 )
@@ -132,7 +132,7 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
     (response) => {
         if (response.config.url.includes('/api/wishlist')) {
-            console.log('🔍 위시리스트 API 응답 성공:', {
+            console.log(' 위시리스트 API 응답 성공:', {
                 url: response.config.url,
                 status: response.status,
                 data: response.data
@@ -144,7 +144,7 @@ apiClient.interceptors.response.use(
         const { config, response, message } = error
 
         if (config?.url?.includes('/api/wishlist')) {
-            console.error('🔍 위시리스트 API 에러:', {
+            console.error('위시리스트 API 에러:', {
                 url: config.url,
                 status: response?.status,
                 statusText: response?.statusText,
@@ -169,7 +169,7 @@ apiClient.interceptors.response.use(
             const { status, data } = response
 
             if (status === 401) {
-                console.log('🔍 401 에러 처리 시작:', {
+                console.log('401 에러 처리 시작:', {
                     url: config?.url,
                     isWishlist: config?.url?.includes('/api/wishlist')
                 });
@@ -228,14 +228,14 @@ apiClient.interceptors.response.use(
 
                 // 위시리스트 API 401 에러 특별 처리
                 if (config?.url?.includes('/api/wishlist')) {
-                    console.error('🔍 위시리스트 401 에러 - 토큰 재확인 필요');
+                    console.error(' 위시리스트 401 에러 - 토큰 재확인 필요');
 
                     const token = localStorage.getItem('jwt');
                     if (token) {
                         try {
                             const cleanToken = token.startsWith('Bearer ') ? token.substring(7) : token;
                             const decoded = jwtDecode(cleanToken);
-                            console.log('🔍 현재 토큰 정보:', {
+                            console.log(' 현재 토큰 정보:', {
                                 sub: decoded.sub,
                                 username: decoded.username,
                                 role: decoded.role,
@@ -243,21 +243,21 @@ apiClient.interceptors.response.use(
                                 isExpired: decoded.exp < Date.now() / 1000
                             });
                         } catch (e) {
-                            console.error('🔍 토큰 파싱 실패:', e);
+                            console.error(' 토큰 파싱 실패:', e);
                         }
                     }
                 }
 
                 // 공개 API에서 401 발생 시 토큰 없이 재시도
                 if (isPublicEndpoint(config?.url, config?.method)) {
-                    console.log('🔍 공개 API 401 - 토큰 없이 재시도');
+                    console.log(' 공개 API 401 - 토큰 없이 재시도');
                     const retryConfig = { ...config }
                     delete retryConfig.headers.Authorization
                     return axios.request(retryConfig)
                 }
 
                 // 일반적인 401 에러 처리 - 소셜 로그인 정보 보존
-                console.log('🔍 일반 401 에러 처리 - 로그아웃 진행');
+                console.log('일반 401 에러 처리 - 로그아웃 진행');
                 const currentLoginType = localStorage.getItem('login_type')
                 const currentSocialProvider = localStorage.getItem('social_provider')
                 const currentSocialName = localStorage.getItem('social_name')

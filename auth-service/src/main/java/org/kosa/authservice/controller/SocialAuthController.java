@@ -37,13 +37,13 @@ public class SocialAuthController {
             @RequestParam(required = false) String error_description,
             HttpServletResponse response) throws IOException {
 
-        log.info("🔍 소셜 로그인 콜백 받음 - code: {}, state: {}, error: {}",
+        log.info(" 소셜 로그인 콜백 받음 - code: {}, state: {}, error: {}",
                 code != null ? "present" : "null", state, error);
 
         try {
             // 에러가 있는 경우 처리
             if (error != null) {
-                log.error("❌ 소셜 로그인 에러 - error: {}, description: {}", error, error_description);
+                log.error(" 소셜 로그인 에러 - error: {}, description: {}", error, error_description);
 
                 String errorMessage = "소셜 로그인 중 오류가 발생했습니다.";
                 if ("access_denied".equals(error)) {
@@ -56,7 +56,7 @@ public class SocialAuthController {
 
             // code가 없는 경우
             if (code == null || code.trim().isEmpty()) {
-                log.error("❌ Authorization code가 없음");
+                log.error("Authorization code가 없음");
                 redirectToFrontendWithError(response, "인증 코드를 받지 못했습니다.");
                 return;
             }
@@ -65,17 +65,17 @@ public class SocialAuthController {
             AuthResponse authResponse = socialAuthService.processSocialLogin(code, state);
 
             if (authResponse.isSuccess()) {
-                log.info("✅ 소셜 로그인 성공 - userId: {}", authResponse.getUserId());
+                log.info("소셜 로그인 성공 - userId: {}", authResponse.getUserId());
 
                 // 성공 시 토큰과 함께 프론트엔드로 리다이렉트
                 redirectToFrontendWithSuccess(response, authResponse.getToken());
             } else {
-                log.error("❌ 소셜 로그인 실패 - message: {}", authResponse.getMessage());
+                log.error("소셜 로그인 실패 - message: {}", authResponse.getMessage());
                 redirectToFrontendWithError(response, authResponse.getMessage());
             }
 
         } catch (Exception e) {
-            log.error("💥 소셜 로그인 콜백 처리 중 예외 발생", e);
+            log.error("소셜 로그인 콜백 처리 중 예외 발생", e);
             redirectToFrontendWithError(response, "로그인 처리 중 오류가 발생했습니다.");
         }
     }
@@ -88,7 +88,7 @@ public class SocialAuthController {
             @RequestParam String code,
             @RequestParam(required = false) String state) {
 
-        log.info("🔍 소셜 로그인 API 호출 - code: {}, state: {}",
+        log.info(" 소셜 로그인 API 호출 - code: {}, state: {}",
                 code != null ? "present" : "null", state);
 
         try {
@@ -103,15 +103,15 @@ public class SocialAuthController {
             AuthResponse authResponse = socialAuthService.processSocialLogin(code, state);
 
             if (authResponse.isSuccess()) {
-                log.info("✅ 소셜 로그인 API 성공 - userId: {}", authResponse.getUserId());
+                log.info(" 소셜 로그인 API 성공 - userId: {}", authResponse.getUserId());
                 return ResponseEntity.ok(authResponse);
             } else {
-                log.warn("⚠️ 소셜 로그인 API 실패 - message: {}", authResponse.getMessage());
+                log.warn("소셜 로그인 API 실패 - message: {}", authResponse.getMessage());
                 return ResponseEntity.badRequest().body(authResponse);
             }
 
         } catch (Exception e) {
-            log.error("💥 소셜 로그인 API 처리 중 예외 발생", e);
+            log.error("소셜 로그인 API 처리 중 예외 발생", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(AuthResponse.builder()
                             .success(false)
@@ -127,14 +127,14 @@ public class SocialAuthController {
         try {
             String encodedToken = URLEncoder.encode(token, StandardCharsets.UTF_8);
 
-            // 🔥 /login으로 리다이렉트 (무한루프 방지)
+            //  /login으로 리다이렉트 (무한루프 방지)
             String redirectUrl = String.format("%s/login?token=%s", frontendUrl, encodedToken);
 
-            log.info("🔄 소셜 로그인 성공 리다이렉트: {}", frontendUrl + "/login?token=***");
+            log.info(" 소셜 로그인 성공 리다이렉트: {}", frontendUrl + "/login?token=***");
             response.sendRedirect(redirectUrl);
 
         } catch (Exception e) {
-            log.error("💥 성공 리다이렉트 처리 중 오류", e);
+            log.error(" 성공 리다이렉트 처리 중 오류", e);
             // 에러 시 단순히 /login으로
             response.sendRedirect(frontendUrl + "/login");
         }
@@ -148,14 +148,14 @@ public class SocialAuthController {
         try {
             String encodedError = URLEncoder.encode(errorMessage, StandardCharsets.UTF_8);
 
-            // 🔥 /login으로 에러와 함께 리다이렉트
+            //  /login으로 에러와 함께 리다이렉트
             String redirectUrl = String.format("%s/login?error=%s", frontendUrl, encodedError);
 
-            log.info("🔄 소셜 로그인 실패 리다이렉트: {}", frontendUrl + "/login?error=***");
+            log.info(" 소셜 로그인 실패 리다이렉트: {}", frontendUrl + "/login?error=***");
             response.sendRedirect(redirectUrl);
 
         } catch (Exception e) {
-            log.error("💥 실패 리다이렉트 처리 중 오류", e);
+            log.error("실패 리다이렉트 처리 중 오류", e);
             response.sendRedirect(frontendUrl + "/login");
         }
     }
@@ -164,12 +164,12 @@ public class SocialAuthController {
      */
     @GetMapping("/social/config")
     public ResponseEntity<?> getSocialConfig() {
-        log.debug("🔍 소셜 로그인 설정 확인 요청");
+        log.debug(" 소셜 로그인 설정 확인 요청");
 
         try {
             return ResponseEntity.ok("소셜 로그인 설정 확인 완료");
         } catch (Exception e) {
-            log.error("💥 소셜 로그인 설정 확인 중 오류", e);
+            log.error("소셜 로그인 설정 확인 중 오류", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("설정 확인 중 오류가 발생했습니다.");
         }
