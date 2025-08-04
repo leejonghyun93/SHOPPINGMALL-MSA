@@ -2,7 +2,6 @@ package org.kosa.livestreamingservice;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.kosa.livestreamingservice.controller.MetricsController;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
@@ -16,7 +15,7 @@ public class ChatSessionManager {
 
     private final RedisTemplate<String, String> redisTemplate;
     private final SimpMessagingTemplate messagingTemplate;
-    private final MetricsController metricsController;
+
     // Redis 참여자 SET 키
     private String getKey(Long broadcastId) {
         return "chat:participants:" + broadcastId;
@@ -83,14 +82,7 @@ public class ChatSessionManager {
         // 1. STOMP로 브로드캐스트
         messagingTemplate.convertAndSend("/topic/participants/" + broadcastId, count);
 
-        // 2. 메트릭 업데이트 추가
-        try {
-            if (metricsController != null) {
-                metricsController.updateChatParticipants(String.valueOf(broadcastId), count);
-            }
-        } catch (Exception e) {
-            log.warn("메트릭 업데이트 실패: {}", e.getMessage());
-        }
+        
 
         log.debug("참여자 수 브로드캐스트: 방송ID={}, 참여자수={}", broadcastId, count);
     }

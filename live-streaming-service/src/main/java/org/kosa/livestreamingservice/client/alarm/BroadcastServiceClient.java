@@ -181,59 +181,8 @@ public class BroadcastServiceClient {
         }
     }
 
-    /**
-     * 특정 broadcaster_id의 방송 목록 조회
-     */
-    public List<BroadcastInfo> getBroadcastsByBroadcasterId(String broadcasterId) {
-        try {
-            List<BroadcastEntity> broadcasts =
-                    broadcastRepository.findByBroadcasterIdOrderByScheduledStartTimeDesc(broadcasterId);
 
-            String broadcasterUserId = getBroadcasterUserId(broadcasterId);
-            String broadcasterName = getBroadcasterName(broadcasterUserId, broadcasterId);
 
-            return broadcasts.stream()
-                    .map(broadcast -> BroadcastInfo.builder()
-                            .broadcastId(broadcast.getBroadcastId())
-                            .title(broadcast.getTitle())
-                            .hostUserId(broadcasterUserId)
-                            .broadcasterName(broadcasterName)
-                            .scheduledStartTime(broadcast.getScheduledStartTime())
-                            .broadcasterId(broadcasterId) // String으로 변경
-                            .build())
-                    .collect(Collectors.toList());
-
-        } catch (Exception e) {
-            log.error("방송자별 방송 목록 조회 실패: broadcasterId={}", broadcasterId, e);
-            return new ArrayList<>();
-        }
-    }
-
-    /**
-     * 방송 존재 여부 확인
-     */
-    public boolean existsBroadcast(Long broadcastId) {
-        try {
-            return broadcastRepository.existsById(broadcastId);
-        } catch (Exception e) {
-            log.error("방송 존재 여부 확인 실패: broadcastId={}", broadcastId, e);
-            return false;
-        }
-    }
-
-    /**
-     * 방송 상태 확인
-     */
-    public String getBroadcastStatus(Long broadcastId) {
-        try {
-            return broadcastRepository.findById(broadcastId)
-                    .map(BroadcastEntity::getBroadcastStatus)
-                    .orElse("unknown");
-        } catch (Exception e) {
-            log.error("방송 상태 확인 실패: broadcastId={}", broadcastId, e);
-            return "unknown";
-        }
-    }
 
     /**
      * 방송 정보 DTO

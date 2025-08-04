@@ -4,7 +4,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.kosa.livestreamingservice.client.alarm.UserServiceClient;
 import org.kosa.livestreamingservice.dto.alarm.NotificationMessageDto;
-import org.kosa.livestreamingservice.dto.alarm.NotificationResponseDto;
 import org.kosa.livestreamingservice.entity.alarm.LiveBroadcastNotification;
 import org.kosa.livestreamingservice.repository.alarm.LiveBroadcastNotificationRepository;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -22,8 +21,7 @@ public class KafkaNotificationConsumer {
     private final EmailService emailService;
     private final LiveBroadcastNotificationRepository notificationRepository;
     private final UserServiceClient userServiceClient;
-    private final WebSocketNotificationService webSocketService;
-    private final NotificationService notificationService;
+
     /**
      * 카프카에서 알림 메시지 수신 및 처리
      */
@@ -48,11 +46,8 @@ public class KafkaNotificationConsumer {
             // 3. 발송 완료 처리
             markNotificationAsSent(message.getNotificationId());
 
-            // 4. 실시간 WebSocket 알림 전송
-            sendRealTimeNotification(message);
-
-            log.info("알림 처리 완료: notificationId={}, email={}",
-                    message.getNotificationId(), userEmail);
+            log.info("알림 처리 완료: notificationId={}, email={}***",
+                    message.getNotificationId(), userEmail.substring(0, Math.min(3, userEmail.length())));
 
         } catch (Exception e) {
             log.error("알림 처리 실패: notificationId={}, error={}",
@@ -105,81 +100,5 @@ public class KafkaNotificationConsumer {
             log.error("알림 발송 완료 처리 실패: notificationId={}, error={}",
                     notificationId, e.getMessage(), e);
         }
-    }
-
-    /**
-     * 알림 발송 실패 처리
-     */
-    private void markNotificationAsFailed(Long notificationId, String errorMessage) {
-        try {
-            // 실패 정보 업데이트 (별도 메서드 필요)
-            updateNotificationFailure(notificationId, errorMessage);
-
-        } catch (Exception e) {
-            log.error("알림 실패 처리 중 오류: notificationId={}, error={}",
-                    notificationId, e.getMessage(), e);
-        }
-    }
-
-    /**
-     * 알림 실패 정보 업데이트
-     */
-    private void updateNotificationFailure(Long notificationId, String errorMessage) {
-        // Repository에 실패 처리 메서드 추가 필요
-        // 또는 별도의 실패 로그 테이블에 저장
-        log.warn("알림 실패 기록: notificationId={}, error={}", notificationId, errorMessage);
-    }
-
-
-    /**
-     * 실시간 WebSocket 알림 전송
-     */
-    private void sendRealTimeNotification(NotificationMessageDto message) {
-        try {
-            // 알림 정보 조회
-            LiveBroadcastNotification notification = notificationRepository
-                    .findById(message.getNotificationId())
-                    .orElse(null);
-
-            if (notification != null) {
-                NotificationResponseDto responseDto = convertToResponseDto(notification);
-
-                // 개별 사용자에게 실시간 알림
-                webSocketService.sendNotificationToUser(message.getUserId(), responseDto);
-
-                // 방송 구독자들에게도 실시간 알림 (필요시)
-                if ("BROADCAST_START".equals(message.getType())) {
-                    webSocketService.sendBroadcastNotification(message.getBroadcastId(), responseDto);
-                }
-
-                // 읽지 않은 알림 개수 업데이트
-                long unreadCount = notificationService.getUnreadCount(message.getUserId());
-                webSocketService.sendUnreadCountUpdate(message.getUserId(), unreadCount);
-            }
-
-        } catch (Exception e) {
-            log.error("실시간 알림 전송 실패: notificationId={}, error={}",
-                    message.getNotificationId(), e.getMessage(), e);
-        }
-    }
-    /**
-     * Entity를 ResponseDto로 변환 (추가된 메서드)
-     */
-    private NotificationResponseDto convertToResponseDto(LiveBroadcastNotification notification) {
-        return NotificationResponseDto.builder()
-                .notificationId(notification.getNotificationId())
-                .broadcastId(notification.getBroadcastId())
-                .userId(notification.getUserId())
-                .type(notification.getType())
-                .title(notification.getTitle())
-                .message(notification.getMessage())
-                .priority(notification.getPriority())
-                .isSent(notification.getIsSent())
-                .sentAt(notification.getSentAt())
-                .isRead(notification.getIsRead())
-                .readAt(notification.getReadAt())
-                .createdAt(notification.getCreatedAt())
-
-                .build();
     }
 }

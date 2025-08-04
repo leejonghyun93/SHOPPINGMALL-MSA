@@ -145,8 +145,10 @@ public class BroadcastController {
         log.info("카테고리별 방송 목록 조회 - categoryId: {}, status: {}", categoryId, broadcast_status);
 
         try {
-            List<BroadcastDto.Response> broadcasts = broadcastService.getBroadcastsByCategory(
-                    categoryId, broadcast_status, limit);
+            // 기존 getBroadcastsByCategory() 대신 getLiveBroadcasts() 사용
+            Integer isPublic = 1; // 공개 방송만 조회
+            List<BroadcastDto.Response> broadcasts = broadcastService.getLiveBroadcasts(
+                    broadcast_status, isPublic, categoryId, limit);
 
             return ResponseEntity.ok(broadcasts);
 
@@ -364,5 +366,4 @@ public class BroadcastController {
             return ResponseEntity.internalServerError().build();
         }
     }
-
 }

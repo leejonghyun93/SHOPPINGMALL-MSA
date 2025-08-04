@@ -38,12 +38,6 @@ public class UserEmailService {
         }
     }
 
-    public String getUserEmailFallback(String userId, Exception ex) {
-        log.warn(" User Service 장애 - 이메일 조회 실패: userId={}, error={}",
-                userId, ex.getMessage());
-        return null;  // 이메일 발송 스킵
-    }
-
     private String maskEmail(String email) {
         if (email == null || !email.contains("@")) return email;
         String[] parts = email.split("@");

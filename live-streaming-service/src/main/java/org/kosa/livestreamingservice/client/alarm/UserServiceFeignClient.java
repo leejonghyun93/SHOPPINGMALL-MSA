@@ -15,9 +15,9 @@ public interface UserServiceFeignClient {
     @GetMapping("/api/users/{userId}")
     UserServiceClient.UserInfoResponse getUserInfo(@PathVariable("userId") String userId);
 
-    @GetMapping("/api/users/{userId}/exists")
-    UserServiceClient.UserExistsResponse existsUser(@PathVariable("userId") String userId);
-
-    @PostMapping("/api/users/batch")
-    UserServiceClient.UserInfoBatchResponse getUserInfoBatch(@RequestBody UserServiceClient.UserIdListRequest request);
+//    @GetMapping("/api/users/{userId}/exists")
+//    UserServiceClient.UserExistsResponse existsUser(@PathVariable("userId") String userId);
+//
+//    @PostMapping("/api/users/batch")
+//    UserServiceClient.UserInfoBatchResponse getUserInfoBatch(@RequestBody UserServiceClient.UserIdListRequest request);
 }

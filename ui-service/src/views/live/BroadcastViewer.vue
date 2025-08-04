@@ -84,9 +84,9 @@
                 style="cursor: pointer;"
             >
               <!-- 할인 배지 -->
-              <div v-if="product.getDiscountPercent() > 0" class="product-badge">
-                {{ product.getDiscountPercent() }}%
-              </div>
+<!--              <div v-if="product.getDiscountPercent() > 0" class="product-badge">-->
+<!--                {{ product.getDiscountPercent() }}%-->
+<!--              </div>-->
 
               <!-- 상품 정보 - selectProduct 함수 제거하고 전체 클릭으로 상세페이지 이동 -->
               <div class="product-info">
@@ -176,7 +176,7 @@ const goToProductDetail = (product) => {
   console.log('상품 상세페이지로 이동:', product.productId)
 
   try {
-    // ✅ 게이트웨이가 자동으로 커머스 서비스로 라우팅
+    // 게이트웨이가 자동으로 커머스 서비스로 라우팅
     router.push(`/product/${product.productId}`)
   } catch (error) {
     console.error('라우터 이동 실패:', error)
