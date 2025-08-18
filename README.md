@@ -218,44 +218,13 @@
 ### 로컬 개발 환경
 
 #### Frontend 실행
-# 소셜 로그인 설정
-oauth:
-kakao:
-client-id: your-kakao-client-id
-client-secret: your-kakao-client-secret
-redirect-uri: http://localhost:8080/auth/kakao/callback
-naver:
-client-id: your-naver-client-id
-client-secret: your-naver-client-secret
-redirect-uri: http://localhost:8080/auth/naver/callback
 
-# Eureka Server 설정
-eureka:
-server:
-enable-self-preservation: false
-peer-eureka-nodes-update-interval-ms: 60000
-client:
-register-with-eureka: false
-fetch-registry: false
 
-# MyBatis 설정
-mybatis:
-mapper-locations: classpath:mappers/*.xml
-type-aliases-package: com.trimarket.dto
-configuration:
-map-underscore-to-camel-case: true
 ```bash
 # 의존성 설치
 cd ui-service
 npm install
 
-# 환경 변수 설정
-cat > .env.local << EOF
-VITE_API_URL=http://localhost:8080
-VITE_WS_URL=ws://localhost:8080/ws
-VITE_KAKAO_CLIENT_ID=your-kakao-client-id
-VITE_NAVER_CLIENT_ID=your-naver-client-id
-EOF
 
 # 개발 서버 실행
 npm run dev
@@ -350,7 +319,6 @@ PROD_NOTIFICATION_FROM_EMAIL
 
 ### Production 환경
 - **서버**: AWS EC2 (Amazon Linux 2)
-- **도메인**: http://13.209.253.241
 - **컨테이너**: Docker Compose 기반 멀티 컨테이너
 - **로드밸런서**: Nginx Reverse Proxy
 - **모니터링**: Prometheus + Grafana
